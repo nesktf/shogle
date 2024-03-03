@@ -31,7 +31,7 @@ bool init(size_t w_width, size_t w_height, const char* w_name) {
 
   // Viewport things
   glViewport(0, 0, w_width, w_height); // 1,2 -> Location in window. 3,4 -> Size
-  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // lock mouse
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // lock mouse
   logger::debug("[GLFW] Initialized - OpenGL {}.{}", GL_MAJOR, GL_MINOR);
   return true;
 }
