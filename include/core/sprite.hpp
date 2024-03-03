@@ -7,8 +7,11 @@ namespace ntf::shogle {
 
 class Sprite : public GameObject {
 public:
-  std::reference_wrapper<Texture> texture;
+  Sprite(const Texture& texture);
+  void draw(Shader& shader) override;
 
+public:
+  std::reference_wrapper<const Texture> texture;
 };
 
 }

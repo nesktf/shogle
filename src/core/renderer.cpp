@@ -1,6 +1,8 @@
 #include "core/renderer.hpp"
 #include "core/model.hpp"
 #include "core/sprite.hpp"
+#include "core/logger.hpp"
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace ntf::shogle {
 
@@ -8,9 +10,9 @@ Renderer::Renderer() {
   // Create sprite renderer (quad)
   float quad_vert[] = {
     -0.5f, -0.5f, 0.0f, 0.0f,
-    0.5f, -0.5f, 1.0f, 0.0f,
-    0.5f, 0.5f, 1.0f, 1.0f,
-    -0.5f, 0.5f, 0.0f, 1.0f
+     0.5f, -0.5f, 1.0f, 0.0f,
+     0.5f,  0.5f, 1.0f, 1.0f,
+    -0.5f,  0.5f, 0.0f, 1.0f
   };
   GLuint quad_ind[] = {
     0, 1, 2,
@@ -27,15 +29,25 @@ Renderer::Renderer() {
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->q_EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_ind), quad_ind, GL_STATIC_DRAW);
 
-  // Sprites need a vec4f with 2d coords and tex coords
+  // Sprite shader needs a vec4f with 2d coords and tex coords
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
   glBindVertexArray(0);
 
+  this->pproj_m   = glm::mat4(1.0f);
+  this->oproj_m   = glm::mat4(1.0f);
+  this->view_pos  = glm::vec3(0.0f);
+  this->dir_vec   = glm::vec3{0.0f, 0.0f, -1.0f};
+  this->up_vec    = glm::vec3{0.0f, 1.0f, 0.0f};
+  
+  logger::debug("[Renderer] Initialized");
 }
 
-template<>
-void Renderer::draw(Shader& shader, Model& obj) {
+Renderer::~Renderer() {
+  logger::debug("[Renderer] Terminated");
+}
+
+void Renderer::draw(Shader& shader, Model& obj) const {
   shader.set_mat4("proj", pproj_m);
   shader.set_mat4("view", view_m);
   shader.set_vec3("view_pos", view_pos);
@@ -56,8 +68,7 @@ void Renderer::draw(Shader& shader, Model& obj) {
 
 }
 
-template<>
-void Renderer::draw(Shader& shader, Sprite& obj) {
+void Renderer::draw(Shader& shader, Sprite& obj) const {
   shader.set_mat4("proj", oproj_m);
   shader.set_mat4("model", obj.model_m);
   
@@ -70,5 +81,33 @@ void Renderer::draw(Shader& shader, Sprite& obj) {
   glBindVertexArray(0);
 }
 
+void Renderer::update_proj_m(size_t width, size_t height) {
+  this->pproj_m = glm::perspective(glm::radians(this->fov), (float)width/(float)height, 0.1f, 100.0f);
+  this->oproj_m = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+}
+
+void Renderer::update_view_m(float yaw, float pitch) {
+  this->dir_vec = glm::normalize(glm::vec3{
+    glm::cos(glm::radians(yaw)) * glm::cos(glm::radians(pitch)),
+    glm::sin(glm::radians(pitch)),
+    glm::sin(glm::radians(yaw)) * glm::cos(glm::radians(pitch))
+  });
+
+  this->view_m = glm::lookAt(
+    this->view_pos,
+    this->view_pos + this->dir_vec,
+    this->up_vec
+  );
+}
+
+void Renderer::update_view_m(const glm::vec3& vec) {
+  this->dir_vec = vec; // Assume normalized input
+
+  this->view_m = glm::lookAt(
+    this->view_pos,
+    this->view_pos + this->dir_vec,
+    this->up_vec
+  );
+}
 
 }

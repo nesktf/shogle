@@ -4,45 +4,60 @@
 #define GL_MAJOR 3
 #define GL_MINOR 3
 
-namespace ntf::shogle {
+namespace ntf::shogle::window {
 
-GLFWwindow* glfw_init(size_t w_width, size_t w_height, const char* w_name) {
+GLFWwindow* window;
+
+bool init(size_t w_width, size_t w_height, const char* w_name) {
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, GL_MAJOR);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, GL_MINOR);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  GLFWwindow* win;
-  if ((win = glfwCreateWindow(w_width, w_height, w_name, NULL, NULL)) == nullptr) {
+  if ((window = glfwCreateWindow(w_width, w_height, w_name, NULL, NULL)) == nullptr) {
     logger::error("[GLFW] Failed to create window");
     glfwTerminate();
-    return nullptr;
+    return false;
   }
-  glfwMakeContextCurrent(win); 
+  glfwMakeContextCurrent(window); 
   glfwSwapInterval(1); //Vsync
 
   // Load opengl function pointers to glfwGetProcAddress
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
     logger::error("[GLFW] Failed to initalize GLAD");
-    glfwDestroyWindow(win);
-    glfwTerminate();
-    return nullptr;
+    glfwDestroyWindow(window); glfwTerminate();
+    return false;
   }
 
   // Viewport things
   glViewport(0, 0, w_width, w_height); // 1,2 -> Location in window. 3,4 -> Size
-  glfwSetFramebufferSizeCallback(win, [](GLFWwindow* win, int w, int h) {
-    glViewport(0, 0, w, h);
-  });
-
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // lock mouse
   logger::debug("[GLFW] Initialized - OpenGL {}.{}", GL_MAJOR, GL_MINOR);
-  return win;
+  return true;
 }
 
-void glfw_destroy(GLFWwindow* win) {
-  glfwDestroyWindow(win);
+void destroy(void) {
+  glfwDestroyWindow(window);
   glfwTerminate();
   logger::debug("[GLFW] Terminated");
+}
+
+void set_close(void) {
+  glfwSetWindowShouldClose(window, true);
+  logger::verbose("[GLFW] Window set should close");
+}
+
+void swap_buffer(void) {
+  glfwSwapBuffers(window);
+}
+
+bool should_close(void) {
+  return glfwWindowShouldClose(window);
+}
+
+void set_fb_callback(GLFWframebuffersizefun callback) {
+  glfwSetFramebufferSizeCallback(window, callback);
+  logger::verbose("[GLFW] FramebufferSize Callback modified");
 }
 
 }

@@ -5,16 +5,15 @@
 
 namespace ntf::shogle {
 
+typedef std::pair<std::reference_wrapper<Shader>, GameObject*> ObjPair;
+
 class Scene {
 public:
-  Scene();
   virtual ~Scene();
 
   virtual void update(float delta_time) = 0;
-  virtual void draw(const Renderer& renderer);
+  virtual void draw(void) = 0;
 
-protected:
-  std::unordered_map<unsigned int, GameObject*> objs;
 };
 
 }
