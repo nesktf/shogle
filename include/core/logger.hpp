@@ -45,7 +45,7 @@ inline void log(LogLevel level, const std::string& prefix, const std::string& co
 
 template <typename... Args>
 inline void fatal(fmt::format_string<Args...> format, Args&&... args) {
-  log(LogLevel::LOG_INFO, "ERROR", ERROR_COLOR, format, std::forward<Args>(args)...);
+  log(LogLevel::LOG_INFO, "FATAL", ERROR_COLOR, format, std::forward<Args>(args)...);
   std::exit(1);
 }
 

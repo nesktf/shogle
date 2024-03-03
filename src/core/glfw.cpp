@@ -6,7 +6,7 @@
 
 namespace ntf::shogle {
 
-GLFWwindow* glfw_init(unsigned int w_width, unsigned int w_height, const char* w_name) {
+GLFWwindow* glfw_init(size_t w_width, size_t w_height, const char* w_name) {
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, GL_MAJOR);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, GL_MINOR);
