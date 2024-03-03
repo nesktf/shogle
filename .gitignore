@@ -1,3 +1,4 @@
 build*
-res*
+res/
+misc/
 imgui.ini
