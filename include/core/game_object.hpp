@@ -13,7 +13,7 @@ public:
   virtual void update(float delta_time) = 0;
   virtual void draw(Shader& shader) = 0;
 
-  glm::vec3 pos_v, scale_v, rot_v;
+public:
   glm::mat4 model_m;
 };
 

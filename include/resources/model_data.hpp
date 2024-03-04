@@ -1,26 +1,22 @@
 #pragma once
 
-#include "glad/glad.h"
+#include "resources/texture_data.hpp"
 #include "glm/glm.hpp"
 #include <assimp/scene.h>
 #include <vector>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 struct ModelData {
   struct Vertex {
-    glm::vec3 coord;
-    glm::vec3 normal;
+    glm::vec3 ver_coord;
+    glm::vec3 ver_norm;
     glm::vec2 tex_coord;
-  };
-  struct MeshTexture {
-    std::string name;
-    aiTextureType type;
   };
   struct MeshData {
     std::vector<Vertex> vert;
     std::vector<GLuint> ind;
-    std::vector<MeshTexture> tex;
+    std::vector<TextureData> tex;
   };
 
   ModelData(const char* path);
