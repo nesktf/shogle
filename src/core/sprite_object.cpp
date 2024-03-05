@@ -1,10 +1,10 @@
-#include "core/sprite.hpp"
+#include "core/sprite_object.hpp"
 #include "core/renderer.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace ntf::shogle {
 
-void Sprite::update_model_m(void) {
+void SpriteObject::update(float) {
   glm::mat4 mat{1.0f};
 
   mat = glm::translate(mat, this->pos_v);
@@ -14,7 +14,7 @@ void Sprite::update_model_m(void) {
   this->model_m = mat;
 }
 
-void Sprite::draw(Shader& shader) {
+void SpriteObject::draw(Shader& shader) const {
   Renderer::instance().draw(shader, *this);
 }
 

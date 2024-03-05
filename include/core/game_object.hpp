@@ -8,10 +8,11 @@ namespace ntf::shogle {
 
 class GameObject {
 public:
-  virtual ~GameObject() {}
+  virtual ~GameObject() = default;
 
-  virtual void update(float delta_time) = 0;
-  virtual void draw(Shader& shader) = 0;
+public:
+  virtual void update(float dt) = 0;
+  virtual void draw(Shader& shader) const = 0;
 
 public:
   glm::mat4 model_m;

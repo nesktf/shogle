@@ -1,6 +1,6 @@
 #include "core/renderer.hpp"
-#include "core/model.hpp"
-#include "core/sprite.hpp"
+#include "core/model_object.hpp"
+#include "core/sprite_object.hpp"
 #include "core/logger.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -9,6 +9,7 @@ namespace ntf::shogle {
 Renderer::Renderer() {
   // Create sprite renderer (quad)
   float quad_vert[] = {
+    // coord      // tex_coord
     -0.5f, -0.5f, 0.0f, 0.0f,
      0.5f, -0.5f, 1.0f, 0.0f,
      0.5f,  0.5f, 1.0f, 1.0f,
@@ -33,6 +34,7 @@ Renderer::Renderer() {
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
   glBindVertexArray(0);
+  logger::verbose("[Renderer] Created sprite VAO (id: {})", this->q_VAO);
 
   this->pproj_m   = glm::mat4(1.0f);
   this->oproj_m   = glm::mat4(1.0f);
@@ -44,31 +46,39 @@ Renderer::Renderer() {
 }
 
 Renderer::~Renderer() {
+  GLint vao = this->q_VAO;
+  glBindVertexArray(this->q_VAO);
+  glDisableVertexAttribArray(0);
+  glBindVertexArray(0);
+  glDeleteVertexArrays(1, &this->q_VAO);
+  glDeleteBuffers(1, &this->q_EBO);
+  glDeleteBuffers(1, &this->q_VBO);
+  logger::verbose("[Renderer] Deleted sprite VAO (id: {})", vao);
+
   logger::debug("[Renderer] Terminated");
 }
 
-void Renderer::draw(Shader& shader, Model& obj) const {
+void Renderer::draw(Shader& shader, const ModelObject& obj) const {
   shader.set_mat4("proj", pproj_m);
   shader.set_mat4("view", view_m);
   shader.set_vec3("view_pos", view_pos);
   shader.set_mat4("model", obj.model_m);
 
-  for (auto& vao : obj.vaos) {
+  for (const auto& mesh : obj.model.get().meshes) {
     size_t diff_n = 1;
     size_t spec_n = 1;
-    for (size_t i = 0; i < vao.tex.size(); ++i) {
-      auto& tex = vao.tex[i];
+    for (size_t i = 0; i < mesh.tex.size(); ++i) {
+      const auto& tex = mesh.tex[i];
       tex.bind_material(shader, tex.type() == aiTextureType_DIFFUSE ? diff_n++ : spec_n++, i);
     }
 
-    glBindVertexArray(vao.id());
-    glDrawElements(GL_TRIANGLES, vao.ind(), GL_UNSIGNED_INT, 0);
+    glBindVertexArray(mesh.id());
+    glDrawElements(GL_TRIANGLES, mesh.ind(), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
   }
-
 }
 
-void Renderer::draw(Shader& shader, Sprite& obj) const {
+void Renderer::draw(Shader& shader, const SpriteObject& obj) const {
   shader.set_mat4("proj", oproj_m);
   shader.set_mat4("model", obj.model_m);
   

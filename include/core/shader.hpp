@@ -6,14 +6,22 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+#include <memory>
 
 namespace ntf::shogle {
 
 class Shader {
 public:
-  Shader(const ShaderData* data);
+  Shader(std::unique_ptr<ShaderData> data);
   ~Shader();
 
+  Shader(Shader&&) = default;
+  Shader& operator=(Shader&&) = default;
+
+  Shader(const Shader&) = delete;
+  Shader& operator=(const Shader&) = delete;
+
+public:
   void set_int(const char* name, int value);
   void set_float(const char* name, float value);
   void set_vec2(const char* name, const glm::vec2& vec);
@@ -24,7 +32,8 @@ public:
 private:
   void use(void);
 
-  GLuint vert, frag, prog;
+private:
+  GLuint prog;
 };
 
 }

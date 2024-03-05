@@ -2,35 +2,42 @@
 
 namespace ntf::shogle {
 
+void Scene::ResourceProvider::setup_modeldata(ResourceMap&& map) {
+  this->res_c += map.size();
+}
+
+void Scene::ResourceProvider::setup_texturedata(ResourceMap&& map) {
+  this->res_c += map.size();
+}
+
+void Scene::ResourceProvider::setup_shaderdata(ResourceMap&& map) {
+  this->res_c += map.size();
+}
+
 Scene::~Scene() {
+  delete state;
 }
 
-void Scene::setup_modeldata(ResourceMap&& map) {
-
+Scene::Scene(Scene::State* load_state, Scene::ResourceProvider* provider) {
+  this->state = load_state;
+  this->provider = provider;
 }
 
-void Scene::setup_texturedata(ResourceMap&& map) {
+void Scene::update(float delta_time) {
+  if (provider && provider->is_loaded()) {
+    provider->on_load(this);
+    delete provider;
+    provider = nullptr;
+  }
 
+  state->on_update(delta_time, this);
 }
 
-void Scene::setup_shaderdata(ResourceMap&& map) {
-
+void Scene::draw(void) {
+  state->on_draw(this);
 }
 
-void Scene::init_models(void) {
-
-}
-
-void Scene::init_textures(void) {
-
-}
-
-void Scene::init_shaders(void) {
-
-}
-
-bool Scene::is_loaded(void) const {
-  return model_flag && texture_flag && shader_flag;
+void Scene::set_state(Scene::State* new_state) {
 }
 
 }

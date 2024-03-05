@@ -24,43 +24,56 @@ class Scene {
 public:
   class State {
   public:
-    virtual ~State() {}
+    virtual ~State() = default;
 
-    virtual void on_update(float delta_time) = 0;
-    virtual void on_draw(void) = 0;
-    virtual void on_transition(void) = 0;
+    virtual void on_update(float delta_time, Scene* scene) = 0;
+    virtual void on_draw(Scene* scene) = 0;
   };
-  friend class State;
+
+  class ResourceProvider {
+  public:
+    virtual ~ResourceProvider() = default;
+    virtual void on_load(Scene* scene) = 0;
+
+    bool is_loaded(void) { return this->load_c == this->res_c; }
+
+  protected:
+    void setup_modeldata(ResourceMap&& map);
+    void setup_texturedata(ResourceMap&& map);
+    void setup_shaderdata(ResourceMap&& map);
+
+  private:
+    std::unordered_map<std::string, std::unique_ptr<ModelData>> model_data;
+    std::unordered_map<std::string, std::unique_ptr<TextureData>> texture_data;
+    std::unordered_map<std::string, std::unique_ptr<Shader>> shader_data;
+    size_t load_c;
+    size_t res_c;
+  };
 
   virtual ~Scene();
 
-  virtual void update(float delta_time) = 0;
-  virtual void draw(void) = 0;
-
-protected:
-  void setup_modeldata(ResourceMap&& map);
-  void setup_texturedata(ResourceMap&& map);
-  void setup_shaderdata(ResourceMap&& map);
-
-  void init_models(void);
-  void init_textures(void);
-  void init_shaders(void);
-
-  std::unordered_map<std::string, std::unique_ptr<Model>> models;
-  std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
-  std::unordered_map<std::string, std::unique_ptr<Shader>> shaders;
-
-  bool is_loaded(void) const;
+  void update(float delta_time);
+  void draw(void);
 
   void set_state(Scene::State* new_state);
 
+  ModelMap models;
+  TextureMap textures;
+  ShaderMap shaders;
+
+protected:
+  Scene(Scene::State* load_state, Scene::ResourceProvider* provider);
+
+  ResourceProvider* provider;
   Scene::State* state;
 
-private:
-  std::unordered_map<std::string, ModelData*> model_data;
-  std::unordered_map<std::string, TextureData*> texture_data;
-  std::unordered_map<std::string, ShaderData*> shader_data;
-  bool model_flag, texture_flag, shader_flag;
+  // void init_models(void);
+  // void init_textures(void);
+  // void init_shaders(void);
+
+  // std::unordered_map<std::string, std::unique_ptr<Model>> models;
+  // std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
+  // std::unordered_map<std::string, std::unique_ptr<Shader>> shaders;
 };
 
 }

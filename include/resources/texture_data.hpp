@@ -1,17 +1,26 @@
 #pragma once
 
 #include "glad/glad.h"
-
 #include <assimp/scene.h>
 
 namespace ntf::shogle {
 
-struct TextureData {
-  TextureData(const char* path, GLenum tex_dim, aiTextureType type);
+class TextureData {
+public:
+  enum class Type {
+    ModelTex,
+    SpriteTex,
+    FBOTex
+  };
+
+public:
+  TextureData(const char* path, GLenum tex_dim, aiTextureType ai_type, Type tex_type);
   ~TextureData();
 
+public:
   unsigned char* data;
-  aiTextureType type;
+  aiTextureType ai_type;
+  Type tex_type;
   GLenum tex_dim;
   int width;
   int height;

@@ -7,7 +7,8 @@
 
 namespace ntf::shogle {
 
-struct ModelData {
+class ModelData {
+public:
   struct Vertex {
     glm::vec3 ver_coord;
     glm::vec3 ver_norm;
@@ -19,8 +20,11 @@ struct ModelData {
     std::vector<TextureData> tex;
   };
 
+public:
   ModelData(const char* path);
+  ~ModelData() = default;
 
+public:
   std::vector<MeshData> meshes;
 };
 
