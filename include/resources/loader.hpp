@@ -37,7 +37,7 @@ public:
   template <typename T>
   void res_req(const ResourceList& list, std::function<void(std::unique_ptr<T>, std::string)> callback) {
     for (const auto& item : list) {
-      this->pool.enqueue([this ,callback=std::move(callback), item] {
+      this->pool.enqueue([this, callback, item] {
         auto data = std::make_unique<T>(item.second.c_str());
         std::unique_lock<std::mutex> cb_lock{this->callback_mutex};
         this->res_callbacks.emplace([data=std::move(data), callback=std::move(callback), item]() mutable {
