@@ -7,6 +7,8 @@ namespace ntf::shogle {
 
 class Model {
 public:
+  using data_t = ModelData;
+
   class Mesh {
   public:
     Mesh(const ModelData::MeshData& mesh);

@@ -12,6 +12,9 @@ namespace ntf::shogle {
 
 class Shader {
 public:
+  using data_t = ShaderData;
+
+public:
   Shader(std::unique_ptr<ShaderData> data);
   ~Shader();
 

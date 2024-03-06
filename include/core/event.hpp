@@ -20,7 +20,7 @@
 #include <functional>
 #include <list>
 
-namespace brls
+namespace ntf::shogle
 {
 
 // Simple observer pattern implementation

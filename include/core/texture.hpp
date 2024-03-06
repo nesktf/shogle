@@ -10,6 +10,9 @@ namespace ntf::shogle {
 
 class Texture {
 public:
+  using data_t = TextureData;
+
+public:
   Texture(std::unique_ptr<TextureData> data);
   // Raw pointer constructor should only be used for mesh texture initialization
   Texture(const TextureData* data);
