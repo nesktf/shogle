@@ -34,9 +34,9 @@ public:
 
 protected:
   template <typename T>
-  void res_req(const ResourceList& list, ResourceMap<T>& map) {
+  void init_resources(const ResourceList& list, ResourceMap<T>& map) {
     this->load_c += map.size();
-    ResourceLoader::instance().res_req<typename T::data_t>(list, [this, &map](auto data, auto id) {
+    ResourceLoader::instance().request_resources<typename T::data_t>(list, [this, &map](auto data, auto id) {
       map.emplace(std::make_pair(id, T{std::move(data)}));
       if (--this->load_c == 0) {
         this->on_load();

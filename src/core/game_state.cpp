@@ -1,5 +1,5 @@
 #include "core/game_state.hpp"
-#include "scenes/test.hpp"
+// #include "scenes/test.hpp"
 #include "core/logger.hpp"
 #include "core/event_handler.hpp"
 #include "core/renderer.hpp"
@@ -37,6 +37,8 @@ void GameState::exit_loop(void) {
 
 bool GameState::main_loop(void) {
   EventHandler::instance().poll();
+
+  ResourceLoader::instance().do_requests();
 
   static float last_frame = 0.0f;
   float curr_frame = glfwGetTime();

@@ -23,25 +23,23 @@ public:
   ~ResourceLoader() = default;
 
 public:
-  void run_callbacks(void) {
-    while (true) {
-      if (res_callbacks.empty())
-        return;
-      auto callback = std::move(res_callbacks.front());
+  void do_requests(void) {
+    while (!callbacks.empty()) {
+      auto callback = std::move(callbacks.front());
       callback();
-      res_callbacks.pop();
+      callbacks.pop();
     }
   }
 
 public:
   template <typename T>
-  void res_req(const ResourceList& list, std::function<void(std::unique_ptr<T>, std::string)> callback) {
+  void request_resources(const ResourceList& list, std::function<void(std::unique_ptr<T>, std::string)> callback) {
     for (const auto& item : list) {
       this->pool.enqueue([this, callback, item] {
         auto data = std::make_unique<T>(item.second.c_str());
         std::unique_lock<std::mutex> cb_lock{this->callback_mutex};
-        this->res_callbacks.emplace([data=std::move(data), callback=std::move(callback), item]() mutable {
-          callback(std::move(data), item.first);
+        this->callbacks.emplace([data=std::move(data), callback=std::move(callback), name=item.second]() mutable {
+          callback(std::move(data), name);
         });
       });
     }
@@ -49,7 +47,7 @@ public:
   
 private:
   std::mutex callback_mutex;
-  std::queue<std::function<void()>> res_callbacks;
+  std::queue<std::function<void()>> callbacks;
   ThreadPool pool;
   size_t load_count;
 };
