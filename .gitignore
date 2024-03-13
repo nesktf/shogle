@@ -1,4 +1,7 @@
+.rofi_scan
 build*
-res/
 misc/
 imgui.ini
+.cache/
+coso.txt
+res/
