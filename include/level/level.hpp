@@ -2,6 +2,7 @@
 
 #include "level/game_object.hpp"
 #include <vector>
+#include <functional>
 
 namespace ntf::shogle {
 
@@ -18,13 +19,13 @@ public:
 
 public:
   void update(float dt);
+  void draw(void);
 
 public:
-  virtual void on_load(void) {};
-
-public:
-  std::vector<GameObject*> objs;
+  std::vector<std::unique_ptr<GameObject>> objs;
   LevelState state;
 };
+
+typedef std::function<Level*(void)> LevelCreator;
 
 } // namespace ntf::shogle

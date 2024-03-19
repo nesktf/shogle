@@ -1,15 +1,18 @@
-#include <iostream>
-#include "core/logger.hpp"
-#include "core/game_state.hpp"
+#include "shogle.hpp"
+#include "log.hpp"
+#include "level/test_level.hpp"
+
+using namespace ntf::shogle;
 
 int main(int argc, char* argv[]) {
-  using namespace ntf::shogle;
-  logger::set_level(logger::LogLevel::LOG_DEBUG);
+  log::set_level(log::LogLevel::LOG_DEBUG);
 
-  auto& state = GameState::instance();
-  state.init(800, 600, "shogle", argc, argv);
+  auto& shogle = Engine::instance();
+  if (shogle.init(Settings{argc, argv}, TestLevel::create)) {
+    shogle.start();
+    return EXIT_SUCCESS;
+  }
 
-  while (state.main_loop())
-    ;;
+  return EXIT_FAILURE;
 }
 
