@@ -101,6 +101,16 @@ public:
     }
   }
 
+  template<typename T>
+  void request(ResPool<T>& res_pool) {
+    auto& res_req = res_pool.requests;
+    while (!res_req.empty()) {
+      auto res = std::move(res_req.front());
+      res_pool.emplace(res.id, std::make_unique<typename T::data_t>(res.path));
+      res_req.pop();
+    }
+  }
+
 private:
   std::mutex req_mtx;
   std::queue<std::function<void()>> requests;

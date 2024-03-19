@@ -9,7 +9,7 @@
 namespace ntf::shogle {
 
 bool Engine::init(const Settings& sett, LevelCreator creator) {
-  if (!window::init(sett.w_width, sett.w_height, sett.title.c_str())) {
+  if (!window::init(sett.w_width, sett.w_height, sett.w_title.c_str())) {
     log::error("[Engine] Failed to init window");
     return false;
   }
@@ -19,7 +19,7 @@ bool Engine::init(const Settings& sett, LevelCreator creator) {
   this->should_close = false;
   this->last_frame = 0.0f;
 
-  this->level = std::unique_ptr<Level>(creator());
+  this->level = std::unique_ptr<Level>{creator()};
 
   log::debug("[Engine] Initialized");
   return true;

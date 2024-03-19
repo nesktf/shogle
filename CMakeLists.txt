@@ -62,7 +62,7 @@ endif()
 
 ## Target things
 add_executable(${PROJECT_NAME} ${PROJ_SRC})
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 20)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJ_INCLUDES} include)
 target_compile_options(${PROJECT_NAME} PRIVATE -Wpedantic -Wall -Wextra -Wshadow -Wunused -Wnon-virtual-dtor)
