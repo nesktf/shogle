@@ -1,9 +1,10 @@
 #pragma once
 
-#include "glad/glad.h"
 #include "resource/shader.hpp"
+
 #include <assimp/texture.h>
 #include <assimp/scene.h>
+
 #include <memory>
 
 namespace ntf::shogle::res {
@@ -62,6 +63,5 @@ private:
   aiTextureType ai_type;
 };
 
-using Sprite = Texture;
-
 } // namespace ntf::shogle::res
+

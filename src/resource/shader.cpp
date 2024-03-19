@@ -111,3 +111,4 @@ void Shader::use(void) const {
 }
 
 } // namespace ntf::shogle::res
+

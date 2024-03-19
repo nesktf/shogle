@@ -1,6 +1,7 @@
 #pragma once
 
 #include "resource/texture.hpp"
+
 #include <vector>
 
 namespace ntf::shogle::res {
@@ -68,3 +69,4 @@ public:
 };
 
 } // namespace ntf::shogle::res
+

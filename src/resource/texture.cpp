@@ -1,11 +1,29 @@
-#include "core/texture.hpp"
-#include "core/logger.hpp"
+#include "resource/texture.hpp"
 
-namespace ntf::shogle {
+#include "log.hpp"
 
-Texture::Texture(std::unique_ptr<TextureData> data) : Texture(data.get()) {}
+#include "stb/stb_image.h"
 
-Texture::Texture(const TextureData* data) {
+namespace ntf::shogle::res {
+
+// Texture::data_t
+TextureData::TextureData(const char* path, GLenum tex_dim, aiTextureType ai_type, Type tex_type) :
+  path(path),
+  tex_dim(tex_dim),
+  ai_type(ai_type),
+  tex_type(tex_type) {
+  data = stbi_load(path, &width, &height, &nr_channels, 0);
+  if (!data) {
+    log::fatal("[TextureData] File not found: {}", path);
+  }
+}
+
+TextureData::~TextureData() {
+  stbi_image_free(data);
+}
+
+// Texture
+Texture::Texture(const Texture::data_t* data) {
   // TODO: Handle Framebuffer Textures
   GLenum format;
   switch (data->nr_channels) {
@@ -52,22 +70,22 @@ Texture::Texture(const TextureData* data) {
   //   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, this->tex, 0);
   // }
 
-  logger::debug("[Texture] Created texture (id: {})", this->tex);
+  log::debug("[Texture] Created texture (id: {})", this->tex);
 }
 
 Texture::~Texture() {
   GLuint id = this->tex;
   glDeleteTextures(1, &this->tex);
-  logger::debug("[Texture] Deleted texture (id: {})", id);
+  log::debug("[Texture] Deleted texture (id: {})", id);
 }
 
 void Texture::bind_material(Shader& shader, size_t tex_num, size_t tex_ind) const {
   std::string uniform_name{this->name+std::to_string(tex_num)};
   glBindTexture(this->tex_dim, this->tex);
   glActiveTexture(GL_TEXTURE0 + tex_ind);
-  shader.set_int(uniform_name.c_str(), tex_ind);
-  shader.set_float("material.col_shiny", 1.0f); // TODO: don't use fixed value
+  shader.unif_int(uniform_name.c_str(), tex_ind);
+  shader.unif_float("material.col_shiny", 1.0f); // TODO: don't use fixed value
 }
 
-} // namespace ntf::shogle
+} // namespace ntf::shogle::res
 
