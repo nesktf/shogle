@@ -18,7 +18,8 @@ public:
   };
 
 public:
-  TextureData(const char* path, GLenum tex_dim, aiTextureType ai_type, Type tex_type);
+  TextureData(std::string path);
+  TextureData(std::string path, GLenum tex_dim, aiTextureType ai_type, Type tex_type);
   ~TextureData();
 
 public:
@@ -40,8 +41,8 @@ public:
   Texture(const data_t* data);
   ~Texture();
 
-  Texture(Texture&&) = default;
-  Texture& operator=(Texture&&) = default;
+  Texture(Texture&&);
+  Texture& operator=(Texture&&);
 
   Texture(const Texture&) = delete;
   Texture& operator=(Texture&) = delete;

@@ -10,11 +10,10 @@
 namespace ntf::shogle::res {
 
 // Shader::data_t
-std::string _load_shader_file(const char* path) {
-  std::string out;
+std::string _load_shader_file(std::string path) { std::string out;
   std::fstream fs{path};
   if (!fs.is_open()) {
-    log::fatal("[Shader::data] File not found: {}", path);
+    Log::fatal("[Shader::data] File not found: {}", path);
   } else {
     std::ostringstream ss;
     ss << fs.rdbuf();
@@ -24,9 +23,9 @@ std::string _load_shader_file(const char* path) {
   return out;
 }
 
-ShaderData::ShaderData(const char* vert_path, const char* frag_path) :
-  vert_src(_load_shader_file(vert_path)),
-  frag_src(_load_shader_file(frag_path)) {}
+ShaderData::ShaderData(std::string path) :
+  vert_src(_load_shader_file(path+".vs.glsl")),
+  frag_src(_load_shader_file(path+".fs.glsl")) {}
 
 // Shader
 Shader::Shader(const Shader::data_t* data) {
@@ -42,7 +41,7 @@ Shader::Shader(const Shader::data_t* data) {
   glGetShaderiv(vert, GL_COMPILE_STATUS, &succ);
   if (!succ) {
     glGetShaderInfoLog(vert, 512, nullptr, log);
-    log::error("[Shader] Vertex shader compilation failed: {}", log);
+    Log::error("[Shader] Vertex shader compilation failed: {}", log);
   }
 
   GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
@@ -51,7 +50,7 @@ Shader::Shader(const Shader::data_t* data) {
   glGetShaderiv(frag, GL_COMPILE_STATUS, &succ);
   if (!succ) {
     glGetShaderInfoLog(frag, 512, nullptr, log);
-    log::error("[Shader] Fragment shader compilation failed: {}", log);
+    Log::error("[Shader] Fragment shader compilation failed: {}", log);
   }
 
   this->prog = glCreateProgram();
@@ -61,19 +60,31 @@ Shader::Shader(const Shader::data_t* data) {
   glGetProgramiv(this->prog, GL_LINK_STATUS, &succ);
   if (!succ) {
     glGetShaderInfoLog(vert, 512, nullptr, log);
-    log::error("[Shader] Linking failed: {}", log);
+    Log::error("[Shader] Linking failed: {}", log);
   }
 
   glDeleteShader(frag);
   glDeleteShader(vert);
 
-  log::debug("[Shader] Created shader (id: {})", this->prog);
+  Log::debug("[Shader] Created shader (id: {})", this->prog);
+}
+
+Shader::Shader(Shader&& sh) :
+  prog(sh.prog) {
+  sh.prog = 0;
+}
+
+Shader& Shader::operator=(Shader&& sh) {
+  this->prog = sh.prog;
+  sh.prog = 0;
+  return *this;
 }
 
 Shader::~Shader() {
+  if (this->prog == 0) return;
   GLuint id = this->prog;
   glDeleteProgram(this->prog);
-  log::debug("[Shader] Deleted shader (id: {})", id);
+  Log::debug("[Shader] Deleted shader (id: {})", id);
 }
 
 void Shader::unif_int(const char* name, int value) const {

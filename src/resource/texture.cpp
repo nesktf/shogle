@@ -7,14 +7,24 @@
 namespace ntf::shogle::res {
 
 // Texture::data_t
-TextureData::TextureData(const char* path, GLenum tex_dim, aiTextureType ai_type, Type tex_type) :
+TextureData::TextureData(std::string path) :
+  path(path),
+  tex_dim(GL_TEXTURE_2D),
+  ai_type(aiTextureType_DIFFUSE),
+  tex_type(Type::SpriteTex) {
+  data = stbi_load(path.c_str(), &width, &height, &nr_channels, 0);
+  if (!data) {
+    Log::fatal("[TextureData] File not found: {}", path);
+  }
+}
+TextureData::TextureData(std::string path, GLenum tex_dim, aiTextureType ai_type, Type tex_type) :
   path(path),
   tex_dim(tex_dim),
   ai_type(ai_type),
   tex_type(tex_type) {
-  data = stbi_load(path, &width, &height, &nr_channels, 0);
+  data = stbi_load(path.c_str(), &width, &height, &nr_channels, 0);
   if (!data) {
-    log::fatal("[TextureData] File not found: {}", path);
+    Log::fatal("[TextureData] File not found: {}", path);
   }
 }
 
@@ -70,13 +80,36 @@ Texture::Texture(const Texture::data_t* data) {
   //   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, this->tex, 0);
   // }
 
-  log::debug("[Texture] Created texture (id: {})", this->tex);
+  Log::debug("[Texture] Created texture (id: {})", this->tex);
+}
+
+Texture::Texture(Texture&& tx) :
+  name(tx.name),
+  width(tx.width),
+  height(tx.height),
+  tex(tx.tex),
+  tex_dim(tx.tex_dim),
+  ai_type(tx.ai_type) {
+  tx.tex = 0;
+}
+
+Texture& Texture::operator=(Texture&& tx) {
+  this->name = tx.name;
+  this->width = tx.width;
+  this->height = tx.height;
+  this->tex = tx.tex;
+  this->tex_dim = tx.tex_dim;
+  this->ai_type = tx.ai_type;
+
+  tx.tex = 0;
+  return *this;
 }
 
 Texture::~Texture() {
+  if (this->tex == 0) return;
   GLuint id = this->tex;
   glDeleteTextures(1, &this->tex);
-  log::debug("[Texture] Deleted texture (id: {})", id);
+  Log::debug("[Texture] Deleted texture (id: {})", id);
 }
 
 void Texture::bind_material(Shader& shader, size_t tex_num, size_t tex_ind) const {

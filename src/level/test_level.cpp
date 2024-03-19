@@ -10,9 +10,11 @@ public:
     this->obj = new Sprite(texture, shader);
     this->pos = glm::vec2{400.0f, 300.0f};
     this->scale = glm::vec2{1.0f, 1.0f};
+    Log::verbose("[ChirunoSprite] Initialized");
   }
   ~ChirunoSprite() {
     delete this->obj;
+    Log::verbose("[ChirunoSprite] Deleted sprite");
   }
 
 public:
@@ -35,9 +37,11 @@ public:
     this->scale = glm::vec3{base_scale};
     this->jump_speed = 5.0f;
     this->ang_speed = 10.0f;
+    Log::verbose("[ChirunoFumo] Initialized");
   }
   ~ChirunoFumo() {
     delete this->obj;
+    Log::verbose("[ChirunoFumo] Deleted model");
   }
 
 public:
@@ -87,7 +91,7 @@ TestLevel::TestLevel() {
   };
   models.add_request(res::ResPath{
     .id = "chiruno_fumo",
-    .path = "res/models/cirno_fumo"
+    .path = "res/models/cirno_fumo/cirno_fumo.obj"
   });
   loader.async_request(models);
 }

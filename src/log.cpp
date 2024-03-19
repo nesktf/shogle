@@ -1,11 +1,9 @@
 #include "log.hpp"
 
-namespace ntf::shogle::log {
+namespace ntf::shogle {
 
-LogLevel log_level = LogLevel::LOG_INFO;
-
-void set_level(LogLevel level) {
-  log_level = level;
+void Log::set_level(LogLevel new_level) {
+  log_level = new_level;
 }
 
 }

@@ -24,7 +24,7 @@ list(APPEND PROJ_LIBRARIES stbimage)
 # glm
 find_package(glm CONFIG REQUIRED)
 list(APPEND PROJ_INCLUDES ${GLM_INCLUDE_DIRS})
-list(APPEND PROJ_LIBRARIES glm)
+list(APPEND PROJ_LIBRARIES glm::glm)
 
 # assimp
 find_package(assimp REQUIRED)
@@ -44,7 +44,7 @@ list(APPEND PROJ_LIBRARIES glfw)
 # lua
 pkg_search_module(Lua REQUIRED lua5.3)
 list(APPEND PROJ_INCLUDES /usr/include/lua5.3)
-list(APPEND PROJ_LIBRARIES lua)
+list(APPEND PROJ_LIBRARIES lua5.3)
 
 # imgui
 if (ENABLE_IMGUI)

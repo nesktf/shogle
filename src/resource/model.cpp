@@ -14,7 +14,6 @@ void _load_materials(T& textures, aiMaterial* mat, aiTextureType type, const std
     aiString filename;
     mat->GetTexture(type, i, &filename);
     std::string tex_path = dir+"/"+std::string{filename.C_Str()};
-    log::debug("[ModelData] Tex path: {}", tex_path);
 
     bool skip = false;
     for (const auto& tex : textures) {
@@ -24,17 +23,18 @@ void _load_materials(T& textures, aiMaterial* mat, aiTextureType type, const std
       }
     }
     if (!skip) {
-      textures.emplace_back(tex_path.c_str(), GL_TEXTURE_2D, type, TextureData::Type::ModelTex);
+      textures.emplace_back(tex_path, GL_TEXTURE_2D, type, TextureData::Type::ModelTex);
+      Log::verbose("[ModelData] Loaded mesh material (path: {})", tex_path);
     }
   }
 }
 
-ModelData::ModelData(const char* path) {
+ModelData::ModelData(std::string path) {
   Assimp::Importer import;
   const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
 
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-    log::error("[ModelData] ASSIMP: {}", import.GetErrorString());
+    Log::error("[ModelData] ASSIMP: {}", import.GetErrorString());
   }
 
   for (size_t i = 0; i < scene->mNumMeshes; ++i) {
@@ -76,14 +76,14 @@ ModelData::ModelData(const char* path) {
     // Extract materials
     if (curr_aimesh->mMaterialIndex >= 0) {
       aiMaterial* mat = scene->mMaterials[curr_aimesh->mMaterialIndex];
-      std::string f_path {path};
-      std::string dir = f_path.substr(0, f_path.find_last_of('/')); // Get model directory
+      std::string dir = path.substr(0, path.find_last_of('/')); // Get model directory
       _load_materials(mesh.tex, mat, aiTextureType_DIFFUSE, dir);
       _load_materials(mesh.tex, mat, aiTextureType_SPECULAR, dir);
     }
 
     meshes.push_back(std::move(mesh));
   }
+  Log::verbose("[ModelData] Created partial model data (path: {})", path);
 }
 
 // Model
@@ -112,18 +112,44 @@ Model::Mesh::Mesh(const ModelData::MeshData& mesh) {
   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tex_coord));
 
   glBindVertexArray(0);
-  log::verbose("[Model::Mesh] Initialized mesh buffers (id: {})", this->vao);
+  Log::verbose("[Model::Mesh] Initialized mesh buffers (vao id: {})", this->vao);
 
   for (const auto& tex_data : mesh.tex) {
     // Do not pass tex_data as an unique_ptr
     this->tex.emplace_back(Texture{&tex_data});
   }
-  log::verbose("[Model::Mesh] Created mesh textures (id: {})", this->vao);
+  Log::verbose("[Model::Mesh] Created mesh texture (vao id: {})", this->vao);
 
-  log::verbose("[Model::Mesh] Created mesh (id: {})", this->vao);
+  Log::verbose("[Model::Mesh] Created mesh (vao id: {})", this->vao);
+}
+
+Model::Mesh::Mesh(Mesh&& m) :
+  tex(std::move(m.tex)),
+  vao(std::move(m.vao)),
+  vbo(std::move(m.vbo)),
+  ebo(std::move(m.ebo)),
+  indices(std::move(m.indices)) {
+  m.vao = 0;
+  m.vbo = 0;
+  m.ebo = 0;
+}
+
+Model::Mesh& Model::Mesh::operator=(Mesh&& m) {
+  this->tex = std::move(m.tex);
+  this->vao = std::move(m.vao);
+  this->vbo = std::move(m.vbo);
+  this->ebo = std::move(m.ebo);
+  this->indices = std::move(m.indices);
+
+  m.vao = 0;
+  m.vbo = 0;
+  m.ebo = 0;
+
+  return *this;
 }
 
 Model::Mesh::~Mesh() {
+  if (this->vao == 0) return;
   GLint id = this->vao;
   glBindVertexArray(this->vao);
   glDisableVertexAttribArray(0);
@@ -133,14 +159,14 @@ Model::Mesh::~Mesh() {
   glDeleteVertexArrays(1, &this->vao);
   glDeleteBuffers(1, &this->ebo);
   glDeleteBuffers(1, &this->vbo);
-  log::verbose("[Model::Mesh] Deleted mesh (id: {})", id);
+  Log::verbose("[Model::Mesh] Deleted mesh (vao id: {})", id);
 }
 
 Model::Model(const Model::data_t* data) {
   for (const auto& mesh_data : data->meshes) {
     this->meshes.emplace_back(Model::Mesh{mesh_data});
   }
-  log::debug("[Model] Created model");
+  Log::verbose("[Model] Created model");
 }
 
 } // namespace ntf::shogle::res

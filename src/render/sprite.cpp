@@ -41,7 +41,7 @@ public:
     // TODO: Update proj matrix on screen resize
     this->proj = glm::ortho(0.0f, 600.0f, 800.0f, 0.0f, -1.0f, 1.0f);
 
-    log::debug("[Sprite] Created sprite renderer");
+    Log::debug("[Sprite] Created sprite renderer");
   }
   ~SpriteRenderer() {
     GLint vao = this->q_VAO;
@@ -51,7 +51,7 @@ public:
     glDeleteVertexArrays(1, &this->q_VAO);
     glDeleteBuffers(1, &this->q_EBO);
     glDeleteBuffers(1, &this->q_VBO);
-    log::debug("[Sprite] Deleted sprite renderer (VAO id: {})", vao);
+    Log::debug("[Sprite] Deleted sprite renderer (VAO id: {})", vao);
   }
   void draw(void) {
     glBindVertexArray(q_VAO);

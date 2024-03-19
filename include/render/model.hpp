@@ -7,9 +7,9 @@ namespace ntf::shogle {
 
 class Model : public Drawable {
 public:
-  Model(res::Model* model, res::Shader* shader) :
-    Drawable(shader),
-    model(model) {}
+  Model(res::Model* _model, res::Shader* _shader) :
+    Drawable(_shader),
+    model(_model) {}
 
 public:
   virtual void draw(void) override;

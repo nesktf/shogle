@@ -6,8 +6,8 @@ namespace ntf::shogle {
 
 class Drawable {
 public:
-  Drawable(res::Shader* shader) :
-    shader(shader) {
+  Drawable(res::Shader* _shader) :
+    shader(_shader) {
     model_m = glm::mat4(1.0f);
   }
   virtual ~Drawable() = default;

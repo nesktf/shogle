@@ -20,12 +20,11 @@ public:
   };
 
 public:
-  ModelData(const char* path);
+  ModelData(std::string path);
   ~ModelData() = default;
 
 public:
-  std::vector<MeshData> meshes;
-};
+  std::vector<MeshData> meshes; };
 
 class Model {
 public:
@@ -36,8 +35,8 @@ public:
     Mesh(const ModelData::MeshData& mesh);
     ~Mesh();
 
-    Mesh(Mesh&&) = default;
-    Mesh& operator=(Mesh&&) = default;
+    Mesh(Mesh&&);
+    Mesh& operator=(Mesh&&);
 
     Mesh(const Mesh&) = delete;
     Mesh& operator=(const Mesh&) = delete;

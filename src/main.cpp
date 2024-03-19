@@ -6,7 +6,7 @@
 using namespace ntf::shogle;
 
 int main(int argc, char* argv[]) {
-  log::set_level(log::LogLevel::LOG_DEBUG);
+  Log::set_level(LogLevel::LOG_VERBOSE);
 
   auto& shogle = Engine::instance();
   if (shogle.init(Settings{argc, argv, "res/script/settings.lua"}, TestLevel::create)) {

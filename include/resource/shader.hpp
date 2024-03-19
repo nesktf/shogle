@@ -15,7 +15,7 @@ namespace ntf::shogle::res {
 // Shader::data_t
 class ShaderData {
 public:
-  ShaderData(const char* vert_path, const char* frag_path);
+  ShaderData(std::string path);
   ~ShaderData() = default;
 
 public:
@@ -32,8 +32,8 @@ public:
   Shader(const Shader::data_t* data);
   ~Shader();
 
-  Shader(Shader&&) = default;
-  Shader& operator=(Shader&&) = default;
+  Shader(Shader&&);
+  Shader& operator=(Shader&&);
 
   Shader(const Shader&) = delete;
   Shader& operator=(const Shader&) = delete;
