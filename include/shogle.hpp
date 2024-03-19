@@ -4,7 +4,7 @@
 #include "settings.hpp"
 #include "level/level.hpp"
 
-namespace ntf:: shogle {
+namespace ntf::shogle {
 
 class Engine : public Singleton<Engine> {
 public:

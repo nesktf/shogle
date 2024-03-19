@@ -10,6 +10,7 @@ set(PROJ_RESOURCES res)
 
 ## Libs
 list(APPEND PROJ_INCLUDES lib)
+find_package(PkgConfig REQUIRED)
 
 # glad
 add_library(glad OBJECT lib/glad/glad.c)
@@ -36,10 +37,14 @@ list(APPEND PROJ_INCLUDES ${FMT_INCLUDE_DIRS})
 list(APPEND PROJ_LIBRARIES fmt)
 
 # glfw
-find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW REQUIRED glfw3)
 list(APPEND PROJ_INCLUDES ${GLFW_INCLUDE_DIRS})
 list(APPEND PROJ_LIBRARIES glfw)
+
+# lua
+pkg_search_module(Lua REQUIRED lua5.3)
+list(APPEND PROJ_INCLUDES /usr/include/lua5.3)
+list(APPEND PROJ_LIBRARIES lua)
 
 # imgui
 if (ENABLE_IMGUI)
