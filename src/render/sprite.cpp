@@ -39,9 +39,9 @@ public:
     glBindVertexArray(0);
 
     // TODO: Update proj matrix on screen resize
-    this->proj = glm::ortho(0.0f, 600.0f, 800.0f, 0.0f, -1.0f, 1.0f);
+    this->proj = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
 
-    Log::debug("[Sprite] Created sprite renderer");
+    Log::debug("[Sprite] Sprite rendrerer initialized (vao-id: {})", q_VAO);
   }
   ~SpriteRenderer() {
     GLint vao = this->q_VAO;
@@ -51,7 +51,7 @@ public:
     glDeleteVertexArrays(1, &this->q_VAO);
     glDeleteBuffers(1, &this->q_EBO);
     glDeleteBuffers(1, &this->q_VBO);
-    Log::debug("[Sprite] Deleted sprite renderer (VAO id: {})", vao);
+    Log::debug("[Sprite] Sprite renderer deleted (vao-id: {})", vao);
   }
   void draw(void) {
     glBindVertexArray(q_VAO);
@@ -68,6 +68,7 @@ void Sprite::draw(void) {
   auto& renderer = SpriteRenderer::instance();
   shader->unif_mat4("proj", renderer.proj);
   shader->unif_mat4("model", model_m);
+  shader->unif_vec4("sprite_color", glm::vec4{1.0f});
 
   glBindTexture(GL_TEXTURE_2D, texture->id());
   glActiveTexture(GL_TEXTURE0);

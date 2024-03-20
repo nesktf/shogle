@@ -60,18 +60,18 @@ public:
   }
 
   template <typename... Args>
-  inline static void debug(fmt::format_string<Args...> format, Args&&... args) {
-    log(LogLevel::LOG_WARNING, "DEBUG", DEBUG_COLOR, format, std::forward<Args>(args)...);
+  inline static void info(fmt::format_string<Args...> format, Args&&... args) {
+    log(LogLevel::LOG_INFO, "INFO", INFO_COLOR, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  inline static void info(fmt::format_string<Args...> format, Args&&... args) {
-    log(LogLevel::LOG_WARNING, "INFO", INFO_COLOR, format, std::forward<Args>(args)...);
+  inline static void debug(fmt::format_string<Args...> format, Args&&... args) {
+    log(LogLevel::LOG_DEBUG, "DEBUG", DEBUG_COLOR, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   inline static void verbose(fmt::format_string<Args...> format, Args&&... args) {
-    log(LogLevel::LOG_WARNING, "VERBOSE", VERBOSE_COLOR, format, std::forward<Args>(args)...);
+    log(LogLevel::LOG_VERBOSE, "VERBOSE", VERBOSE_COLOR, format, std::forward<Args>(args)...);
   }
 
 private:

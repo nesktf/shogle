@@ -1,4 +1,5 @@
 #include "render/model.hpp"
+#include "log.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace ntf::shogle {

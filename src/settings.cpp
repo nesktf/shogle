@@ -1,5 +1,6 @@
 #include "settings.hpp"
 #include "util.hpp"
+#include "log.hpp"
 
 #include "sol/sol.hpp"
 
@@ -31,6 +32,7 @@ Settings::Settings(int argc, char* argv[], const char* path) :
     col_vec["G"],
     col_vec["B"]
   };
+  Log::info("[Settings] Settings loaded (file: {})", path);
 }
 
 } // ntf::shogle

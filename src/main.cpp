@@ -9,8 +9,8 @@ int main(int argc, char* argv[]) {
   Log::set_level(LogLevel::LOG_VERBOSE);
 
   auto& shogle = Engine::instance();
-  if (shogle.init(Settings{argc, argv, "res/script/settings.lua"}, TestLevel::create)) {
-    shogle.start();
+  if (shogle.init(Settings{argc, argv, "res/script/settings.lua"})) {
+    shogle.start(TestLevel::create);
     return EXIT_SUCCESS;
   }
 

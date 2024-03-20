@@ -7,8 +7,8 @@
 namespace ntf::shogle::res {
 
 // Texture::data_t
-TextureData::TextureData(std::string path) :
-  path(path),
+TextureData::TextureData(std::string _path) :
+  path(_path),
   tex_dim(GL_TEXTURE_2D),
   ai_type(aiTextureType_DIFFUSE),
   tex_type(Type::SpriteTex) {
@@ -16,20 +16,51 @@ TextureData::TextureData(std::string path) :
   if (!data) {
     Log::fatal("[TextureData] File not found: {}", path);
   }
+  Log::verbose("[TextureData] Texture data extacted (path: {})", path);
 }
-TextureData::TextureData(std::string path, GLenum tex_dim, aiTextureType ai_type, Type tex_type) :
-  path(path),
-  tex_dim(tex_dim),
-  ai_type(ai_type),
-  tex_type(tex_type) {
+TextureData::TextureData(std::string _path, GLenum _tex_dim, aiTextureType _ai_type, Type _tex_type) :
+  path(_path),
+  tex_dim(_tex_dim),
+  ai_type(_ai_type),
+  tex_type(_tex_type) {
   data = stbi_load(path.c_str(), &width, &height, &nr_channels, 0);
   if (!data) {
     Log::fatal("[TextureData] File not found: {}", path);
   }
+  Log::verbose("[TextureData] Texture data extacted (path: {})", path);
+}
+
+TextureData::TextureData(TextureData&& tx) :
+  path(std::move(tx.path)),
+  tex_dim(std::move(tx.tex_dim)),
+  ai_type(std::move(tx.ai_type)),
+  tex_type(std::move(tx.tex_type)),
+  width(std::move(tx.width)),
+  height(std::move(tx.height)),
+  nr_channels(std::move(tx.nr_channels)),
+  data(std::move(tx.data)){
+  tx.data = nullptr;
+}
+
+TextureData& TextureData::operator=(TextureData&& tx) {
+  this->path = std::move(tx.path);
+  this->tex_dim = std::move(tx.tex_dim);
+  this->ai_type = std::move(tx.ai_type);
+  this->tex_type = std::move(tx.tex_type);
+  this->width = std::move(tx.width);
+  this->height = std::move(tx.height);
+  this->nr_channels = std::move(tx.nr_channels);
+  this->data = std::move(tx.data);
+
+  tx.data = nullptr;
+
+  return *this;
 }
 
 TextureData::~TextureData() {
-  stbi_image_free(data);
+  if (data) {
+    stbi_image_free(data);
+  }
 }
 
 // Texture
@@ -54,7 +85,7 @@ Texture::Texture(const Texture::data_t* data) {
     filter = GL_LINEAR;
   }
 
-  this->ai_type  = data->ai_type;
+  this->ai_type   = data->ai_type;
   this->tex_dim   = data->tex_dim;
   this->width     = data->width;
   this->height    = data->height;
@@ -80,26 +111,26 @@ Texture::Texture(const Texture::data_t* data) {
   //   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, this->tex, 0);
   // }
 
-  Log::debug("[Texture] Created texture (id: {})", this->tex);
+  Log::verbose("[Texture] Texture created (tex-id: {})", this->tex);
 }
 
 Texture::Texture(Texture&& tx) :
-  name(tx.name),
-  width(tx.width),
-  height(tx.height),
-  tex(tx.tex),
-  tex_dim(tx.tex_dim),
-  ai_type(tx.ai_type) {
+  name(std::move(tx.name)),
+  width(std::move(tx.width)),
+  height(std::move(tx.height)),
+  tex(std::move(tx.tex)),
+  tex_dim(std::move(tx.tex_dim)),
+  ai_type(std::move(tx.ai_type)) {
   tx.tex = 0;
 }
 
 Texture& Texture::operator=(Texture&& tx) {
-  this->name = tx.name;
-  this->width = tx.width;
-  this->height = tx.height;
-  this->tex = tx.tex;
-  this->tex_dim = tx.tex_dim;
-  this->ai_type = tx.ai_type;
+  this->name = std::move(tx.name);
+  this->width = std::move(tx.width);
+  this->height = std::move(tx.height);
+  this->tex = std::move(tx.tex);
+  this->tex_dim = std::move(tx.tex_dim);
+  this->ai_type = std::move(tx.ai_type);
 
   tx.tex = 0;
   return *this;
@@ -109,7 +140,7 @@ Texture::~Texture() {
   if (this->tex == 0) return;
   GLuint id = this->tex;
   glDeleteTextures(1, &this->tex);
-  Log::debug("[Texture] Deleted texture (id: {})", id);
+  Log::verbose("[Texture] Deleted texture (gl-id: {}, type: texture)", id);
 }
 
 void Texture::bind_material(Shader& shader, size_t tex_num, size_t tex_ind) const {

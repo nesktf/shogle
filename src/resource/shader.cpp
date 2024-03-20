@@ -13,7 +13,7 @@ namespace ntf::shogle::res {
 std::string _load_shader_file(std::string path) { std::string out;
   std::fstream fs{path};
   if (!fs.is_open()) {
-    Log::fatal("[Shader::data] File not found: {}", path);
+    Log::fatal("[ShaderData] File not found: {}", path);
   } else {
     std::ostringstream ss;
     ss << fs.rdbuf();
@@ -25,7 +25,9 @@ std::string _load_shader_file(std::string path) { std::string out;
 
 ShaderData::ShaderData(std::string path) :
   vert_src(_load_shader_file(path+".vs.glsl")),
-  frag_src(_load_shader_file(path+".fs.glsl")) {}
+  frag_src(_load_shader_file(path+".fs.glsl")) {
+  Log::verbose("[ShaderData] Shader data extracted (path: {})", path);
+}
 
 // Shader
 Shader::Shader(const Shader::data_t* data) {
@@ -66,16 +68,16 @@ Shader::Shader(const Shader::data_t* data) {
   glDeleteShader(frag);
   glDeleteShader(vert);
 
-  Log::debug("[Shader] Created shader (id: {})", this->prog);
+  Log::verbose("[Shader] Shader created (sha-id: {})", this->prog);
 }
 
 Shader::Shader(Shader&& sh) :
-  prog(sh.prog) {
+  prog(std::move(sh.prog)) {
   sh.prog = 0;
 }
 
 Shader& Shader::operator=(Shader&& sh) {
-  this->prog = sh.prog;
+  this->prog = std::move(sh.prog);
   sh.prog = 0;
   return *this;
 }
@@ -84,7 +86,7 @@ Shader::~Shader() {
   if (this->prog == 0) return;
   GLuint id = this->prog;
   glDeleteProgram(this->prog);
-  Log::debug("[Shader] Deleted shader (id: {})", id);
+  Log::verbose("[Shader] Shader deleted (sha-id: {})", id);
 }
 
 void Shader::unif_int(const char* name, int value) const {

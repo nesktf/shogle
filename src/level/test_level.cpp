@@ -8,7 +8,7 @@ class ChirunoSprite : public GameObject {
 public:
   ChirunoSprite(res::Texture* texture, res::Shader* shader) {
     this->obj = new Sprite(texture, shader);
-    this->pos = glm::vec2{400.0f, 300.0f};
+    this->pos = glm::vec2{0.0f, 0.0f};
     this->scale = glm::vec2{1.0f, 1.0f};
     Log::verbose("[ChirunoSprite] Initialized");
   }
@@ -33,7 +33,7 @@ public:
   ChirunoFumo(res::Model* model, res::Shader* shader) {
     this->obj = new Model(model, shader);
     this->pos = glm::vec3{0.0f, 0.0f, -1.0f};
-    this->base_scale = 0.02f;
+    this->base_scale = 1.0f;
     this->scale = glm::vec3{base_scale};
     this->jump_speed = 5.0f;
     this->ang_speed = 10.0f;
@@ -77,22 +77,22 @@ TestLevel::TestLevel() {
     .path = "res/shaders/generic_2d"
   });
 
+  models.add_request(res::ResPath{
+    .id = "chiruno_fumo",
+    .path = "res/models/cirno_fumo/cirno_fumo.obj"
+  });
+
   loader.request(init_tex);
   loader.request(shaders);
 
   auto* texture = init_tex.get_p("chiruno");
   auto* shader = shaders.get_p("generic_2d");
-
   auto* cino = new ChirunoSprite(texture, shader);
   objs.emplace(std::make_pair("chiruno", std::unique_ptr<GameObject>{cino}));
 
   models.load_callback = [this]{
     next_state();
   };
-  models.add_request(res::ResPath{
-    .id = "chiruno_fumo",
-    .path = "res/models/cirno_fumo/cirno_fumo.obj"
-  });
   loader.async_request(models);
 }
 

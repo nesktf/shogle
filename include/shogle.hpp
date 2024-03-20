@@ -12,8 +12,8 @@ public:
   ~Engine();
 
 public:
-  bool init(const Settings& sett, LevelCreator creator);
-  void start(void);
+  bool init(const Settings& sett);
+  void start(LevelCreator creator);
 
 private:
   std::unique_ptr<Level> level;

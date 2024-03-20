@@ -22,15 +22,21 @@ public:
   TextureData(std::string path, GLenum tex_dim, aiTextureType ai_type, Type tex_type);
   ~TextureData();
 
+  TextureData(TextureData&&);
+  TextureData& operator=(TextureData&&);
+
+  TextureData(const TextureData&) = delete;
+  TextureData& operator=(const TextureData&) = delete;
+
 public:
   std::string path;
-  unsigned char* data;
   GLenum tex_dim;
   aiTextureType ai_type;
   Type tex_type;
   int width;
   int height;
   int nr_channels;
+  unsigned char* data;
 };
 
 class Texture {

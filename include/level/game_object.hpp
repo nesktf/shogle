@@ -30,7 +30,7 @@ protected:
 
     mat = glm::translate(mat, glm::vec3{pos, 0.0f});
     mat = glm::scale(mat, glm::vec3{scale, 1.0f});
-    rot_mat = glm::rotate(rot_mat, glm::radians(rot), glm::vec3{1.0f, 0.0f, 0.0f});
+    rot_mat = glm::rotate(rot_mat, glm::radians(rot), glm::vec3{0.0f, 0.0f, 1.0f});
 
     return mat * rot_mat;
   }

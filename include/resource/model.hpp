@@ -23,8 +23,15 @@ public:
   ModelData(std::string path);
   ~ModelData() = default;
 
+  ModelData(ModelData&&) = default;
+  ModelData& operator=(ModelData&&) = default;
+
+  ModelData(const ModelData&) = delete;
+  ModelData& operator=(const ModelData&) = delete;
+
 public:
-  std::vector<MeshData> meshes; };
+  std::vector<MeshData> meshes; 
+};
 
 class Model {
 public:

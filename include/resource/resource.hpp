@@ -34,14 +34,14 @@ public:
 
 public:
   void emplace(id_t id, std::unique_ptr<typename T::data_t> data) {
+    Log::debug("[ResPool] Building resource (res-id: {})", id);
     // Create resource with base resource data
     pool.emplace(std::make_pair(id, T{data.get()}));
-    Log::verbose("[ResPool] Created resource (id: {})", id);
+    Log::debug("[ResPool] Resource loaded (res-id: {})", id);
     if (++load_c == load_total && load_callback) {
       Log::debug("[ResPool] Triggered load callback");
       load_callback();
     }
-    Log::verbose("[ResPool] Progress: {}%", 100*progress());
   }
 
   std::reference_wrapper<const T> get(id_t id) {
@@ -55,7 +55,7 @@ public:
   void add_request(ResPath path) {
     requests.emplace(path);
     load_total = requests.size();
-    Log::debug("[ResPool] Enqueued request (id: {}, path: {})", path.id, path.path);
+    Log::debug("[ResPool] Resource added to queue (res-id: {}, path: {})", path.id, path.path);
   }
 
   float progress(void) { return (float)load_c/(float)load_total; }
@@ -89,20 +89,22 @@ public:
     auto& res_req = res_pool.requests;
     while (!res_req.empty()) {
       auto res = std::move(res_req.front());
+      Log::debug("[ResLoader] Resource loading started (res-id: {}, async)", res.id);
       t_pool.enqueue([this, &res_pool, res] {
-        // Generate base resource data (partial load)
-        auto* data = new T::data_t{res.path}; // Hopefully won't leak???
-
         // OpenGL objects have to be initialized in the main thread,
         // so we set a callback to create them with do_requests in
         // the next frame update, on the main thread
         std::unique_lock<std::mutex> req_lock{req_mtx};
+        Log::debug("[ResLoader] Extracting resource data (res-id: {})", res.id);
+
+        // Generate base resource data (partial load)
+        auto* data = new T::data_t{res.path}; // Hopefully won't leak???
+        
         requests.emplace([data, &res_pool, id=res.id] {
           res_pool.emplace(id, std::unique_ptr<typename T::data_t>{data});
         });
       });
       res_req.pop();
-      Log::verbose("[ResLoader] Created async request (id: {})", res.id);
     }
   }
 
@@ -111,9 +113,10 @@ public:
     auto& res_req = res_pool.requests;
     while (!res_req.empty()) {
       auto res = std::move(res_req.front());
+      Log::debug("[ResLoad] Resource loading started (res-id: {})", res.id);
+      Log::debug("[ResLoader] Extracting resource data (res-id: {})", res.id);
       res_pool.emplace(res.id, std::make_unique<typename T::data_t>(res.path));
       res_req.pop();
-      Log::verbose("[ResLoader] Created request (id: {})", res.id);
     }
   }
 

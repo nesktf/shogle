@@ -3,13 +3,14 @@
 namespace ntf::shogle {
 
 void Level::next_state(void) {
-  Log::verbose("[Level] Triggered next state");
   switch (this->state) {
     case State::Loading:
+      Log::debug("[Level] State change (Loading -> Loaded)");
       this->state = State::Loaded;
       this->on_load();
       break;
     case State::Loaded:
+      Log::debug("[Level] State change (Loaded -> Transition)");
       this->state = State::Transition;
       this->on_transition();
       break;

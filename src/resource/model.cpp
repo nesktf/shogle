@@ -24,7 +24,7 @@ void _load_materials(T& textures, aiMaterial* mat, aiTextureType type, const std
     }
     if (!skip) {
       textures.emplace_back(tex_path, GL_TEXTURE_2D, type, TextureData::Type::ModelTex);
-      Log::verbose("[ModelData] Loaded mesh material (path: {})", tex_path);
+      Log::verbose("[ModelData] Mesh material extracted (path: {})", tex_path);
     }
   }
 }
@@ -83,7 +83,7 @@ ModelData::ModelData(std::string path) {
 
     meshes.push_back(std::move(mesh));
   }
-  Log::verbose("[ModelData] Created partial model data (path: {})", path);
+  Log::verbose("[ModelData] Model data extracted (path: {})", path);
 }
 
 // Model
@@ -112,15 +112,13 @@ Model::Mesh::Mesh(const ModelData::MeshData& mesh) {
   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tex_coord));
 
   glBindVertexArray(0);
-  Log::verbose("[Model::Mesh] Initialized mesh buffers (vao id: {})", this->vao);
 
   for (const auto& tex_data : mesh.tex) {
     // Do not pass tex_data as an unique_ptr
     this->tex.emplace_back(Texture{&tex_data});
   }
-  Log::verbose("[Model::Mesh] Created mesh texture (vao id: {})", this->vao);
 
-  Log::verbose("[Model::Mesh] Created mesh (vao id: {})", this->vao);
+  Log::verbose("[Model] Mesh created (vao-id: {})", this->vao);
 }
 
 Model::Mesh::Mesh(Mesh&& m) :
@@ -159,14 +157,13 @@ Model::Mesh::~Mesh() {
   glDeleteVertexArrays(1, &this->vao);
   glDeleteBuffers(1, &this->ebo);
   glDeleteBuffers(1, &this->vbo);
-  Log::verbose("[Model::Mesh] Deleted mesh (vao id: {})", id);
+  Log::verbose("[Model] Mesh deleted (vao-id: {})", id);
 }
 
 Model::Model(const Model::data_t* data) {
   for (const auto& mesh_data : data->meshes) {
     this->meshes.emplace_back(Model::Mesh{mesh_data});
   }
-  Log::verbose("[Model] Created model");
 }
 
 } // namespace ntf::shogle::res
