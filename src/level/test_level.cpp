@@ -101,7 +101,10 @@ void TestLevel::on_load(void) {
   auto* cino_fumo = new ChirunoFumo(model, shader);
   objs.emplace(std::make_pair("chiruno_fumo", std::unique_ptr<GameObject>{cino_fumo}));
 
-  objs["chiruno"]->enabled = false;
+  auto* cino = dynamic_cast<ChirunoSprite*>(objs["chiruno"].get());
+  cino->pos = {100.0f, 100.0f};
+  cino->scale = cino->scale/2.0f;
+  // objs["chiruno"]->enabled = false;
 }
 
 void TestLevel::update_loading(float dt) {
@@ -109,6 +112,7 @@ void TestLevel::update_loading(float dt) {
 }
 
 void TestLevel::update_loaded(float dt) {
+  objs["chiruno"]->update(dt);
   objs["chiruno_fumo"]->update(dt);
 }
 
