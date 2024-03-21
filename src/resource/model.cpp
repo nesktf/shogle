@@ -69,7 +69,7 @@ ModelData::ModelData(std::string path) {
     for (size_t j = 0; j < curr_aimesh->mNumFaces; ++j) {
       aiFace face = curr_aimesh->mFaces[j];
       for (size_t k = 0; k < face.mNumIndices; ++k) {
-        mesh.ind.push_back(face.mIndices[j]);
+        mesh.ind.push_back(face.mIndices[k]);
       }
     }
 

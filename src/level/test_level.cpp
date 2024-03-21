@@ -8,8 +8,8 @@ class ChirunoSprite : public GameObject {
 public:
   ChirunoSprite(res::Texture* texture, res::Shader* shader) {
     this->obj = new Sprite(texture, shader);
-    this->pos = glm::vec2{0.0f, 0.0f};
-    this->scale = glm::vec2{1.0f, 1.0f};
+    this->pos = glm::vec2{400.0f, 300.0f};
+    this->scale = glm::vec2{400.0f, 400.0f};
     Log::verbose("[ChirunoSprite] Initialized");
   }
   ~ChirunoSprite() {
@@ -19,7 +19,7 @@ public:
 
 public:
   void update(float dt) override {
-    this->obj->model_m = gen_model_2d(pos, scale, 10.0f*time_elapsed);
+    this->obj->model_m = gen_model_2d(pos, scale, 100.0f*time_elapsed);
     time_elapsed += dt;
   }
 
@@ -32,11 +32,12 @@ class ChirunoFumo : public GameObject {
 public:
   ChirunoFumo(res::Model* model, res::Shader* shader) {
     this->obj = new Model(model, shader);
-    this->pos = glm::vec3{0.0f, 0.0f, -1.0f};
-    this->base_scale = 1.0f;
+    this->pos = glm::vec3{0.0f, -0.25f, -1.0f};
+    this->base_scale = 0.015f;
     this->scale = glm::vec3{base_scale};
-    this->jump_speed = 5.0f;
-    this->ang_speed = 10.0f;
+    this->rot = glm::vec3{0.0f};
+    this->jump_speed = 8.0f;
+    this->ang_speed = 200.0f;
     Log::verbose("[ChirunoFumo] Initialized");
   }
   ~ChirunoFumo() {
@@ -47,8 +48,8 @@ public:
 public:
   void update(float dt) override {
     float half_scale = base_scale / 2.0f;
-    this->scale.y = (half_scale)*glm::abs(half_scale*glm::sin(jump_speed*time_elapsed));
-    this->rot.y = ang_speed * time_elapsed;
+    this->scale.y = half_scale + (half_scale*glm::abs(glm::sin(jump_speed*time_elapsed)));
+    this->rot.y += ang_speed * dt;
 
     this->obj->model_m = gen_model_3d(pos, scale, rot);
     time_elapsed += dt;
@@ -56,7 +57,7 @@ public:
 
 public:
   glm::vec3 pos, scale, rot;
-  float time_elapsed, base_scale, ang_speed, jump_speed;
+  float time_elapsed {0.0f}, base_scale, ang_speed, jump_speed;
 };
 
 TestLevel::TestLevel() {
@@ -90,9 +91,7 @@ TestLevel::TestLevel() {
   auto* cino = new ChirunoSprite(texture, shader);
   objs.emplace(std::make_pair("chiruno", std::unique_ptr<GameObject>{cino}));
 
-  models.load_callback = [this]{
-    next_state();
-  };
+  models.load_callback = [this]{ next_state(); };
   loader.async_request(models);
 }
 
