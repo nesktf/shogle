@@ -2,8 +2,6 @@
 
 #include "log.hpp"
 
-#include <glm/gtc/type_ptr.hpp>
-
 #include <fstream>
 #include <sstream>
 
@@ -87,40 +85,6 @@ Shader::~Shader() {
   GLuint id = this->prog;
   glDeleteProgram(this->prog);
   Log::verbose("[Shader] Shader deleted (sha-id: {})", id);
-}
-
-void Shader::unif_int(const char* name, int value) const {
-  this->use();
-  glUniform1i(glGetUniformLocation(this->prog, name), value);
-}
-
-void Shader::unif_float(const char* name, float value) const {
-  this->use();
-  glUniform1f(glGetUniformLocation(this->prog, name), value);
-}
-
-void Shader::unif_vec2(const char* name, const glm::vec2& vec) const {
-  this->use();
-  glUniform2fv(glGetUniformLocation(this->prog, name), 1, glm::value_ptr(vec));
-}
-
-void Shader::unif_vec3(const char* name, const glm::vec3& vec) const {
-  this->use();
-  glUniform3fv(glGetUniformLocation(this->prog, name), 1, glm::value_ptr(vec));
-}
-
-void Shader::unif_vec4(const char* name, const glm::vec4& vec) const {
-  this->use();
-  glUniform4fv(glGetUniformLocation(this->prog, name), 1, glm::value_ptr(vec));
-}
-
-void Shader::unif_mat4(const char* name, const glm::mat4& mat) const {
-  this->use();
-  glUniformMatrix4fv(glGetUniformLocation(this->prog, name), 1, GL_FALSE, glm::value_ptr(mat));
-}
-
-void Shader::use(void) const {
-  glUseProgram(this->prog);
 }
 
 } // namespace ntf::shogle::res

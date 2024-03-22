@@ -65,13 +65,14 @@ void Sprite::draw(void) {
   auto& renderer = SpriteRenderer::instance();
   auto& eng = Engine::instance();
   
+  shader->use();
   shader->unif_mat4("proj", eng.proj2d);
   shader->unif_mat4("model", model_m);
   shader->unif_vec4("sprite_color", glm::vec4{1.0f});
+  shader->unif_int("sprite_texture", 0);
 
   glBindTexture(GL_TEXTURE_2D, texture->id());
   glActiveTexture(GL_TEXTURE0);
-  shader->unif_int("sprite_texture", 0);
 
   renderer.draw();
 }

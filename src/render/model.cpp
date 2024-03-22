@@ -8,6 +8,7 @@ namespace ntf::shogle {
 void Model::draw(void) {
   auto& eng = Engine::instance();
 
+  shader->use();
   shader->unif_mat4("proj", eng.proj3d);
   shader->unif_mat4("view", eng.view);
   shader->unif_vec3("view_pos", eng.view_pos);

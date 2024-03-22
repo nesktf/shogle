@@ -4,6 +4,7 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "glad/glad.h"
 
@@ -39,15 +40,27 @@ public:
   Shader& operator=(const Shader&) = delete;
 
 public:
-  void unif_int(const char* name, int value) const;
-  void unif_float(const char* name, float value) const;
-  void unif_vec2(const char* name, const glm::vec2& vec) const;
-  void unif_vec3(const char* name, const glm::vec3& vec) const;
-  void unif_vec4(const char* name, const glm::vec4& vec) const;
-  void unif_mat4(const char* name, const glm::mat4& mat) const;
-
-private:
-  void use(void) const;
+  inline void use(void) const {
+    glUseProgram(this->prog);
+  }
+  inline void unif_int(const char* name, int value) const {
+    glUniform1i(glGetUniformLocation(this->prog, name), value);
+  }
+  inline void unif_float(const char* name, float value) const {
+    glUniform1f(glGetUniformLocation(this->prog, name), value);
+  }
+  inline void unif_vec2(const char* name, const glm::vec2& vec) const {
+    glUniform2fv(glGetUniformLocation(this->prog, name), 1, glm::value_ptr(vec));
+  }
+  inline void unif_vec3(const char* name, const glm::vec3& vec) const {
+    glUniform3fv(glGetUniformLocation(this->prog, name), 1, glm::value_ptr(vec));
+  }
+  inline void unif_vec4(const char* name, const glm::vec4& vec) const {
+    glUniform4fv(glGetUniformLocation(this->prog, name), 1, glm::value_ptr(vec));
+  }
+  inline void unif_mat4(const char* name, const glm::mat4& mat) const {
+    glUniformMatrix4fv(glGetUniformLocation(this->prog, name), 1, GL_FALSE, glm::value_ptr(mat));
+  }
 
 private:
   GLuint prog;
