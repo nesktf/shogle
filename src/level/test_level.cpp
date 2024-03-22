@@ -101,6 +101,14 @@ void TestLevel::on_load(void) {
   auto* cino = dynamic_cast<ChirunoSprite*>(objs["chiruno"].get());
   cino->pos = {100.0f, 100.0f};
   cino->scale = cino->scale/2.0f;
+
+  auto* cino2 = new ChirunoSprite(
+    tex_pool.get_p("chiruno"),
+    sha_pool.get_p("generic_2d")
+  );
+  cino2->pos = {700.0f, 100.0f};
+  cino2->scale = cino2->scale/2.0f;
+  objs.emplace(std::make_pair("chiruno2", std::unique_ptr<GameObject>{cino2}));
 }
 
 void TestLevel::update_loading(float dt) {
