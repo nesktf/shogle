@@ -27,7 +27,9 @@ class Log {
   using TimePoint = std::chrono::system_clock::time_point;
 
 public:
-  static void set_level(LogLevel new_level);
+  inline static void set_level(LogLevel new_level) {
+    log_level = new_level;
+  }
 
   template<typename... Args>
   inline static void log(LogLevel level, const std::string& prefix, const std::string& color, fmt::format_string<Args...> format, Args&&... args) {
