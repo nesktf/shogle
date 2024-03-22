@@ -1,7 +1,6 @@
 #include "shogle.hpp"
 
-#include "render/glfw.hpp"
-#include "event/input_handler.hpp"
+#include "input.hpp"
 #include "resource/loader.hpp"
 
 #include "log.hpp"
@@ -9,37 +8,46 @@
 namespace ntf::shogle {
 
 bool Engine::init(const Settings& sett) {
-  if (!window::init(sett.w_width, sett.w_height, sett.w_title.c_str())) {
-    Log::error("[Engine] Failed to init window");
+  try {
+    this->window = Window::create(sett.w_width, sett.w_height, sett.w_title.c_str());
+  } catch(std::runtime_error e) {  
+    Log::error("{}", e.what());
     return false;
   }
-
-  InputHandler::instance().init();
-  Log::verbose("[Engine] Input handler initialized");
-
   this->clear_color = sett.clear_color;
   this->should_close = false;
   this->last_frame = 0.0f;
+  upd_proj2d_m((float)sett.w_width, (float)sett.w_height);
+  upd_proj3d_m(window->ratio());
+  upd_view_m();
   Log::verbose("[Engine] Settings applied");
 
+  window->set_fb_callback([](auto, int w, int h) {
+    glViewport(0, 0, w, h); // 1,2 -> Location in window. 3,4 -> Size
+    auto& eng = Engine::instance();
+    eng.upd_proj2d_m(w, h);
+    eng.upd_proj3d_m((float)w/(float)h);
+    Log::verbose("[Window] Viewport updated");
+  });
+  Log::verbose("[InputHandler] Framebuffer callback set");
+
+  InputHandler::instance().init(window.get());
 
   Log::info("[Engine] Initialized");
   return true;
 }
 
 Engine::~Engine() {
-  window::destroy();
   Log::debug("[Engine] Terminated");
 }
 
 void Engine::start(LevelCreator creator) {
-  Log::info("[Engine] Loading initial level");
   this->level = std::unique_ptr<Level>{creator()};
-  Log::debug("[Engine] Initial level created");
+  Log::verbose("[Engine] Initial level created");
 
   Log::info("[Engine] Entering main loop");
   glEnable(GL_DEPTH_TEST);
-  while (!this->should_close) {
+  while (!window->should_close()) {
     InputHandler::instance().poll();
     res::DataLoader::instance().do_requests();
 
@@ -54,8 +62,7 @@ void Engine::start(LevelCreator creator) {
 
     level->draw();
 
-    window::swap_buffer();
-    this->should_close = window::should_close();
+    window->swap_buffers();
   }
   Log::info("[Engine] Terminating program");
 }

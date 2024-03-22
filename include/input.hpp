@@ -1,5 +1,6 @@
 #pragma once
 
+#include "render/window.hpp"
 #include "singleton.hpp"
 
 namespace ntf::shogle {
@@ -9,8 +10,11 @@ public:
   InputHandler() = default;
   ~InputHandler() = default;
 
-  void init(void);
+  void init(Window* win);
   void poll(void);
+
+private:
+  Window* window;
 };
 
 }

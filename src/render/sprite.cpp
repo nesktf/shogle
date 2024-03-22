@@ -1,5 +1,6 @@
 #include "render/sprite.hpp"
 
+#include "shogle.hpp"
 #include "singleton.hpp"
 #include "log.hpp"
 
@@ -38,9 +39,6 @@ public:
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
     glBindVertexArray(0);
 
-    // TODO: Update proj matrix on screen resize
-    this->proj = glm::ortho(0.0f, 800.0f, 600.0f, 0.0f, -1.0f, 1.0f);
-
     Log::debug("[Sprite] Sprite rendrerer initialized (vao-id: {})", q_VAO);
   }
   ~SpriteRenderer() {
@@ -61,12 +59,13 @@ public:
 private:
   GLuint q_VAO, q_VBO, q_EBO;
 public:
-  glm::mat4 proj;
 };
 
 void Sprite::draw(void) {
   auto& renderer = SpriteRenderer::instance();
-  shader->unif_mat4("proj", renderer.proj);
+  auto& eng = Engine::instance();
+  
+  shader->unif_mat4("proj", eng.proj2d);
   shader->unif_mat4("model", model_m);
   shader->unif_vec4("sprite_color", glm::vec4{1.0f});
 

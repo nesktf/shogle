@@ -1,36 +1,16 @@
 #include "render/model.hpp"
+#include "shogle.hpp"
 #include "log.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace ntf::shogle {
 
-// TODO: Update proj matrix on screen resize
-const glm::mat4 proj = glm::perspective(
-  glm::radians(45.0f),
-  800.0f/600.0f,
-  0.1f,
-  100.0f
-);
-
-// TODO: Set a proper 3d camera
-const glm::vec3 view_pos = {0.0f, 0.0f, 0.0f};
-const glm::vec3 view_dir = {0.0f, 0.0f, -1.0f};
-const glm::vec3 view_up =  {0.0f, 1.0f, 0.0f};
-const glm::mat4 view = glm::lookAt(
-  view_pos,
-  view_pos + view_dir,
-  view_up
-);
-// this->dir_vec = glm::normalize(glm::vec3{
-//   glm::cos(glm::radians(yaw)) * glm::cos(glm::radians(pitch)),
-//   glm::sin(glm::radians(pitch)),
-//   glm::sin(glm::radians(yaw)) * glm::cos(glm::radians(pitch))
-// });
-
 void Model::draw(void) {
-  shader->unif_mat4("proj", proj);
-  shader->unif_mat4("view", view);
-  shader->unif_vec3("view_pos", view_pos);
+  auto& eng = Engine::instance();
+
+  shader->unif_mat4("proj", eng.proj3d);
+  shader->unif_mat4("view", eng.view);
+  shader->unif_vec3("view_pos", eng.view_pos);
   shader->unif_mat4("model", model_m);
 
   for (const auto& mesh : model->meshes) {
