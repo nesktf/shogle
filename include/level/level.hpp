@@ -1,7 +1,7 @@
 #pragma once
 
 #include "level/game_object.hpp"
-#include "resource/resource.hpp"
+#include "resource/pool.hpp"
 
 #include <functional>
 #include <vector>

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "level/level.hpp"
-#include "resource/resource.hpp"
 
 namespace ntf::shogle {
 
@@ -20,10 +19,10 @@ public:
   static Level* create(void) { return new TestLevel(); }
 
 private:
-  res::ResPool<res::Texture> init_tex;
+  res::Pool<res::Texture> tex_pool;
+  res::Pool<res::Shader> sha_pool;
+  res::AsyncPool<res::Model> mod_pool;
 
-  res::ResPool<res::Shader> shaders;
-  res::ResPool<res::Model> models;
 };
 
 } // namespace ntf::shogle

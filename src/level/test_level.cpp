@@ -60,60 +60,57 @@ public:
   float time_elapsed {0.0f}, base_scale, ang_speed, jump_speed;
 };
 
-TestLevel::TestLevel() {
-  auto& loader {res::ResLoader::instance()};
+TestLevel::TestLevel() :
+  tex_pool({
+    {
+      .id="chiruno",
+      .path="res/textures/cirno.png"     
+    }
+  }),
+  sha_pool({
+    {
+      .id="generic_2d",
+      .path="res/shaders/generic_2d"
+    },
+    {
+      .id="generic_3d",
+      .path="res/shaders/generic_3d"
+    }
+  }),
+  mod_pool({
+    {
+      .id="chiruno_fumo",
+      .path="res/models/cirno_fumo/cirno_fumo.obj"
+    }
+  }, [this]{ next_state(); }){
 
-  init_tex.add_request(res::ResPath{
-    .id = "chiruno",
-    .path = "res/textures/cirno.png"
-  });
-
-  shaders.add_request(res::ResPath{
-    .id = "generic_3d",
-    .path = "res/shaders/generic_3d"
-  });
-
-  shaders.add_request(res::ResPath{
-    .id = "generic_2d",
-    .path = "res/shaders/generic_2d"
-  });
-
-  models.add_request(res::ResPath{
-    .id = "chiruno_fumo",
-    .path = "res/models/cirno_fumo/cirno_fumo.obj"
-  });
-
-  loader.request(init_tex);
-  loader.request(shaders);
-
-  auto* texture = init_tex.get_p("chiruno");
-  auto* shader = shaders.get_p("generic_2d");
-  auto* cino = new ChirunoSprite(texture, shader);
+  auto* cino = new ChirunoSprite(
+    tex_pool.get_p("chiruno"),
+    sha_pool.get_p("generic_2d")
+  );
   objs.emplace(std::make_pair("chiruno", std::unique_ptr<GameObject>{cino}));
-
-  models.load_callback = [this]{ next_state(); };
-  loader.async_request(models);
 }
 
 void TestLevel::on_load(void) {
-  auto* shader = shaders.get_p("generic_3d");
-  auto* model = models.get_p("chiruno_fumo");
-  auto* cino_fumo = new ChirunoFumo(model, shader);
+  auto* cino_fumo = new ChirunoFumo(
+    mod_pool.get_p("chiruno_fumo"),
+    sha_pool.get_p("generic_3d")
+  );
   objs.emplace(std::make_pair("chiruno_fumo", std::unique_ptr<GameObject>{cino_fumo}));
 
   auto* cino = dynamic_cast<ChirunoSprite*>(objs["chiruno"].get());
   cino->pos = {100.0f, 100.0f};
   cino->scale = cino->scale/2.0f;
-  // objs["chiruno"]->enabled = false;
 }
 
 void TestLevel::update_loading(float dt) {
-  objs["chiruno"]->update(dt);
+  for (auto& obj : objs) {
+    obj.second->update(dt);
+  }
 }
 
 void TestLevel::update_loaded(float dt) {
-  objs["chiruno"]->update(dt);
-  objs["chiruno_fumo"]->update(dt);
+  update_loading(dt);
 }
 
 

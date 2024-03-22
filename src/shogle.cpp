@@ -2,7 +2,7 @@
 
 #include "render/glfw.hpp"
 #include "event/input_handler.hpp"
-#include "resource/resource.hpp"
+#include "resource/loader.hpp"
 
 #include "log.hpp"
 
@@ -41,7 +41,7 @@ void Engine::start(LevelCreator creator) {
   glEnable(GL_DEPTH_TEST);
   while (!this->should_close) {
     InputHandler::instance().poll();
-    res::ResLoader::instance().do_requests();
+    res::DataLoader::instance().do_requests();
 
     float curr_frame = glfwGetTime();
     float dt = curr_frame - this->last_frame;
