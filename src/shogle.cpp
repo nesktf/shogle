@@ -37,10 +37,6 @@ bool Engine::init(const Settings& sett) {
   return true;
 }
 
-Engine::~Engine() {
-  Log::debug("[Engine] Terminated");
-}
-
 void Engine::start(LevelCreator creator) {
   this->level = std::unique_ptr<Level>{creator()};
   Log::verbose("[Engine] Initial level created");
@@ -51,8 +47,8 @@ void Engine::start(LevelCreator creator) {
     InputHandler::instance().poll();
     res::DataLoader::instance().do_requests();
 
-    float curr_frame = glfwGetTime();
-    float dt = curr_frame - this->last_frame;
+    double curr_frame = window->get_time();
+    double dt = curr_frame - this->last_frame;
     this->last_frame = curr_frame;
 
     level->update(dt);

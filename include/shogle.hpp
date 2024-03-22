@@ -10,7 +10,7 @@ namespace ntf::shogle {
 class Engine : public Singleton<Engine> {
 public:
   Engine() = default;
-  ~Engine();
+  ~Engine() = default;
 
 public:
   bool init(const Settings& sett);
@@ -40,7 +40,7 @@ private:
   std::unique_ptr<Window> window;
   std::unique_ptr<Level> level;
   bool should_close;
-  float last_frame;
+  double last_frame;
 };
 
 } // namespace ntf::shogle

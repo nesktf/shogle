@@ -45,6 +45,10 @@ public:
   inline void poll_events(void) {
     glfwPollEvents();
   }
+  
+  inline double get_time(void) {
+    return glfwGetTime();
+  }
 
 public:
   static std::unique_ptr<Window> create(size_t w, size_t h, const char* w_title = "shogle") {

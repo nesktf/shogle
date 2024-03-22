@@ -2,28 +2,14 @@
 
 #include "log.hpp"
 
-#include <fstream>
-#include <sstream>
+#include "util.hpp"
 
 namespace ntf::shogle::res {
 
 // Shader::data_t
-std::string _load_shader_file(std::string path) { std::string out;
-  std::fstream fs{path};
-  if (!fs.is_open()) {
-    Log::fatal("[ShaderData] File not found: {}", path);
-  } else {
-    std::ostringstream ss;
-    ss << fs.rdbuf();
-    out = ss.str();
-  }
-  fs.close();
-  return out;
-}
-
 ShaderData::ShaderData(std::string path) :
-  vert_src(_load_shader_file(path+".vs.glsl")),
-  frag_src(_load_shader_file(path+".fs.glsl")) {
+  vert_src(util::file_contents(path+".vs.glsl")),
+  frag_src(util::file_contents(path+".fs.glsl")) {
   Log::verbose("[ShaderData] Shader data extracted (path: {})", path);
 }
 

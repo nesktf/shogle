@@ -6,7 +6,7 @@
 
 namespace ntf::shogle::util {
 
-std::string file_contents(const char* path) {
+std::string file_contents(std::string path) {
   std::string out;
   std::fstream fs{path};
   if (!fs.is_open()) {
