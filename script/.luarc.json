@@ -1,0 +1,7 @@
+{
+  "runtime.version": "Lua 5.3",
+  "diagnostics.disable": [
+    "lowercase-global",
+    "trailing-space"
+  ]
+}

@@ -21,7 +21,7 @@ Settings::Settings(int argc, char* argv[], const char* path) :
 
   lua.script(script);
 
-  sol::table script_settings = lua["Settings"];
+  sol::table script_settings = lua["settings"];
   this->w_title = script_settings["w_title"];
   this->w_width = script_settings["w_width"];
   this->w_height = script_settings["w_height"];
