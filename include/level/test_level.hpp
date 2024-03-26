@@ -19,9 +19,7 @@ public:
   static Level* create(void) { return new TestLevel(); }
 
 private:
-  res::Pool<res::Texture> tex_pool;
-  res::Pool<res::Shader> sha_pool;
-  res::AsyncPool<res::Model> mod_pool;
+  res::Pool<res::Texture, res::Shader, res::Model> pool;
 
 };
 

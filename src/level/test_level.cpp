@@ -60,41 +60,41 @@ public:
   float time_elapsed {0.0f}, base_scale, ang_speed, jump_speed;
 };
 
-TestLevel::TestLevel() :
-  tex_pool({
+TestLevel::TestLevel() {
+  pool.direct_load<res::Texture>({
     {
       .id="chiruno",
-      .path="res/textures/cirno.png"     
+      .path="res/textures/cirno.png"
     }
-  }),
-  sha_pool({
+  });
+  pool.direct_load<res::Shader>({
     {
       .id="generic_2d",
       .path="res/shaders/generic_2d"
-    },
+    }, 
     {
       .id="generic_3d",
       .path="res/shaders/generic_3d"
     }
-  }),
-  mod_pool({
+  });
+  pool.async_load<res::Model>({
     {
       .id="chiruno_fumo",
       .path="res/models/cirno_fumo/cirno_fumo.obj"
     }
-  }, [this]{ next_state(); }){
+  }, [this]{ next_state(); });
 
   auto* cino = new ChirunoSprite(
-    tex_pool.get_p("chiruno"),
-    sha_pool.get_p("generic_2d")
+    pool.get_p<res::Texture>("chiruno"),
+    pool.get_p<res::Shader>("generic_2d")
   );
   objs.emplace(std::make_pair("chiruno", std::unique_ptr<GameObject>{cino}));
 }
 
 void TestLevel::on_load(void) {
   auto* cino_fumo = new ChirunoFumo(
-    mod_pool.get_p("chiruno_fumo"),
-    sha_pool.get_p("generic_3d")
+    pool.get_p<res::Model>("chiruno_fumo"),
+    pool.get_p<res::Shader>("generic_3d")
   );
   objs.emplace(std::make_pair("chiruno_fumo", std::unique_ptr<GameObject>{cino_fumo}));
 
@@ -103,8 +103,8 @@ void TestLevel::on_load(void) {
   cino->scale = cino->scale/2.0f;
 
   auto* cino2 = new ChirunoSprite(
-    tex_pool.get_p("chiruno"),
-    sha_pool.get_p("generic_2d")
+    pool.get_p<res::Texture>("chiruno"),
+    pool.get_p<res::Shader>("generic_2d")
   );
   cino2->pos = {700.0f, 100.0f};
   cino2->scale = cino2->scale/2.0f;
