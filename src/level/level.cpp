@@ -20,19 +20,27 @@ void Level::next_state(void) {
 }
 
 void Level::update(float dt) {
-  if (this->state == State::Loading) {
-    update_loading(dt);
-  } else if (this->state == State::Loaded) {
-    update_loaded(dt);
+  for (auto& obj : model_obj) {
+    obj.second->update(dt);
+  }
+  for (auto& obj : sprite_obj) {
+    obj.second->update(dt);
   }
 }
 
 void Level::draw(void) {
-  for (auto& lvl_obj : objs) {
-    if (!lvl_obj.second->enabled)
+  for (auto& obj : model_obj) {
+    if (!obj.second->enable) {
       continue;
+    }
+    obj.second->obj.draw();
+  }
+  for (auto& obj : sprite_obj) {
+    if (!obj.second->enable) {
+      continue;
+    }
 
-    lvl_obj.second->obj->draw();
+    obj.second->obj.draw();
   }
 }
 

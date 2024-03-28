@@ -2,6 +2,8 @@
 
 #include "level/game_object.hpp"
 #include "resource/pool.hpp"
+#include "render/sprite.hpp"
+#include "render/model.hpp"
 
 #include <functional>
 #include <vector>
@@ -15,6 +17,10 @@ public:
     Loaded,
     Transition
   };
+
+  template<typename T>
+  using ObjMap = std::unordered_map<res::id_t, std::unique_ptr<T>>;
+
 public:
   Level() { this->state = State::Loading; }
   virtual ~Level() = default;
@@ -28,11 +34,9 @@ public:
   virtual void on_load(void) {};
   virtual void on_transition(void) {};
 
-  virtual void update_loading(float) {};
-  virtual void update_loaded(float) {};
-
 public:
-  std::unordered_map<res::id_t, std::unique_ptr<GameObject>> objs;
+  ObjMap<GameObject<Sprite>> sprite_obj;
+  ObjMap<GameObject<Model>> model_obj;
   Level::State state;
 };
 typedef std::function<Level*(void)> LevelCreator;
