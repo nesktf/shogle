@@ -3,42 +3,13 @@
 
 #include "level/level.hpp"
 #include "task/common_sprite.hpp"
+#include "task/common_model.hpp"
 
 using namespace ntf::shogle;
 
-// class ChirunoFumo : public GameObject {
-// public:
-//   ChirunoFumo(res::Model* model, res::Shader* shader) :
-//     GameObject(new Model{model, shader}){
-//     this->pos = glm::vec3{0.0f, -0.25f, -1.0f};
-//     this->base_scale = 0.015f;
-//     this->scale = glm::vec3{base_scale};
-//     this->rot = glm::vec3{0.0f};
-//     this->jump_speed = 8.0f;
-//     this->ang_speed = 200.0f;
-//     Log::verbose("[ChirunoFumo] Initialized");
-//   }
-//   ~ChirunoFumo() {
-//     delete this->obj;
-//     Log::verbose("[ChirunoFumo] Deleted model");
-//   }
-//
-// public:
-//   void update(float dt) override {
-//     float half_scale = base_scale / 2.0f;
-//     this->scale.y = half_scale + (half_scale*glm::abs(glm::sin(jump_speed*time_elapsed)));
-//     this->rot.y += ang_speed * dt;
-//
-//     model_3d_transform();
-//     time_elapsed += dt;
-//   }
-//
-// public:
-//   float time_elapsed {0.0f}, base_scale, ang_speed, jump_speed;
-// };
-
 class TestLevel : public Level {
-public: TestLevel() {
+public: 
+  TestLevel() {
     pool.direct_load<res::Texture>({
       {
         .id="chiruno",
@@ -59,6 +30,10 @@ public: TestLevel() {
       {
         .id="chiruno_fumo",
         .path="res/models/cirno_fumo/cirno_fumo.obj"
+      },
+      {
+        .id="reimu_fumo",
+        .path="res/models/reimu_fumo/reimu_fumo.obj"
       }
     }, [this]{ next_state(); });
 
@@ -67,40 +42,49 @@ public: TestLevel() {
       pool.get<res::Shader>("generic_2d")
     };
 
-    cino->add_task(task::spr_init_transform(
+    cino->add_task(task::spr_transform(
       glm::vec2{400.0f, 300.0f},
       glm::vec2{20.0f, 20.0f},
-      0.0f
+      float{0.0f}
     ));
     cino->add_task(task::spr_rot_right(50.f, 5.0f));
     cino->add_task(task::spr_rot_left(100.0f, 2.5f));
 
-    sprite_obj.emplace(
-      std::make_pair("chiruno", std::unique_ptr<SpriteObj>{cino})
-    );
+    sprite_obj.emplace(res::make_pair_ptr("chiruno", cino));
   }
   ~TestLevel() = default;
 
 public:
   void on_load(void) override {
-    // auto* cino_fumo = new ChirunoFumo(
-    //   pool.get_p<res::Model>("chiruno_fumo"),
-    //   pool.get_p<res::Shader>("generic_3d")
-    // );
-    // objs.emplace(std::make_pair("chiruno_fumo", std::unique_ptr<GameObject>{cino_fumo}));
-    //
-    // auto* cino = dynamic_cast<ChirunoSprite*>(objs["chiruno"].get());
-    // cino->pos = {100.0f, 100.0f};
-    // cino->scale = cino->scale/2.0f;
-    //
-    // auto* cino2 = new ChirunoSprite(
-    //   pool.get_p<res::Texture>("chiruno"),
-    //   pool.get_p<res::Shader>("generic_2d")
-    // );
-    // cino2->pos = {700.0f, 100.0f};
-    // cino2->scale = cino2->scale/2.0f;
-    // objs.emplace(std::make_pair("chiruno2", std::unique_ptr<GameObject>{cino2}));
-  }
+    sprite_obj["chiruno"]->enable = false;
+
+    auto* cino_fumo = new ModelObj{
+      pool.get<res::Model>("chiruno_fumo"),
+      pool.get<res::Shader>("generic_3d")
+    };
+    cino_fumo->add_task(task::mod_transform(
+      glm::vec3{-0.25f, -0.25f, -1.0f},
+      glm::vec3{0.015f},
+      glm::vec3{0.0f}
+    ));
+    cino_fumo->add_task(task::mod_fumo_jump(200.0f, 10.0f, 2.0f));
+    cino_fumo->add_task(task::mod_linear_rel_move(glm::vec3{0.0f, 0.0f, -1.0f}, 1.0f));
+    cino_fumo->add_task(task::mod_z_rot(200.0f, 5.0f));
+    cino_fumo->add_task(task::mod_linear_abs_move(glm::vec3{0.0f, 0.0f, 0.0f}, 0.5f));
+    model_obj.emplace(res::make_pair_ptr("chiruno_fumo", cino_fumo));
+
+    auto* remu_fumo = new ModelObj{
+      pool.get<res::Model>("reimu_fumo"),
+      pool.get<res::Shader>("generic_3d")
+    };
+    remu_fumo->add_task(task::mod_transform(
+      glm::vec3{0.25f, -0.25f, -1.0f},
+      glm::vec3{0.015f},
+      glm::vec3{0.0f}
+    ));
+    remu_fumo->add_task(task::mod_fumo_jump(300.0f, 12.0f, 8.5f));
+    model_obj.emplace(res::make_pair_ptr("reimu_fumo", remu_fumo));
+}
 
 public:
   static Level* create(void) { return new TestLevel(); }
@@ -108,7 +92,6 @@ public:
 private:
   res::Pool<res::Texture, res::Shader, res::Model> pool;
 };
-
 
 int main(int argc, char* argv[]) {
   Log::set_level(LogLevel::LOG_VERBOSE);

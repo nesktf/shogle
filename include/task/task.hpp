@@ -4,11 +4,36 @@
 
 #include <functional>
 #include <queue>
+#include <list>
 
 namespace ntf::shogle {
 
 template<typename TObj>
 using Task = std::function<bool(TObj*,float,float)>;
+
+// template <typename TObj>
+// class CompositeTask {
+// public:
+//   template<typename... Tasks>
+//   CompositeTask(Task<TObj> task, Tasks... args) {
+//     tasks.push_back(task);
+//     CompositeTask(args...);
+//   }
+//
+// public:
+//   bool operator()(TObj* obj, float delta_time, float time) {
+//     auto task = tasks.begin();
+//     while (task != tasks.end()) {
+//       if ((*task)(obj, delta_time, time)) {
+//         tasks.erase(task);
+//       }
+//     }
+//     return tasks.empty();
+//   }
+//
+// private:
+//   std::list<Task<TObj>> tasks;
+// };
 
 template<typename TObj>
 class TaskWrapper {
