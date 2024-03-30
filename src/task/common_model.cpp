@@ -67,4 +67,16 @@ ModelTask mod_linear_abs_move(glm::vec3 new_pos, float time) {
   };
 }
 
+ModelTask mod_funny_jump(float force, float time) {
+  return [force, time](auto* obj, float, float t) -> bool {
+    TransformData transform = obj->transform;
+
+    static float base_y = transform.pos.y;
+    transform.pos.y = base_y + force*glm::abs(glm::sin(t));
+    obj->update_model(transform);
+
+    return (t >= time);
+  };
+}
+
 } // namespace ntf::shogle

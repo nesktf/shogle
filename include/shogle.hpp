@@ -31,6 +31,11 @@ public:
     const glm::vec3 view_up =  {0.0f, 1.0f, 0.0f};
     this->view = glm::lookAt(this->view_pos, this->view_pos + view_dir, view_up);
   }
+
+public:
+  inline void stop(void) {
+    window->close();
+  }
   
 public:
   glm::vec3 clear_color, view_pos;

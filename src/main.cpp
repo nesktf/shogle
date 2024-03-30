@@ -34,6 +34,10 @@ public:
       {
         .id="reimu_fumo",
         .path="res/models/reimu_fumo/reimu_fumo.obj"
+      },
+      {
+        .id="marisa_fumo",
+        .path="res/models/marisa_fumo/marisa_fumo.obj"
       }
     }, [this]{ next_state(); });
 
@@ -78,13 +82,58 @@ public:
       pool.get<res::Shader>("generic_3d")
     };
     remu_fumo->add_task(task::mod_transform(
-      glm::vec3{0.25f, -0.25f, -1.0f},
+      glm::vec3{0.25f, 0.0f, -1.0f},
       glm::vec3{0.015f},
       glm::vec3{0.0f}
     ));
-    remu_fumo->add_task(task::mod_fumo_jump(300.0f, 12.0f, 8.5f));
+    remu_fumo->add_task([](auto* obj, float dt, float t) -> bool {
+      bool end_task = true;
+      static auto fumo = task::mod_fumo_jump(300.0f, 12.0f, 8.5f);
+
+      end_task = end_task && fumo(obj, dt, t);
+      auto transform = obj->transform;
+      transform.rot.z += 300.0f*dt;
+      transform.rot.x += 300.0f*dt;
+
+      obj->update_model(transform);
+      
+      return end_task;
+    });
     model_obj.emplace(res::make_pair_ptr("reimu_fumo", remu_fumo));
-}
+
+    auto* mari_fumo = new ModelObj{
+      pool.get<res::Model>("marisa_fumo"),
+      pool.get<res::Shader>("generic_3d")
+    };
+    mari_fumo->add_task(task::mod_transform(
+      glm::vec3{-1.0f, -0.25f, -2.0f},
+      glm::vec3{0.02f},
+      glm::vec3{0.0f, -90.0f, 0.0f}
+    ));
+    mari_fumo->add_task([](auto* obj, float dt, float t) -> bool {
+      bool end_task = true;
+      // static auto move = task::mod_linear_rel_move(glm::vec3{2.0f, 0.0f, 0.0f}, 8.5f);
+      static auto jump = task::mod_funny_jump(0.5f, 8.5f);
+      static float end_x = 1.0f;
+
+      TransformData transform = obj->transform;
+      if (transform.pos.x < end_x) {
+        transform.pos.x += (2.0f/8.5f)*dt;
+        transform.rot.y += 300.0f*dt;
+        obj->update_model(transform);
+      }
+
+      end_task = end_task && jump(obj, dt, t);
+
+      return end_task;
+    });
+    mari_fumo->add_task([](auto*,float,float) -> bool {
+      auto& shogle = Engine::instance();
+      shogle.stop();
+      return true;
+    });
+    model_obj.emplace(res::make_pair_ptr("marisa_fumo", mari_fumo));
+  }
 
 public:
   static Level* create(void) { return new TestLevel(); }

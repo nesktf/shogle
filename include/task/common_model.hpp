@@ -20,5 +20,6 @@ ModelTask mod_fumo_jump(float ang_speed, float jump_speed, float time);
 ModelTask mod_z_rot(float ang_speed, float time);
 ModelTask mod_linear_rel_move(glm::vec3 new_pos, float time);
 ModelTask mod_linear_abs_move(glm::vec3 new_pos, float time);
+ModelTask mod_funny_jump(float force, float time);
 
 } // namsepace ntf::shogle
