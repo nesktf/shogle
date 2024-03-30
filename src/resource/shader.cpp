@@ -55,14 +55,17 @@ Shader::Shader(const Shader::data_t* data) {
   Log::verbose("[Shader] Shader created (sha-id: {})", this->prog);
 }
 
-Shader::Shader(Shader&& sh) :
+Shader::Shader(Shader&& sh) noexcept :
   prog(std::move(sh.prog)) {
+
   sh.prog = 0;
 }
 
-Shader& Shader::operator=(Shader&& sh) {
+Shader& Shader::operator=(Shader&& sh) noexcept {
   this->prog = std::move(sh.prog);
+
   sh.prog = 0;
+
   return *this;
 }
 

@@ -20,10 +20,11 @@ public:
 public:
   TextureData(std::string path);
   TextureData(std::string path, GLenum tex_dim, aiTextureType ai_type, Type tex_type);
+
   ~TextureData();
 
-  TextureData(TextureData&&);
-  TextureData& operator=(TextureData&&);
+  TextureData(TextureData&&) noexcept;
+  TextureData& operator=(TextureData&&) noexcept;
 
   TextureData(const TextureData&) = delete;
   TextureData& operator=(const TextureData&) = delete;
@@ -47,14 +48,14 @@ public:
   Texture(const data_t* data);
   ~Texture();
 
-  Texture(Texture&&);
-  Texture& operator=(Texture&&);
+  Texture(Texture&&) noexcept;
+  Texture& operator=(Texture&&) noexcept;
 
   Texture(const Texture&) = delete;
   Texture& operator=(Texture&) = delete;
 
 public:
-  void bind_material(Shader& shader, size_t tex_num, size_t tex_ind) const;
+  void bind_material(const Shader& shader, size_t tex_num, size_t tex_ind) const;
 
 public:
   float aspect(void) const { return (float)width/(float)height;}

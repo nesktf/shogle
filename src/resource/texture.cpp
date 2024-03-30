@@ -30,7 +30,7 @@ TextureData::TextureData(std::string _path, GLenum _tex_dim, aiTextureType _ai_t
   Log::verbose("[TextureData] Texture data extacted (path: {})", path);
 }
 
-TextureData::TextureData(TextureData&& tx) :
+TextureData::TextureData(TextureData&& tx) noexcept :
   path(std::move(tx.path)),
   tex_dim(std::move(tx.tex_dim)),
   ai_type(std::move(tx.ai_type)),
@@ -39,10 +39,11 @@ TextureData::TextureData(TextureData&& tx) :
   height(std::move(tx.height)),
   nr_channels(std::move(tx.nr_channels)),
   data(std::move(tx.data)){
+
   tx.data = nullptr;
 }
 
-TextureData& TextureData::operator=(TextureData&& tx) {
+TextureData& TextureData::operator=(TextureData&& tx) noexcept {
   this->path = std::move(tx.path);
   this->tex_dim = std::move(tx.tex_dim);
   this->ai_type = std::move(tx.ai_type);
@@ -114,17 +115,18 @@ Texture::Texture(const Texture::data_t* data) {
   Log::verbose("[Texture] Texture created (tex-id: {})", this->tex);
 }
 
-Texture::Texture(Texture&& tx) :
+Texture::Texture(Texture&& tx) noexcept :
   name(std::move(tx.name)),
   width(std::move(tx.width)),
   height(std::move(tx.height)),
   tex(std::move(tx.tex)),
   tex_dim(std::move(tx.tex_dim)),
   ai_type(std::move(tx.ai_type)) {
+
   tx.tex = 0;
 }
 
-Texture& Texture::operator=(Texture&& tx) {
+Texture& Texture::operator=(Texture&& tx) noexcept {
   this->name = std::move(tx.name);
   this->width = std::move(tx.width);
   this->height = std::move(tx.height);
@@ -133,6 +135,7 @@ Texture& Texture::operator=(Texture&& tx) {
   this->ai_type = std::move(tx.ai_type);
 
   tx.tex = 0;
+
   return *this;
 }
 
@@ -143,7 +146,7 @@ Texture::~Texture() {
   Log::verbose("[Texture] Deleted texture (gl-id: {}, type: texture)", id);
 }
 
-void Texture::bind_material(Shader& shader, size_t tex_num, size_t tex_ind) const {
+void Texture::bind_material(const Shader& shader, size_t tex_num, size_t tex_ind) const {
   std::string uniform_name{this->name+std::to_string(tex_num)};
   glBindTexture(this->tex_dim, this->tex);
   glActiveTexture(GL_TEXTURE0 + tex_ind);

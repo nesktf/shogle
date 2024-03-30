@@ -121,18 +121,19 @@ Model::Mesh::Mesh(const ModelData::MeshData& mesh) {
   Log::verbose("[Model] Mesh created (vao-id: {})", this->vao);
 }
 
-Model::Mesh::Mesh(Mesh&& m) :
+Model::Mesh::Mesh(Mesh&& m) noexcept :
   tex(std::move(m.tex)),
   vao(std::move(m.vao)),
   vbo(std::move(m.vbo)),
   ebo(std::move(m.ebo)),
   indices(std::move(m.indices)) {
+
   m.vao = 0;
   m.vbo = 0;
   m.ebo = 0;
 }
 
-Model::Mesh& Model::Mesh::operator=(Mesh&& m) {
+Model::Mesh& Model::Mesh::operator=(Mesh&& m) noexcept {
   this->tex = std::move(m.tex);
   this->vao = std::move(m.vao);
   this->vbo = std::move(m.vbo);

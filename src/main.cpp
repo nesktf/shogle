@@ -62,10 +62,10 @@ public: TestLevel() {
       }
     }, [this]{ next_state(); });
 
-    auto* cino = new GameObject<Sprite>(Sprite{
-      pool.get_p<res::Texture>("chiruno"),
-      pool.get_p<res::Shader>("generic_2d")
-    }, GameObject<Sprite>::model_2d_transform);
+    auto* cino = new SpriteObj{
+      pool.get<res::Texture>("chiruno"),
+      pool.get<res::Shader>("generic_2d")
+    };
 
     cino->add_task(task::spr_init_transform(
       glm::vec2{400.0f, 300.0f},
@@ -76,7 +76,7 @@ public: TestLevel() {
     cino->add_task(task::spr_rot_left(100.0f, 2.5f));
 
     sprite_obj.emplace(
-      std::make_pair("chiruno", std::unique_ptr<GameObject<Sprite>>{cino})
+      std::make_pair("chiruno", std::unique_ptr<SpriteObj>{cino})
     );
   }
   ~TestLevel() = default;

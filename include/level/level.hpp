@@ -35,8 +35,8 @@ public:
   virtual void on_transition(void) {};
 
 public:
-  ObjMap<GameObject<Sprite>> sprite_obj;
-  ObjMap<GameObject<Model>> model_obj;
+  ObjMap<SpriteObj> sprite_obj;
+  ObjMap<ModelObj> model_obj;
   Level::State state;
 };
 typedef std::function<Level*(void)> LevelCreator;

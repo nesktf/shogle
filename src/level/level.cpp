@@ -33,14 +33,13 @@ void Level::draw(void) {
     if (!obj.second->enable) {
       continue;
     }
-    obj.second->obj.draw();
+    obj.second->draw();
   }
   for (auto& obj : sprite_obj) {
     if (!obj.second->enable) {
       continue;
     }
-
-    obj.second->obj.draw();
+    obj.second->draw();
   }
 }
 

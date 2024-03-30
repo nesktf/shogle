@@ -19,6 +19,12 @@ public:
   ShaderData(std::string path);
   ~ShaderData() = default;
 
+  ShaderData(ShaderData&&) = default;
+  ShaderData& operator=(ShaderData&&) = default;
+
+  ShaderData(const ShaderData&) = delete;
+  ShaderData& operator=(const ShaderData&) = delete;
+
 public:
   std::string vert_src;
   std::string frag_src;
@@ -33,8 +39,8 @@ public:
   Shader(const Shader::data_t* data);
   ~Shader();
 
-  Shader(Shader&&);
-  Shader& operator=(Shader&&);
+  Shader(Shader&&) noexcept;
+  Shader& operator=(Shader&&) noexcept;
 
   Shader(const Shader&) = delete;
   Shader& operator=(const Shader&) = delete;

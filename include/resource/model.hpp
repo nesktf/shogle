@@ -42,8 +42,8 @@ public:
     Mesh(const ModelData::MeshData& mesh);
     ~Mesh();
 
-    Mesh(Mesh&&);
-    Mesh& operator=(Mesh&&);
+    Mesh(Mesh&&) noexcept;
+    Mesh& operator=(Mesh&&) noexcept;
 
     Mesh(const Mesh&) = delete;
     Mesh& operator=(const Mesh&) = delete;

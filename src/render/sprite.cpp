@@ -6,7 +6,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-namespace ntf::shogle {
+namespace ntf::shogle::render {
 
 class SpriteRenderer : public Singleton<SpriteRenderer> {
 public:
@@ -62,19 +62,32 @@ public:
 };
 
 void Sprite::draw(void) {
+  const auto& eng = Engine::instance();
+  const auto& shader = shader_ref.get();
+  const auto& texture = texture_ref.get();
   auto& renderer = SpriteRenderer::instance();
-  auto& eng = Engine::instance();
   
-  shader->use();
-  shader->unif_mat4("proj", eng.proj2d);
-  shader->unif_mat4("model", model_m);
-  shader->unif_vec4("sprite_color", glm::vec4{1.0f});
-  shader->unif_int("sprite_texture", 0);
+  shader.use();
+  shader.unif_mat4("proj", eng.proj2d);
+  shader.unif_mat4("model", this->model_m);
+  shader.unif_vec4("sprite_color", glm::vec4{1.0f});
+  shader.unif_int("sprite_texture", 0);
 
-  glBindTexture(GL_TEXTURE_2D, texture->id());
+  glBindTexture(GL_TEXTURE_2D, texture.id());
   glActiveTexture(GL_TEXTURE0);
 
   renderer.draw();
+}
+
+glm::mat4 Sprite::model_transform(TransformData transform) {
+  glm::mat4 mat{1.0f};
+
+  mat = glm::translate(mat, glm::vec3{transform.pos.x, transform.pos.y, 0.0f});
+  mat = glm::rotate(mat, glm::radians(transform.rot.z), glm::vec3{0.0f, 0.0f, 1.0f});
+  mat = glm::scale(mat, glm::vec3{transform.scale.x, transform.scale.y, 1.0f});
+  mat = glm::scale(mat, glm::vec3{transform.scale.x, transform.scale.y, 0.0f});
+
+  return mat;
 }
 
 } // namespace ntf::shogle

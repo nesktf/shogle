@@ -1,6 +1,9 @@
 #pragma once
 
 #include "resource/loader.hpp"
+
+#include "types.hpp"
+
 #include <tuple>
 #include <concepts>
 
@@ -29,7 +32,7 @@ public:
 
 public:
   template<same_as_defined<ResT...> T>
-  std::reference_wrapper<const T> get(id_t id) {
+  cref<T> get(id_t id) {
     return std::cref(std::get<ResMap<T>>(pool).at(id));
   }
 

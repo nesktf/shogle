@@ -1,21 +1,35 @@
 #pragma once
 
-#include "render/drawable.hpp"
 #include "resource/texture.hpp"
+#include "resource/shader.hpp"
+
+#include "types.hpp"
+
+namespace ntf::shogle::render {
+
+class Sprite {
+public:
+  Sprite(cref<res::Texture> _texture, cref<res::Shader> _shader) :
+    texture_ref(_texture),
+    shader_ref(_shader) {}
+
+public:
+  void draw(void);
+  static glm::mat4 model_transform(TransformData transform);
+
+public:
+  cref<res::Texture> texture_ref;
+  cref<res::Shader> shader_ref;
+  glm::mat4 model_m {1.0f};
+};
+
+} // namespace ntf::shogle
 
 namespace ntf::shogle {
 
-class Sprite : public Drawable {
-public:
-  Sprite(res::Texture* _texture, res::Shader* _shader) :
-    Drawable(_shader),
-    texture(_texture) {}
+template<typename T>
+class GameObject;
 
-public:
-  virtual void draw(void) override;
-
-public:
-  res::Texture* texture;
-};
+using SpriteObj = GameObject<render::Sprite>;
 
 } // namespace ntf::shogle
