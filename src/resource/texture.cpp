@@ -16,7 +16,7 @@ TextureData::TextureData(std::string _path) :
   if (!data) {
     Log::fatal("[TextureData] File not found: {}", path);
   }
-  Log::verbose("[TextureData] Texture data extacted (path: {})", path);
+  Log::verbose("[TextureData] Texture data extracted (path: {})", path);
 }
 TextureData::TextureData(std::string _path, GLenum _tex_dim, aiTextureType _ai_type, Type _tex_type) :
   path(_path),
@@ -27,7 +27,7 @@ TextureData::TextureData(std::string _path, GLenum _tex_dim, aiTextureType _ai_t
   if (!data) {
     Log::fatal("[TextureData] File not found: {}", path);
   }
-  Log::verbose("[TextureData] Texture data extacted (path: {})", path);
+  Log::verbose("[TextureData] Texture data extracted (path: {})", path);
 }
 
 TextureData::TextureData(TextureData&& tx) noexcept :
@@ -143,7 +143,7 @@ Texture::~Texture() {
   if (this->tex == 0) return;
   GLuint id = this->tex;
   glDeleteTextures(1, &this->tex);
-  Log::verbose("[Texture] Deleted texture (gl-id: {}, type: texture)", id);
+  Log::verbose("[Texture] Deleted texture (tex-id: {})", id);
 }
 
 void Texture::bind_material(const Shader& shader, size_t tex_num, size_t tex_ind) const {

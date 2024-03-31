@@ -3,6 +3,8 @@
 #include <glm/vec3.hpp>
 
 #include <functional>
+#include <exception>
+#include <string>
 
 namespace ntf::shogle {
 
@@ -18,5 +20,16 @@ struct TransformData {
   glm::vec3 rot {0.0f};
 };
 
+class shogle_error : public std::exception {
+public:
+  shogle_error(const char* _msg) :
+    msg(_msg) {}
+public:
+  const char* what() const noexcept override {
+    return msg.c_str();
+  }
+public:
+  std::string msg;
+};
 
 } // namespace ntf::shogle

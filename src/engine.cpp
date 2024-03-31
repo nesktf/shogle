@@ -10,7 +10,7 @@ namespace ntf::shogle {
 bool Engine::init(const Settings& sett) {
   try {
     this->window = Window::create(sett.w_width, sett.w_height, sett.w_title.c_str());
-  } catch(std::runtime_error e) {  
+  } catch(const shogle_error& e) {  
     Log::error("{}", e.what());
     return false;
   }

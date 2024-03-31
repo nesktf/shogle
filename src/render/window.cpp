@@ -3,7 +3,7 @@
 #define GL_MAJOR 3
 #define GL_MINOR 3
 
-#include <exception>
+#include "types.hpp"
 
 namespace ntf::shogle {
 
@@ -18,7 +18,7 @@ Window::Window(size_t w, size_t h, const char* w_title) :
 
   if ((this->win = glfwCreateWindow(w_width, w_height, w_title, NULL, NULL)) == nullptr) {
     glfwTerminate();
-    throw std::runtime_error("[Window] Failed to create GLFW window");
+    throw shogle_error("[Window] Failed to create GLFW window");
   }
   glfwMakeContextCurrent(this->win); 
   glfwSwapInterval(1); //Vsync
@@ -29,7 +29,7 @@ Window::Window(size_t w, size_t h, const char* w_title) :
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
     glfwDestroyWindow(this->win); 
     glfwTerminate();
-    throw std::runtime_error("[Window] Failed to load GLAD");
+    throw shogle_error("[Window] Failed to load GLAD");
   }
   Log::verbose("[Window] GLAD loaded");
 

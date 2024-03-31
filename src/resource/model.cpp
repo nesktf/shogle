@@ -74,7 +74,7 @@ ModelData::ModelData(std::string path) {
     }
 
     // Extract materials
-    if (curr_aimesh->mMaterialIndex >= 0) {
+    if (curr_aimesh->mMaterialIndex > 0) {
       aiMaterial* mat = scene->mMaterials[curr_aimesh->mMaterialIndex];
       std::string dir = path.substr(0, path.find_last_of('/')); // Get model directory
       _load_materials(mesh.tex, mat, aiTextureType_DIFFUSE, dir);
