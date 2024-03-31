@@ -41,8 +41,8 @@ using TaskLambda = std::function<bool(TObj*,float)>;
 template<typename TObj>
 class TaskL : public Task<TObj> {
 public:
-  TaskL(TObj* obj, TaskLambda<TObj> lambda) :
-    Task<TObj>(obj),
+  TaskL(TObj* _obj, TaskLambda<TObj> lambda) :
+    Task<TObj>(_obj),
     fun(lambda) {};
 
 public:

@@ -13,6 +13,16 @@ class Sprite;
 
 namespace ntf::shogle::task {
 
+static inline glm::vec3 sprite_pos(glm::vec2 pos) {
+  return glm::vec3{pos, 0.0f};
+}
+static inline glm::vec3 sprite_scale(glm::vec2 scale) {
+  return glm::vec3{scale, 1.0f};
+}
+static inline glm::vec3 sprite_rot(float rot) {
+  return glm::vec3{0.0f, 0.0f, rot};
+}
+
 using SpriteObj = GameObject<render::Sprite>;
 
 struct spr_transform : public Task<SpriteObj> {

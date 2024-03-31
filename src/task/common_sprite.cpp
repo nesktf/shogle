@@ -5,16 +5,6 @@
 
 #include "log.hpp"
 
-static inline glm::vec3 sprite_pos(glm::vec2 pos) {
-  return glm::vec3{pos, 0.0f};
-}
-static inline glm::vec3 sprite_scale(glm::vec2 scale) {
-  return glm::vec3{scale, 1.0f};
-}
-static inline glm::vec3 sprite_rot(float rot) {
-  return glm::vec3{0.0f, 0.0f, rot};
-}
-
 namespace ntf::shogle::task {
 
 spr_transform::spr_transform(SpriteObj* _obj, glm::vec2 pos, glm::vec2 scale, float rot) :
@@ -40,7 +30,7 @@ bool spr_rotate::operator()(float dt) {
   obj->set_transform(transform);
 
   t += dt;
-  return (t >= time);
+  return (time < 0.0f ? false : t >= time);
 }
 
 spr_move_circle::spr_move_circle(SpriteObj* _obj, glm::vec2 _center, float _ang_speed, float _radius, float _time) :
@@ -59,7 +49,7 @@ bool spr_move_circle::operator()(float dt) {
   obj->set_transform(transform);
 
   t += dt;
-  return (t >= time);
+  return (time < 0.0f ? false : t >= time);
 }
 
 } //namespace ntf::shogle::task
