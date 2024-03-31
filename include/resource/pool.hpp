@@ -12,11 +12,6 @@ namespace ntf::shogle::res {
 template<typename T, typename... ResT>
 concept same_as_defined = (... or std::same_as<T, ResT>);
 
-template<typename T>
-inline std::pair<id_t,std::unique_ptr<T>> make_pair_ptr(id_t id, T* res) {
-  return std::make_pair(id, std::unique_ptr<T>{res});
-}
-
 template<typename... ResT>
 class Pool {
 protected:

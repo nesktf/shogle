@@ -1,4 +1,4 @@
-#include "shogle.hpp"
+#include "engine.hpp"
 
 #include "input.hpp"
 #include "resource/loader.hpp"
@@ -51,7 +51,7 @@ void Engine::start(LevelCreator creator) {
     double dt = curr_frame - this->last_frame;
     this->last_frame = curr_frame;
 
-    level->update(dt);
+    level->update_tasks(dt);
 
     glClearColor(clear_color.x, clear_color.y, clear_color.z, 1.0f); 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

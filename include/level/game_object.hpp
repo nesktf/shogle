@@ -9,12 +9,19 @@
 
 namespace ntf::shogle {
 
+using id_t = std::string;
+
+template<typename TObj>
+using ObjMap = std::unordered_map<id_t, std::unique_ptr<TObj>>;
+
+template<typename TObj>
+inline std::pair<id_t,std::unique_ptr<TObj>> make_pair_ptr(id_t id, TObj* obj) {
+  return std::make_pair(id, std::unique_ptr<TObj>{obj});
+}
+
 template<typename TDrawable>
 class GameObject {
 public: 
-  GameObject(TDrawable _obj) :
-    obj(_obj) {}
-
   template<typename... Args>
   GameObject(Args&&... args) :
     obj(TDrawable{std::forward<Args>(args)...}) {}
@@ -28,38 +35,21 @@ public:
   GameObject& operator=(const GameObject&) = default;
 
 public:
-  void update(float delta_time) {
-    elapsed_time += delta_time;
-
-    if (task_queue.empty())
-      return;
-
-    auto& task = task_queue.front();
-    if (task(this, delta_time)) {
-      task_queue.pop();
-    }
-  }
-
-public:
-  inline void update_model(TransformData transf) {
-    transform = transf;
+  inline void set_transform(TransformData transf) {
+    this->transform = transf;
     obj.model_m = TDrawable::model_transform(transf);
   }
 
-  inline void add_task(Task<GameObject> task) {
-    task_queue.push(TaskWrapper<GameObject>{task});
+  inline TransformData get_transform(void) {
+    return this->transform;
   }
 
-  inline void draw(void) { obj.draw(); }
+  inline void draw(void) { if (enable) obj.draw(); }
 
 public:
   TDrawable obj;
   TransformData transform {};
-
-  float elapsed_time {0.0f};
   bool enable {true};
-
-  std::queue<TaskWrapper<GameObject>> task_queue;
 };
 
 } // namespace ntf::shogle

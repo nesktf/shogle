@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.hpp"
+
 #include <glm/mat4x4.hpp>
 
 #include <functional>
@@ -9,49 +11,54 @@
 namespace ntf::shogle {
 
 template<typename TObj>
-using Task = std::function<bool(TObj*,float,float)>;
-
-// template <typename TObj>
-// class CompositeTask {
-// public:
-//   template<typename... Tasks>
-//   CompositeTask(Task<TObj> task, Tasks... args) {
-//     tasks.push_back(task);
-//     CompositeTask(args...);
-//   }
-//
-// public:
-//   bool operator()(TObj* obj, float delta_time, float time) {
-//     auto task = tasks.begin();
-//     while (task != tasks.end()) {
-//       if ((*task)(obj, delta_time, time)) {
-//         tasks.erase(task);
-//       }
-//     }
-//     return tasks.empty();
-//   }
-//
-// private:
-//   std::list<Task<TObj>> tasks;
-// };
-
-template<typename TObj>
-class TaskWrapper {
+class Task {
 public:
-  TaskWrapper(Task<TObj> fun) :
-    task(fun) {}
+  Task(TObj* _obj) :
+    obj(_obj) {}
 
-  ~TaskWrapper() = default;
+  virtual ~Task() = default;
 
 public:
-  bool operator()(TObj* obj, float delta_time) {
-    elapsed_time += delta_time;
-    return task(obj, delta_time, elapsed_time);
+  virtual bool operator()(float dt) = 0;
+
+protected:
+  inline TransformData get_transform(void) {
+    return obj->transform;
   }
 
-public:
-  Task<TObj> task;
-  float elapsed_time {0.0f};
+  inline void set_transform(TransformData data) {
+    obj->update_model(data);
+  }
+
+protected:
+  bool is_finished {false};
+  TObj* obj;
 };
+
+template<typename TObj>
+using TaskLambda = std::function<bool(TObj*,float)>;
+
+template<typename TObj>
+class TaskL : public Task<TObj> {
+public:
+  TaskL(TObj* obj, TaskLambda<TObj> lambda) :
+    Task<TObj>(obj),
+    fun(lambda) {};
+
+public:
+  bool operator()(float dt) override {
+    if (this->is_finished) {
+      return true;
+    }
+
+    this->is_finished = fun(this->obj,dt);
+    return false;
+  }
+
+protected:
+  TaskLambda<TObj> fun;
+};
+
+using TaskWrapper = std::function<bool(float)>;
 
 } // namespace ntf::shogle

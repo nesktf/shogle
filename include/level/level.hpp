@@ -1,9 +1,8 @@
 #pragma once
 
-#include "level/game_object.hpp"
-#include "resource/pool.hpp"
-#include "render/sprite.hpp"
-#include "render/model.hpp"
+#include "task/task.hpp"
+
+#include "log.hpp"
 
 #include <functional>
 #include <vector>
@@ -18,27 +17,63 @@ public:
     Transition
   };
 
-  template<typename T>
-  using ObjMap = std::unordered_map<res::id_t, std::unique_ptr<T>>;
-
 public:
-  Level() { this->state = State::Loading; }
+  Level() :
+    state(State::Loading) {}
+
   virtual ~Level() = default;
 
+  Level(Level&&) = default;
+  Level& operator=(Level&&) = default;
+
+  Level(const Level&) = delete;
+  Level& operator=(const Level&) = delete;
+
 public:
-  void next_state(void);
-  void update(float dt);
-  void draw(void);
+  virtual void draw(void) = 0;
 
 public:
   virtual void on_load(void) {};
   virtual void on_transition(void) {};
 
 public:
-  ObjMap<SpriteObj> sprite_obj;
-  ObjMap<ModelObj> model_obj;
+  void next_state(void) {
+    switch (this->state) {
+      case State::Loading:
+        Log::debug("[Level] State change (Loading -> Loaded)");
+        this->state = State::Loaded;
+        this->on_load();
+        break;
+      case State::Loaded:
+        Log::debug("[Level] State change (Loaded -> Transition)");
+        this->state = State::Transition;
+        this->on_transition();
+        break;
+      default:
+        break;
+    }
+  }
+
+  void update_tasks(float dt) {
+    for (auto task = tasks.begin(); task != tasks.end();) {
+      if ((*task)(dt)) {
+        task = tasks.erase(task);
+      } else {
+        ++task;
+      }
+    }
+  }
+
+  template<typename TObj>
+  void add_task(TaskWrapper task) {
+    tasks.emplace_back(std::move(task));
+  }
+
+protected:
   Level::State state;
+  std::vector<TaskWrapper> tasks;
 };
-typedef std::function<Level*(void)> LevelCreator;
+
+using LevelCreator = std::function<Level*(void)>;
 
 } // namespace ntf::shogle
