@@ -9,6 +9,7 @@
 
 namespace ntf::shogle::res {
 
+// Texture::data_t
 class TextureData {
 public:
   enum class Type {
@@ -17,7 +18,7 @@ public:
     FBOTex
   };
 
-public:
+public: // Resource data can be copied but i don't think is a good idea
   TextureData(std::string path);
   TextureData(std::string path, GLenum tex_dim, aiTextureType ai_type, Type tex_type);
 
@@ -40,12 +41,13 @@ public:
   unsigned char* data;
 };
 
+// Texture
 class Texture {
 public:
   using data_t = TextureData;
 
-public:
-  Texture(const data_t* data);
+public: // Resources can't be copied
+  Texture(const Texture::data_t* data);
   ~Texture();
 
   Texture(Texture&&) noexcept;

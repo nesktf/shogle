@@ -3,24 +3,22 @@
 #include "resource/loader.hpp"
 
 #include "types.hpp"
+#include "traits.hpp"
 
 #include <tuple>
-#include <concepts>
 
 namespace ntf::shogle::res {
 
-template<typename T, typename... ResT>
-concept same_as_defined = (... or std::same_as<T, ResT>);
-
-template<typename... ResT>
+template<typename... TRes>
+requires(is_resource<TRes> && ...)
 class Pool {
-protected:
-  template<typename T>
-  using ResMap = std::unordered_map<id_t, T>;
+private:
+  template<typename T> // Subject to change
+  using ResContainer = std::unordered_map<id_t, T>;
 
   using LoadCallback = std::function<void()>;
 
-public:
+public: // Resources can't be copied, so the pool can't be copied
   Pool() = default;
   ~Pool() = default;
 
@@ -30,28 +28,32 @@ public:
   Pool(const Pool&) = delete;
   Pool& operator=(const Pool&) = delete;
 
-public:
-  template<same_as_defined<ResT...> T>
-  cref<T> get(id_t id) {
-    return std::cref(std::get<ResMap<T>>(pool).at(id));
+public: // Resource getters
+  template<typename TReq>
+  requires(same_as_defined<TReq, TRes...>)
+  cref<TReq> get(id_t id) {
+    return std::cref(std::get<ResContainer<TReq>>(pool).at(id));
   }
 
-  template<same_as_defined<ResT...> T>
-  T* get_p(id_t id) {
-    return &std::get<ResMap<T>>(pool).at(id);
+  template<typename TReq>
+  requires(same_as_defined<TReq, TRes...>)
+  TReq* get_p(id_t id) {
+    return &std::get<ResContainer<TReq>>(pool).at(id);
   }
 
-public:
-  template<same_as_defined<ResT...> T>
+public: // Resource requesters
+  template<typename TReq>
+  requires(same_as_defined<TReq, TRes...>)
   void direct_load(std::initializer_list<PathInfo> input_list) {
     for (const auto& res_info : input_list) {
       auto& loader = DataLoader::instance();
-      auto data_ptr = loader.direct_load<T>(res_info);
-      this->emplace<T>(res_info.id, data_ptr.get());
+      auto data_ptr = loader.direct_load<TReq>(res_info);
+      this->emplace<TReq>(res_info.id, data_ptr.get());
     }
   }
 
-  template<same_as_defined<ResT...> T>
+  template<typename TReq>
+  requires(same_as_defined<TReq, TRes...>)
   void async_load(std::initializer_list<PathInfo> input_list, LoadCallback on_load) {
     load_counters.push_back(std::make_pair(input_list.size(), 0));
     auto* counter = &load_counters.back();
@@ -59,10 +61,10 @@ public:
     for (const auto& res_info : input_list) {
       auto& loader = DataLoader::instance();
 
-      loader.async_load<T>(res_info, [this, counter, on_load](auto id, auto data_ptr) {
+      loader.async_load<TReq>(res_info, [this, counter, on_load](auto id, auto data_ptr) {
         size_t res_total = counter->first;
         size_t& res_c = counter->second;
-        this->emplace<T>(id, data_ptr.get());
+        this->emplace<TReq>(id, data_ptr.get());
         if (++res_c == res_total) {
           on_load();
         }
@@ -70,15 +72,16 @@ public:
     }
   }
 
-protected:
-  template<typename T>
-  void emplace(id_t id, T::data_t* data) {
-    auto& map = std::get<ResMap<T>>(pool);
-    map.emplace(std::make_pair(id, T{data}));
+private:
+  // Emplace a new resource in the container
+  template<typename TReq>
+  void emplace(id_t id, TReq::data_t* data) {
+    auto& container = std::get<ResContainer<TReq>>(pool);
+    container.emplace(std::make_pair(id, TReq{data}));
   }
 
-protected:
-  std::tuple<std::unordered_map<id_t, ResT>...> pool;
+private:
+  std::tuple<ResContainer<TRes>...> pool;
   std::vector<std::pair<size_t, size_t>> load_counters;
 };
 

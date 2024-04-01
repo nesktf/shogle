@@ -1,5 +1,4 @@
-#include "shogle_2d.hpp"
-#include "shogle_3d.hpp"
+#include "shogle_all.hpp"
 
 using namespace ntf::shogle;
 
@@ -31,7 +30,7 @@ public:
       {
         .id="chiruno_fumo",
         .path="res/models/cirno_fumo/cirno_fumo.obj"
-      },
+      }, 
       {
         .id="reimu_fumo",
         .path="res/models/reimu_fumo/reimu_fumo.obj"
@@ -47,9 +46,9 @@ public:
       pool.get<res::Shader>("generic_2d")
     };
     cino->set_transform(TransformData{
-      .pos = task::sprite_pos(glm::vec2{400.0f, 300.0f}),
-      .scale = task::sprite_scale(glm::vec2{10.0f}),
-      .rot = task::sprite_rot(float{0.0f})
+      .pos = math::sprite_pos(glm::vec2{400.0f, 300.0f}),
+      .scale = math::sprite_scale(glm::vec2{10.0f}),
+      .rot = math::sprite_rot(float{0.0f})
     });
     sprites.emplace(make_pair_ptr("chiruno", cino));
     add_task<SpriteObj>(task::spr_rotate(cino, 300.0f, 10.0f));
@@ -117,7 +116,6 @@ public:
 
 public:
   static Level* create(void) { return new TestLevel(); }
-
 };
 
 int main(int argc, char* argv[]) {

@@ -9,3 +9,5 @@
 
 #include "render/model.hpp"
 #include "task/common_model.hpp"
+
+#include "math.hpp"

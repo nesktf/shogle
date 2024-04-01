@@ -15,7 +15,7 @@ namespace ntf::shogle::res {
 
 // Shader::data_t
 class ShaderData {
-public:
+public: // Resource data can be copied but i don't think is a good idea
   ShaderData(std::string path);
   ~ShaderData() = default;
 
@@ -35,7 +35,7 @@ class Shader {
 public:
   using data_t = ShaderData;
 
-public:
+public: // Resources can't be copied
   Shader(const Shader::data_t* data);
   ~Shader();
 
@@ -45,7 +45,7 @@ public:
   Shader(const Shader&) = delete;
   Shader& operator=(const Shader&) = delete;
 
-public:
+public: // Shader uniform manipulation
   inline void use(void) const {
     glUseProgram(this->prog);
   }

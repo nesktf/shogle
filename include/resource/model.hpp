@@ -6,6 +6,7 @@
 
 namespace ntf::shogle::res {
 
+// Model::data_t
 class ModelData {
 public:
   struct Vertex {
@@ -19,7 +20,7 @@ public:
     std::vector<Texture::data_t> tex;
   };
 
-public:
+public: // Resource data can be copied but i don't think is a good idea
   ModelData(std::string path);
   ~ModelData() = default;
 
@@ -33,12 +34,13 @@ public:
   std::vector<MeshData> meshes; 
 };
 
+// Model
 class Model {
 public:
   using data_t = ModelData;
 
   class Mesh {
-  public:
+  public: // Resources can't be copied
     Mesh(const ModelData::MeshData& mesh);
     ~Mesh();
 
@@ -60,8 +62,8 @@ public:
     size_t indices;
   };
 
-public:
-  Model(const data_t* data);
+public: // Resource wrappers also can't be copied
+  Model(const Model::data_t* data);
   ~Model() = default;
 
   Model(Model&&) = default;

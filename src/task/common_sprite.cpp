@@ -1,7 +1,5 @@
 #include "task/common_sprite.hpp"
-
-#include "render/sprite.hpp"
-#include "level/game_object.hpp"
+#include "math.hpp"
 
 #include "log.hpp"
 
@@ -10,9 +8,9 @@ namespace ntf::shogle::task {
 spr_transform::spr_transform(SpriteObj* _obj, glm::vec2 pos, glm::vec2 scale, float rot) :
     Task<SpriteObj>(_obj),
     transform(TransformData{
-      .pos = sprite_pos(pos),
-      .scale = sprite_scale(scale),
-      .rot = sprite_rot(rot)
+      .pos = math::sprite_pos(pos),
+      .scale = math::sprite_scale(scale),
+      .rot = math::sprite_rot(rot)
     }) {}
 bool spr_transform::operator()(float) {
   obj->set_transform(transform);
@@ -42,7 +40,7 @@ spr_move_circle::spr_move_circle(SpriteObj* _obj, glm::vec2 _center, float _ang_
 bool spr_move_circle::operator()(float dt) {
   TransformData transform = obj->get_transform();
 
-  transform.pos = sprite_pos(glm::vec2{
+  transform.pos = math::sprite_pos(glm::vec2{
     center.x+radius*glm::cos(ang_speed*t),
     center.y+radius*glm::sin(ang_speed*t)
   });

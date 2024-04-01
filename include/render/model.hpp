@@ -3,7 +3,7 @@
 #include "resource/model.hpp"
 #include "resource/shader.hpp"
 
-#include "types.hpp"
+#include "traits.hpp"
 
 namespace ntf::shogle::render {
 
@@ -28,6 +28,7 @@ public:
 namespace ntf::shogle {
 
 template<typename T>
+requires(is_drawable<T>)
 class GameObject;
 
 using ModelObj = GameObject<render::Model>;

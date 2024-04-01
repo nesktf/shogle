@@ -3,7 +3,7 @@
 #include "resource/texture.hpp"
 #include "resource/shader.hpp"
 
-#include "types.hpp"
+#include "traits.hpp"
 
 namespace ntf::shogle::render {
 
@@ -23,11 +23,12 @@ public:
   glm::mat4 model_m {1.0f};
 };
 
-} // namespace ntf::shogle
+} // namespace ntf::shogle::render
 
 namespace ntf::shogle {
 
 template<typename T>
+requires(is_drawable<T>)
 class GameObject;
 
 using SpriteObj = GameObject<render::Sprite>;

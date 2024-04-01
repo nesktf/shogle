@@ -2,28 +2,11 @@
 
 #include "task/task.hpp"
 
-namespace ntf::shogle {
-template<typename TObj>
-class GameObject;
-}
+#include "render/sprite.hpp"
 
-namespace ntf::shogle::render {
-class Sprite;
-}
+#include "level/game_object.hpp"
 
 namespace ntf::shogle::task {
-
-static inline glm::vec3 sprite_pos(glm::vec2 pos) {
-  return glm::vec3{pos, 0.0f};
-}
-static inline glm::vec3 sprite_scale(glm::vec2 scale) {
-  return glm::vec3{scale, 1.0f};
-}
-static inline glm::vec3 sprite_rot(float rot) {
-  return glm::vec3{0.0f, 0.0f, rot};
-}
-
-using SpriteObj = GameObject<render::Sprite>;
 
 struct spr_transform : public Task<SpriteObj> {
   spr_transform(SpriteObj* _obj, glm::vec2 pos, glm::vec2 scale, float rot);
