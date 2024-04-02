@@ -2,6 +2,58 @@
 
 using namespace ntf::shogle;
 
+struct car_movement : public task::ObjTask<ModelObj> {
+  enum class State {
+    GoingLeft = 0,
+    AtLeft,
+    GoingRight,
+    AtRight
+  };
+  car_movement(ModelObj* _obj, float _speed, float _limit) : 
+    ObjTask<ModelObj>(_obj),
+    speed(_speed),
+    limit(_limit) {
+    auto transform = _obj->get_transform();
+    transform.pos.x = limit;
+    _obj->set_transform(transform);
+  }
+  void task(float dt) override {
+    auto transform = obj->get_transform();
+    switch (state) {
+      case State::GoingLeft: {
+        transform.pos.x -= speed*dt;
+        if (transform.pos.x < -1.0f*limit) {
+          this->state = State::AtLeft;
+        }
+        break;
+      }
+      case State::GoingRight: {
+        transform.pos.x += speed*dt;
+        if (transform.pos.x > limit) {
+          this->state = State::AtRight;
+        }
+        break;
+      }
+      case State::AtRight: {
+        transform.rot.y = 90.0f;
+        transform.pos.x = 2.0f;
+        this->state = State::GoingLeft;
+        break;
+      }
+      case State::AtLeft: {
+        transform.rot.y = -90.0f;
+        transform.pos.x = -2.0f;
+        this->state = State::GoingRight;
+        break;
+      }
+    }
+    obj->set_transform(transform);
+  }
+
+  State state {State::GoingLeft};
+  float speed, limit;
+};
+
 class TestLevel : public Level {
 private:
   res::Pool<res::Texture, res::Shader, res::Model> pool;
@@ -38,6 +90,10 @@ public:
       {
         .id="marisa_fumo",
         .path="res/models/marisa_fumo/marisa_fumo.obj"
+      },
+      {
+        .id="car",
+        .path="res/models/homer-v/homer-v.obj"
       }
     }, [this]{ next_state(); });
 
@@ -74,7 +130,7 @@ public:
       pool.get<res::Shader>("generic_3d")
     };
     cino_fumo->set_transform(TransformData{
-      .pos = glm::vec3{-0.25f, -0.25f, -1.0f},
+      .pos = glm::vec3{-0.35f, -0.25f, -1.0f},
       .scale = glm::vec3{0.015f},
       .rot = glm::vec3{0.0f}
     });
@@ -86,7 +142,7 @@ public:
       pool.get<res::Shader>("generic_3d")
     };
     remu_fumo->set_transform(TransformData{
-      .pos = glm::vec3{0.25f, -0.25f, -1.0f},
+      .pos = glm::vec3{0.35f, -0.25f, -1.0f},
       .scale = glm::vec3{0.015f},
       .rot = glm::vec3{0.0f}
     });
@@ -106,12 +162,25 @@ public:
     add_task(task::create<task::ObjTaskL<ModelObj>>(mari_fumo, [](ModelObj* obj, float dt) -> bool {
       auto transform = obj->get_transform();
 
-      transform.rot.x += 200.0f*dt;
+      transform.rot.x += 365.0f*dt;
+      transform.rot.y += 1.5f*365.0f*dt;
       obj->set_transform(transform);
 
       return false;
     }));
-    add_task(task::create<task::mod_sin_jump>(mari_fumo, 0.5f, 3.0f, anim_time));
+    add_task(task::create<task::mod_sin_jump>(mari_fumo, 0.75f, 3.2f, anim_time));
+
+    auto* car = new ModelObj {
+      pool.get<res::Model>("car"),
+      pool.get<res::Shader>("generic_3d")
+    };
+    car->set_transform(TransformData{
+      .pos = glm::vec3{0.0f, -0.25f, -2.0f},
+      .scale = glm::vec3{0.3f},
+      .rot = glm::vec3{0.0f, 90.0f, 0.0f}
+    });
+    models.emplace(make_pair_ptr("car", car));
+    add_task(task::create<car_movement>(car, 4.4f, 2.2f));
   }
 
 public:
