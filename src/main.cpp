@@ -51,8 +51,8 @@ public:
       .rot = math::sprite_rot(float{0.0f})
     });
     sprites.emplace(make_pair_ptr("chiruno", cino));
-    add_task<SpriteObj>(task::spr_rotate(cino, 300.0f, 10.0f));
-    add_task<SpriteObj>(task::spr_move_circle(cino, {400.0f, 300.0f}, 20.0f, 100.0f, 10.0f));
+    add_task(task::create<task::spr_rotate>(cino, 300.0f, 10.0f));
+    add_task(task::create<task::spr_move_circle>(cino, glm::vec2{400.0f, 300.0f}, 20.0f, 100.0f, 10.0f));
   }
   ~TestLevel() = default;
 
@@ -79,7 +79,7 @@ public:
       .rot = glm::vec3{0.0f}
     });
     models.emplace(make_pair_ptr("chiruno_fumo", cino_fumo));
-    add_task<ModelObj>(task::mod_fumo_jump(cino_fumo, 200.0f, 12.0f, anim_time));
+    add_task(task::create<task::mod_fumo_jump>(cino_fumo, 200.0f, 12.0f, anim_time));
 
     auto* remu_fumo = new ModelObj{
       pool.get<res::Model>("reimu_fumo"),
@@ -91,7 +91,7 @@ public:
       .rot = glm::vec3{0.0f}
     });
     models.emplace(make_pair_ptr("reimu_fumo", remu_fumo));
-    add_task<ModelObj>(task::mod_fumo_jump(remu_fumo, -200.0f, 12.0f, anim_time));
+    add_task(task::create<task::mod_fumo_jump>(remu_fumo, -200.0f, 12.0f, anim_time));
 
     auto* mari_fumo = new ModelObj{
       pool.get<res::Model>("marisa_fumo"),
@@ -103,15 +103,15 @@ public:
       .rot = glm::vec3{0.0f, -180.0f, 0.0f}
     });
     models.emplace(make_pair_ptr("marisa_fumo", mari_fumo));
-    add_task<ModelObj>(TaskL<ModelObj>{mari_fumo, [](ModelObj* obj, float dt) -> bool {
+    add_task(task::create<task::ObjTaskL<ModelObj>>(mari_fumo, [](ModelObj* obj, float dt) -> bool {
       auto transform = obj->get_transform();
 
       transform.rot.x += 200.0f*dt;
       obj->set_transform(transform);
 
       return false;
-    }});
-    add_task<ModelObj>(task::mod_sin_jump(mari_fumo, 0.5f, 3.0f, anim_time));
+    }));
+    add_task(task::create<task::mod_sin_jump>(mari_fumo, 0.5f, 3.0f, anim_time));
   }
 
 public:

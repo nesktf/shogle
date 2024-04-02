@@ -25,6 +25,14 @@ concept is_resource = requires (TRes res) {
 template<typename T, typename... TRes>
 concept same_as_defined = (... or std::same_as<T, TRes>);
 
-
+template<typename TObj>
+concept is_world_object = requires (TObj obj,  TransformData data) {
+  requires std::same_as<decltype(std::declval<TObj>().enable), bool>;
+  { obj.set_transform(data) } -> std::same_as<void>;
+  { obj.get_transform() } -> std::same_as<TransformData>;
+  { obj.draw() } -> std::same_as<void>;
+  requires std::copy_constructible<TObj> && std::move_constructible<TObj>;
+  requires std::copyable<TObj> && std::movable<TObj>;
+};
 
 } // namespace ntf::shogle

@@ -33,8 +33,7 @@ public:
 
   virtual ~Level() = default;
 
-  Level(Level&&) = default;
-  Level& operator=(Level&&) = default;
+  Level(Level&&) = default; Level& operator=(Level&&) = default;
 
   Level(const Level&) = delete;
   Level& operator=(const Level&) = delete;
@@ -66,7 +65,8 @@ public:
 
   void update_tasks(float dt) {
     for (auto task = tasks.begin(); task != tasks.end();) {
-      if ((*task)(dt)) {
+      auto task_ptr = task->get();
+      if ((*task_ptr)(dt)) {
         task = tasks.erase(task);
       } else {
         ++task;
@@ -74,14 +74,13 @@ public:
     }
   }
 
-  template<typename TObj>
-  void add_task(TaskWrapper task) {
-    tasks.emplace_back(std::move(task));
+  void add_task(task::Task* task) {
+    tasks.emplace_back(std::unique_ptr<task::Task>{task});
   }
 
 protected:
   Level::State state;
-  std::vector<TaskWrapper> tasks;
+  std::vector<std::unique_ptr<task::Task>> tasks;
 };
 
 using LevelCreator = std::function<Level*(void)>;

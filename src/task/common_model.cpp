@@ -7,25 +7,13 @@
 
 namespace ntf::shogle::task {
 
-mod_transform::mod_transform(ModelObj* _obj, glm::vec3 pos, glm::vec3 scale, glm::vec3 rot) :
-  Task<ModelObj>(_obj),
-  transform(TransformData{
-    .pos = pos,
-    .scale = scale,
-    .rot = rot
-  }) {}
-bool mod_transform::operator()(float) {
-  obj->set_transform(transform);
-  return true;
-}
-
 mod_fumo_jump::mod_fumo_jump(ModelObj* _obj, float _ang_speed, float _jump_speed, float _time) :
-  Task<ModelObj>(_obj),
+  ObjTask<ModelObj>(_obj),
   ang_speed(_ang_speed),
   jump_speed(_jump_speed),
   time(_time),
   half_scale(_obj->get_transform().scale.y*0.5f) {}
-bool mod_fumo_jump::operator()(float dt) {
+void mod_fumo_jump::task(float dt) {
   auto transform = obj->get_transform();
 
   transform.scale.y = half_scale+(half_scale*glm::abs(glm::sin(jump_speed*t)));
@@ -33,23 +21,23 @@ bool mod_fumo_jump::operator()(float dt) {
   obj->set_transform(transform);
 
   t += dt;
-  return (time < 0.0f ? false : t >= time);
+  set_task_finished(time < 0.0f ? false : t >= time);
 }
 
 mod_sin_jump::mod_sin_jump(ModelObj* _obj, float _force, float _speed, float _time) :
-  Task<ModelObj>(_obj),
+  ObjTask<ModelObj>(_obj),
   force(_force),
   time(_time),
   speed(_speed),
   base_y(_obj->get_transform().pos.y) {}
-bool mod_sin_jump::operator()(float dt) {
+void mod_sin_jump::task(float dt) {
   auto transform = obj->get_transform();
 
   transform.pos.y = base_y + (force*glm::abs(glm::sin(speed*t)));
   obj->set_transform(transform);
 
   t += dt;
-  return (time < 0.0f ? false : t >= time);
+  set_task_finished(time < 0.0f ? false : t >= time);
 }
 
 // ModelTask mod_linear_rel_move(glm::vec3 new_pos, float time) {

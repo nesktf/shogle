@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types.hpp"
+#include "traits.hpp"
 
 #include <glm/mat4x4.hpp>
 
@@ -8,57 +8,77 @@
 #include <queue>
 #include <list>
 
-namespace ntf::shogle {
+namespace ntf::shogle::task {
 
-template<typename TObj>
 class Task {
-public:
-  Task(TObj* _obj) :
-    obj(_obj) {}
+protected:
+  Task() = default;
 
+public:
   virtual ~Task() = default;
 
+  Task(Task&&) = default;
+  Task& operator=(Task&&) =default;
+
+  Task(const Task&) = default;
+  Task& operator=(const Task&) = default;
+
 public:
-  virtual bool operator()(float dt) = 0;
+  bool operator()(float dt) {
+    if (is_finished) {
+      // Avoid executing task after finishing
+      return true;
+    }
+    task(dt);
+    return is_finished;
+  };
+
+public:
+  virtual void task(float dt) = 0;
 
 protected:
-  inline TransformData get_transform(void) {
-    return obj->transform;
-  }
+  void set_task_finished(void) { this->is_finished = true; }
+  void set_task_finished(bool flag) { this->is_finished = flag; }
 
-  inline void set_transform(TransformData data) {
-    obj->update_model(data);
-  }
-
-protected:
+private:
   bool is_finished {false};
+};
+
+template<typename TaskObj, typename... Args>
+inline Task* create(Args&&... args) {
+  return new TaskObj{std::forward<Args>(args)...};
+}
+
+template<typename TObj>
+requires(is_world_object<TObj>)
+class ObjTask : public Task {
+protected:
+  ObjTask(TObj* _obj) :
+    obj(_obj) {}
+
+protected:
   TObj* obj;
 };
 
 template<typename TObj>
-using TaskLambda = std::function<bool(TObj*,float)>;
-
-template<typename TObj>
-class TaskL : public Task<TObj> {
-public:
-  TaskL(TObj* _obj, TaskLambda<TObj> lambda) :
-    Task<TObj>(_obj),
-    fun(lambda) {};
+class ObjTaskL : public ObjTask<TObj> {
+private:
+  using TaskLambda = std::function<bool(TObj*, float)>;
 
 public:
-  bool operator()(float dt) override {
-    if (this->is_finished) {
-      return true;
-    }
+  ObjTaskL(TObj* _obj, TaskLambda _lambda) : 
+    ObjTask<TObj>(_obj),
+    lambda(_lambda) {};
 
-    this->is_finished = fun(this->obj,dt);
-    return false;
+  ~ObjTaskL() = default;
+
+public:
+  void task(float dt) override {
+    this->set_task_finished(lambda(this->obj, dt));
   }
 
-protected:
-  TaskLambda<TObj> fun;
+private:
+  TaskLambda lambda;
 };
-
-using TaskWrapper = std::function<bool(float)>;
 
 } // namespace ntf::shogle
