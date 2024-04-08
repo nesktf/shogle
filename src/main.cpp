@@ -36,7 +36,7 @@ struct TestScene : public ntf::Scene {
       pool.get<ntf::Texture>("cirno0"),
       pool.get<ntf::Shader>("generic_2d")
     });
-    spr.back().pos = {400.0f, 300.0f};
+    spr.back().pos = {400.0f, 500.0f};
     spr.back().scale = glm::vec2{200.0f};
     spr.back().add_task([](ntf::Sprite* obj, float dt) -> bool {
       auto& in = ntf::InputHandler::instance();
@@ -65,6 +65,13 @@ struct TestScene : public ntf::Scene {
     });
     spr.back().pos = {400.00f, 250.0f};
     spr.back().scale = glm::vec2{200.0f};
+    spr.back().add_task([this](ntf::Sprite* obj, float) -> bool {
+      auto* player = &spr[0];
+      if (ntf::collision2d(player->pos, player->scale, obj->pos, obj->scale)) {
+        ntf::Log::debug("[TestScene] Collision detected");
+      }
+      return false;
+    });
 
     mod.emplace_back(ntf::Model{
       pool.get<ntf::ModelRes>("cirno_fumo"),
@@ -95,7 +102,6 @@ struct TestScene : public ntf::Scene {
 
     eng.depth_test(false);
     std::for_each(spr.begin(), spr.end(), [dt](ntf::Sprite& obj) {
-      obj.rot += M_PI * dt;
       obj.update(dt);
       obj.draw();
     });

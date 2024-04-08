@@ -13,3 +13,5 @@
 #include "scene/model_task.hpp"
 
 #include "util/misc.hpp"
+
+#include "math/collision.hpp"
