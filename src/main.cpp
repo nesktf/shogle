@@ -38,6 +38,26 @@ struct TestScene : public ntf::Scene {
     });
     spr.back().pos = {400.0f, 300.0f};
     spr.back().scale = glm::vec2{200.0f};
+    spr.back().add_task([](ntf::Sprite* obj, float dt) -> bool {
+      auto& in = ntf::InputHandler::instance();
+      float speed = 400.0f;
+
+      if (in.is_key_pressed(ntf::KEY_A)) {
+        obj->pos.x -= speed*dt;
+      } else if (in.is_key_pressed(ntf::KEY_D)) {
+        obj->pos.x += speed*dt;
+      }
+      obj->pos.x = std::clamp(obj->pos.x, 0.0f, 800.0f);
+
+      if (in.is_key_pressed(ntf::KEY_W)) {
+        obj->pos.y -= speed*dt;
+      } else if (in.is_key_pressed(ntf::KEY_S)) {
+        obj->pos.y += speed*dt;
+      }
+      obj->pos.y = std::clamp(obj->pos.y, 0.0f, 600.0f);
+
+      return false;
+    });
 
     spr.emplace_back(ntf::Sprite{
       pool.get<ntf::Texture>("cirno1"),
@@ -56,14 +76,12 @@ struct TestScene : public ntf::Scene {
 
     float half_scale = 0.015f*0.5f;
     float t = 0.0f;
-    mod.back().add_task(ntf::make_ptr<ntf::ModelTaskFun>(
-      [t, half_scale](ntf::Model* obj, float dt) mutable -> bool {
-        t += dt;
-        obj->rot.y += 2.0f*M_PI*dt;
-        obj->scale.y = half_scale + (half_scale*glm::abs(glm::sin(10.0f*t)));
-        return false;
-      }
-    ));
+    mod.back().add_task([t, half_scale](ntf::Model* obj, float dt) mutable -> bool {
+      t += dt;
+      obj->rot.y += 2.0f*M_PI*dt;
+      obj->scale.y = half_scale + (half_scale*glm::abs(glm::sin(10.0f*t)));
+      return false;
+    });
   }
 
   void update(float dt) override {
@@ -84,7 +102,7 @@ struct TestScene : public ntf::Scene {
   }
 
   static ntf::sceneptr_t create() {
-    return ntf::sceneptr_t{new TestScene()};
+    return ntf::sceneptr_t{ntf::make_ptr<TestScene>()};
   }
 };
 

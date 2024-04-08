@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/engine.hpp"
+#include "core/input.hpp"
 #include "core/log.hpp"
 
 #include "res/respool.hpp"

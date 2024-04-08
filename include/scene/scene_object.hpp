@@ -28,6 +28,10 @@ struct SceneObj {
     tasks.add_task(std::move(task));
   }
 
+  void add_task(TaskFun<TObj>::TaskF fun) {
+    tasks.add_task(std::make_unique<TaskFun<TObj>>(fun));
+  }
+
 protected:
   glm::mat4 model_m {1.0f};
   TaskManager<TObj> tasks;
