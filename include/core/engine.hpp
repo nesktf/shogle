@@ -18,7 +18,7 @@ public:
 
 public:
   inline void upd_proj2d_m(float w_width, float w_height) {
-    this->proj2d = glm::ortho(0.0f, w_width, w_height, 0.0f, -1.0f, 1.0f);
+    this->proj2d = glm::ortho(0.0f, w_width, w_height, 0.0f, -10.0f, 1.0f);
   }
   // TODO: Set variable fov??
   inline void upd_proj3d_m(float w_ratio, float fov = 45.0f) {
@@ -34,6 +34,14 @@ public:
 
   inline void stop(void) {
     window->close();
+  }
+
+  inline void depth_test(bool flag) {
+    if (flag) {
+      glEnable(GL_DEPTH_TEST);
+    } else {
+      glDisable(GL_DEPTH_TEST);
+    }
   }
   
 public:

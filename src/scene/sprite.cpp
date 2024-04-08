@@ -7,7 +7,7 @@ void Sprite::update(float dt) {
 
   glm::mat4 mat{1.0f};
 
-  mat = glm::translate(mat, glm::vec3{pos, 0.0f});
+  mat = glm::translate(mat, glm::vec3{pos, (float)layer});
   mat = glm::rotate(mat, rot, glm::vec3{0.0f, 0.0f, 1.0f});
   mat = glm::scale(mat, glm::vec3{scale, 1.0f});
 

@@ -41,7 +41,6 @@ void Shogle::start(SceneCreator creator) {
   Log::verbose("[Shogle] Initial level created");
 
   Log::info("[Shogle] Entering main loop");
-  glEnable(GL_DEPTH_TEST);
   while (!window->should_close()) {
     InputHandler::instance().poll();
     ResLoader::instance().do_requests();

@@ -10,3 +10,5 @@
 
 #include "scene/sprite_task.hpp"
 #include "scene/model_task.hpp"
+
+#include "util/misc.hpp"

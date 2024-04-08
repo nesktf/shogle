@@ -35,7 +35,7 @@ public:
 };
 
 // Model3D
-class Model3D {
+class ModelRes {
 public:
   using data_t = ModelData;
 
@@ -63,14 +63,14 @@ public:
   };
 
 public: // Resource wrappers also can't be copied
-  Model3D(const Model3D::data_t* data);
-  ~Model3D() = default;
+  ModelRes(const ModelRes::data_t* data);
+  ~ModelRes() = default;
 
-  Model3D(Model3D&&) = default;
-  Model3D& operator=(Model3D&&) = default;
+  ModelRes(ModelRes&&) = default;
+  ModelRes& operator=(ModelRes&&) = default;
 
-  Model3D(const Model3D&) = delete;
-  Model3D& operator=(const Model3D&) = delete;
+  ModelRes(const ModelRes&) = delete;
+  ModelRes& operator=(const ModelRes&) = delete;
 
 public:
   std::vector<Mesh> meshes;

@@ -50,10 +50,6 @@ public:
   }
 
 public:
-  inline void add_task(task_t* task) {
-    new_tasks.push_back(std::unique_ptr<task_t>{task});
-  }
-  
   inline void add_task(std::unique_ptr<task_t> task) {
     new_tasks.push_back(std::move(task));
   }

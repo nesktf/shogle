@@ -85,7 +85,7 @@ ModelData::ModelData(std::string path) {
 }
 
 // Model
-Model3D::Mesh::Mesh(const ModelData::MeshData& mesh) {
+ModelRes::Mesh::Mesh(const ModelData::MeshData& mesh) {
   using Vertex = ModelData::Vertex;
   this->indices = mesh.ind.size();
 
@@ -119,7 +119,7 @@ Model3D::Mesh::Mesh(const ModelData::MeshData& mesh) {
   Log::verbose("[Model] Mesh created (vao-id: {})", this->vao);
 }
 
-Model3D::Mesh::Mesh(Mesh&& m) noexcept :
+ModelRes::Mesh::Mesh(Mesh&& m) noexcept :
   tex(std::move(m.tex)),
   vao(std::move(m.vao)),
   vbo(std::move(m.vbo)),
@@ -131,7 +131,7 @@ Model3D::Mesh::Mesh(Mesh&& m) noexcept :
   m.ebo = 0;
 }
 
-Model3D::Mesh& Model3D::Mesh::operator=(Mesh&& m) noexcept {
+ModelRes::Mesh& ModelRes::Mesh::operator=(Mesh&& m) noexcept {
   this->tex = std::move(m.tex);
   this->vao = std::move(m.vao);
   this->vbo = std::move(m.vbo);
@@ -145,7 +145,7 @@ Model3D::Mesh& Model3D::Mesh::operator=(Mesh&& m) noexcept {
   return *this;
 }
 
-Model3D::Mesh::~Mesh() {
+ModelRes::Mesh::~Mesh() {
   if (this->vao == 0) return;
   GLint id = this->vao;
   glBindVertexArray(this->vao);
@@ -159,9 +159,9 @@ Model3D::Mesh::~Mesh() {
   Log::verbose("[Model] Mesh deleted (vao-id: {})", id);
 }
 
-Model3D::Model3D(const Model3D::data_t* data) {
+ModelRes::ModelRes(const ModelRes::data_t* data) {
   for (const auto& mesh_data : data->meshes) {
-    this->meshes.emplace_back(Model3D::Mesh{mesh_data});
+    this->meshes.emplace_back(ModelRes::Mesh{mesh_data});
   }
 }
 
