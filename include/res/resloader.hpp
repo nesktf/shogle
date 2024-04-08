@@ -1,21 +1,17 @@
 #pragma once
 
-#include "singleton.hpp"
-#include "threadpool.hpp"
-#include "log.hpp"
-
-#include "resource/shader.hpp"
-#include "resource/texture.hpp"
-#include "resource/model.hpp"
+#include "core/singleton.hpp"
+#include "core/threadpool.hpp"
+#include "core/log.hpp"
 
 #include <memory>
 #include <functional>
 
-namespace ntf::shogle::res {
+namespace ntf {
 
 using id_t = std::string;
 
-struct PathInfo {
+struct pathinfo_t {
   id_t id;
   std::string path;
 };
@@ -26,13 +22,12 @@ using dataptr_t = std::unique_ptr<typename T::data_t>;
 template<typename T>
 using LoaderCallback = std::function<void(id_t,dataptr_t<T>)>;
 
-class DataLoader : public Singleton<DataLoader> {
+class ResLoader : public Singleton<ResLoader> {
 public:
-  DataLoader() = default;
-  ~DataLoader() = default;
+  ResLoader() = default;
 
 public:
-  void do_requests(void) {
+  inline void do_requests(void) {
     while (!requests.empty()) {
       auto callback = std::move(requests.front());
       requests.pop();
@@ -42,12 +37,12 @@ public:
 
 public:
   template<typename T>
-  dataptr_t<T> direct_load(PathInfo info) {
+  dataptr_t<T> direct_load(pathinfo_t info) {
     return std::make_unique<typename T::data_t>(info.path);
   }
 
   template<typename T>
-  void async_load(PathInfo info, LoaderCallback<T> on_load) {
+  void async_load(pathinfo_t info, LoaderCallback<T> on_load) {
     t_pool.enqueue([this, info, on_load=std::move(on_load)]{
       auto* data = new T::data_t{info.path}; // Hopefully won't leak???
 
@@ -64,5 +59,4 @@ private:
   ThreadPool t_pool;
 };
 
-} // namespace ntf::shogle::res
-
+} // namespace ntf

@@ -1,36 +1,27 @@
 #pragma once
 
-#include "resource/texture.hpp"
-#include "resource/shader.hpp"
+#include "render/base_renderer.hpp"
 
-#include "traits.hpp"
+#include "res/texture.hpp"
 
-namespace ntf::shogle::render {
+namespace ntf {
 
-class Sprite {
+class SpriteRenderer : public BaseRenderer {
 public:
-  Sprite(cref<res::Texture> _texture, cref<res::Shader> _shader) :
-    texture_ref(_texture),
-    shader_ref(_shader) {}
-
-public:
-  void draw(void);
-  static glm::mat4 model_transform(TransformData transform);
+  SpriteRenderer(Texture* _texture, Shader* _shader) :
+    BaseRenderer(_shader),
+    texture(_texture) {}
 
 public:
-  cref<res::Texture> texture_ref;
-  cref<res::Shader> shader_ref;
-  glm::mat4 model_m {1.0f};
+  void draw(glm::mat4 model_m) override;
+
+public:
+  static glm::mat4 default_modelgen(TransformData transform);
+
+public:
+  Texture* texture;
 };
 
-} // namespace ntf::shogle::render
+using SpriteObj = SceneObj<SpriteRenderer>;
 
-namespace ntf::shogle {
-
-template<typename T>
-requires(is_drawable<T>)
-class GameObject;
-
-using SpriteObj = GameObject<render::Sprite>;
-
-} // namespace ntf::shogle
+} // namespace ntf

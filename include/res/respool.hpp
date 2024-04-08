@@ -1,17 +1,16 @@
 #pragma once
 
-#include "resource/loader.hpp"
-
-#include "types.hpp"
-#include "traits.hpp"
+#include "res/resloader.hpp"
 
 #include <tuple>
 
-namespace ntf::shogle::res {
+namespace ntf {
+
+template<typename T, typename... TRes>
+concept same_as_defined = (... or std::same_as<T, TRes>);
 
 template<typename... TRes>
-requires(is_resource<TRes> && ...)
-class Pool {
+class ResPool {
 private:
   template<typename T> // Subject to change
   using ResContainer = std::unordered_map<id_t, T>;
@@ -19,34 +18,28 @@ private:
   using LoadCallback = std::function<void()>;
 
 public: // Resources can't be copied, so the pool can't be copied
-  Pool() = default;
-  ~Pool() = default;
+  ResPool() = default;
+  ~ResPool() = default;
 
-  Pool(Pool&&) = default;
-  Pool& operator=(Pool&&) = default;
+  ResPool(ResPool&&) = default;
+  ResPool& operator=(ResPool&&) = default;
 
-  Pool(const Pool&) = delete;
-  Pool& operator=(const Pool&) = delete;
+  ResPool(const ResPool&) = delete;
+  ResPool& operator=(const ResPool&) = delete;
 
 public: // Resource getters
   template<typename TReq>
   requires(same_as_defined<TReq, TRes...>)
-  cref<TReq> get(id_t id) {
-    return std::cref(std::get<ResContainer<TReq>>(pool).at(id));
-  }
-
-  template<typename TReq>
-  requires(same_as_defined<TReq, TRes...>)
-  TReq* get_p(id_t id) {
+  TReq* get(id_t id) {
     return &std::get<ResContainer<TReq>>(pool).at(id);
   }
 
 public: // Resource requesters
   template<typename TReq>
   requires(same_as_defined<TReq, TRes...>)
-  void direct_load(std::initializer_list<PathInfo> input_list) {
+  void direct_load(std::initializer_list<pathinfo_t> input_list) {
     for (const auto& res_info : input_list) {
-      auto& loader = DataLoader::instance();
+      auto& loader = ResLoader::instance();
       auto data_ptr = loader.direct_load<TReq>(res_info);
       this->emplace<TReq>(res_info.id, data_ptr.get());
     }
@@ -54,12 +47,12 @@ public: // Resource requesters
 
   template<typename TReq>
   requires(same_as_defined<TReq, TRes...>)
-  void async_load(std::initializer_list<PathInfo> input_list, LoadCallback on_load) {
+  void async_load(std::initializer_list<pathinfo_t> input_list, LoadCallback on_load) {
     load_counters.push_back(std::make_pair(input_list.size(), 0));
     auto* counter = &load_counters.back();
 
     for (const auto& res_info : input_list) {
-      auto& loader = DataLoader::instance();
+      auto& loader = ResLoader::instance();
 
       loader.async_load<TReq>(res_info, [this, counter, on_load](auto id, auto data_ptr) {
         size_t res_total = counter->first;
@@ -72,8 +65,7 @@ public: // Resource requesters
     }
   }
 
-private:
-  // Emplace a new resource in the container
+public: // Place resource manually
   template<typename TReq>
   void emplace(id_t id, TReq::data_t* data) {
     auto& container = std::get<ResContainer<TReq>>(pool);
@@ -85,5 +77,4 @@ private:
   std::vector<std::pair<size_t, size_t>> load_counters;
 };
 
-
-} // namespace ntf::shogle::res
+} // namespace ntf

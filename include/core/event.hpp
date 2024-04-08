@@ -20,8 +20,7 @@
 #include <functional>
 #include <list>
 
-namespace ntf::shogle
-{
+namespace ntf {
 
 // Simple observer pattern implementation
 //
@@ -78,4 +77,4 @@ bool Event<Ts...>::fire(Ts... args)
     return !this->callbacks.empty();
 }
 
-}; // namespace brls
+}; // namespace ntf

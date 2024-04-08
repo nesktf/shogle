@@ -4,7 +4,7 @@
 
 #include <string>
 
-namespace ntf::shogle {
+namespace ntf {
 
 class Settings {
 public:
@@ -18,4 +18,4 @@ public:
   std::string w_title = "shogle";
 };
 
-} // namespace ntf::shogle
+} // namespace ntf

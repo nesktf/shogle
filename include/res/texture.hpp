@@ -1,13 +1,13 @@
 #pragma once
 
-#include "resource/shader.hpp"
+#include "res/shader.hpp"
 
 #include <assimp/texture.h>
 #include <assimp/scene.h>
 
 #include <memory>
 
-namespace ntf::shogle::res {
+namespace ntf {
 
 // Texture::data_t
 class TextureData {
@@ -73,5 +73,4 @@ private:
   aiTextureType ai_type;
 };
 
-} // namespace ntf::shogle::res
-
+} // namespace ntf

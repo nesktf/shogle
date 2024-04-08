@@ -24,7 +24,7 @@
 #include <iostream>
 #include <chrono>
 
-namespace ntf::shogle {
+namespace ntf {
 
 #define ERROR_COLOR "[0;31m"
 #define WARNING_COLOR "[0;33m"
@@ -97,4 +97,4 @@ private:
   inline static LogLevel log_level = LogLevel::LOG_INFO;
 };
 
-}
+} // namespace ntf

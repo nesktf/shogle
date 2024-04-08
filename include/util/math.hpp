@@ -4,7 +4,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
-namespace ntf::shogle::math {
+namespace ntf::util {
 
 inline glm::vec3 ogl2car(const glm::vec3& vec) {
   return {vec.z, vec.x, vec.y};
@@ -34,6 +34,4 @@ inline glm::vec3 sprite_rot(float rot) {
   return glm::vec3{0.0f, 0.0f, rot};
 }
 
-}
-
-
+} // namespace ntf::util

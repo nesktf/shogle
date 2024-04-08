@@ -1,10 +1,10 @@
 #pragma once
 
-#include "resource/texture.hpp"
+#include "res/texture.hpp"
 
 #include <vector>
 
-namespace ntf::shogle::res {
+namespace ntf {
 
 // Model::data_t
 class ModelData {
@@ -76,5 +76,4 @@ public:
   std::vector<Mesh> meshes;
 };
 
-} // namespace ntf::shogle::res
-
+} // namespace ntf

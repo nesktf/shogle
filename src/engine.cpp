@@ -9,7 +9,7 @@ namespace ntf::shogle {
 
 bool Engine::init(const Settings& sett) {
   try {
-    this->window = Window::create(sett.w_width, sett.w_height, sett.w_title.c_str());
+    this->window = GLWindow::create(sett.w_width, sett.w_height, sett.w_title.c_str());
   } catch(const shogle_error& e) {  
     Log::error("{}", e.what());
     return false;
@@ -38,14 +38,14 @@ bool Engine::init(const Settings& sett) {
 }
 
 void Engine::start(LevelCreator creator) {
-  this->level = std::unique_ptr<Level>{creator()};
+  this->level = std::unique_ptr<Scene>{creator()};
   Log::verbose("[Engine] Initial level created");
 
   Log::info("[Engine] Entering main loop");
   glEnable(GL_DEPTH_TEST);
   while (!window->should_close()) {
     InputHandler::instance().poll();
-    res::DataLoader::instance().do_requests();
+    res::ResourceLoader::instance().do_requests();
 
     double curr_frame = window->get_time();
     double dt = curr_frame - this->last_frame;

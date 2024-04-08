@@ -1,12 +1,12 @@
 #pragma once
 
-#include "resource/texture.hpp"
+#include "res/texture.hpp"
 
 #include <assimp/texture.h>
 
 #include <string>
 
-namespace ntf::shogle::res {
+namespace ntf {
 
 // Material::data_t
 class MaterialData {
@@ -49,4 +49,4 @@ public:
   std::string sampler_basename;
 };
 
-} // namespace ntf::shogle::res
+} // namespace ntf

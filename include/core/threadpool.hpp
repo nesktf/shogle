@@ -1,20 +1,18 @@
 #pragma once
 
-#include <cstddef>
 #include <queue>
 #include <thread>
-#include <mutex>
 #include <functional>
 #include <condition_variable>
 #include <vector>
 
-namespace ntf::shogle {
+namespace ntf {
 
 class ThreadPool {
 public:
   ThreadPool(size_t n_threads = std::thread::hardware_concurrency());
-  ~ThreadPool();
 
+public:
   void enqueue(std::function<void()> task);
 
 private:
@@ -23,7 +21,6 @@ private:
   std::mutex queue_mutex;
   std::condition_variable cv;
   bool stop;
-
 };
 
-}
+} // namespace ntf

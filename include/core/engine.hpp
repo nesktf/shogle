@@ -1,24 +1,23 @@
 #pragma once
 
-#include "singleton.hpp"
-#include "settings.hpp"
+#include "core/singleton.hpp"
+#include "core/settings.hpp"
 
-#include "level/level.hpp"
+#include "core/window.hpp"
 
-#include "render/window.hpp"
+#include "scene/scene.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
-namespace ntf::shogle {
+namespace ntf {
 
-class Engine : public Singleton<Engine> {
+class Shogle : public Singleton<Shogle> {
 public:
-  Engine() = default;
-  ~Engine() = default;
+  Shogle() = default;
 
 public:
   bool init(const Settings& sett);
-  void start(LevelCreator creator);
+  void start(SceneCreator creator);
 
 public:
   inline void upd_proj2d_m(float w_width, float w_height) {
@@ -36,7 +35,6 @@ public:
     this->view = glm::lookAt(this->view_pos, this->view_pos + view_dir, view_up);
   }
 
-public:
   inline void stop(void) {
     window->close();
   }
@@ -46,8 +44,8 @@ public:
   glm::mat4 proj2d, proj3d, view;
 
 private:
-  std::unique_ptr<Window> window;
-  std::unique_ptr<Level> level;
+  std::unique_ptr<GLWindow> window;
+  std::unique_ptr<Scene> level;
   bool should_close;
   double last_frame;
 };
