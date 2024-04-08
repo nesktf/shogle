@@ -32,16 +32,4 @@ void Model::draw(void) {
   }
 }
 
-glm::mat4 Model::model_transform(TransformData transform) { 
-  glm::mat4 mat{1.0f};
-
-  mat = glm::translate(mat, transform.pos);
-  mat = glm::rotate(mat, glm::radians(transform.rot.x), glm::vec3{1.0f, 0.0f, 0.0f});
-  mat = glm::rotate(mat, glm::radians(transform.rot.y), glm::vec3{0.0f, 1.0f, 0.0f});
-  mat = glm::rotate(mat, glm::radians(transform.rot.z), glm::vec3{0.0f, 0.0f, 1.0f});
-  mat = glm::scale(mat, transform.scale);
-
-  return mat;
-}
-
 } // namespace ntf::shogle

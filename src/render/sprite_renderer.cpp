@@ -79,15 +79,4 @@ void Sprite::draw(void) {
   renderer.draw();
 }
 
-glm::mat4 Sprite::model_transform(TransformData transform) {
-  glm::mat4 mat{1.0f};
-
-  mat = glm::translate(mat, glm::vec3{transform.pos.x, transform.pos.y, 0.0f});
-  mat = glm::rotate(mat, glm::radians(transform.rot.z), glm::vec3{0.0f, 0.0f, 1.0f});
-  mat = glm::scale(mat, glm::vec3{transform.scale.x, transform.scale.y, 1.0f});
-  mat = glm::scale(mat, glm::vec3{transform.scale.x, transform.scale.y, 0.0f});
-
-  return mat;
-}
-
 } // namespace ntf::shogle
