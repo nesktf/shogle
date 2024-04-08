@@ -3,3 +3,4 @@ build*
 imgui.ini
 .cache/
 _misc/
+res/models/

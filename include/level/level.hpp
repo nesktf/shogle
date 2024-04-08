@@ -21,66 +21,18 @@ inline std::pair<id_t,std::unique_ptr<TObj>> make_pair_ptr(id_t id, TObj* obj) {
 
 class Level {
 public:
-  enum class State {
-    Loading = 0,
-    Loaded,
-    Transition
-  };
-
-public:
-  Level() :
-    state(State::Loading) {}
+  Level() = default;
 
   virtual ~Level() = default;
 
-  Level(Level&&) = default; Level& operator=(Level&&) = default;
+  Level(Level&&) = default; 
+  Level& operator=(Level&&) = default;
 
   Level(const Level&) = delete;
   Level& operator=(const Level&) = delete;
 
 public:
-  virtual void draw(void) = 0;
-
-public:
-  virtual void on_load(void) {};
-  virtual void on_transition(void) {};
-
-public:
-  void next_state(void) {
-    switch (this->state) {
-      case State::Loading:
-        Log::debug("[Level] State change (Loading -> Loaded)");
-        this->state = State::Loaded;
-        this->on_load();
-        break;
-      case State::Loaded:
-        Log::debug("[Level] State change (Loaded -> Transition)");
-        this->state = State::Transition;
-        this->on_transition();
-        break;
-      default:
-        break;
-    }
-  }
-
-  void update_tasks(float dt) {
-    for (auto task = tasks.begin(); task != tasks.end();) {
-      auto task_ptr = task->get();
-      if ((*task_ptr)(dt)) {
-        task = tasks.erase(task);
-      } else {
-        ++task;
-      }
-    }
-  }
-
-  void add_task(task::Task* task) {
-    tasks.emplace_back(std::unique_ptr<task::Task>{task});
-  }
-
-protected:
-  Level::State state;
-  std::vector<std::unique_ptr<task::Task>> tasks;
+  virtual void update(float dt) = 0;
 };
 
 using LevelCreator = std::function<Level*(void)>;

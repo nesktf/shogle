@@ -37,6 +37,11 @@ public:
     Log::verbose("[Window] Framebuffer callback set");
   }
 
+  inline void set_key_callback(GLFWkeyfun cb) {
+    glfwSetKeyCallback(win, cb);
+    Log::verbose("[Window] Key callback set");
+  }
+
   inline void set_title(const char* w_title) {
     glfwSetWindowTitle(win, w_title);
     Log::verbose("[Window] Title set: {}", w_title);
@@ -48,6 +53,10 @@ public:
   
   inline double get_time(void) {
     return glfwGetTime();
+  }
+  
+  inline bool is_button_pressed(int key) {
+    return glfwGetKey(win, key) == GLFW_PRESS;
   }
 
 public:
