@@ -1,5 +1,5 @@
-#include "resource/material.hpp"
+#include "res/material.hpp"
 
-namespace ntf::shogle {
+namespace ntf {
 
-} // namespace ntf::shogle
+} // namespace ntf

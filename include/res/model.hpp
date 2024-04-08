@@ -6,7 +6,7 @@
 
 namespace ntf {
 
-// Model::data_t
+// Model3D::data_t
 class ModelData {
 public:
   struct Vertex {
@@ -34,8 +34,8 @@ public:
   std::vector<MeshData> meshes; 
 };
 
-// Model
-class Model {
+// Model3D
+class Model3D {
 public:
   using data_t = ModelData;
 
@@ -63,14 +63,14 @@ public:
   };
 
 public: // Resource wrappers also can't be copied
-  Model(const Model::data_t* data);
-  ~Model() = default;
+  Model3D(const Model3D::data_t* data);
+  ~Model3D() = default;
 
-  Model(Model&&) = default;
-  Model& operator=(Model&&) = default;
+  Model3D(Model3D&&) = default;
+  Model3D& operator=(Model3D&&) = default;
 
-  Model(const Model&) = delete;
-  Model& operator=(const Model&) = delete;
+  Model3D(const Model3D&) = delete;
+  Model3D& operator=(const Model3D&) = delete;
 
 public:
   std::vector<Mesh> meshes;

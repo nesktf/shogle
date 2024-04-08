@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace ntf::util {
+namespace ntf::fs {
 
 std::string file_contents(std::string path);
 

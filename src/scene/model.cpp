@@ -1,9 +1,9 @@
-#include "scene/model_object.hpp"
+#include "scene/model.hpp"
 
 namespace ntf {
 
-void ModelObj::update(float dt) {
-  tasks.update(dt);
+void Model::update(float dt) {
+  tasks.update(this, dt);
 
   glm::mat4 mat{1.0f};
 
@@ -22,7 +22,7 @@ void ModelObj::update(float dt) {
 
 
 
-void ModelObj::draw(void) {
+void Model::draw(void) {
   model.draw(model_m);
 }
 

@@ -1,29 +1,27 @@
-#include "resource/model.hpp"
+#include "res/model.hpp"
 
-#include "log.hpp"
+#include "core/log.hpp"
 
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 
-namespace ntf::shogle::res {
+namespace ntf {
 
 // Model::data_t
-template<typename T>
-void _load_materials(T& textures, aiMaterial* mat, aiTextureType type, const std::string& dir) {
+void _load_materials(auto& texture_cont, aiMaterial* mat, aiTextureType type, const std::string& dir) {
   for (size_t i = 0; i < mat->GetTextureCount(type); ++i) {
     aiString filename;
     mat->GetTexture(type, i, &filename);
     std::string tex_path = dir+"/"+std::string{filename.C_Str()};
 
     bool skip = false;
-    for (const auto& tex : textures) {
-      if (std::strcmp(tex.path.data(), tex_path.data()) == 0) {
+    for (const auto& tex : texture_cont) { if (std::strcmp(tex.path.data(), tex_path.data()) == 0) {
         skip = true;
         break;
       }
     }
     if (!skip) {
-      textures.emplace_back(tex_path, GL_TEXTURE_2D, type, TextureData::Type::ModelTex);
+      texture_cont.emplace_back(tex_path, GL_TEXTURE_2D, type, TextureData::Type::ModelTex);
       Log::verbose("[ModelData] Mesh material extracted (path: {})", tex_path);
     }
   }
@@ -87,7 +85,7 @@ ModelData::ModelData(std::string path) {
 }
 
 // Model
-Model::Mesh::Mesh(const ModelData::MeshData& mesh) {
+Model3D::Mesh::Mesh(const ModelData::MeshData& mesh) {
   using Vertex = ModelData::Vertex;
   this->indices = mesh.ind.size();
 
@@ -121,7 +119,7 @@ Model::Mesh::Mesh(const ModelData::MeshData& mesh) {
   Log::verbose("[Model] Mesh created (vao-id: {})", this->vao);
 }
 
-Model::Mesh::Mesh(Mesh&& m) noexcept :
+Model3D::Mesh::Mesh(Mesh&& m) noexcept :
   tex(std::move(m.tex)),
   vao(std::move(m.vao)),
   vbo(std::move(m.vbo)),
@@ -133,7 +131,7 @@ Model::Mesh::Mesh(Mesh&& m) noexcept :
   m.ebo = 0;
 }
 
-Model::Mesh& Model::Mesh::operator=(Mesh&& m) noexcept {
+Model3D::Mesh& Model3D::Mesh::operator=(Mesh&& m) noexcept {
   this->tex = std::move(m.tex);
   this->vao = std::move(m.vao);
   this->vbo = std::move(m.vbo);
@@ -147,7 +145,7 @@ Model::Mesh& Model::Mesh::operator=(Mesh&& m) noexcept {
   return *this;
 }
 
-Model::Mesh::~Mesh() {
+Model3D::Mesh::~Mesh() {
   if (this->vao == 0) return;
   GLint id = this->vao;
   glBindVertexArray(this->vao);
@@ -161,11 +159,10 @@ Model::Mesh::~Mesh() {
   Log::verbose("[Model] Mesh deleted (vao-id: {})", id);
 }
 
-Model::Model(const Model::data_t* data) {
+Model3D::Model3D(const Model3D::data_t* data) {
   for (const auto& mesh_data : data->meshes) {
-    this->meshes.emplace_back(Model::Mesh{mesh_data});
+    this->meshes.emplace_back(Model3D::Mesh{mesh_data});
   }
 }
 
-} // namespace ntf::shogle::res
-
+} // namespace ntf

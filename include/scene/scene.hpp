@@ -18,6 +18,8 @@ struct Scene {
   virtual void update(float dt) = 0;
 };
 
-using SceneCreator = std::function<std::unique_ptr<Scene>(void)>;
+using sceneptr_t = std::unique_ptr<Scene>; 
+
+using SceneCreator = std::function<sceneptr_t(void)>;
 
 } // namespace ntf

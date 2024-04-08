@@ -1,8 +1,12 @@
 #pragma once
 
-#include "render/sprite.hpp"
-#include "render/model.hpp"
+#include "core/engine.hpp"
+#include "core/log.hpp"
 
-#include "scene/scene.hpp"
+#include "res/respool.hpp"
+
+#include "scene/sprite.hpp"
+#include "scene/model.hpp"
+
 #include "scene/sprite_task.hpp"
 #include "scene/model_task.hpp"

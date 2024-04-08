@@ -1,10 +1,11 @@
-#include "settings.hpp"
-#include "util.hpp"
-#include "log.hpp"
+#include "core/settings.hpp"
+#include "core/log.hpp"
+
+#include "util/fs.hpp"
 
 #include "sol/sol.hpp"
 
-namespace ntf::shogle {
+namespace ntf {
 
 Settings::Settings(int, char*[]) {
   // TODO: parse args
@@ -12,7 +13,7 @@ Settings::Settings(int, char*[]) {
 
 Settings::Settings(int argc, char* argv[], const char* path) :
   Settings(argc, argv) {
-  const auto script = util::file_contents(path);
+  const auto script = fs::file_contents(path);
   if (script.empty())
     return;
 
@@ -35,4 +36,4 @@ Settings::Settings(int argc, char* argv[], const char* path) :
   Log::info("[Settings] Settings loaded (file: {})", path);
 }
 
-} // ntf::shogle
+} // ntf

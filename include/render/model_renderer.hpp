@@ -7,13 +7,13 @@
 namespace ntf {
 
 struct ModelRenderer : public Renderer {
-  ModelRenderer(Model* _model, Shader* _shader) :
+  ModelRenderer(Model3D* _model, Shader* _shader) :
     Renderer(_shader),
     model(_model) {}
 
   void draw(glm::mat4 model_m) override;
 
-  Model* model;
+  Model3D* model;
 };
 
 } // namespace ntf

@@ -1,10 +1,10 @@
-#include "resource/texture.hpp"
+#include "res/texture.hpp"
 
-#include "log.hpp"
+#include "core/log.hpp"
 
 #include "stb/stb_image.h"
 
-namespace ntf::shogle::res {
+namespace ntf {
 
 // Texture::data_t
 TextureData::TextureData(std::string _path) :
@@ -18,6 +18,7 @@ TextureData::TextureData(std::string _path) :
   }
   Log::verbose("[TextureData] Texture data extracted (path: {})", path);
 }
+
 TextureData::TextureData(std::string _path, GLenum _tex_dim, aiTextureType _ai_type, Type _tex_type) :
   path(_path),
   tex_dim(_tex_dim),
@@ -154,5 +155,4 @@ void Texture::bind_material(const Shader& shader, size_t tex_num, size_t tex_ind
   shader.unif_float("material.col_shiny", 1.0f); // TODO: don't use fixed value
 }
 
-} // namespace ntf::shogle::res
-
+} // namespace ntf

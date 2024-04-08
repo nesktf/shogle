@@ -7,8 +7,8 @@
 
 namespace ntf {
 
-struct ModelObj : public SceneObj {
-  ModelObj(Model* mod, Shader* sha) :
+struct Model : public SceneObj {
+  Model(Model3D* mod, Shader* sha) :
     model(mod, sha) {} 
 
   void update(float dt) override;
@@ -16,7 +16,7 @@ struct ModelObj : public SceneObj {
 
   ModelRenderer model;
 
-  TaskManager<ModelObj> tasks;
+  TaskManager<Model> tasks;
 
   glm::vec3 pos {0.0f};
   glm::vec3 scale {1.0f};

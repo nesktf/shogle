@@ -7,32 +7,25 @@
 namespace ntf {
 
 template<typename TObj>
-class Task {
-public:
+struct Task {
   virtual ~Task() = default;
 
-protected:
   virtual void update(TObj* obj, float dt) = 0;
 
-protected:
   bool is_finished {false};
 };
 
 template<typename TObj>
-class TaskFun : public Task<TObj> {
-public:
+struct TaskFun : public Task<TObj> {
   using TaskF = std::function<bool(TObj*, float)>;
 
-public:
   TaskFun(TaskF _fun) :
     fun(_fun) {}
 
-public:
   void update(TObj* obj, float dt) override {
     this->is_finished = fun(obj, dt);
   }
 
-private:
   TaskF fun;
 };
 
@@ -42,7 +35,7 @@ public:
   using task_t = Task<TObj>;
 
 public:
-  void update(float dt) {
+  void update(TObj* obj, float dt) {
     // Move new tasks
     for (auto& task : new_tasks) {
       tasks.push_back(std::move(task));
@@ -51,7 +44,7 @@ public:
 
     // Do tasks and clear finished tasks
     for (auto& task : tasks) {
-      task->update(this, dt);
+      task->update(obj, dt);
     }
     std::erase_if(tasks, [](const auto& task){ return task->is_finished; });
   }

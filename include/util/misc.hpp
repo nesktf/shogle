@@ -2,7 +2,7 @@
 
 #include <utility>
 
-namespace ntf::util {
+namespace ntf {
 
 template<typename T, typename... Args>
 inline T* make_ptr(Args&&... args) {

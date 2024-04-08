@@ -1,9 +1,9 @@
-#include "scene/sprite_object.hpp"
+#include "scene/sprite.hpp"
 
 namespace ntf {
 
-void SpriteObj::update(float dt) {
-  tasks.update(dt);
+void Sprite::update(float dt) {
+  tasks.update(this, dt);
 
   glm::mat4 mat{1.0f};
 
@@ -14,7 +14,7 @@ void SpriteObj::update(float dt) {
   model_m = mat;
 }
 
-void SpriteObj::draw(void) {
+void Sprite::draw(void) {
   sprite.draw(model_m);
 }
 

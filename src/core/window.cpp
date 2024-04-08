@@ -1,7 +1,6 @@
-#include "render/glwindow.hpp"
-
-#include "log.hpp"
-#include "types.hpp"
+#include "core/window.hpp"
+#include "core/log.hpp"
+#include "core/error.hpp"
 
 #define GL_MAJOR 3
 #define GL_MINOR 3
@@ -19,7 +18,7 @@ GLWindow::GLWindow(size_t w, size_t h, const char* w_title) :
 
   if ((this->win = glfwCreateWindow(w_width, w_height, w_title, NULL, NULL)) == nullptr) {
     glfwTerminate();
-    throw shogle_error("[GLWindow] Failed to create GLFW window");
+    throw error("[GLWindow] Failed to create GLFW window");
   }
   glfwMakeContextCurrent(this->win); 
   glfwSwapInterval(1); //Vsync
@@ -29,7 +28,7 @@ GLWindow::GLWindow(size_t w, size_t h, const char* w_title) :
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
     glfwDestroyWindow(this->win); 
     glfwTerminate();
-    throw shogle_error("[GLWindow] Failed to load GLAD");
+    throw error("[GLWindow] Failed to load GLAD");
   }
   Log::verbose("[GLWindow] GLAD loaded");
 

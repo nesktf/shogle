@@ -1,30 +1,29 @@
-#include "engine.hpp"
+#include "core/engine.hpp"
+#include "core/input.hpp"
+#include "core/log.hpp"
+#include "core/error.hpp"
 
-#include "input.hpp"
-#include "resource/loader.hpp"
+#include "res/resloader.hpp"
 
-#include "log.hpp"
+namespace ntf {
 
-namespace ntf::shogle {
-
-bool Engine::init(const Settings& sett) {
+bool Shogle::init(const Settings& sett) {
   try {
-    this->window = GLWindow::create(sett.w_width, sett.w_height, sett.w_title.c_str());
-  } catch(const shogle_error& e) {  
+    this->window = std::make_unique<GLWindow>(sett.w_width, sett.w_height, sett.w_title.c_str());
+  } catch(const ntf::error& e) {  
     Log::error("{}", e.what());
     return false;
   }
   this->clear_color = sett.clear_color;
-  this->should_close = false;
-  this->last_frame = 0.0f;
+
   upd_proj2d_m((float)sett.w_width, (float)sett.w_height);
   upd_proj3d_m(window->ratio());
   upd_view_m();
-  Log::verbose("[Engine] Settings applied");
+  Log::verbose("[Shogle] Settings applied");
 
   window->set_fb_callback([](auto, int w, int h) {
     glViewport(0, 0, w, h); // 1,2 -> Location in window. 3,4 -> Size
-    auto& eng = Engine::instance();
+    auto& eng = Shogle::instance();
     eng.upd_proj2d_m(w, h);
     eng.upd_proj3d_m((float)w/(float)h);
     Log::verbose("[Window] Viewport updated");
@@ -33,19 +32,19 @@ bool Engine::init(const Settings& sett) {
 
   InputHandler::instance().init(window.get());
 
-  Log::info("[Engine] Initialized");
+  Log::info("[Shogle] Initialized");
   return true;
 }
 
-void Engine::start(LevelCreator creator) {
-  this->level = std::unique_ptr<Scene>{creator()};
-  Log::verbose("[Engine] Initial level created");
+void Shogle::start(SceneCreator creator) {
+  this->level = creator();
+  Log::verbose("[Shogle] Initial level created");
 
-  Log::info("[Engine] Entering main loop");
+  Log::info("[Shogle] Entering main loop");
   glEnable(GL_DEPTH_TEST);
   while (!window->should_close()) {
     InputHandler::instance().poll();
-    res::ResourceLoader::instance().do_requests();
+    ResLoader::instance().do_requests();
 
     double curr_frame = window->get_time();
     double dt = curr_frame - this->last_frame;
@@ -58,7 +57,7 @@ void Engine::start(LevelCreator creator) {
 
     window->swap_buffers();
   }
-  Log::info("[Engine] Terminating program");
+  Log::info("[Shogle] Terminating program");
 }
 
-} // namespace ntf::shogle
+} // namespace ntf

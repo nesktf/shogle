@@ -1,6 +1,6 @@
-#include "threadpool.hpp"
+#include "core/threadpool.hpp"
 
-namespace ntf::shogle {
+namespace ntf {
 
 ThreadPool::ThreadPool(size_t n_threads) {
   this->stop = false;
@@ -52,4 +52,4 @@ void ThreadPool::enqueue(std::function<void()> task) {
   cv.notify_one();
 }
 
-}
+} // namespace ntf

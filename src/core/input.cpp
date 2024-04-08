@@ -1,10 +1,9 @@
-#include "input.hpp"
-#include "log.hpp"
+#include "core/input.hpp"
+#include "core/log.hpp"
 
-namespace ntf::shogle {
+namespace ntf {
 
-
-void InputHandler::init(Window* win) {
+void InputHandler::init(GLWindow* win) {
   this->window = win;
   win->set_key_callback([](auto, int key, int, int action, int) {
     auto& handler = InputHandler::instance();
@@ -21,7 +20,7 @@ void InputHandler::poll(void) {
   window->poll_events();
 }
 
-InEventId InputHandler::register_listener(InputBut but, InputAction action, InputListener listener) {
+InEventId InputHandler::register_listener(InputButtons but, InputAction action, InputListener listener) {
   listeners.push_back(InputEvent{.listener = listener, .id = ++event_count, .but = but, .action = action});
   return event_count;
 }
@@ -33,4 +32,4 @@ void InputHandler::unregister_listener(InEventId id) {
   }
 }
 
-}
+} // namespace ntf

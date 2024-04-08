@@ -1,10 +1,11 @@
-#include "util.hpp"
-#include "log.hpp"
+#include "util/fs.hpp"
+
+#include "core/log.hpp"
 
 #include <fstream>
 #include <sstream>
 
-namespace ntf::shogle::util {
+namespace ntf::fs {
 
 std::string file_contents(std::string path) {
   std::string out;
@@ -20,4 +21,4 @@ std::string file_contents(std::string path) {
   return out;
 }
 
-} // namespace ntf::shogle::util
+} // namespace ntf::fs

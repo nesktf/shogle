@@ -13,9 +13,6 @@ namespace ntf {
 
 class Shogle : public Singleton<Shogle> {
 public:
-  Shogle() = default;
-
-public:
   bool init(const Settings& sett);
   void start(SceneCreator creator);
 
@@ -45,9 +42,11 @@ public:
 
 private:
   std::unique_ptr<GLWindow> window;
-  std::unique_ptr<Scene> level;
-  bool should_close;
-  double last_frame;
+
+  sceneptr_t level;
+
+  bool should_close {false};
+  double last_frame {0.0f};
 };
 
 } // namespace ntf::shogle

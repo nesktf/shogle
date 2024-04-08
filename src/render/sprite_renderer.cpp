@@ -1,17 +1,16 @@
-#include "render/sprite.hpp"
+#include "render/sprite_renderer.hpp"
 
-#include "engine.hpp"
-#include "singleton.hpp"
-#include "log.hpp"
+#include "core/engine.hpp"
+#include "core/singleton.hpp"
+#include "core/log.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
-namespace ntf::shogle::render {
+namespace ntf {
 
-class SpriteRenderer : public Singleton<SpriteRenderer> {
+class QuadRenderer : public Singleton<QuadRenderer> {
 public:
-  SpriteRenderer() {
-    // Create sprite renderer (quad)
+  QuadRenderer() {
     float quad_vert[] = {
       // coord      // tex_coord
       -0.5f, -0.5f, 0.0f, 0.0f,
@@ -41,7 +40,7 @@ public:
 
     Log::debug("[Sprite] Sprite rendrerer initialized (vao-id: {})", q_VAO);
   }
-  ~SpriteRenderer() {
+  ~QuadRenderer() {
     GLint vao = this->q_VAO;
     glBindVertexArray(this->q_VAO);
     glDisableVertexAttribArray(0);
@@ -56,27 +55,25 @@ public:
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
   }
+
 private:
   GLuint q_VAO, q_VBO, q_EBO;
-public:
 };
 
-void Sprite::draw(void) {
-  const auto& eng = Engine::instance();
-  const auto& shader = shader_ref.get();
-  const auto& texture = texture_ref.get();
-  auto& renderer = SpriteRenderer::instance();
+void SpriteRenderer::draw(glm::mat4 model_m) {
+  const auto& eng = Shogle::instance();
+  auto& renderer = QuadRenderer::instance();
   
-  shader.use();
-  shader.unif_mat4("proj", eng.proj2d);
-  shader.unif_mat4("model", this->model_m);
-  shader.unif_vec4("sprite_color", glm::vec4{1.0f});
-  shader.unif_int("sprite_texture", 0);
+  shader->use();
+  shader->unif_mat4("proj", eng.proj2d);
+  shader->unif_mat4("model", model_m);
+  shader->unif_vec4("sprite_color", glm::vec4{1.0f});
+  shader->unif_int("sprite_texture", 0);
 
-  glBindTexture(GL_TEXTURE_2D, texture.id());
+  glBindTexture(GL_TEXTURE_2D, texture->id());
   glActiveTexture(GL_TEXTURE0);
 
   renderer.draw();
 }
 
-} // namespace ntf::shogle
+} // namespace ntf

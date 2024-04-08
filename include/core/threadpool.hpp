@@ -11,6 +11,13 @@ namespace ntf {
 class ThreadPool {
 public:
   ThreadPool(size_t n_threads = std::thread::hardware_concurrency());
+  ~ThreadPool();
+
+  ThreadPool(ThreadPool&&) = delete;
+  ThreadPool& operator=(ThreadPool&&) = delete;
+
+  ThreadPool(const ThreadPool&) = delete;
+  ThreadPool& operator=(const ThreadPool&) = delete;
 
 public:
   void enqueue(std::function<void()> task);

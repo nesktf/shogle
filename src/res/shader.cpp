@@ -1,15 +1,15 @@
-#include "resource/shader.hpp"
+#include "res/shader.hpp"
 
-#include "log.hpp"
+#include "core/log.hpp"
 
-#include "util.hpp"
+#include "util/fs.hpp"
 
-namespace ntf::shogle::res {
+namespace ntf {
 
 // Shader::data_t
 ShaderData::ShaderData(std::string path) :
-  vert_src(util::file_contents(path+".vs.glsl")),
-  frag_src(util::file_contents(path+".fs.glsl")) {
+  vert_src(fs::file_contents(path+".vs.glsl")),
+  frag_src(fs::file_contents(path+".fs.glsl")) {
   Log::verbose("[ShaderData] Shader data extracted (path: {})", path);
 }
 
@@ -76,5 +76,4 @@ Shader::~Shader() {
   Log::verbose("[Shader] Shader deleted (sha-id: {})", id);
 }
 
-} // namespace ntf::shogle::res
-
+} // namespace ntf

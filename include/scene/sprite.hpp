@@ -7,8 +7,8 @@
 
 namespace ntf {
 
-struct SpriteObj : public SceneObj {
-  SpriteObj(Texture* tex, Shader* sha) :
+struct Sprite : public SceneObj {
+  Sprite(Texture* tex, Shader* sha) :
     sprite(tex, sha) {}
   
   void update(float dt) override;
@@ -16,7 +16,7 @@ struct SpriteObj : public SceneObj {
 
   SpriteRenderer sprite;
 
-  TaskManager<SpriteObj> tasks;
+  TaskManager<Sprite> tasks;
 
   glm::vec2 pos {0.0f};
   glm::vec2 scale {1.0f};
