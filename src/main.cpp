@@ -206,7 +206,7 @@ struct TestScene : public ntf::Scene {
         if (ntf::collision2d(d.second.pos, 16.0f, obj->pos, 4.0f)) {
           ntf::Log::debug("PICHUUUUN");
           chen_b->start_blasting = false;
-          scene_tasks.clear();
+          scene_tasks.clear_tasks();
           break;
         }
       }
@@ -220,7 +220,7 @@ struct TestScene : public ntf::Scene {
     }
     new_danmaku.clear();
 
-    scene_tasks.update(this, dt);
+    scene_tasks.do_tasks(this, dt);
 
     boss->update(dt);
     boss->draw();

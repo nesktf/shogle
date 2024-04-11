@@ -1,19 +1,23 @@
 #pragma once
 
-#include "render/renderer.hpp"
-
 #include "res/model.hpp"
 
 namespace ntf {
 
-struct ModelRenderer : public Renderer {
-  ModelRenderer(ModelRes* _model, Shader* _shader) :
-    Renderer(_shader),
-    model(_model) {}
+class ModelRenderer {
+protected:
+  using res_t = ModelRes;
 
-  void draw(glm::mat4 model_m) override;
+  ModelRenderer(res_t* mod, Shader* sha) :
+    model(mod),
+    _shader(sha) {}
 
-  ModelRes* model;
+public:
+  void draw(void);
+
+protected:
+  res_t* model;
+  Shader* _shader;
 };
 
 } // namespace ntf

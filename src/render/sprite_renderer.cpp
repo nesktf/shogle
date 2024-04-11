@@ -60,20 +60,11 @@ private:
   GLuint q_VAO, q_VBO, q_EBO;
 };
 
-void SpriteRenderer::draw(glm::mat4 model_m) {
-  const auto& eng = Shogle::instance();
-  auto& renderer = QuadRenderer::instance();
-  
-  shader->use();
-  shader->unif_mat4("proj", eng.proj2d);
-  shader->unif_mat4("model", model_m);
-  shader->unif_vec4("sprite_color", color);
-  shader->unif_int("sprite_texture", 0);
-
+void SpriteRenderer::draw(void) {
   glBindTexture(GL_TEXTURE_2D, texture->id());
   glActiveTexture(GL_TEXTURE0);
 
-  renderer.draw();
+  QuadRenderer::instance().draw();
 }
 
 } // namespace ntf

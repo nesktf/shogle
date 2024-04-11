@@ -6,20 +6,18 @@
 
 namespace ntf {
 
-struct Model : public SceneObj<Model> {
-  Model(ModelRes* mod, Shader* sha) :
-    model(mod, sha) {} 
+class Model : public SceneObj<Model, ModelRenderer> {
+public:
+  Model(ModelRes* mod, Shader* sha);
 
-  void update(float dt) override;
-  void draw(void) override;
+protected:
+  virtual void shader_update(Shader* shader, glm::mat4 model_m) override;
+  virtual glm::mat4 model_m_gen(void) override;
 
-  ModelRenderer model;
-
+public:
   glm::vec3 pos {0.0f};
   glm::vec3 scale {1.0f};
   glm::vec3 rot {1.0f};
 };
-
-using ModelTaskFun = TaskFun<Model>;
 
 } // namespace ntf

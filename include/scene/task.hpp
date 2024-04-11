@@ -35,7 +35,7 @@ public:
   using task_t = Task<TObj>;
 
 public:
-  void update(TObj* obj, float dt) {
+  void do_tasks(TObj* obj, float dt) {
     // Move new tasks
     for (auto& task : new_tasks) {
       tasks.push_back(std::move(task));
@@ -49,6 +49,10 @@ public:
     std::erase_if(tasks, [](const auto& task){ return task->is_finished; });
   }
 
+  void add_task(task_t* task) {
+    new_tasks.push_back(std::unique_ptr<task_t>{task});
+  }
+
   void add_task(std::unique_ptr<task_t> task) {
     new_tasks.push_back(std::move(task));
   }
@@ -57,7 +61,7 @@ public:
     add_task(std::make_unique<TaskFun<TObj>>(task));
   }
 
-  void clear(void) {
+  void clear_tasks(void) {
     for (auto& task : tasks) {
       task->is_finished = true;
     }

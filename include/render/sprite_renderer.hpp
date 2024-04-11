@@ -1,20 +1,23 @@
 #pragma once
 
-#include "render/renderer.hpp"
-
 #include "res/texture.hpp"
 
 namespace ntf {
 
-struct SpriteRenderer : public Renderer {
-  SpriteRenderer(Texture* _texture, Shader* _shader) :
-    Renderer(_shader),
-    texture(_texture) {}
+class SpriteRenderer {
+protected:
+  using res_t = Texture;
 
-  void draw(glm::mat4 model_m) override;
+  SpriteRenderer(res_t* tex, Shader* sha) :
+    texture(tex),
+    _shader(sha) {}
 
-  Texture* texture;
-  glm::vec4 color {1.0f};
+public:
+  void draw(void);
+
+protected:
+  res_t* texture;
+  Shader* _shader;
 };
 
 } // namespace ntf

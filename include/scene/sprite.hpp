@@ -6,22 +6,20 @@
 
 namespace ntf {
 
-struct Sprite : public SceneObj<Sprite> {
-  Sprite(Texture* tex, Shader* sha) :
-    sprite(tex, sha) {}
+class Sprite : public SceneObj<Sprite, SpriteRenderer> {
+public:
+  Sprite(Texture* tex, Shader* sha);
   
-  void update(float dt) override;
-  void draw(void) override;
+protected:
+  virtual void shader_update(Shader* shader, glm::mat4 model_m) override;
+  virtual glm::mat4 model_m_gen(void) override;
 
-  SpriteRenderer sprite;
-
+public:
   glm::vec2 pos {0.0f};
   glm::vec2 scale {1.0f};
   float rot {0.0f};
   unsigned int layer {0};
   glm::vec4 color {1.0f};
 };
-
-using SpriteTaskFun = TaskFun<Sprite>;
 
 } // namespace ntf
