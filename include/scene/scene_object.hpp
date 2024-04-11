@@ -28,7 +28,7 @@ protected:
   virtual glm::mat4 model_m_gen(void) = 0;
 
 public:
-  void update(float dt) {
+  virtual void update(float dt) {
     this->do_tasks(static_cast<TObjName*>(this), dt);
     this->_model_m = this->model_m_gen();
     this->shader_update(this->_shader, this->_model_m);

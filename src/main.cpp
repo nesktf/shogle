@@ -146,7 +146,8 @@ struct TestScene : public ntf::Scene {
 
     chen_p = std::make_unique<ntf::Sprite>(
       pool.get<ntf::Texture>("chen_p"),
-      pool.get<ntf::Shader>("generic_2d")
+      pool.get<ntf::Shader>("generic_2d"),
+      4, 4
     );
     chen_p->color = {glm::vec3{1.0f}, 0.0f};
     chen_p->pos = {700.0f, 344.0f};
@@ -176,6 +177,7 @@ struct TestScene : public ntf::Scene {
           t = 0.0f;
           in.register_listener(ntf::KEY_J, ntf::KEY_PRESS, [t, app_t,this, chen_b]() {
             auto& in = ntf::InputHandler::instance();
+            chen_p->set_sprite_index(1);
             chen_p->add_task([t, app_t](ntf::Sprite* obj, float dt) mutable {
               t+=dt;
               obj->pos.x -= 100.0f*dt;
@@ -207,6 +209,18 @@ struct TestScene : public ntf::Scene {
           ntf::Log::debug("PICHUUUUN");
           chen_b->start_blasting = false;
           scene_tasks.clear_tasks();
+          danmaku.clear();
+          float t = 0.0f;
+          float app_t = 0.25f;
+          chen_p->set_sprite_index(2);
+          chen_p->add_task([t, app_t](auto* o, float dt) mutable {
+            t+=dt;
+            o->color.w += dt/app_t;
+            o->pos.x += 100.0f*dt;
+            o->scale.x += 100.0*dt;
+            o->scale.y += 4*100.0*dt;
+            return (t>=app_t);
+          });
           break;
         }
       }
