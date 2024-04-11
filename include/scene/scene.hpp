@@ -1,5 +1,6 @@
 #pragma once
 
+#include "scene/task.hpp"
 #include <functional>
 #include <memory>
 

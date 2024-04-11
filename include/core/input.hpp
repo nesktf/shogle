@@ -27,6 +27,7 @@ public:
 
   InEventId register_listener(InputButtons but, InputAction action, InputListener listener);
   void unregister_listener(InEventId id);
+  void unregister_all(void);
   bool is_key_pressed(InputButtons but) {
     return window->is_button_pressed(static_cast<int>(but));
   }

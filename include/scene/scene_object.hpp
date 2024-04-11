@@ -29,7 +29,7 @@ struct SceneObj {
   }
 
   void add_task(TaskFun<TObj>::TaskF fun) {
-    tasks.add_task(std::make_unique<TaskFun<TObj>>(fun));
+    tasks.add_task(fun);
   }
 
 protected:

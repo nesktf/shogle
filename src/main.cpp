@@ -1,5 +1,79 @@
 #include "shogle.hpp"
 
+struct TestScene;
+
+struct danmaku_spawner : public ntf::Task<TestScene> {
+  danmaku_spawner(ntf::Texture* tex, ntf::Shader* sha, float ph, float fire_sp, float sp, unsigned int c);
+
+  void update(TestScene* obj, float dt) override;
+
+  ntf::Texture* danmaku_texture;
+  ntf::Shader* danmaku_shader;
+
+  float t{0.0f};
+  float phi{0.0f};
+
+  float phase, f_speed, s_speed;
+  unsigned int count;
+};
+
+struct chen_behaviour : public ntf::Task<ntf::Sprite> {
+  enum class State {
+    Init = 0,
+    Moving,
+    Idle,
+    Shooting,
+  };
+
+  chen_behaviour(float _move_time, glm::vec2 _dest) :
+    dest(_dest),
+    move_time(_move_time) {}
+
+  void update(ntf::Sprite* chen, float dt) override {
+    t += dt;
+
+    switch(chen_state) {
+      case State::Init: {
+        vel = (dest - chen->pos)/move_time;
+        chen_state = State::Moving;
+        break;
+      }
+      case State::Moving: {
+        chen->pos += vel*dt;
+        if (t >= move_time) {
+          chen_event.fire(true);
+          chen_state = State::Idle;
+        }
+        break;
+      }
+      case State::Idle: {
+        if (start_blasting) {
+          chen_state = State::Shooting;
+        }
+        break;
+      }
+      case State::Shooting: {
+        chen->rot += 10.0f*dt;
+        if (!start_blasting) {
+          chen->rot = 0.0f;
+          chen_state = State::Idle;
+        }
+        break;
+      }
+    }
+  }
+
+  float t{0.0f};
+  bool start_blasting {false};
+  State chen_state {State::Init};
+  ntf::Event<bool> chen_event;
+
+  glm::vec2 dest;
+  float move_time;
+
+  glm::vec2 vel{};
+};
+
 struct TestScene : public ntf::Scene {
   ntf::ResPool<ntf::Texture, ntf::Shader, ntf::ModelRes> pool;
 
@@ -8,6 +82,11 @@ struct TestScene : public ntf::Scene {
 
   std::unique_ptr<ntf::Sprite> player;
   std::unique_ptr<ntf::Sprite> boss;
+  std::unique_ptr<ntf::Sprite> chen_p;
+
+  ntf::TaskManager<TestScene> scene_tasks;
+
+  ntf::Event<bool>::Subscription chen_event_sub;
 
   TestScene() {
     pool.direct_load<ntf::Texture>({
@@ -18,6 +97,10 @@ struct TestScene : public ntf::Scene {
       {
         .id="chen",
         .path="_temp/chen.png"
+      },
+      {
+        .id="chen_p",
+        .path="_temp/chen_p.png"
       },
       {
         .id="danmaku",
@@ -59,15 +142,15 @@ struct TestScene : public ntf::Scene {
 
       return false;
     });
-    player->add_task([this](auto* obj, float) -> bool {
-      for (auto& d : danmaku) {
-        if (ntf::collision2d(d.second.pos, 16.0f, obj->pos, 16.0f)) {
-          // ntf::Log::debug("PICHUUUUN");
-          break;
-        }
-      }
-      return false;
-    });
+
+
+    chen_p = std::make_unique<ntf::Sprite>(
+      pool.get<ntf::Texture>("chen_p"),
+      pool.get<ntf::Shader>("generic_2d")
+    );
+    chen_p->color = {glm::vec3{1.0f}, 0.0f};
+    chen_p->pos = {700.0f, 344.0f};
+    chen_p->scale = {128.0f, 512.0f};
 
     boss = std::make_unique<ntf::Sprite>(
       pool.get<ntf::Texture>("chen"),
@@ -75,53 +158,61 @@ struct TestScene : public ntf::Scene {
     );
     boss->pos = {400.0f, -100.0f};
     boss->scale = scale_f*glm::vec2{48.0f, 64.0f};
-    float t0 = 0.0f;
-    boss->add_task([t0, this](ntf::Sprite* obj, float dt) mutable -> bool {
-      t0 += dt;
-      float total = 1.0f;
 
-      glm::vec2 vel = (glm::vec2{400.0f, 300.0f} - obj->pos)/total;
+    auto* chen_b = ntf::make_ptr<chen_behaviour>(1.0f, glm::vec2{400.0f, 300.0f});
+    auto sub_event = [chen_b,this](...) {
+      float t = 0.0f;
+      float app_t = 0.25f;
+      chen_p->add_task([chen_b,this,t,app_t](ntf::Sprite* obj, float dt) mutable {
+        t += dt;
 
-      obj->pos += vel*dt;
+        obj->color.w += dt/app_t;
+        obj->pos.x += 100.0f*dt;
+        obj->scale.x += 100.0*dt;
+        obj->scale.y += 4*100.0*dt;
 
-      if (t0 >= total) {
-        float t1 = 0.0f;
-        float phase = 0.0f;
-        boss->add_task([](ntf::Sprite* obj, float dt) -> bool {
-          obj->rot += 2.0f*M_PI*dt;
-          return false;
-        });
-        boss->add_task([phase, t1, this](ntf::Sprite* obj, float dt) mutable -> bool {
-          t1 += dt;
-          phase += M_PI*0.5f*dt;
-          int cant = 8;
-          float phase_mul = 12.0f;
-          if (t1 > 0.05f) {
-            t1 = 0.0f;
-            for (int i = 0; i < cant; ++i) {
-              phase += M_PI/phase_mul;
-              auto bullet = ntf::Sprite{
-                pool.get<ntf::Texture>("danmaku"),
-                pool.get<ntf::Shader>("generic_2d")
-              };
-              bullet.pos = obj->pos;
-              bullet.scale = {16.0f, 16.0f};
-              glm::vec2 dir = {glm::cos((float)i*(M_PI/((float)cant*0.5f)) + phase), glm::sin((float)i*(M_PI/((float)cant*0.5f)) + phase)};
-              float bul_speed = 200.0f;
-              bullet.add_task([bul_speed, dir](ntf::Sprite* o, float dt) -> bool {
-                o->pos += bul_speed*dir*dt;;
-                return false;
-              });
-              new_danmaku.push_back(std::move(bullet));
-            }
-          }
-          return false;
+        if (t >= app_t) {
+          auto& in = ntf::InputHandler::instance();
+          t = 0.0f;
+          in.register_listener(ntf::KEY_J, ntf::KEY_PRESS, [t, app_t,this, chen_b]() {
+            auto& in = ntf::InputHandler::instance();
+            chen_p->add_task([t, app_t](ntf::Sprite* obj, float dt) mutable {
+              t+=dt;
+              obj->pos.x -= 100.0f*dt;
+              obj->color.w -= dt/app_t;
+              obj->scale.x -= 100.0*dt;
+              obj->scale.y -= 4*100.0*dt;
+
+              return (t >= app_t);
+            });
+            chen_b->start_blasting = true;
+            scene_tasks.add_task(std::make_unique<danmaku_spawner>(pool.get<ntf::Texture>("danmaku"), pool.get<ntf::Shader>("generic_2d"),M_2_PIf, 0.05f, 200.0f, 8u));
+
+            in.unregister_all();
           });
-        return true;
+          return true;
+        }
+
+        return false;
+      });
+    };
+
+
+    chen_event_sub = chen_b->chen_event.subscribe(sub_event);
+    boss->add_task(chen_b);
+
+    player->add_task([this, chen_b](auto* obj, float) -> bool {
+      for (auto& d : danmaku) {
+        if (ntf::collision2d(d.second.pos, 16.0f, obj->pos, 4.0f)) {
+          ntf::Log::debug("PICHUUUUN");
+          chen_b->start_blasting = false;
+          scene_tasks.clear();
+          break;
+        }
       }
       return false;
     });
-    }
+  }
 
   void update(float dt) override {
     for (auto& d : new_danmaku) {
@@ -129,11 +220,16 @@ struct TestScene : public ntf::Scene {
     }
     new_danmaku.clear();
 
+    scene_tasks.update(this, dt);
+
     boss->update(dt);
     boss->draw();
 
     player->update(dt);
     player->draw();
+
+    chen_p->update(dt);
+    chen_p->draw();
 
     std::for_each(danmaku.begin(), danmaku.end(), [dt](auto& obj) {
       obj.second.update(dt);
@@ -151,6 +247,41 @@ struct TestScene : public ntf::Scene {
   }
 };
 
+danmaku_spawner::danmaku_spawner(ntf::Texture* tex, ntf::Shader* sha, float ph, float fire_sp, float sp, unsigned int c):
+    danmaku_texture(tex),
+    danmaku_shader(sha),
+    phase(ph),
+    f_speed(fire_sp),
+    s_speed(sp),
+    count(c){}
+
+void danmaku_spawner::update(TestScene* scene, float dt) {
+  t += dt;
+  phi += phase*dt;
+
+  if (t > f_speed) {
+    t = 0.0f;
+    for (float i = 0; i < (float)count; i += 1.0f) {
+      auto bullet = ntf::Sprite{danmaku_texture, danmaku_shader};
+      bullet.pos = scene->boss->pos;
+      bullet.scale = {16.0f, 16.0f};
+      float x = i*(M_PI/((float)count*0.5f)) + phi;
+      glm::vec2 speed = s_speed*glm::vec2{glm::cos(x), glm::sin(x)};
+      bullet.color = {glm::vec3{1.0f}, 1.0f};
+      float t_ = 0.0f;
+      bullet.add_task([t_,speed](ntf::Sprite* danmaku, float dt2) mutable {
+        t_ += dt2;
+        danmaku->pos += speed*dt2;
+        danmaku->color.r = glm::abs(glm::sin(5.0f*t_));
+        danmaku->color.g = glm::abs(glm::sin(5.0f*t_));
+        danmaku->color.b = glm::abs(glm::sin(5.0f*t_));
+        return false;
+      });
+      scene->new_danmaku.push_back(std::move(bullet));
+    }
+  }
+}
+
 int main(int argc, char* argv[]) {
   using namespace ntf;
 
@@ -159,6 +290,8 @@ int main(int argc, char* argv[]) {
   auto& shogle = Shogle::instance();
   if (shogle.init(Settings{argc, argv, "script/default_settings.lua"})) {
     shogle.depth_test(false);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
     shogle.start(TestScene::create);
     return EXIT_SUCCESS;
   }

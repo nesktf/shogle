@@ -32,4 +32,8 @@ void InputHandler::unregister_listener(InEventId id) {
   }
 }
 
+void InputHandler::unregister_all(void) {
+  listeners.clear();
+}
+
 } // namespace ntf

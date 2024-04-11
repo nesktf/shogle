@@ -19,6 +19,7 @@ struct Sprite : public SceneObj<Sprite> {
   glm::vec2 scale {1.0f};
   float rot {0.0f};
   unsigned int layer {0};
+  glm::vec4 color {1.0f};
 };
 
 using SpriteTaskFun = TaskFun<Sprite>;

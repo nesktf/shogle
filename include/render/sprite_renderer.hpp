@@ -14,6 +14,7 @@ struct SpriteRenderer : public Renderer {
   void draw(glm::mat4 model_m) override;
 
   Texture* texture;
+  glm::vec4 color {1.0f};
 };
 
 } // namespace ntf

@@ -3,6 +3,7 @@
 #include "core/engine.hpp"
 #include "core/input.hpp"
 #include "core/log.hpp"
+#include "core/event.hpp"
 
 #include "res/respool.hpp"
 

@@ -12,6 +12,8 @@ void Sprite::update(float dt) {
   mat = glm::scale(mat, glm::vec3{scale, 1.0f});
 
   model_m = mat;
+
+  sprite.color = color;
 }
 
 void Sprite::draw(void) {

@@ -49,9 +49,18 @@ public:
     std::erase_if(tasks, [](const auto& task){ return task->is_finished; });
   }
 
-public:
-  inline void add_task(std::unique_ptr<task_t> task) {
+  void add_task(std::unique_ptr<task_t> task) {
     new_tasks.push_back(std::move(task));
+  }
+
+  void add_task(TaskFun<TObj>::TaskF task) {
+    add_task(std::make_unique<TaskFun<TObj>>(task));
+  }
+
+  void clear(void) {
+    for (auto& task : tasks) {
+      task->is_finished = true;
+    }
   }
 
 private:
