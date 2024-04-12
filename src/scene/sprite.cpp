@@ -7,15 +7,16 @@ namespace ntf {
 
 Sprite::Sprite(Texture* tex, Shader* sha) :
   SceneObj(tex, sha) {
-  sprite.x = tex->w();
-  sprite.y = tex->h();
-  sprite.dx = tex->w();
-  sprite.dy = tex->h();
-  sprite.y0 = 0;
-  sprite.x0 = 0;
-  sprite.cols = 1;
-  sprite.rows = 1;
-  sprite.count = 1;
+    sprite.x = tex->w();
+    sprite.y = tex->h();
+    sprite.dx = tex->w();
+    sprite.dy = tex->h();
+    sprite.y0 = 0;
+    sprite.x0 = 0;
+    sprite.cols = 1;
+    sprite.rows = 1;
+    sprite.count = 1;
+    curr_index = 0;
 }
 
 Sprite::Sprite(Spritesheet* sheet, std::string name, Shader* sha) :
