@@ -1,10 +1,6 @@
 #include "render/sprite_renderer.hpp"
 
-#include "core/engine.hpp"
 #include "core/singleton.hpp"
-#include "core/log.hpp"
-
-#include <glm/gtc/matrix_transform.hpp>
 
 namespace ntf {
 
@@ -37,19 +33,18 @@ public:
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
     glBindVertexArray(0);
-
-    Log::debug("[Sprite] Sprite rendrerer initialized (vao-id: {})", q_VAO);
   }
+
   ~QuadRenderer() {
-    GLint vao = this->q_VAO;
+    // GLint vao = this->q_VAO;
     glBindVertexArray(this->q_VAO);
     glDisableVertexAttribArray(0);
     glBindVertexArray(0);
     glDeleteVertexArrays(1, &this->q_VAO);
     glDeleteBuffers(1, &this->q_EBO);
     glDeleteBuffers(1, &this->q_VBO);
-    Log::debug("[Sprite] Sprite renderer deleted (vao-id: {})", vao);
   }
+
   void draw(void) {
     glBindVertexArray(q_VAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);

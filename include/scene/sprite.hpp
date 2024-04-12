@@ -4,24 +4,34 @@
 
 #include "render/sprite_renderer.hpp"
 
+#include "res/spritesheet.hpp"
+
 namespace ntf {
 
 class Sprite : public SceneObj<Sprite, SpriteRenderer> {
 public:
-  struct SpritesheetInfo {
-    size_t count {1};
-    size_t rows{1}, cols{1};
-    size_t index {0};
-  };
-
-public:
   Sprite(Texture* tex, Shader* sha);
+  Sprite(Spritesheet* sheet, std::string name, Shader* sha);
 
-  Sprite(Texture* tex, Shader* sha, size_t sprite_count, size_t sprite_cols);
-  
 protected:
   virtual void shader_update(Shader* shader, glm::mat4 model_m) override;
   virtual glm::mat4 model_m_gen(void) override;
+
+public:
+  inline glm::vec2 corrected_scale(float base = 1.0f) {
+    return {base*aspect(), base};
+  }
+
+  inline float aspect() {
+    return ((float)sprite.dx/(float)sprite.cols)/((float)sprite.dy/(float)sprite.rows);
+  }
+
+public:
+  void set_index(size_t i);
+
+  inline void next_index(void) {
+    set_index(curr_index+1);
+  }
 
 public:
   glm::vec2 pos {0.0f};
@@ -31,31 +41,9 @@ public:
   unsigned int layer {0};
   glm::vec4 color {1.0f};
 
-  SpritesheetInfo info;
-
-  inline void set_sprite_count(size_t count, size_t cols) {
-    size_t rows = std::ceil((float)count/(float)cols);
-    offset.z = 1.0f/(float)cols;
-    offset.w = 1.0f/(float)rows;
-
-    info.count = count;
-    info.cols = cols;
-    info.rows = rows;
-  }
-
-  inline void set_sprite_index(size_t i) {
-    i = i % info.count; // don't overflow
-    size_t curr_row = i / info.rows;
-    size_t curr_col = i % info.cols;
-
-    offset.x = (float)curr_col;
-    offset.y = (float)curr_row;
-
-    info.index = i;
-  }
-
-protected:
-  glm::vec4 offset {glm::vec2{0.0f}, glm::vec2{1.0f}};
+  SpriteData sprite;
+  size_t curr_index;
+  glm::vec4 offset{glm::vec2{1.0f}, glm::vec2{0.0f}};
 };
 
 } // namespace ntf

@@ -1,14 +1,30 @@
 #include "scene/sprite.hpp"
 
 #include "core/engine.hpp"
+#include "core/log.hpp"
 
 namespace ntf {
 
 Sprite::Sprite(Texture* tex, Shader* sha) :
-  SceneObj(tex, sha) {}
+  SceneObj(tex, sha) {
+  sprite.x = tex->w();
+  sprite.y = tex->h();
+  sprite.dx = tex->w();
+  sprite.dy = tex->h();
+  sprite.y0 = 0;
+  sprite.x0 = 0;
+  sprite.cols = 1;
+  sprite.rows = 1;
+  sprite.count = 1;
+}
 
-Sprite::Sprite(Texture* tex, Shader* sha, size_t sprite_count, size_t sprite_cols) :
-  Sprite(tex, sha) { set_sprite_count(sprite_count, sprite_cols); }
+Sprite::Sprite(Spritesheet* sheet, std::string name, Shader* sha) :
+  SceneObj(static_cast<Texture*>(sheet), sha),
+  sprite(sheet->sprites.at(name)) { 
+    offset.x = (float)sprite.dx/(float)(sprite.x*sprite.cols);
+    offset.y = (float)sprite.dy/(float)(sprite.y*sprite.rows);
+    set_index(0); 
+}
 
 glm::mat4 Sprite::model_m_gen(void) {
   glm::mat4 mat{1.0f};
@@ -26,9 +42,20 @@ void Sprite::shader_update(Shader* shader, glm::mat4 model_m) {
   shader->use();
   shader->unif_mat4("proj", eng.proj2d);
   shader->unif_mat4("model", model_m);
-  shader->unif_vec4("sprite_color", color);
-  shader->unif_vec4("sprite_offset", offset);
-  shader->unif_int("sprite_texture", 0);
+  shader->unif_vec4("texture_color", color);
+  shader->unif_vec4("texture_offset", offset);
+  shader->unif_int("texture_sampler", 0);
+}
+
+void Sprite::set_index(size_t i) {
+  i = i % sprite.count; // don't overflow
+  size_t curr_row = i / sprite.cols;
+  size_t curr_col = i % sprite.cols;
+
+  offset.z = (float)(sprite.x0+(curr_col*sprite.dx))/(float)(sprite.x*sprite.cols);
+  offset.w = (float)(sprite.y0+(curr_row*sprite.dy))/(float)(sprite.y*sprite.rows);
+
+  curr_index = i;
 }
 
 } // namespace ntf
