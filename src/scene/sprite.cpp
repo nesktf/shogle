@@ -6,7 +6,8 @@
 namespace ntf {
 
 Sprite::Sprite(Texture* tex, Shader* sha) :
-  SceneObj(tex, sha) {
+  SceneObj(tex, sha),
+  cam(&Shogle::instance().cam2D_default){
     sprite.x = tex->w();
     sprite.y = tex->h();
     sprite.dx = tex->w();
@@ -20,6 +21,7 @@ Sprite::Sprite(Texture* tex, Shader* sha) :
 
 Sprite::Sprite(Spritesheet* sheet, std::string name, Shader* sha) :
   SceneObj(static_cast<Texture*>(sheet), sha),
+  cam(&Shogle::instance().cam2D_default),
   sprite(sheet->sprites.at(name)) { 
     offset.x = (float)sprite.dx/(float)(sprite.x*sprite.cols);
     offset.y = (float)sprite.dy/(float)(sprite.y*sprite.rows);
@@ -37,10 +39,9 @@ mat4 Sprite::model_m_gen(void) {
 }
 
 void Sprite::shader_update(Shader* shader, mat4 model_m) {
-  const auto& eng = Shogle::instance();
-
   shader->use();
-  shader->unif_mat4("proj", eng.proj2d);
+  shader->unif_mat4("proj", cam->proj_mat());
+  shader->unif_mat4("view", cam->view_mat());
   shader->unif_mat4("model", model_m);
   shader->unif_vec4("texture_color", color);
   shader->unif_vec4("texture_offset", offset);

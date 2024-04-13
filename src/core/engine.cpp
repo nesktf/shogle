@@ -16,16 +16,22 @@ bool Shogle::init(const Settings& sett) {
   }
   this->clear_color = sett.clear_color;
 
-  upd_proj2d_m((float)sett.w_width, (float)sett.w_height);
-  upd_proj3d_m(window->ratio());
-  upd_view_m();
+  cam2D_default = Camera2D{Camera2D::proj_info{
+    .viewport = {static_cast<float>(sett.w_width), static_cast<float>(sett.w_height)},
+    .layer_count = 10
+  }};
+  cam3D_default = Camera3D{Camera3D::proj_info{
+    .viewport = {static_cast<float>(sett.w_width), static_cast<float>(sett.w_height)},
+    .draw_dist = {0.1f, 100.0f},
+    .fov = M_PIf*0.25f
+  }};
   Log::verbose("[Shogle] Settings applied");
 
   window->set_fb_callback([](auto, int w, int h) {
     glViewport(0, 0, w, h); // 1,2 -> Location in window. 3,4 -> Size
     auto& eng = Shogle::instance();
-    eng.upd_proj2d_m(w, h);
-    eng.upd_proj3d_m((float)w/(float)h);
+    eng.cam2D_default.set_viewport({static_cast<float>(w), static_cast<float>(h)});
+    eng.cam3D_default.set_viewport({static_cast<float>(w), static_cast<float>(h)});
     Log::verbose("[Window] Viewport updated");
   });
   Log::verbose("[InputHandler] Framebuffer callback set");

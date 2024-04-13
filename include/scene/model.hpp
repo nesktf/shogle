@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scene/scene_object.hpp"
+#include "scene/camera3d.hpp"
 
 #include "render/model_renderer.hpp"
 
@@ -15,6 +16,7 @@ protected:
   virtual glm::mat4 model_m_gen(void) override;
 
 public:
+  Camera3D* cam;
   vec3 pos {0.0f};
   vec3 scale {1.0f};
   vec3 rot {1.0f};

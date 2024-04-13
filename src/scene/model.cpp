@@ -5,7 +5,8 @@
 namespace ntf {
 
 Model::Model(ModelRes* mod, Shader* sha) :
-  SceneObj(mod, sha) {}
+  SceneObj(mod, sha),
+  cam(&Shogle::instance().cam3D_default) {}
 
 mat4 Model::model_m_gen(void) {
   mat4 mat{1.0f};
@@ -24,12 +25,10 @@ mat4 Model::model_m_gen(void) {
 }
 
 void Model::shader_update(Shader* shader, mat4 model_m) {
-  const auto& eng = Shogle::instance();
-
   shader->use();
-  shader->unif_mat4("proj", eng.proj3d);
-  shader->unif_mat4("view", eng.view);
-  shader->unif_vec3("view_pos", eng.view_pos);
+  shader->unif_mat4("proj", cam->proj_mat());
+  shader->unif_mat4("view", cam->view_mat());
+  shader->unif_vec3("view_pos", cam->view_pos());
   shader->unif_mat4("model", model_m);
 }
 

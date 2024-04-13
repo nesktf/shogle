@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scene/scene_object.hpp"
+#include "scene/camera2d.hpp"
 
 #include "render/sprite_renderer.hpp"
 
@@ -34,6 +35,7 @@ public:
   }
 
 public:
+  Camera2D* cam;
   vec2 pos {0.0f};
   vec2 scale {1.0f};
   float rot {0.0f};
