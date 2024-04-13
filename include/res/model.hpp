@@ -10,9 +10,9 @@ namespace ntf {
 class ModelData {
 public:
   struct Vertex {
-    glm::vec3 ver_coord;
-    glm::vec3 ver_norm;
-    glm::vec2 tex_coord;
+    vec3 ver_coord;
+    vec3 ver_norm;
+    vec2 tex_coord;
   };
   struct MeshData {
     std::vector<Vertex> vert;

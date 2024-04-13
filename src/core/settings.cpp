@@ -28,7 +28,7 @@ Settings::Settings(int argc, char* argv[], const char* path) :
   this->w_height = script_settings["w_height"];
 
   sol::table col_vec = script_settings["clear_color"];
-  this->clear_color = glm::vec3{
+  this->clear_color = color3{
     col_vec["R"],
     col_vec["G"],
     col_vec["B"]

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/vec3.hpp>
+#include "core/types.hpp"
 
 #include <string>
 
@@ -12,10 +12,10 @@ public:
   Settings(int argc, char* argv[], const char* path);
 
 public:
-  glm::vec3 clear_color = {0.2f, 0.2f, 0.2f};
-  unsigned int w_width = 800;
-  unsigned int w_height = 600;
-  std::string w_title = "shogle";
+  color3 clear_color {0.2f, 0.2f, 0.2f};
+  size_t w_width {800};
+  size_t w_height {600};
+  std::string w_title {"shogle"};
 };
 
 } // namespace ntf

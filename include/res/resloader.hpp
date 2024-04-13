@@ -3,6 +3,7 @@
 #include "core/singleton.hpp"
 #include "core/threadpool.hpp"
 #include "core/log.hpp"
+#include "core/types.hpp"
 
 #include <memory>
 #include <functional>
@@ -17,7 +18,7 @@ struct pathinfo_t {
 };
 
 template<typename T>
-using dataptr_t = std::unique_ptr<typename T::data_t>;
+using dataptr_t = uptr<typename T::data_t>;
 
 template<typename T>
 using LoaderCallback = std::function<void(id_t,dataptr_t<T>)>;

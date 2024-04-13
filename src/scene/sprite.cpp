@@ -14,8 +14,7 @@ Sprite::Sprite(Texture* tex, Shader* sha) :
     sprite.y0 = 0;
     sprite.x0 = 0;
     sprite.cols = 1;
-    sprite.rows = 1;
-    sprite.count = 1;
+    sprite.rows = 1; sprite.count = 1;
     curr_index = 0;
 }
 
@@ -27,17 +26,17 @@ Sprite::Sprite(Spritesheet* sheet, std::string name, Shader* sha) :
     set_index(0); 
 }
 
-glm::mat4 Sprite::model_m_gen(void) {
-  glm::mat4 mat{1.0f};
+mat4 Sprite::model_m_gen(void) {
+  mat4 mat{1.0f};
 
-  mat = glm::translate(mat, glm::vec3{pos, (float)layer});
-  mat = glm::rotate(mat, rot, glm::vec3{0.0f, 0.0f, 1.0f});
-  mat = glm::scale(mat, glm::vec3{scale, 1.0f});
+  mat = glm::translate(mat, vec3{pos, (float)layer});
+  mat = glm::rotate(mat, rot, vec3{0.0f, 0.0f, 1.0f});
+  mat = glm::scale(mat, vec3{scale, 1.0f});
 
   return mat;
 }
 
-void Sprite::shader_update(Shader* shader, glm::mat4 model_m) {
+void Sprite::shader_update(Shader* shader, mat4 model_m) {
   const auto& eng = Shogle::instance();
 
   shader->use();

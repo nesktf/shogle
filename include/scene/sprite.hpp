@@ -18,7 +18,7 @@ protected:
   virtual glm::mat4 model_m_gen(void) override;
 
 public:
-  inline glm::vec2 corrected_scale(float base = 1.0f) {
+  inline vec2 corrected_scale(float base = 1.0f) {
     return {base*aspect(), base};
   }
 
@@ -34,16 +34,16 @@ public:
   }
 
 public:
-  glm::vec2 pos {0.0f};
-  glm::vec2 scale {1.0f};
+  vec2 pos {0.0f};
+  vec2 scale {1.0f};
   float rot {0.0f};
 
-  unsigned int layer {0};
-  glm::vec4 color {1.0f};
+  uint layer {0};
+  vec4 color {1.0f};
 
   SpriteData sprite;
   size_t curr_index;
-  glm::vec4 offset{glm::vec2{1.0f}, glm::vec2{0.0f}};
+  vec4 offset{vec2{1.0f}, vec2{0.0f}};
 };
 
 } // namespace ntf

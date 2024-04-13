@@ -7,23 +7,23 @@ namespace ntf {
 Model::Model(ModelRes* mod, Shader* sha) :
   SceneObj(mod, sha) {}
 
-glm::mat4 Model::model_m_gen(void) {
-  glm::mat4 mat{1.0f};
+mat4 Model::model_m_gen(void) {
+  mat4 mat{1.0f};
 
   mat = glm::translate(mat, pos);
 
   // Euler XYZ
   // TODO: Use quaternions
-  mat = glm::rotate(mat, rot.x, glm::vec3{1.0f, 0.0f, 0.0f});
-  mat = glm::rotate(mat, rot.y, glm::vec3{0.0f, 1.0f, 0.0f});
-  mat = glm::rotate(mat, rot.z, glm::vec3{0.0f, 0.0f, 1.0f});
+  mat = glm::rotate(mat, rot.x, vec3{1.0f, 0.0f, 0.0f});
+  mat = glm::rotate(mat, rot.y, vec3{0.0f, 1.0f, 0.0f});
+  mat = glm::rotate(mat, rot.z, vec3{0.0f, 0.0f, 1.0f});
 
   mat = glm::scale(mat, scale);
 
   return mat;
 }
 
-void Model::shader_update(Shader* shader, glm::mat4 model_m) {
+void Model::shader_update(Shader* shader, mat4 model_m) {
   const auto& eng = Shogle::instance();
 
   shader->use();

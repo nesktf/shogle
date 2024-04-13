@@ -9,7 +9,7 @@ namespace ntf {
 
 bool Shogle::init(const Settings& sett) {
   try {
-    this->window = std::make_unique<GLWindow>(sett.w_width, sett.w_height, sett.w_title.c_str());
+    this->window = make_uptr<GLWindow>(sett.w_width, sett.w_height, sett.w_title.c_str());
   } catch(const ntf::error& e) {  
     Log::error("{}", e.what());
     return false;

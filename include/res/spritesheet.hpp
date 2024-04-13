@@ -27,7 +27,7 @@ public: // Resource data can be copied but i don't think is a good idea
   SpritesheetData(const SpritesheetData&) = delete;
   SpritesheetData& operator=(const SpritesheetData&) = delete;
 
-  std::unique_ptr<Texture::data_t> tex_data;
+  uptr<Texture::data_t> tex_data;
   std::unordered_map<std::string, SpriteData> sprites;
 };
 

@@ -1,11 +1,9 @@
 #pragma once
 
+#include "core/types.hpp"
+
 #include "glad/glad.h"
 
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <string>
@@ -55,13 +53,13 @@ public: // Shader uniform manipulation
   inline void unif_float(const char* name, float value) const {
     glUniform1f(glGetUniformLocation(this->prog, name), value);
   }
-  inline void unif_vec2(const char* name, const glm::vec2& vec) const {
+  inline void unif_vec2(const char* name, const vec2& vec) const {
     glUniform2fv(glGetUniformLocation(this->prog, name), 1, glm::value_ptr(vec));
   }
-  inline void unif_vec3(const char* name, const glm::vec3& vec) const {
+  inline void unif_vec3(const char* name, const vec3& vec) const {
     glUniform3fv(glGetUniformLocation(this->prog, name), 1, glm::value_ptr(vec));
   }
-  inline void unif_vec4(const char* name, const glm::vec4& vec) const {
+  inline void unif_vec4(const char* name, const vec4& vec) const {
     glUniform4fv(glGetUniformLocation(this->prog, name), 1, glm::value_ptr(vec));
   }
   inline void unif_mat4(const char* name, const glm::mat4& mat) const {

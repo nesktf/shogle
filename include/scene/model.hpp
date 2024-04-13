@@ -15,9 +15,9 @@ protected:
   virtual glm::mat4 model_m_gen(void) override;
 
 public:
-  glm::vec3 pos {0.0f};
-  glm::vec3 scale {1.0f};
-  glm::vec3 rot {1.0f};
+  vec3 pos {0.0f};
+  vec3 scale {1.0f};
+  vec3 rot {1.0f};
 };
 
 } // namespace ntf

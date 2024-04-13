@@ -42,19 +42,19 @@ ModelData::ModelData(std::string path) {
     // Extract vertices
     for (size_t j = 0; j < curr_aimesh->mNumVertices; ++j) {
       Vertex vert{};
-      vert.ver_coord = glm::vec3{
+      vert.ver_coord = vec3{
         curr_aimesh->mVertices[j].x,
         curr_aimesh->mVertices[j].y,
         curr_aimesh->mVertices[j].z
       };
-      vert.ver_norm = glm::vec3{
+      vert.ver_norm = vec3{
         curr_aimesh->mNormals[j].x,
         curr_aimesh->mNormals[j].y,
         curr_aimesh->mNormals[j].z
       };
 
       if (curr_aimesh->mTextureCoords[0]) {
-        vert.tex_coord = glm::vec2{
+        vert.tex_coord = vec2{
           curr_aimesh->mTextureCoords[0][j].x,
           curr_aimesh->mTextureCoords[0][j].y
         };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/types.hpp"
 #include "core/window.hpp"
 #include "core/singleton.hpp"
 
@@ -34,7 +35,7 @@ public:
 
 private:
   GLWindow* window;
-  unsigned int event_count {0};
+  uint event_count{0};
   std::vector<InputEvent> listeners;
 };
 

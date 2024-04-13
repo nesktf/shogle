@@ -4,8 +4,6 @@
 
 #include "res/shader.hpp"
 
-#include <glm/mat4x4.hpp>
-
 namespace ntf {
 
 template<typename TObjName, typename TRenderer>
@@ -24,8 +22,8 @@ public:
   SceneObj& operator=(const SceneObj&) = default;
 
 protected:
-  virtual void shader_update(Shader*, glm::mat4) = 0;
-  virtual glm::mat4 model_m_gen(void) = 0;
+  virtual void shader_update(Shader*, mat4) = 0;
+  virtual mat4 model_m_gen(void) = 0;
 
 public:
   virtual void update(float dt) {
@@ -35,7 +33,7 @@ public:
   }
 
 private:
-  glm::mat4 _model_m {1.0f};
+  mat4 _model_m {1.0f};
 };
 
 } // namespace ntf

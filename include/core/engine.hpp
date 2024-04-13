@@ -2,8 +2,8 @@
 
 #include "core/singleton.hpp"
 #include "core/settings.hpp"
-
 #include "core/window.hpp"
+#include "core/types.hpp"
 
 #include "scene/scene.hpp"
 
@@ -45,11 +45,12 @@ public:
   }
   
 public:
-  glm::vec3 clear_color, view_pos;
-  glm::mat4 proj2d, proj3d, view;
+  vec3 view_pos;
+  color3 clear_color;
+  mat4 proj2d, proj3d, view;
 
 private:
-  std::unique_ptr<GLWindow> window;
+  uptr<GLWindow> window;
 
   sceneptr_t level;
 

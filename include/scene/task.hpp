@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/types.hpp"
+
 #include <vector>
 #include <functional>
 #include <memory>
@@ -50,10 +52,10 @@ public:
   }
 
   void add_task(task_t* task) {
-    new_tasks.push_back(std::unique_ptr<task_t>{task});
+    new_tasks.push_back(uptr<task_t>{task});
   }
 
-  void add_task(std::unique_ptr<task_t> task) {
+  void add_task(uptr<task_t> task) {
     new_tasks.push_back(std::move(task));
   }
 
@@ -68,8 +70,8 @@ public:
   }
 
 private:
-  std::vector<std::unique_ptr<task_t>> tasks;
-  std::vector<std::unique_ptr<task_t>> new_tasks;
+  std::vector<uptr<task_t>> tasks;
+  std::vector<uptr<task_t>> new_tasks;
 };
 
 } // namespace ntf

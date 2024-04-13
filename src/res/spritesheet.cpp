@@ -16,7 +16,7 @@ SpritesheetData::SpritesheetData(std::string path) {
 
   std::string dir = path.substr(0, path.find_last_of('/'));
 
-  tex_data = std::make_unique<TextureData>(dir+"/"+data["file"].template get<std::string>());
+  tex_data = make_uptr<TextureData>(dir+"/"+data["file"].template get<std::string>());
 
   auto content = data["content"];
   for (auto& sprite : content) {

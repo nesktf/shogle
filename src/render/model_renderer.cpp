@@ -3,8 +3,6 @@
 #include "core/engine.hpp"
 #include "core/log.hpp"
 
-#include <glm/gtc/matrix_transform.hpp>
-
 namespace ntf {
 
 void ModelRenderer::draw(void) {
