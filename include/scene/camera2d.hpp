@@ -27,6 +27,7 @@ public:
   inline void set_viewport(vec2 viewport) {
     _proj_info.viewport = viewport;
     _proj = _gen_proj(_proj_info);
+    this->set_origin({viewport.x*0.5f, viewport.y*0.5f});
   }
 
   inline void set_layer_count(size_t layer_count) {
