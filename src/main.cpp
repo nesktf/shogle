@@ -65,14 +65,9 @@ struct TestScene : public ntf::Scene<TestScene> {
   };
 
   void update(float dt) override {
-    sheet->update(dt);
-    sheet->draw();
-
-    cirno->update(dt);
-    cirno->draw();
-
-    rin->update(dt);
-    rin->draw();
+    sheet->udraw(dt);
+    cirno->udraw(dt);
+    rin->udraw(dt);
   };
 };
 

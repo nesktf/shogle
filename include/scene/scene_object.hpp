@@ -32,6 +32,11 @@ public:
     this->shader_update(this->_shader, this->_model_m);
   }
 
+  void udraw(float dt) {
+    this->update(dt);
+    this->draw();
+  }
+
 private:
   mat4 _model_m {1.0f};
 };
