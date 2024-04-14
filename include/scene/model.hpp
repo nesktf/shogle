@@ -7,19 +7,27 @@
 
 namespace ntf {
 
-class Model : public SceneObj<Model, ModelRenderer> {
+class ModelImpl : public ModelRenderer, public SceneObj {
+protected:
+  ModelImpl(ModelRes* model, Shader* shader);
+
 public:
-  Model(ModelRes* mod, Shader* sha);
+  virtual void update(float dt) override;
+  void draw(void) override { draw_model(); }
 
 protected:
-  virtual void shader_update(Shader* shader, glm::mat4 model_m) override;
-  virtual glm::mat4 model_m_gen(void) override;
+  mat4 _gen_model(void) override;
+  virtual void _shader_update(void);
 
 public:
   Camera3D* cam;
-  vec3 pos {0.0f};
-  vec3 scale {1.0f};
-  vec3 rot {1.0f};
+
+  vec3 pos {0.0f}, scale {1.0f}, rot {1.0f};
+};
+
+struct Model : public TaskedObj<Model, ModelImpl> {
+  Model(ModelRes* model, Shader* shader) :
+    TaskedObj(model, shader) {}
 };
 
 } // namespace ntf

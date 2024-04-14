@@ -55,8 +55,8 @@ private:
   GLuint q_VAO, q_VBO, q_EBO;
 };
 
-void SpriteRenderer::draw(void) {
-  glBindTexture(GL_TEXTURE_2D, texture->id());
+void SpriteRenderer::draw_sprite(void) {
+  glBindTexture(GL_TEXTURE_2D, _texture->id());
   glActiveTexture(GL_TEXTURE0);
 
   QuadRenderer::instance().draw();

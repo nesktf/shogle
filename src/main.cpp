@@ -26,7 +26,7 @@ struct TestScene : public ntf::Scene<TestScene> {
       pool.get<ntf::Shader>("generic_2d")
     );
     sheet->pos = ntf::vec2{0.0f, 0.0f};
-    sheet->scale = 200.0f*sheet->corrected_scale();
+    sheet->scale *= 200.0f;
 
     rin = ntf::make_uptr<ntf::Sprite>(
       pool.get<ntf::Spritesheet>("2hus"),
@@ -34,10 +34,10 @@ struct TestScene : public ntf::Scene<TestScene> {
       pool.get<ntf::Shader>("generic_2d")
     );
     rin->pos = ntf::vec2{-200.0f, 0.0f};
-    rin->scale = 200.0f*rin->corrected_scale();
+    rin->scale *= 200.0f;
     float t = 0.0f;
     float rate = 1.0f/12.0f;
-    rin->add_task([t, rate](ntf::Sprite* obj, float dt) mutable {
+    rin->add_task([t, rate](ntf::SpriteImpl* obj, float dt) mutable {
       t+=dt;
       if(t>rate){
         t = 0.0f;
@@ -45,7 +45,7 @@ struct TestScene : public ntf::Scene<TestScene> {
       }
       return false;
     });
-    rin->add_task([](ntf::Sprite* obj, float dt) {
+    rin->add_task([](ntf::SpriteImpl* obj, float dt) {
       auto& in = ntf::InputHandler::instance();
       auto* cam = obj->cam;
 
@@ -96,10 +96,11 @@ struct TestScene : public ntf::Scene<TestScene> {
       "cirno_fall",
       pool.get<ntf::Shader>("generic_2d")
     );
+    cirno->fixed = true;
     cirno->pos = ntf::vec2{200.0f, 0.0f};
-    cirno->scale = 200.0f*cirno->corrected_scale();
+    cirno->scale *= 200.0f;
     cirno->set_index(8);
-    cirno->add_task([t, rate](ntf::Sprite* obj, float dt) mutable {
+    cirno->add_task([t, rate](ntf::SpriteImpl* obj, float dt) mutable {
       t+=dt;
       if(t>rate){
         t = 0.0f;

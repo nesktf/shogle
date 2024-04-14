@@ -14,7 +14,8 @@ public:
   };
   struct view_info {
     vec2 center{0.0f, 0.0f};
-    vec2 origin{400.0f, 300.0f}; vec2 zoom{1.0f, 1.0f};
+    vec2 origin{400.0f, 300.0f}; 
+    vec2 zoom{1.0f, 1.0f};
     float rot{0.0f};
   };
 

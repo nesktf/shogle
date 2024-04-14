@@ -5,58 +5,76 @@
 
 namespace ntf {
 
-Sprite::Sprite(Texture* tex, Shader* sha) :
-  SceneObj(tex, sha),
-  cam(&Shogle::instance().cam2D_default){
-    sprite.x = tex->w();
-    sprite.y = tex->h();
-    sprite.dx = tex->w();
-    sprite.dy = tex->h();
-    sprite.y0 = 0;
-    sprite.x0 = 0;
-    sprite.cols = 1;
-    sprite.rows = 1; sprite.count = 1;
-    curr_index = 0;
-}
+SpriteImpl::SpriteImpl(Texture* tex, Shader* sha) :
+  SpriteRenderer(tex, sha),
+  _sprite(SpriteData{
+      .count = 1,
+      .x = static_cast<size_t>(tex->w()),
+      .y = static_cast<size_t>(tex->h()),
+      .x0 = 0,
+      .y0 = 0,
+      .dx = static_cast<size_t>(tex->w()),
+      .dy = static_cast<size_t>(tex->h()),
+      .cols = 1,
+      .rows = 1
+    }),
+  _index(0),
+  cam(&Shogle::instance().cam2D_default) { scale = corrected_scale(); }
 
-Sprite::Sprite(Spritesheet* sheet, std::string name, Shader* sha) :
-  SceneObj(static_cast<Texture*>(sheet), sha),
-  cam(&Shogle::instance().cam2D_default),
-  sprite(sheet->sprites.at(name)) { 
-    offset.x = (float)sprite.dx/(float)(sprite.x*sprite.cols);
-    offset.y = (float)sprite.dy/(float)(sprite.y*sprite.rows);
+SpriteImpl::SpriteImpl(Spritesheet* sheet, std::string name, Shader* sha) :
+  SpriteRenderer(static_cast<Texture*>(sheet), sha),
+  _sprite(sheet->sprites.at(name)),
+  cam(&Shogle::instance().cam2D_default) {
+    _offset.x = static_cast<float>(_sprite.dx)/static_cast<float>(_sprite.x*_sprite.cols);
+    _offset.y = static_cast<float>(_sprite.dy)/static_cast<float>(_sprite.y*_sprite.rows);
     set_index(0); 
+    scale = corrected_scale();
 }
 
-mat4 Sprite::model_m_gen(void) {
+void SpriteImpl::update(float) {
+  _model_mat = _gen_model();
+  _shader->use();
+  _shader_update();
+}
+
+void SpriteImpl::_shader_update(void) {
+  _shader->unif_mat4("proj", cam->proj_mat());
+  _shader->unif_mat4("view", fixed ? mat4{1.0f} : cam->view_mat());
+  _shader->unif_mat4("model", _model_mat);
+  _shader->unif_vec4("texture_color", color);
+  _shader->unif_vec4("texture_offset", _offset);
+  _shader->unif_int("texture_sampler", 0);
+}
+
+mat4 SpriteImpl::_gen_model(void) {
   mat4 mat{1.0f};
 
-  mat = glm::translate(mat, vec3{pos, (float)layer});
+  mat = glm::translate(mat, vec3{pos, static_cast<float>(layer)});
   mat = glm::rotate(mat, rot, vec3{0.0f, 0.0f, 1.0f});
   mat = glm::scale(mat, vec3{scale, 1.0f});
 
   return mat;
 }
 
-void Sprite::shader_update(Shader* shader, mat4 model_m) {
-  shader->use();
-  shader->unif_mat4("proj", cam->proj_mat());
-  shader->unif_mat4("view", cam->view_mat());
-  shader->unif_mat4("model", model_m);
-  shader->unif_vec4("texture_color", color);
-  shader->unif_vec4("texture_offset", offset);
-  shader->unif_int("texture_sampler", 0);
-}
+void SpriteImpl::set_index(size_t i) {
+  i = i % _sprite.count; // don't overflow
+  size_t row = i / _sprite.cols;
+  size_t col = i % _sprite.cols;
 
-void Sprite::set_index(size_t i) {
-  i = i % sprite.count; // don't overflow
-  size_t curr_row = i / sprite.cols;
-  size_t curr_col = i % sprite.cols;
+  vec2 frac_a {
+    static_cast<float>(_sprite.x0 + (col*_sprite.dx)),
+    static_cast<float>(_sprite.y0 + (row*_sprite.dy))
+  };
 
-  offset.z = (float)(sprite.x0+(curr_col*sprite.dx))/(float)(sprite.x*sprite.cols);
-  offset.w = (float)(sprite.y0+(curr_row*sprite.dy))/(float)(sprite.y*sprite.rows);
+  vec2 frac_b {
+    static_cast<float>(_sprite.x*_sprite.cols),
+    static_cast<float>(_sprite.y*_sprite.rows)
+  };
 
-  curr_index = i;
+  _offset.z = frac_a.x / frac_b.x;
+  _offset.w = frac_a.y / frac_b.y;
+
+  _index = i;
 }
 
 } // namespace ntf

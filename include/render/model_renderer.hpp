@@ -9,14 +9,14 @@ protected:
   using res_t = ModelRes;
 
   ModelRenderer(res_t* mod, Shader* sha) :
-    model(mod),
+    _model(mod),
     _shader(sha) {}
 
 public:
-  void draw(void);
+  void draw_model(void);
 
 protected:
-  res_t* model;
+  res_t* _model;
   Shader* _shader;
 };
 

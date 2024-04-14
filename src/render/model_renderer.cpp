@@ -5,8 +5,8 @@
 
 namespace ntf {
 
-void ModelRenderer::draw(void) {
-  for (const auto& mesh : model->meshes) {
+void ModelRenderer::draw_model(void) {
+  for (const auto& mesh : _model->meshes) {
     size_t diff_n = 1;
     size_t spec_n = 1;
     for (size_t i = 0; i < mesh.tex.size(); ++i) {

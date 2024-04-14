@@ -9,14 +9,14 @@ protected:
   using res_t = Texture;
 
   SpriteRenderer(res_t* tex, Shader* sha) :
-    texture(tex),
+    _texture(tex),
     _shader(sha) {}
 
 public:
-  void draw(void);
+  void draw_sprite(void);
 
 protected:
-  res_t* texture;
+  res_t* _texture;
   Shader* _shader;
 };
 

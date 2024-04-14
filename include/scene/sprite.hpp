@@ -9,43 +9,50 @@
 
 namespace ntf {
 
-class Sprite : public SceneObj<Sprite, SpriteRenderer> {
-public:
-  Sprite(Texture* tex, Shader* sha);
-  Sprite(Spritesheet* sheet, std::string name, Shader* sha);
-
+class SpriteImpl : public SpriteRenderer, public SceneObj {
 protected:
-  virtual void shader_update(Shader* shader, glm::mat4 model_m) override;
-  virtual glm::mat4 model_m_gen(void) override;
+  SpriteImpl(Texture* tex, Shader* sha);
+  SpriteImpl(Spritesheet* sheet, std::string name, Shader* sha);
 
 public:
-  inline vec2 corrected_scale(float base = 1.0f) {
-    return {base*aspect(), base};
-  }
-
-  inline float aspect() {
-    return ((float)sprite.dx/(float)sprite.cols)/((float)sprite.dy/(float)sprite.rows);
-  }
+  virtual void update(float dt) override;
+  void draw(void) override { draw_sprite(); }
 
 public:
   void set_index(size_t i);
+  void next_index(void) { set_index(_index+1); }
 
-  inline void next_index(void) {
-    set_index(curr_index+1);
+public:
+  inline vec2 corrected_scale(float base = 1.0f) { return vec2{base*aspect(), base}; }
+  inline float aspect(void) {
+    return static_cast<float>(_sprite.dx*_sprite.rows)/static_cast<float>(_sprite.dy*_sprite.cols);
   }
+
+protected:
+  virtual void _shader_update(void);
+  mat4 _gen_model(void) override;
+
+protected:
+  SpriteData _sprite;
+  size_t _index;
+  vec4 _offset {vec2{1.0f}, vec2{0.0f}};
 
 public:
   Camera2D* cam;
-  vec2 pos {0.0f};
-  vec2 scale {1.0f};
+
+  vec2 pos {0.0f}, scale{1.0f};
   float rot {0.0f};
-
   uint layer {0};
-  vec4 color {1.0f};
 
-  SpriteData sprite;
-  size_t curr_index;
-  vec4 offset{vec2{1.0f}, vec2{0.0f}};
+  color4 color {1.0f};
+  bool fixed {false};
+};
+
+struct Sprite : public TaskedObj<Sprite, SpriteImpl> {
+  Sprite(Texture* texture, Shader* shader) :
+    TaskedObj(texture, shader) {}
+  Sprite(Spritesheet* sheet, std::string name, Shader* shader) :
+    TaskedObj(sheet, name, shader) {}
 };
 
 } // namespace ntf

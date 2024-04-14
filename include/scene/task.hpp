@@ -36,7 +36,7 @@ class TaskManager {
 public:
   using task_t = Task<TObj>;
 
-public:
+protected:
   void do_tasks(TObj* obj, float dt) {
     // Move new tasks
     for (auto& task : new_tasks) {
@@ -51,6 +51,7 @@ public:
     std::erase_if(tasks, [](const auto& task){ return task->is_finished; });
   }
 
+public:
   void add_task(task_t* task) {
     new_tasks.push_back(uptr<task_t>{task});
   }
