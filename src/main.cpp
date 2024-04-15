@@ -9,20 +9,14 @@ struct TestScene : public ntf::Scene<TestScene> {
 
   TestScene() {
     pool.direct_load<ntf::Shader>({
-      {
-        .id="generic_2d",
-        .path="res/shaders/generic_2d"
-      }
+      .id="generic_2d", .path="res/shaders/generic_2d"
     });
     pool.direct_load<ntf::Spritesheet>({
-      {
-        .id="2hus",
-        .path="_temp/2hus.json"
-      }
+      .id="2hus", .path="_temp/2hus.json"
     });
-
+    
     sheet = ntf::make_uptr<ntf::Sprite>(
-      static_cast<ntf::Texture*>(pool.get<ntf::Spritesheet>("2hus")),
+      pool.get<ntf::Spritesheet>("2hus"),
       pool.get<ntf::Shader>("generic_2d")
     );
     sheet->pos = ntf::vec2{0.0f, 0.0f};
@@ -35,9 +29,20 @@ struct TestScene : public ntf::Scene<TestScene> {
     );
     rin->pos = ntf::vec2{-200.0f, 0.0f};
     rin->scale *= 200.0f;
+
+    cirno = ntf::make_uptr<ntf::Sprite>(
+      pool.get<ntf::Spritesheet>("2hus"),
+      "cirno_fall",
+      pool.get<ntf::Shader>("generic_2d")
+    );
+    cirno->use_screen_space = true;
+    cirno->pos = ntf::vec2{100.0f, 100.0f};
+    cirno->scale *= 200.0f;
+
     float t = 0.0f;
     float rate = 1.0f/12.0f;
-    rin->add_task([t, rate](ntf::SpriteImpl* obj, float dt) mutable {
+
+    rin->add_task([t, rate](ntf::Sprite* obj, float dt) mutable {
       t+=dt;
       if(t>rate){
         t = 0.0f;
@@ -45,11 +50,20 @@ struct TestScene : public ntf::Scene<TestScene> {
       }
       return false;
     });
-    rin->add_task([](ntf::SpriteImpl* obj, float dt) {
-      auto& in = ntf::InputHandler::instance();
-      auto* cam = obj->cam;
+    cirno->add_task([t, rate](ntf::Sprite* obj, float dt) mutable {
+      t+=dt;
+      if(t>rate){
+        t = 0.0f;
+        obj->next_index();
+      }
+      return false;
+    });
 
-      auto view = cam->view();
+    this->add_task([](auto, float dt) {
+      auto& in = ntf::InputHandler::instance();
+      auto& cam = ntf::Shogle::instance().cam2D_default;
+
+      auto view = cam.view();
 
       ntf::vec2 center = view.center;
       float speed = 300.0f;
@@ -66,7 +80,7 @@ struct TestScene : public ntf::Scene<TestScene> {
         center.x += speed*dt;
       }
 
-      cam->set_center(center);
+      cam.set_center(center);
 
       float zoom = view.zoom.x;
       speed = 1.0f;
@@ -77,7 +91,7 @@ struct TestScene : public ntf::Scene<TestScene> {
         zoom -= speed*dt;
       }
 
-      cam->set_zoom(zoom);
+      cam.set_zoom(zoom);
 
       float rot = view.rot;
       speed = 10.0f;
@@ -86,37 +100,19 @@ struct TestScene : public ntf::Scene<TestScene> {
         rot += speed*dt;
       }
 
-      cam->set_rot(rot);
+      cam.set_rot(rot);
 
-      return false;
-    });
-
-    cirno = ntf::make_uptr<ntf::Sprite>(
-      pool.get<ntf::Spritesheet>("2hus"),
-      "cirno_fall",
-      pool.get<ntf::Shader>("generic_2d")
-    );
-    cirno->fixed = true;
-    cirno->pos = ntf::vec2{200.0f, 0.0f};
-    cirno->scale *= 200.0f;
-    cirno->set_index(8);
-    cirno->add_task([t, rate](ntf::SpriteImpl* obj, float dt) mutable {
-      t+=dt;
-      if(t>rate){
-        t = 0.0f;
-        obj->next_index();
-      }
       return false;
     });
   };
 
   void update(float dt) override {
+    do_tasks(this, dt);
     sheet->udraw(dt);
-    cirno->udraw(dt);
     rin->udraw(dt);
+    cirno->udraw(dt);
   };
 };
-
 
 int main(int argc, char* argv[]) {
   auto& shogle = ntf::Shogle::instance();

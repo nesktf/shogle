@@ -20,7 +20,7 @@ public:
 
 public:
   inline void stop(void) {
-    window->close();
+    _window->close();
   }
 
   inline void enable_depth_test(bool flag) {
@@ -48,12 +48,12 @@ public:
   Camera3D cam3D_default;
 
 private:
-  uptr<GLWindow> window;
+  uptr<GLWindow> _window;
 
-  sceneptr_t level;
+  sceneptr_t _level;
 
-  bool should_close {false};
-  double last_frame {0.0f};
+  bool _should_close {false};
+  double _last_frame {0.0f};
 };
 
 } // namespace ntf::shogle

@@ -25,7 +25,7 @@ mat4 Camera2D::_gen_proj(proj_info v_info) {
   return glm::ortho(
     0.0f, v_info.viewport.x,
     v_info.viewport.y, 0.0f,
-    -(float)v_info.layer_count, 1.0f
+    -static_cast<float>(v_info.layer_count), 1.0f
   );
 }
 

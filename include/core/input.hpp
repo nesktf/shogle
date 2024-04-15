@@ -30,13 +30,13 @@ public:
   void unregister_listener(InEventId id);
   void unregister_all(void);
   bool is_key_pressed(InputButtons but) {
-    return window->is_button_pressed(static_cast<int>(but));
+    return _window->is_button_pressed(static_cast<int>(but));
   }
 
 private:
-  GLWindow* window;
-  uint event_count{0};
-  std::vector<InputEvent> listeners;
+  GLWindow* _window;
+  uint _event_count{0};
+  std::vector<InputEvent> _listeners;
 };
 
 }

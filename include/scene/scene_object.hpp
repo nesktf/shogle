@@ -18,13 +18,9 @@ public:
 
 public:
   virtual void update(float dt) = 0;
-  virtual void draw(void) = 0;
 
 protected:
   virtual mat4 _gen_model(void) = 0;
-
-public:
-  void udraw(float dt) { update(dt); draw(); }
 
 protected:
   mat4 _model_mat {1.0f};

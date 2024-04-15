@@ -18,9 +18,8 @@ public: // Resource data can be copied but i don't think is a good idea
   ~ShaderData() = default;
 
   ShaderData(ShaderData&&) = default;
-  ShaderData& operator=(ShaderData&&) = default;
-
   ShaderData(const ShaderData&) = delete;
+  ShaderData& operator=(ShaderData&&) = default;
   ShaderData& operator=(const ShaderData&) = delete;
 
 public:
@@ -38,9 +37,8 @@ public: // Resources can't be copied
   ~Shader();
 
   Shader(Shader&&) noexcept;
-  Shader& operator=(Shader&&) noexcept;
-
   Shader(const Shader&) = delete;
+  Shader& operator=(Shader&&) noexcept;
   Shader& operator=(const Shader&) = delete;
 
 public: // Shader uniform manipulation

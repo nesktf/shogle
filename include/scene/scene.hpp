@@ -13,9 +13,8 @@ struct BaseScene {
   virtual ~BaseScene() = default;
 
   BaseScene(BaseScene&&) = default; 
-  BaseScene& operator=(BaseScene&&) = default;
-
   BaseScene(const BaseScene&) = delete;
+  BaseScene& operator=(BaseScene&&) = default;
   BaseScene& operator=(const BaseScene&) = delete;
 
   virtual void update(float dt) = 0;
@@ -24,10 +23,10 @@ struct BaseScene {
 using sceneptr_t = uptr<BaseScene>; 
 using SceneCreator = std::function<sceneptr_t(void)>;
 
-template<typename TScene>
-struct Scene : public BaseScene {
+template<typename T>
+struct Scene : public BaseScene, public TaskManager<T> {
   static sceneptr_t create(void) {
-    return std::make_unique<TScene>();
+    return std::make_unique<T>();
   }
 };
 

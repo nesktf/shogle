@@ -3,17 +3,17 @@
 #include "scene/scene_object.hpp"
 #include "scene/camera3d.hpp"
 
-#include "render/model_renderer.hpp"
+#include "core/renderer.hpp"
 
 namespace ntf {
 
 class ModelImpl : public ModelRenderer, public SceneObj {
 protected:
-  ModelImpl(ModelRes* model, Shader* shader);
+  ModelImpl(const ModelRes* model, const Shader* shader);
 
 public:
   virtual void update(float dt) override;
-  void draw(void) override { draw_model(); }
+  void udraw(float dt) { update(dt); draw(); }
 
 protected:
   mat4 _gen_model(void) override;
@@ -26,7 +26,7 @@ public:
 };
 
 struct Model : public TaskedObj<Model, ModelImpl> {
-  Model(ModelRes* model, Shader* shader) :
+  Model(const ModelRes* model, const Shader* shader) :
     TaskedObj(model, shader) {}
 };
 

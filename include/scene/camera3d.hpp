@@ -81,7 +81,7 @@ public:
 
 public:
   static vec3 dir_to_vec(cam_dir dir);
-  static cam_dir vec_to_dir(vec3 dir_vec);
+  static cam_dir vec_to_dir(vec3 dir_vec, vec3 up_vec);
 
 private:
   static mat4 _gen_proj(proj_info proj);

@@ -15,9 +15,8 @@ public: // Resource data can be copied but i don't think is a good idea
   ~MaterialData() = default;
 
   MaterialData(MaterialData&&) = default;
-  MaterialData& operator=(MaterialData&&) = default;
-
   MaterialData(const MaterialData&) = delete;
+  MaterialData& operator=(MaterialData&&) = default;
   MaterialData& operator=(const MaterialData&) = delete;
 
 public:
@@ -35,13 +34,12 @@ public: // Resource data can't be copied
   ~Material();
 
   Material(Material&&) = default;
-  Material& operator=(Material&&) = default;
-
   Material(const Material&) = delete;
+  Material& operator=(Material&&) = default;
   Material& operator=(const Material&) = delete;
 
 public:
-  void bind_sampler(const Shader& shader, size_t tex_num, size_t tex_ind) const;
+  void bind_sampler(const Shader* shader, size_t tex_num, size_t tex_ind) const;
 
 public:
   Texture texture;

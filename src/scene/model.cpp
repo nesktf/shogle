@@ -4,7 +4,7 @@
 
 namespace ntf {
 
-ModelImpl::ModelImpl(ModelRes* model, Shader* shader) :
+ModelImpl::ModelImpl(const ModelRes* model, const Shader* shader) :
   ModelRenderer(model, shader),
   cam(&Shogle::instance().cam3D_default) {}
 

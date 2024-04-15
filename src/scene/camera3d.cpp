@@ -39,12 +39,12 @@ vec3 Camera3D::dir_to_vec(cam_dir dir) {
   dir_.y = glm::sin(dir.pitch);
   dir_.z = glm::sin(dir.yaw) * glm::cos(dir.pitch);
 
-  vec3 dir_vec = glm::normalize(dir_);
+  vec3 dir_vec = glm::normalize(dir_); // Necesary?
 
   return dir_vec;
 }
 
-Camera3D::cam_dir Camera3D::vec_to_dir(vec3 dir_vec) {
+Camera3D::cam_dir Camera3D::vec_to_dir(vec3 dir_vec, vec3) {
   cam_dir dir{};
 
   dir.pitch = glm::asin(-dir_vec.y);

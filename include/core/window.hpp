@@ -13,7 +13,14 @@ enum InputButtons {
   KEY_D = GLFW_KEY_D,
   KEY_J = GLFW_KEY_J,
   KEY_K = GLFW_KEY_K,
-  KEY_L = GLFW_KEY_L
+  KEY_L = GLFW_KEY_L,
+  KEY_Q = GLFW_KEY_Q,
+  KEY_E = GLFW_KEY_E,
+  KEY_LSHIFT = GLFW_KEY_LEFT_SHIFT,
+  KEY_LCTRL = GLFW_KEY_LEFT_CONTROL,
+  KEY_TAB = GLFW_KEY_TAB,
+  KEY_SPACE = GLFW_KEY_SPACE,
+  KEY_ESCAPE = GLFW_KEY_ESCAPE
 };
 
 enum InputAction {
@@ -25,15 +32,15 @@ class GLWindow {
 public:
   using fbcallback_t = GLFWframebuffersizefun;
   using keycallback_t = GLFWkeyfun;
+  using cursorposcallback_t = GLFWcursorposfun;
 
 public:
   GLWindow(size_t w, size_t h, const char* w_title);
   ~GLWindow();
 
   GLWindow(GLWindow&&) = default;
-  GLWindow& operator=(GLWindow&&) = default;
-
   GLWindow(const GLWindow&) = delete;
+  GLWindow& operator=(GLWindow&&) = default;
   GLWindow& operator=(const GLWindow&) = delete;
 
 public:
@@ -42,6 +49,7 @@ public:
 
   void set_fb_callback(fbcallback_t cb);
   void set_key_callback(keycallback_t cb);
+  void set_cursorpos_callback(cursorposcallback_t cb);
 
   void set_title(const char* title);
 
@@ -51,7 +59,7 @@ public:
   }
 
   inline bool should_close(void) {
-    return glfwWindowShouldClose(win);
+    return glfwWindowShouldClose(_glfw_win);
   }
   
   inline double get_time(void) {
@@ -59,16 +67,16 @@ public:
   }
   
   inline bool is_button_pressed(int key) {
-    return glfwGetKey(win, key) == GLFW_PRESS;
+    return glfwGetKey(_glfw_win, key) == GLFW_PRESS;
   }
 
-  inline size_t width(void) { return w_width; }
-  inline size_t height(void) { return w_height; }
-  inline float ratio() { return (float)w_width/(float)w_height; }
+  inline size_t width(void) { return _win_w; }
+  inline size_t height(void) { return _win_h; }
+  inline float ratio() { return (float)_win_w/(float)_win_h; }
 
 private:
-  GLFWwindow* win;
-  size_t w_width, w_height;
+  GLFWwindow* _glfw_win;
+  size_t _win_w, _win_h;
 };
 
 } // namespace ntf

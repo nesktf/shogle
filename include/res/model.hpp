@@ -45,9 +45,8 @@ public:
     ~Mesh();
 
     Mesh(Mesh&&) noexcept;
-    Mesh& operator=(Mesh&&) noexcept;
-
     Mesh(const Mesh&) = delete;
+    Mesh& operator=(Mesh&&) noexcept;
     Mesh& operator=(const Mesh&) = delete;
 
   public:
@@ -67,9 +66,8 @@ public: // Resource wrappers also can't be copied
   ~ModelRes() = default;
 
   ModelRes(ModelRes&&) = default;
-  ModelRes& operator=(ModelRes&&) = default;
-
   ModelRes(const ModelRes&) = delete;
+  ModelRes& operator=(ModelRes&&) = default;
   ModelRes& operator=(const ModelRes&) = delete;
 
 public:

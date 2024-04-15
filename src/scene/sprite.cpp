@@ -5,7 +5,7 @@
 
 namespace ntf {
 
-SpriteImpl::SpriteImpl(Texture* tex, Shader* sha) :
+SpriteImpl::SpriteImpl(const Texture* tex, const Shader* sha) :
   SpriteRenderer(tex, sha),
   _sprite(SpriteData{
       .count = 1,
@@ -21,8 +21,8 @@ SpriteImpl::SpriteImpl(Texture* tex, Shader* sha) :
   _index(0),
   cam(&Shogle::instance().cam2D_default) { scale = corrected_scale(); }
 
-SpriteImpl::SpriteImpl(Spritesheet* sheet, std::string name, Shader* sha) :
-  SpriteRenderer(static_cast<Texture*>(sheet), sha),
+SpriteImpl::SpriteImpl(const Spritesheet* sheet, std::string name, const Shader* sha) :
+  SpriteRenderer(static_cast<const Texture*>(sheet), sha),
   _sprite(sheet->sprites.at(name)),
   cam(&Shogle::instance().cam2D_default) {
     _offset.x = static_cast<float>(_sprite.dx)/static_cast<float>(_sprite.x*_sprite.cols);
@@ -39,7 +39,7 @@ void SpriteImpl::update(float) {
 
 void SpriteImpl::_shader_update(void) {
   _shader->unif_mat4("proj", cam->proj_mat());
-  _shader->unif_mat4("view", fixed ? mat4{1.0f} : cam->view_mat());
+  _shader->unif_mat4("view", use_screen_space ? mat4{1.0f} : cam->view_mat());
   _shader->unif_mat4("model", _model_mat);
   _shader->unif_vec4("texture_color", color);
   _shader->unif_vec4("texture_offset", _offset);

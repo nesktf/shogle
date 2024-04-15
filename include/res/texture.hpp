@@ -61,8 +61,8 @@ public:
 
 public:
   float aspect(void) const { return (float)width/(float)height;}
-  int w() { return width; }
-  int h() { return height; }
+  int w() const { return width; }
+  int h() const { return height; }
   GLuint id(void) const { return tex; }
   GLenum dim(void) const { return tex_dim; }
   aiTextureType type(void) const { return ai_type; }

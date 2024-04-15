@@ -25,6 +25,8 @@ using color = vec4;
 using color4 = vec4;
 using color3 = vec3;
 
+using path_t = std::string;
+
 template<typename T>
 using uptr = std::unique_ptr<T>;
 

@@ -3,7 +3,7 @@
 #include "scene/scene_object.hpp"
 #include "scene/camera2d.hpp"
 
-#include "render/sprite_renderer.hpp"
+#include "core/renderer.hpp"
 
 #include "res/spritesheet.hpp"
 
@@ -11,12 +11,12 @@ namespace ntf {
 
 class SpriteImpl : public SpriteRenderer, public SceneObj {
 protected:
-  SpriteImpl(Texture* tex, Shader* sha);
-  SpriteImpl(Spritesheet* sheet, std::string name, Shader* sha);
+  SpriteImpl(const Texture* tex, const Shader* sha);
+  SpriteImpl(const Spritesheet* sheet, std::string name, const Shader* sha);
 
 public:
   virtual void update(float dt) override;
-  void draw(void) override { draw_sprite(); }
+  void udraw(float dt) { update(dt); draw(); }
 
 public:
   void set_index(size_t i);
@@ -45,13 +45,13 @@ public:
   uint layer {0};
 
   color4 color {1.0f};
-  bool fixed {false};
+  bool use_screen_space {false};
 };
 
 struct Sprite : public TaskedObj<Sprite, SpriteImpl> {
-  Sprite(Texture* texture, Shader* shader) :
+  Sprite(const Texture* texture, const Shader* shader) :
     TaskedObj(texture, shader) {}
-  Sprite(Spritesheet* sheet, std::string name, Shader* shader) :
+  Sprite(const Spritesheet* sheet, std::string name, const Shader* shader) :
     TaskedObj(sheet, name, shader) {}
 };
 

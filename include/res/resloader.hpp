@@ -10,54 +10,57 @@
 
 namespace ntf {
 
-using id_t = std::string;
-
-struct pathinfo_t {
-  id_t id;
-  std::string path;
-};
-
-template<typename T>
-using dataptr_t = uptr<typename T::data_t>;
-
-template<typename T>
-using LoaderCallback = std::function<void(id_t,dataptr_t<T>)>;
-
 class ResLoader : public Singleton<ResLoader> {
+public:
+  using resid_t = std::string;
+
+  struct pathinfo_t {
+    resid_t id;
+    path_t path;
+  };
+
+  template<typename T>
+  using resdata_t = T::data_t;
+
+  template<typename T>
+  using loadfun_t = std::function<void(resid_t,uptr<resdata_t<T>>)>;
+
+  using reqcallback_t = std::function<void()>;
+
 public:
   ResLoader() = default;
 
 public:
   inline void do_requests(void) {
-    while (!requests.empty()) {
-      auto callback = std::move(requests.front());
-      requests.pop();
-      callback();
+    while (!_req.empty()) {
+      auto _request_callback = std::move(_req.front());
+      _req.pop();
+      _request_callback();
     }
   }
 
 public:
   template<typename T>
-  dataptr_t<T> direct_load(pathinfo_t info) {
-    return std::make_unique<typename T::data_t>(info.path);
+  uptr<resdata_t<T>> resdata_direct_load(pathinfo_t info) {
+    return make_uptr<resdata_t<T>>(info.path);
   }
 
   template<typename T>
-  void async_load(pathinfo_t info, LoaderCallback<T> on_load) {
-    t_pool.enqueue([this, info, on_load=std::move(on_load)]{
-      auto* data = new T::data_t{info.path}; // Hopefully won't leak???
+  void resdata_async_load(pathinfo_t info, loadfun_t<T> on_load) {
+    _threadpool.enqueue([this, info, on_load=std::move(on_load)]{
+      auto* data = make_ptr<resdata_t<T>>(info.path); // Hopefully won't leak???
 
-      std::unique_lock<std::mutex> lock{req_mtx};
-      requests.emplace([data, id=info.id, on_load=std::move(on_load)]{
-        on_load(id, dataptr_t<T>{data});
+      std::unique_lock<std::mutex> lock{_req_mtx};
+      _req.emplace([data, id=info.id, on_load=std::move(on_load)]{
+        on_load(id, uptr<resdata_t<T>>{data});
       });
     });
   }
 
 private:
-  std::mutex req_mtx;
-  std::queue<std::function<void()>> requests;
-  ThreadPool t_pool;
+  std::mutex _req_mtx;
+  std::queue<reqcallback_t> _req;
+  ThreadPool _threadpool;
 };
 
 } // namespace ntf

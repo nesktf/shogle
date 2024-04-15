@@ -8,71 +8,78 @@
 
 namespace ntf {
 
-template<typename TObj>
+template<typename T>
 struct Task {
+  Task() = default;
   virtual ~Task() = default;
 
-  virtual void update(TObj* obj, float dt) = 0;
+  Task(Task&&) = default;
+  Task(const Task&) = default;
+  Task& operator=(Task&&) = default;
+  Task& operator=(const Task&) = default;
+
+  virtual void update(T* obj, float dt) = 0;
 
   bool is_finished {false};
 };
 
-template<typename TObj>
-struct TaskFun : public Task<TObj> {
-  using TaskF = std::function<bool(TObj*, float)>;
-
-  TaskFun(TaskF _fun) :
-    fun(_fun) {}
-
-  void update(TObj* obj, float dt) override {
-    this->is_finished = fun(obj, dt);
-  }
-
-  TaskF fun;
-};
-
-template<typename TObj>
+template<typename T>
 class TaskManager {
 public:
-  using task_t = Task<TObj>;
+  using task_t = Task<T>;
+  using taskfun_t = std::function<bool(T*, float)>;
+
+  struct taskfun_wrapper : public task_t {
+    taskfun_wrapper(taskfun_t fun) :
+      _fun(fun) {}
+
+    void update(T* obj, float dt) override {
+      this->is_finished = _fun(obj, dt);
+    }
+
+    taskfun_t _fun;
+  };
 
 protected:
-  void do_tasks(TObj* obj, float dt) {
+  TaskManager() = default;
+
+protected:
+  void do_tasks(T* obj, float dt) {
     // Move new tasks
-    for (auto& task : new_tasks) {
-      tasks.push_back(std::move(task));
+    for (auto& task : _new_tasks) {
+      _tasks.push_back(std::move(task));
     }
-    new_tasks.clear();
+    _new_tasks.clear();
 
     // Do tasks and clear finished tasks
-    for (auto& task : tasks) {
+    for (auto& task : _tasks) {
       task->update(obj, dt);
     }
-    std::erase_if(tasks, [](const auto& task){ return task->is_finished; });
+    std::erase_if(_tasks, [](const auto& task){ return task->is_finished; });
   }
 
 public:
   void add_task(task_t* task) {
-    new_tasks.push_back(uptr<task_t>{task});
+    _new_tasks.push_back(uptr<task_t>{task});
   }
 
   void add_task(uptr<task_t> task) {
-    new_tasks.push_back(std::move(task));
+    _new_tasks.push_back(std::move(task));
   }
 
-  void add_task(TaskFun<TObj>::TaskF task) {
-    add_task(std::make_unique<TaskFun<TObj>>(task));
+  void add_task(taskfun_t task) {
+    add_task(make_uptr<taskfun_wrapper>(task));
   }
 
-  void clear_tasks(void) {
-    for (auto& task : tasks) {
+  void end_tasks(void) {
+    for (auto& task : _tasks) {
       task->is_finished = true;
     }
   }
 
 private:
-  std::vector<uptr<task_t>> tasks;
-  std::vector<uptr<task_t>> new_tasks;
+  std::vector<uptr<task_t>> _tasks;
+  std::vector<uptr<task_t>> _new_tasks;
 };
 
 } // namespace ntf
