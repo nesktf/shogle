@@ -16,6 +16,10 @@ enum InputButtons {
   KEY_L = GLFW_KEY_L,
   KEY_Q = GLFW_KEY_Q,
   KEY_E = GLFW_KEY_E,
+  KEY_LEFT = GLFW_KEY_LEFT,
+  KEY_RIGHT = GLFW_KEY_RIGHT,
+  KEY_UP = GLFW_KEY_UP,
+  KEY_DOWN = GLFW_KEY_DOWN,
   KEY_LSHIFT = GLFW_KEY_LEFT_SHIFT,
   KEY_LCTRL = GLFW_KEY_LEFT_CONTROL,
   KEY_TAB = GLFW_KEY_TAB,
@@ -73,6 +77,9 @@ public:
   inline size_t width(void) { return _win_w; }
   inline size_t height(void) { return _win_h; }
   inline float ratio() { return (float)_win_w/(float)_win_h; }
+
+public:
+  bool imgui_demo {true};
 
 private:
   GLFWwindow* _glfw_win;

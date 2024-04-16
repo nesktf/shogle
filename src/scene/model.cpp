@@ -32,7 +32,7 @@ mat4 ModelImpl::_gen_model(void) {
 
 void ModelImpl::_shader_update(void) {
   _shader->unif_mat4("proj", cam->proj_mat());
-  _shader->unif_mat4("view", cam->view_mat());
+  _shader->unif_mat4("view", use_screen_space ? mat4{1.0f} : cam->view_mat());
   _shader->unif_vec3("view_pos", cam->view_pos());
   _shader->unif_mat4("model", _model_mat);
 }

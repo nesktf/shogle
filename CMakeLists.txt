@@ -47,18 +47,16 @@ list(APPEND PROJ_INCLUDES /usr/include/lua5.3)
 list(APPEND PROJ_LIBRARIES lua5.3)
 
 # imgui
-if (ENABLE_IMGUI)
-  set(IMGUI_DIR lib/imgui)
+set(IMGUI_DIR lib/imgui)
 
-  file(GLOB IMGUI_SRC "${IMGUI_DIR}/imgui*.cpp")
-  list(APPEND IMGUI_SRC ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp)
-  list(APPEND IMGUI_SRC ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
-  add_library(imgui OBJECT ${IMGUI_SRC})
-  target_include_directories(imgui PRIVATE ${IMGUI_DIR})
+file(GLOB IMGUI_SRC "${IMGUI_DIR}/imgui*.cpp")
+list(APPEND IMGUI_SRC ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp)
+list(APPEND IMGUI_SRC ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
+add_library(imgui OBJECT ${IMGUI_SRC})
+target_include_directories(imgui PRIVATE ${IMGUI_DIR})
 
-  list(APPEND PROJ_INCLUDES ${IMGUI_DIR})
-  list(APPEND PROJ_LIBRARIES imgui)
-endif()
+list(APPEND PROJ_INCLUDES ${IMGUI_DIR} ${IMGUI_DIR}/backends)
+list(APPEND PROJ_LIBRARIES imgui)
 
 ## Target things
 add_executable(${PROJECT_NAME} ${PROJ_SRC})

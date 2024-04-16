@@ -23,6 +23,8 @@ public:
   Camera3D* cam;
 
   vec3 pos {0.0f}, scale {1.0f}, rot {1.0f};
+
+  bool use_screen_space {false};
 };
 
 struct Model : public TaskedObj<Model, ModelImpl> {

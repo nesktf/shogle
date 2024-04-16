@@ -21,6 +21,7 @@ public:
 public:
   void set_index(size_t i);
   void next_index(void) { set_index(_index+1); }
+  size_t index(void) { return _index; }
 
 public:
   inline vec2 corrected_scale(float base = 1.0f) { return vec2{base*aspect(), base}; }

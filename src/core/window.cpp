@@ -2,6 +2,10 @@
 #include "core/log.hpp"
 #include "core/error.hpp"
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 #define GL_MAJOR 3
 #define GL_MINOR 3
 
@@ -35,10 +39,26 @@ GLWindow::GLWindow(size_t w, size_t h, const char* w_title) :
   // Viewport things
   glViewport(0, 0, _win_w, _win_h); // 1,2 -> Location in window. 3,4 -> Size
   // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // lock mouse
+
+
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO& io = ImGui::GetIO(); (void)io;
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+  ImGui::StyleColorsDark();
+  ImGui_ImplGlfw_InitForOpenGL(_glfw_win, true);
+  ImGui_ImplOpenGL3_Init("#version 130");
+
   Log::debug("[GLWindow] Initialized - OpenGL {}.{}", GL_MAJOR, GL_MINOR);
 };
 
 GLWindow::~GLWindow() {
+  ImGui_ImplOpenGL3_Shutdown();
+  ImGui_ImplGlfw_Shutdown();
+  ImGui::DestroyContext();
+
   glfwDestroyWindow(_glfw_win);
   glfwTerminate();
   Log::debug("[GLWindow] Deleted");
@@ -50,6 +70,7 @@ void GLWindow::close(void) {
 }
 
 void GLWindow::swap_buffers(void) {
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
   glfwSwapBuffers(_glfw_win);
 }
 

@@ -5,16 +5,21 @@
 
 #include "res/resloader.hpp"
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 namespace ntf {
 
 bool Shogle::init(const Settings& sett) {
   try {
-    this->_window = make_uptr<GLWindow>(sett.w_width, sett.w_height, sett.w_title.c_str());
+    _window = make_uptr<GLWindow>(sett.w_width, sett.w_height, sett.w_title.c_str());
   } catch(const ntf::error& e) {  
     Log::error("{}", e.what());
     return false;
   }
-  this->clear_color = sett.clear_color;
+  clear_color = sett.clear_color;
+
 
   cam2D_default = Camera2D{Camera2D::proj_info{
     .viewport = {static_cast<float>(sett.w_width), static_cast<float>(sett.w_height)},
@@ -43,7 +48,7 @@ bool Shogle::init(const Settings& sett) {
 }
 
 void Shogle::start(SceneCreator creator) {
-  this->_level = creator();
+  _scene = creator();
   Log::verbose("[Shogle] Initial level created");
 
   Log::info("[Shogle] Entering main loop");
@@ -51,14 +56,25 @@ void Shogle::start(SceneCreator creator) {
     InputHandler::instance().poll();
     ResLoader::instance().do_requests();
 
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
     double curr_frame = _window->get_time();
-    double dt = curr_frame - this->_last_frame;
-    this->_last_frame = curr_frame;
+    double dt = curr_frame - _last_frame;
+    _last_frame = curr_frame;
 
     glClearColor(clear_color.x, clear_color.y, clear_color.z, 1.0f); 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    _level->update(dt);
+    _scene->update(dt);
+
+    if (_window->imgui_demo) {
+      ImGui::ShowDemoWindow(&_window->imgui_demo);
+    }
+    _scene->ui_draw();
+
+    ImGui::Render();
 
     _window->swap_buffers();
   }

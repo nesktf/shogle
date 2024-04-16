@@ -50,7 +50,7 @@ public:
 private:
   uptr<GLWindow> _window;
 
-  sceneptr_t _level;
+  sceneptr_t _scene;
 
   bool _should_close {false};
   double _last_frame {0.0f};
