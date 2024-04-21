@@ -3,48 +3,52 @@
 #include "res/texture.hpp"
 
 #include <assimp/texture.h>
+#include <assimp/scene.h>
 
 #include <string>
 
 namespace ntf {
 
+enum class MaterialType {
+  Diffuse,
+  Specular
+};
+
 // Material::data_t
 class MaterialData {
-public: // Resource data can be copied but i don't think is a good idea
-  MaterialData(std::string path);
-  ~MaterialData() = default;
-
-  MaterialData(MaterialData&&) = default;
-  MaterialData(const MaterialData&) = delete;
-  MaterialData& operator=(MaterialData&&) = default;
-  MaterialData& operator=(const MaterialData&) = delete;
+public:
+  struct args_t {
+    std::string path;
+    aiTextureType type;
+  };
 
 public:
-  Texture::data_t tex;
+  MaterialData(args_t args);
+
+public:
+  Texture::data_t tex_data;
+  std::string path;
   aiTextureType type;
 };
 
 // Material
-class Material {
+class Material : public Texture {
 public:
+  using args_t = MaterialData::args_t;
   using data_t = MaterialData;
 
-public: // Resource data can't be copied
+public:
   Material(const Material::data_t* data);
-  ~Material();
-
-  Material(Material&&) = default;
-  Material(const Material&) = delete;
-  Material& operator=(Material&&) = default;
-  Material& operator=(const Material&) = delete;
 
 public:
-  void bind_sampler(const Shader* shader, size_t tex_num, size_t tex_ind) const;
+  void bind_uniform(const Shader* shader, size_t tex_num, size_t tex_ind) const;
 
 public:
-  Texture texture;
-  aiTextureType type;
-  std::string sampler_basename;
+  MaterialType type(void) const { return _type; }
+
+private:
+  MaterialType _type {MaterialType::Diffuse};
+  std::string _uniform_basename {"material.diffuse"};
 };
 
 } // namespace ntf

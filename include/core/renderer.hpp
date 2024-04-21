@@ -18,6 +18,9 @@ protected:
 public:
   void draw(void) {};
 
+public:
+  bool alt_draw {false};
+
 protected:
   const res_t* _res;
   const Shader* _shader;

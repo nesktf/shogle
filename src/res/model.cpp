@@ -8,20 +8,24 @@
 namespace ntf {
 
 // Model::data_t
-void _load_materials(auto& texture_cont, aiMaterial* mat, aiTextureType type, const std::string& dir) {
+void _load_materials(std::vector<Material::data_t>& material_datas, aiMaterial* mat, aiTextureType type, const std::string& dir) {
   for (size_t i = 0; i < mat->GetTextureCount(type); ++i) {
     aiString filename;
     mat->GetTexture(type, i, &filename);
     std::string tex_path = dir+"/"+std::string{filename.C_Str()};
 
     bool skip = false;
-    for (const auto& tex : texture_cont) { if (std::strcmp(tex.path.data(), tex_path.data()) == 0) {
+    for (const auto& material : material_datas) { 
+      if (std::strcmp(material.path.data(), tex_path.data()) == 0) {
         skip = true;
         break;
       }
     }
     if (!skip) {
-      texture_cont.emplace_back(tex_path, GL_TEXTURE_2D, type, TextureData::Type::ModelTex);
+      material_datas.emplace_back(MaterialData::args_t {
+        .path = tex_path,
+        .type = type
+      });
       Log::verbose("[ModelData] Mesh material extracted (path: {})", tex_path);
     }
   }
@@ -75,8 +79,8 @@ ModelData::ModelData(std::string path) {
     if (curr_aimesh->mMaterialIndex > 0) {
       aiMaterial* mat = scene->mMaterials[curr_aimesh->mMaterialIndex];
       std::string dir = path.substr(0, path.find_last_of('/')); // Get model directory
-      _load_materials(mesh.tex, mat, aiTextureType_DIFFUSE, dir);
-      _load_materials(mesh.tex, mat, aiTextureType_SPECULAR, dir);
+      _load_materials(mesh.materials, mat, aiTextureType_DIFFUSE, dir);
+      _load_materials(mesh.materials, mat, aiTextureType_SPECULAR, dir);
     }
 
     meshes.push_back(std::move(mesh));
@@ -87,17 +91,17 @@ ModelData::ModelData(std::string path) {
 // Model
 ModelRes::Mesh::Mesh(const ModelData::MeshData& mesh) {
   using Vertex = ModelData::Vertex;
-  this->indices = mesh.ind.size();
+  this->_indices = mesh.ind.size();
 
-  glGenVertexArrays(1, &this->vao);
-  glGenBuffers(1, &this->vbo);
-  glGenBuffers(1, &this->ebo);
+  glGenVertexArrays(1, &this->_vao);
+  glGenBuffers(1, &this->_vbo);
+  glGenBuffers(1, &this->_ebo);
 
-  glBindVertexArray(this->vao);
-  glBindBuffer(GL_ARRAY_BUFFER, this->vbo);
+  glBindVertexArray(this->_vao);
+  glBindBuffer(GL_ARRAY_BUFFER, this->_vbo);
   glBufferData(GL_ARRAY_BUFFER, mesh.vert.size()*sizeof(Vertex), &mesh.vert[0], GL_STATIC_DRAW);
   
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->ebo);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->_ebo);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.vert.size()*sizeof(GLuint), &mesh.ind[0], GL_STATIC_DRAW);
 
   glEnableVertexAttribArray(0);
@@ -111,51 +115,51 @@ ModelRes::Mesh::Mesh(const ModelData::MeshData& mesh) {
 
   glBindVertexArray(0);
 
-  for (const auto& tex_data : mesh.tex) {
+  for (const auto& material_data : mesh.materials) {
     // Do not pass tex_data as an unique_ptr
-    this->tex.emplace_back(Texture{&tex_data});
+    this->materials.emplace_back(Material{&material_data});
   }
 
-  Log::verbose("[Model] Mesh created (vao-id: {})", this->vao);
+  Log::verbose("[Model] Mesh created (vao-id: {})", this->_vao);
 }
 
 ModelRes::Mesh::Mesh(Mesh&& m) noexcept :
-  tex(std::move(m.tex)),
-  vao(std::move(m.vao)),
-  vbo(std::move(m.vbo)),
-  ebo(std::move(m.ebo)),
-  indices(std::move(m.indices)) {
+  materials(std::move(m.materials)),
+  _vao(std::move(m._vao)),
+  _vbo(std::move(m._vbo)),
+  _ebo(std::move(m._ebo)),
+  _indices(std::move(m._indices)) {
 
-  m.vao = 0;
-  m.vbo = 0;
-  m.ebo = 0;
+  m._vao = 0;
+  m._vbo = 0;
+  m._ebo = 0;
 }
 
 ModelRes::Mesh& ModelRes::Mesh::operator=(Mesh&& m) noexcept {
-  this->tex = std::move(m.tex);
-  this->vao = std::move(m.vao);
-  this->vbo = std::move(m.vbo);
-  this->ebo = std::move(m.ebo);
-  this->indices = std::move(m.indices);
+  this->materials = std::move(m.materials);
+  this->_vao = std::move(m._vao);
+  this->_vbo = std::move(m._vbo);
+  this->_ebo = std::move(m._ebo);
+  this->_indices = std::move(m._indices);
 
-  m.vao = 0;
-  m.vbo = 0;
-  m.ebo = 0;
+  m._vao = 0;
+  m._vbo = 0;
+  m._ebo = 0;
 
   return *this;
 }
 
 ModelRes::Mesh::~Mesh() {
-  if (this->vao == 0) return;
-  GLint id = this->vao;
-  glBindVertexArray(this->vao);
+  if (this->_vao == 0) return;
+  GLint id = this->_vao;
+  glBindVertexArray(this->_vao);
   glDisableVertexAttribArray(0);
   glDisableVertexAttribArray(1);
   glDisableVertexAttribArray(2);
   glBindVertexArray(0);
-  glDeleteVertexArrays(1, &this->vao);
-  glDeleteBuffers(1, &this->ebo);
-  glDeleteBuffers(1, &this->vbo);
+  glDeleteVertexArrays(1, &this->_vao);
+  glDeleteBuffers(1, &this->_ebo);
+  glDeleteBuffers(1, &this->_vbo);
   Log::verbose("[Model] Mesh deleted (vao-id: {})", id);
 }
 

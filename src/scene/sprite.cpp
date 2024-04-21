@@ -9,17 +9,20 @@ SpriteImpl::SpriteImpl(const Texture* tex, const Shader* sha) :
   SpriteRenderer(tex, sha),
   _sprite(SpriteData{
       .count = 1,
-      .x = static_cast<size_t>(tex->w()),
-      .y = static_cast<size_t>(tex->h()),
+      .x = tex->width(),
+      .y = tex->height(),
       .x0 = 0,
       .y0 = 0,
-      .dx = static_cast<size_t>(tex->w()),
-      .dy = static_cast<size_t>(tex->h()),
+      .dx = tex->width(),
+      .dy = tex->height(),
       .cols = 1,
       .rows = 1
     }),
   _index(0),
-  cam(&Shogle::instance().cam2D_default) { scale = corrected_scale(); }
+  cam(&Shogle::instance().cam2D_default) { 
+    alt_draw = tex->inverted;
+    scale = corrected_scale(); 
+}
 
 SpriteImpl::SpriteImpl(const Spritesheet* sheet, std::string name, const Shader* sha) :
   SpriteRenderer(static_cast<const Texture*>(sheet), sha),
@@ -28,6 +31,7 @@ SpriteImpl::SpriteImpl(const Spritesheet* sheet, std::string name, const Shader*
     _offset.x = static_cast<float>(_sprite.dx)/static_cast<float>(_sprite.x*_sprite.cols);
     _offset.y = static_cast<float>(_sprite.dy)/static_cast<float>(_sprite.y*_sprite.rows);
     set_index(0); 
+    alt_draw = sheet->inverted;
     scale = corrected_scale();
 }
 

@@ -8,8 +8,8 @@ out vec4 FragColor;
 // uniform vec3 objColor;
 // uniform vec3 lightCol;
 struct Material {
-  sampler2D texture_diffuse1;
-  sampler2D texture_specular1;
+  sampler2D diffuse1;
+  sampler2D specular1;
   float col_shiny;
 };
 uniform Material material;
@@ -20,7 +20,7 @@ uniform Material material;
 void main()
 {
   // FragColor = vec4(texture(material.texture_diffuse1,Texture).rgb, 1.0f);
-  vec4 texColor = texture(material.texture_diffuse1,Texture);
+  vec4 texColor = texture(material.diffuse1,Texture);
   if (texColor.a < 0.1)
     discard;
   FragColor = texColor;

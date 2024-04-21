@@ -2,49 +2,31 @@
 
 #include "res/shader.hpp"
 
-#include <assimp/texture.h>
-#include <assimp/scene.h>
-
-#include <memory>
-
 namespace ntf {
 
 // Texture::data_t
 class TextureData {
-public:
-  enum class Type {
-    ModelTex,
-    SpriteTex,
-    FBOTex
-  };
-
 public: // Resource data can be copied but i don't think is a good idea
   TextureData(std::string path);
-  TextureData(std::string path, GLenum tex_dim, aiTextureType ai_type, Type tex_type);
-
   ~TextureData();
 
   TextureData(TextureData&&) noexcept;
   TextureData& operator=(TextureData&&) noexcept;
 
-  TextureData(const TextureData&) = delete;
-  TextureData& operator=(const TextureData&) = delete;
-
+  TextureData(const TextureData&) = delete; TextureData& operator=(const TextureData&) = delete;
 public:
-  std::string path;
-  GLenum tex_dim;
-  aiTextureType ai_type;
-  Type tex_type;
-  int width;
-  int height;
-  int nr_channels;
-  unsigned char* data;
+  int width, height, channels;
+  GLenum dim {GL_TEXTURE_2D};
+  unsigned char* tex_data;
 };
 
 // Texture
 class Texture {
 public:
   using data_t = TextureData;
+
+protected:
+  Texture(size_t w, size_t h, GLenum format, GLenum dim); // Empty texture
 
 public: // Resources can't be copied
   Texture(const Texture::data_t* data);
@@ -57,22 +39,21 @@ public: // Resources can't be copied
   Texture& operator=(Texture&) = delete;
 
 public:
-  void bind_material(const Shader& shader, size_t tex_num, size_t tex_ind) const;
+  void set_filter(GLint filter);
 
 public:
-  float aspect(void) const { return (float)width/(float)height;}
-  int w() const { return width; }
-  int h() const { return height; }
-  GLuint id(void) const { return tex; }
-  GLenum dim(void) const { return tex_dim; }
-  aiTextureType type(void) const { return ai_type; }
+  float aspect(void) const { return (float)_w/(float)_h;}
+  size_t width() const { return _w; }
+  size_t height() const { return _h; }
+  GLuint id(void) const { return _tex; }
 
-private:
-  std::string name;
-  int width, height;
-  GLuint tex;
-  GLenum tex_dim;
-  aiTextureType ai_type;
+public:
+  bool inverted{false};
+
+protected:
+  size_t _w, _h;
+  GLuint _tex;
+  GLenum _dim;
 };
 
 } // namespace ntf

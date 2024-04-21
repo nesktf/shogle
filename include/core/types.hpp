@@ -4,6 +4,7 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 #include <memory>
 #include <complex>
@@ -20,6 +21,7 @@ using mat4 = glm::mat4;
 using mat3 = glm::mat3;
 
 using cmplx = std::complex<float>;
+using quat = glm::quat;
 
 using color = vec4;
 using color4 = vec4;
@@ -38,6 +40,10 @@ inline T* make_ptr(Args&&... args) {
 template<typename T, typename... Args>
 inline uptr<T> make_uptr(Args&&... args) {
   return std::make_unique<T>(std::forward<Args>(args)...);
+}
+
+inline quat axis_quat(float ang, vec3 axis) {
+  return quat{ang*0.5f, ang*0.5f*axis};
 }
 
 } // namespace ntf

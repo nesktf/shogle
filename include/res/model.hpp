@@ -1,6 +1,6 @@
 #pragma once
 
-#include "res/texture.hpp"
+#include "res/material.hpp"
 
 #include <vector>
 
@@ -17,7 +17,7 @@ public:
   struct MeshData {
     std::vector<Vertex> vert;
     std::vector<GLuint> ind;
-    std::vector<Texture::data_t> tex;
+    std::vector<Material::data_t> materials;
   };
 
 public: // Resource data can be copied but i don't think is a good idea
@@ -50,15 +50,15 @@ public:
     Mesh& operator=(const Mesh&) = delete;
 
   public:
-    GLuint id(void) const { return vao; }
-    size_t ind(void) const { return indices; }
+    GLuint id(void) const { return _vao; }
+    size_t ind(void) const { return _indices; }
 
   public:
-    std::vector<Texture> tex;
+    std::vector<Material> materials;
 
   private:
-    GLuint vao, vbo, ebo;
-    size_t indices;
+    GLuint _vao, _vbo, _ebo;
+    size_t _indices;
   };
 
 public: // Resource wrappers also can't be copied

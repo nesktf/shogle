@@ -1,4 +1,5 @@
 #include "shogle.hpp"
+#include "scene/framebuffer.hpp"
 
 #include "imgui.h"
 
@@ -10,7 +11,11 @@ struct TestScene : public ntf::TaskedScene<TestScene> {
   ntf::uptr<ntf::Sprite> sheet;
   ntf::uptr<ntf::Model> cirno_fumo;
 
-  TestScene() {
+  ntf::uptr<ntf::Sprite> fbo_sprite;
+
+  ntf::Framebuffer fbo;
+
+  TestScene() : fbo(800, 600) {
     pool.direct_load<ntf::Shader>({
       {.id="generic_2d", .path="res/shaders/generic_2d"},
       {.id="generic_3d", .path="res/shaders/generic_3d"}
@@ -28,6 +33,13 @@ struct TestScene : public ntf::TaskedScene<TestScene> {
     );
     sheet->pos = ntf::vec2{0.0f, 0.0f};
     sheet->scale *= 200.0f;
+
+    fbo_sprite = ntf::make_uptr<ntf::Sprite>(
+      &fbo,
+      pool.get<ntf::Shader>("generic_2d")
+    );
+    fbo_sprite->pos = ntf::vec2{0.0f, 100.0f};
+    fbo_sprite->scale *= 200.0f;
 
     rin = ntf::make_uptr<ntf::Sprite>(
       pool.get<ntf::Spritesheet>("2hus"),
@@ -51,6 +63,7 @@ struct TestScene : public ntf::TaskedScene<TestScene> {
       pool.get<ntf::ModelRes>("cirno_fumo"),
       pool.get<ntf::Shader>("generic_3d")
     );
+    cirno_fumo->cam = &fbo.cam3D;
     cirno_fumo->pos = ntf::vec3{0.0f, -0.25f, -1.0f};
     cirno_fumo->scale = ntf::vec3{0.015f};
     cirno_fumo->rot = ntf::vec3{0.0f, 90.0f, 0.0f};
@@ -84,9 +97,9 @@ struct TestScene : public ntf::TaskedScene<TestScene> {
       return false;
     });
 
-    this->add_task([](auto, float dt) {
+    this->add_task([this](auto, float dt) {
       auto& in = ntf::InputHandler::instance();
-      auto& cam = ntf::Shogle::instance().cam3D_default;
+      auto& cam = fbo.cam3D;
       
       auto view = cam.view();
 
@@ -158,13 +171,19 @@ struct TestScene : public ntf::TaskedScene<TestScene> {
   };
 
   void update(float dt) override {
-  auto& shogle = ntf::Shogle::instance();
+    auto& shogle = ntf::Shogle::instance();
     do_tasks(this, dt);
 
-    shogle.enable_depth_test(true);
-    cirno_fumo->udraw(dt);
+    {
+      auto bind = fbo.bind_raii();
+      glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glEnable(GL_DEPTH_TEST);
+      cirno_fumo->udraw(dt);
+    }
 
     shogle.enable_depth_test(false);
+    fbo_sprite->udraw(dt);
     sheet->udraw(dt);
     rin->udraw(dt);
     cirno->udraw(dt);
