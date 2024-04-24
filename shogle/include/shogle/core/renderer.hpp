@@ -1,0 +1,37 @@
+#pragma once
+
+#include <shogle/res/model.hpp>
+#include <shogle/res/texture.hpp>
+
+namespace ntf {
+
+template<typename T>
+class ObjRenderer {
+public:
+  using res_t = T;
+
+protected:
+  ObjRenderer(const T* res, const Shader* shader) :
+    _res(res),
+    _shader(shader) {}
+
+public:
+  void draw(void) {};
+
+public:
+  bool alt_draw {false};
+
+protected:
+  const res_t* _res;
+  const Shader* _shader;
+};
+
+using SpriteRenderer = ObjRenderer<Texture>;
+template<>
+void SpriteRenderer::draw(void);
+
+using ModelRenderer = ObjRenderer<ModelRes>;
+template<>
+void ModelRenderer::draw(void);
+
+} // namespace ntf
