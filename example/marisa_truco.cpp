@@ -1,74 +1,93 @@
-#include "shogle_all.hpp"
+#include <shogle.hpp>
 
-using namespace ntf::shogle;
-
-struct car_movement : public task::ObjTask<ModelObj> {
+struct car_movement : public ntf::Task<ntf::Model> {
   enum class State {
-    GoingLeft = 0,
+    Init = 0,
+    GoingLeft,
     AtLeft,
     GoingRight,
     AtRight
   };
-  car_movement(ModelObj* _obj, float _speed, float _limit) : 
-    ObjTask<ModelObj>(_obj),
+  car_movement(float _speed, float _limit) : 
     speed(_speed),
-    limit(_limit) {
-    auto transform = _obj->get_transform();
-    transform.pos.x = limit;
-    _obj->set_transform(transform);
-  }
-  void task(float dt) override {
-    auto transform = obj->get_transform();
+    limit(_limit) {}
+
+  void update(ntf::Model* obj, float dt) override {
     switch (state) {
+      case State::Init: {
+        obj->pos.x = limit;
+        this->state = State::GoingLeft;
+        break;
+      }
       case State::GoingLeft: {
-        transform.pos.x -= speed*dt;
-        if (transform.pos.x < -1.0f*limit) {
+        obj->pos.x -= speed*dt;
+        if (obj->pos.x < -1.0f*limit) {
           this->state = State::AtLeft;
         }
         break;
       }
       case State::GoingRight: {
-        transform.pos.x += speed*dt;
-        if (transform.pos.x > limit) {
+        obj->pos.x += speed*dt;
+        if (obj->pos.x > limit) {
           this->state = State::AtRight;
         }
         break;
       }
       case State::AtRight: {
-        transform.rot.y = 90.0f;
-        transform.pos.x = 2.0f;
+        obj->rot.y = M_PIf*0.5f;
+        obj->pos.x = 2.0f;
         this->state = State::GoingLeft;
         break;
       }
       case State::AtLeft: {
-        transform.rot.y = -90.0f;
-        transform.pos.x = -2.0f;
+        obj->rot.y = -M_PIf*0.5f;
+        obj->pos.x = -2.0f;
         this->state = State::GoingRight;
         break;
       }
     }
-    obj->set_transform(transform);
   }
 
-  State state {State::GoingLeft};
+  State state {State::Init};
   float speed, limit;
 };
 
-class TestLevel : public Level {
-private:
-  res::Pool<res::Texture, res::Shader, res::Model> pool;
-  ObjMap<SpriteObj> sprites;
-  ObjMap<ModelObj> models;
+struct fumo_jump : public ntf::Task<ntf::Model> {
+  fumo_jump(float ang_speed, float jump_force, float half_scale) :
+    _ang_speed(ang_speed),
+    _jump_force(jump_force),
+    _half_scale(half_scale) {}
 
-public: 
+  void update(ntf::Model* obj, float dt) {
+    t += dt;
+    obj->scale.y = _half_scale + (_half_scale*glm::abs(glm::sin(_jump_force*t)));
+    obj->rot.y += _ang_speed*dt;
+  }
+
+  float t {0.0f};
+  float _ang_speed, _jump_force, _half_scale;
+};
+
+struct TestLevel : public ntf::TaskedScene<TestLevel> {
+  bool loaded {false};
+
+  ntf::ResPool<ntf::Texture, ntf::Shader, ntf::ModelRes> pool;
+
+  ntf::uptr<ntf::Sprite> cino;
+
+  ntf::uptr<ntf::Model> cino_fumo;
+  ntf::uptr<ntf::Model> remu_fumo;
+  ntf::uptr<ntf::Model> mari_fumo;
+  ntf::uptr<ntf::Model> car;
+
   TestLevel() {
-    pool.direct_load<res::Texture>({
+    pool.direct_load<ntf::Texture>({
       {
         .id="chiruno",
         .path="res/textures/cirno.png"
       }
     });
-    pool.direct_load<res::Shader>({
+    pool.direct_load<ntf::Shader>({
       {
         .id="generic_2d",
         .path="res/shaders/generic_2d"
@@ -78,120 +97,126 @@ public:
         .path="res/shaders/generic_3d"
       }
     });
-    pool.async_load<res::Model>({
+    pool.async_load<ntf::ModelRes>({
       {
         .id="chiruno_fumo",
-        .path="res/models/cirno_fumo/cirno_fumo.obj"
+        .path="_temp/models/cirno_fumo/cirno_fumo.obj"
       }, 
       {
         .id="reimu_fumo",
-        .path="res/models/reimu_fumo/reimu_fumo.obj"
+        .path="_temp/models/reimu_fumo/reimu_fumo.obj"
       },
       {
         .id="marisa_fumo",
-        .path="res/models/marisa_fumo/marisa_fumo.obj"
+        .path="_temp/models/marisa_fumo/marisa_fumo.obj"
       },
       {
         .id="car",
-        .path="res/models/homer-v/homer-v.obj"
+        .path="_temp/models/homer-v/homer-v.obj"
       }
-    }, [this]{ next_state(); });
+    }, [this]{ on_load(); });
 
-    auto* cino = new SpriteObj{
-      pool.get<res::Texture>("chiruno"),
-      pool.get<res::Shader>("generic_2d")
-    };
-    cino->set_transform(TransformData{
-      .pos = math::sprite_pos(glm::vec2{400.0f, 300.0f}),
-      .scale = math::sprite_scale(glm::vec2{10.0f}),
-      .rot = math::sprite_rot(float{0.0f})
+    float t = 0.0f;
+    cino = ntf::make_uptr<ntf::Sprite>(
+      pool.get<ntf::Texture>("chiruno"),
+      pool.get<ntf::Shader>("generic_2d")
+    );
+    cino->use_screen_space = true;
+    cino->pos = ntf::vec2{400.0f, 300.0f};
+    cino->scale = ntf::vec2{100.0f};
+    cino->rot = 0.0f;
+    cino->add_task([](ntf::Sprite* obj, float dt) {
+      obj->rot += M_PIf*dt;
+      return false;
     });
-    sprites.emplace(make_pair_ptr("chiruno", cino));
-    add_task(task::create<task::spr_rotate>(cino, 300.0f, 10.0f));
-    add_task(task::create<task::spr_move_circle>(cino, glm::vec2{400.0f, 300.0f}, 20.0f, 100.0f, 10.0f));
+    cino->add_task([t](ntf::Sprite* obj, float dt) mutable {
+      t += dt;
+      obj->pos = ntf::vec2{400.0f, 300.0f} + 100.0f*ntf::vec2{glm::cos(10.0f*t), glm::sin(10.0f*t)};
+      return false;
+    });
   }
   ~TestLevel() = default;
 
 public:
-  void draw(void) override {
-    for (auto& sprite : sprites) {
-      sprite.second->draw();
-    }
-    for (auto& model : models) {
-      model.second->draw();
+  void update(float dt) override {
+    if (!loaded) {
+      cino->udraw(dt);
+    } else {
+      cino_fumo->udraw(dt);
+      remu_fumo->udraw(dt);
+      mari_fumo->udraw(dt);
+      car->udraw(dt);
     }
   }
-  void on_load(void) override {
-    sprites["chiruno"]->enable = false;
-    float anim_time = -1.0f;
+  
+  void on_load(void) {
+    cino_fumo = ntf::make_uptr<ntf::Model>(
+      pool.get<ntf::ModelRes>("chiruno_fumo"),
+      pool.get<ntf::Shader>("generic_3d")
+    );
+    cino_fumo->use_screen_space = true;
+    cino_fumo->pos = ntf::vec3{-0.35f, -0.25f, -1.0f};
+    cino_fumo->scale = ntf::vec3{0.015f};
+    cino_fumo->rot = ntf::vec3{0.0f};
+    cino_fumo->add_task(ntf::make_uptr<fumo_jump>(M_PIf*2.0f, 12.0f, 0.015f*0.5f));
 
-    auto* cino_fumo = new ModelObj{
-      pool.get<res::Model>("chiruno_fumo"),
-      pool.get<res::Shader>("generic_3d")
-    };
-    cino_fumo->set_transform(TransformData{
-      .pos = glm::vec3{-0.35f, -0.25f, -1.0f},
-      .scale = glm::vec3{0.015f},
-      .rot = glm::vec3{0.0f}
-    });
-    models.emplace(make_pair_ptr("chiruno_fumo", cino_fumo));
-    add_task(task::create<task::mod_fumo_jump>(cino_fumo, 200.0f, 12.0f, anim_time));
+    remu_fumo = ntf::make_uptr<ntf::Model>(
+      pool.get<ntf::ModelRes>("reimu_fumo"),
+      pool.get<ntf::Shader>("generic_3d")
+    );
+    remu_fumo->use_screen_space = true;
+    remu_fumo->pos = ntf::vec3{0.35f, -0.25f, -1.0f};
+    remu_fumo->scale = ntf::vec3{0.015f};
+    remu_fumo->rot = ntf::vec3{0.0f};
+    remu_fumo->add_task(ntf::make_uptr<fumo_jump>(-M_PIf*2.0f, 12.0f, 0.015f*0.5f));
 
-    auto* remu_fumo = new ModelObj{
-      pool.get<res::Model>("reimu_fumo"),
-      pool.get<res::Shader>("generic_3d")
-    };
-    remu_fumo->set_transform(TransformData{
-      .pos = glm::vec3{0.35f, -0.25f, -1.0f},
-      .scale = glm::vec3{0.015f},
-      .rot = glm::vec3{0.0f}
-    });
-    models.emplace(make_pair_ptr("reimu_fumo", remu_fumo));
-    add_task(task::create<task::mod_fumo_jump>(remu_fumo, -200.0f, 12.0f, anim_time));
-
-    auto* mari_fumo = new ModelObj{
-      pool.get<res::Model>("marisa_fumo"),
-      pool.get<res::Shader>("generic_3d")
-    };
-    mari_fumo->set_transform(TransformData{
-      .pos = glm::vec3{0.0f, -0.25f, -2.0f},
-      .scale = glm::vec3{0.02f},
-      .rot = glm::vec3{0.0f, -180.0f, 0.0f}
-    });
-    models.emplace(make_pair_ptr("marisa_fumo", mari_fumo));
-    add_task(task::create<task::ObjTaskL<ModelObj>>(mari_fumo, [](ModelObj* obj, float dt) -> bool {
-      auto transform = obj->get_transform();
-
-      transform.rot.x += 365.0f*dt;
-      transform.rot.y += 1.5f*365.0f*dt;
-      obj->set_transform(transform);
+    mari_fumo = ntf::make_uptr<ntf::Model>(
+      pool.get<ntf::ModelRes>("marisa_fumo"),
+      pool.get<ntf::Shader>("generic_3d")
+    );
+    mari_fumo->use_screen_space = true;
+    mari_fumo->pos = ntf::vec3{0.0f, -0.25f, -2.0f};
+    mari_fumo->scale = ntf::vec3{0.02f};
+    mari_fumo->rot = ntf::vec3{0.0f, -M_PIf, 0.0f};
+    mari_fumo->add_task([](ntf::Model* obj, float dt) {
+      obj->rot.x += M_PIf*2.0f*dt;
+      obj->rot.y += M_PIf*3.0f*dt;
 
       return false;
-    }));
-    add_task(task::create<task::mod_sin_jump>(mari_fumo, 0.75f, 3.2f, anim_time));
-
-    auto* car = new ModelObj {
-      pool.get<res::Model>("car"),
-      pool.get<res::Shader>("generic_3d")
-    };
-    car->set_transform(TransformData{
-      .pos = glm::vec3{0.0f, -0.25f, -2.0f},
-      .scale = glm::vec3{0.3f},
-      .rot = glm::vec3{0.0f, 90.0f, 0.0f}
     });
-    models.emplace(make_pair_ptr("car", car));
-    add_task(task::create<car_movement>(car, 4.4f, 2.2f));
-  }
+    float t = 0.0f;
+    mari_fumo->add_task([t](ntf::Model* obj, float dt) mutable {
+      float base_y = -0.25f;
+      float force = 0.75f;
+      float speed = 3.15f;
+      t += dt;
+      obj->pos.y = base_y + (force*glm::abs(glm::sin(speed*t)));
+      return false;
+    });
 
-public:
-  static Level* create(void) { return new TestLevel(); }
+    car = ntf::make_uptr<ntf::Model>(
+      pool.get<ntf::ModelRes>("car"),
+      pool.get<ntf::Shader>("generic_3d")
+    );
+    car->use_screen_space = true;
+    car->pos = ntf::vec3{0.0f, -0.25f, -2.0f};
+    car->scale = ntf::vec3{0.3f};
+    car->rot = ntf::vec3{0.0f, M_PIf*0.5f, 0.0f};
+    car->add_task(ntf::make_uptr<car_movement>(4.4f, 2.2f));
+
+    loaded = true;
+    ntf::Shogle::instance().enable_depth_test(true);
+  }
 };
 
 int main(int argc, char* argv[]) {
-  Log::set_level(LogLevel::LOG_VERBOSE);
+  ntf::Log::set_level(ntf::LogLevel::LOG_VERBOSE);
+  std::string sett_path {SHOGLE_RESOURCES};
+  sett_path += "/script/default_settings.lua";
 
-  auto& shogle = Engine::instance();
-  if (shogle.init(Settings{argc, argv, "script/default_settings.lua"})) {
+  auto& shogle = ntf::Shogle::instance();
+  if (shogle.init(ntf::Settings{argc, argv, sett_path.c_str()})) {
+    shogle.enable_depth_test(false);
     shogle.start(TestLevel::create);
     return EXIT_SUCCESS;
   }

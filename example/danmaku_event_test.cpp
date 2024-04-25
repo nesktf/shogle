@@ -1,16 +1,14 @@
-#include "shogle.hpp"
-
-#include "res/spritesheet.hpp"
+#include <shogle.hpp>
 
 struct TestScene;
 
 struct danmaku_spawner : public ntf::Task<TestScene> {
-  danmaku_spawner(ntf::Texture* tex, ntf::Shader* sha, float ph, float fire_sp, float sp, unsigned int c);
+  danmaku_spawner(const ntf::Texture* tex, const ntf::Shader* sha, float ph, float fire_sp, float sp, unsigned int c);
 
   void update(TestScene* obj, float dt) override;
 
-  ntf::Texture* danmaku_texture;
-  ntf::Shader* danmaku_shader;
+  const ntf::Texture* danmaku_texture;
+  const ntf::Shader* danmaku_shader;
 
   float t{0.0f};
   float phi{0.0f};
@@ -76,7 +74,7 @@ struct chen_behaviour : public ntf::Task<ntf::Sprite> {
   glm::vec2 vel{};
 };
 
-struct TestScene : public ntf::Scene {
+struct TestScene : public ntf::TaskedScene<TestScene> {
   ntf::ResPool<ntf::Texture, ntf::Shader, ntf::ModelRes, ntf::Spritesheet> pool;
 
   std::vector<ntf::Sprite> new_danmaku;
@@ -85,8 +83,6 @@ struct TestScene : public ntf::Scene {
   std::unique_ptr<ntf::Sprite> player;
   std::unique_ptr<ntf::Sprite> boss;
   std::unique_ptr<ntf::Sprite> chen_p;
-
-  ntf::TaskManager<TestScene> scene_tasks;
 
   ntf::Event<bool>::Subscription chen_event_sub;
 
@@ -99,10 +95,6 @@ struct TestScene : public ntf::Scene {
       {
         .id="chen",
         .path="_temp/chen.png"
-      },
-      {
-        .id="chen_p",
-        .path="_temp/chen_p.png"
       },
       {
         .id="danmaku",
@@ -119,6 +111,10 @@ struct TestScene : public ntf::Scene {
       {
         .id="2hus",
         .path="_temp/2hus.json"
+      },
+      {
+        .id="chen_p",
+        .path="_temp/chen.json"
       }
     });
 
@@ -128,6 +124,7 @@ struct TestScene : public ntf::Scene {
       pool.get<ntf::Texture>("marisa"),
       pool.get<ntf::Shader>("generic_2d")
     );
+    player->use_screen_space = true;
     player->pos = {400.0f, 700.0f};
     player->scale = scale_f*glm::vec2{32.0f, 48.0f};
     player->add_task([](auto* obj, float dt) -> bool {
@@ -152,21 +149,23 @@ struct TestScene : public ntf::Scene {
     });
 
 
-    chen_p = std::make_unique<ntf::Sprite>(
-      pool.get<ntf::Texture>("chen_p"),
-      pool.get<ntf::Shader>("generic_2d"),
-      4, 4
+    chen_p = ntf::make_uptr<ntf::Sprite>(
+      pool.get<ntf::Spritesheet>("chen_p"),
+      "chen_p",
+      pool.get<ntf::Shader>("generic_2d")
     );
     chen_p->color = {glm::vec3{1.0f}, 0.0f};
     chen_p->pos = {700.0f, 344.0f};
     chen_p->scale = {128.0f, 512.0f};
+    chen_p->use_screen_space = true;
 
-    boss = std::make_unique<ntf::Sprite>(
+    boss = ntf::make_uptr<ntf::Sprite>(
       pool.get<ntf::Texture>("chen"),
       pool.get<ntf::Shader>("generic_2d")
     );
     boss->pos = {400.0f, -100.0f};
     boss->scale = scale_f*glm::vec2{48.0f, 64.0f};
+    boss->use_screen_space = true;
 
     auto* chen_b = ntf::make_ptr<chen_behaviour>(1.0f, glm::vec2{400.0f, 300.0f});
     auto sub_event = [chen_b,this](...) {
@@ -185,7 +184,7 @@ struct TestScene : public ntf::Scene {
           t = 0.0f;
           in.register_listener(ntf::KEY_J, ntf::KEY_PRESS, [t, app_t,this, chen_b]() {
             auto& in = ntf::InputHandler::instance();
-            chen_p->set_sprite_index(1);
+            chen_p->set_index(1);
             chen_p->add_task([t, app_t](ntf::Sprite* obj, float dt) mutable {
               t+=dt;
               obj->pos.x -= 100.0f*dt;
@@ -196,7 +195,7 @@ struct TestScene : public ntf::Scene {
               return (t >= app_t);
             });
             chen_b->start_blasting = true;
-            scene_tasks.add_task(std::make_unique<danmaku_spawner>(pool.get<ntf::Texture>("danmaku"), pool.get<ntf::Shader>("generic_2d"),M_2_PIf, 0.05f, 200.0f, 8u));
+            this->add_task(ntf::make_uptr<danmaku_spawner>(pool.get<ntf::Texture>("danmaku"), pool.get<ntf::Shader>("generic_2d"),M_2_PIf, 0.05f, 200.0f, 8u));
 
             in.unregister_all();
           });
@@ -216,11 +215,11 @@ struct TestScene : public ntf::Scene {
         if (ntf::collision2d(d.second.pos, 16.0f, obj->pos, 4.0f)) {
           ntf::Log::debug("PICHUUUUN");
           chen_b->start_blasting = false;
-          scene_tasks.clear_tasks();
+          this->end_tasks();
           danmaku.clear();
           float t = 0.0f;
           float app_t = 0.25f;
-          chen_p->set_sprite_index(2);
+          chen_p->set_index(2);
           chen_p->add_task([t, app_t](auto* o, float dt) mutable {
             t+=dt;
             o->color.w += dt/app_t;
@@ -242,7 +241,7 @@ struct TestScene : public ntf::Scene {
     }
     new_danmaku.clear();
 
-    scene_tasks.do_tasks(this, dt);
+    this->do_tasks(this, dt);
 
     boss->update(dt);
     boss->draw();
@@ -269,7 +268,7 @@ struct TestScene : public ntf::Scene {
   }
 };
 
-danmaku_spawner::danmaku_spawner(ntf::Texture* tex, ntf::Shader* sha, float ph, float fire_sp, float sp, unsigned int c):
+danmaku_spawner::danmaku_spawner(const ntf::Texture* tex, const ntf::Shader* sha, float ph, float fire_sp, float sp, unsigned int c):
     danmaku_texture(tex),
     danmaku_shader(sha),
     phase(ph),
@@ -287,6 +286,7 @@ void danmaku_spawner::update(TestScene* scene, float dt) {
       auto bullet = ntf::Sprite{danmaku_texture, danmaku_shader};
       bullet.pos = scene->boss->pos;
       bullet.scale = {16.0f, 16.0f};
+      bullet.use_screen_space = true;
       float x = i*(M_PI/((float)count*0.5f)) + phi;
       glm::vec2 speed = s_speed*glm::vec2{glm::cos(x), glm::sin(x)};
       bullet.color = {glm::vec3{1.0f}, 1.0f};
@@ -305,13 +305,13 @@ void danmaku_spawner::update(TestScene* scene, float dt) {
 }
 
 int main(int argc, char* argv[]) {
-  using namespace ntf;
+  ntf::Log::set_level(ntf::LogLevel::LOG_VERBOSE);
+  std::string sett_path {SHOGLE_RESOURCES};
+  sett_path += "/script/default_settings.lua";
 
-  Log::set_level(LogLevel::LOG_VERBOSE);
-
-  auto& shogle = Shogle::instance();
-  if (shogle.init(Settings{argc, argv, "script/default_settings.lua"})) {
-    shogle.depth_test(false);
+  auto& shogle = ntf::Shogle::instance();
+  if (shogle.init(ntf::Settings{argc, argv, sett_path.c_str()})) {
+    shogle.enable_depth_test(false);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
     shogle.start(TestScene::create);

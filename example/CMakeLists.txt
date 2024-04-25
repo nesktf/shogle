@@ -7,4 +7,6 @@ function(shogle_build_example NAME)
   target_link_libraries(${TARGET_NAME} PRIVATE shogle)
 endfunction()
 
+shogle_build_example(marisa_truco)
+shogle_build_example(danmaku_event_test)
 shogle_build_example(spritesheets)
