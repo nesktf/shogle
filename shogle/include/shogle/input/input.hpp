@@ -6,7 +6,7 @@
 
 #include <functional>
 
-namespace ntf {
+namespace ntf::input {
 
 using InputListener = std::function<void()>;
 using InEventId = unsigned int;
@@ -39,4 +39,4 @@ private:
   std::vector<InputEvent> _listeners;
 };
 
-}
+} // namespace ntf::input

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <shogle/res/material.hpp>
+#include <shogle/render/material.hpp>
 
 #include <vector>
 
-namespace ntf {
+namespace ntf::render {
 
 // Model3D::data_t
 class ModelData {
@@ -35,7 +35,7 @@ public:
 };
 
 // Model3D
-class ModelRes {
+class Model {
 public:
   using data_t = ModelData;
 
@@ -62,16 +62,16 @@ public:
   };
 
 public: // Resource wrappers also can't be copied
-  ModelRes(const ModelRes::data_t* data);
-  ~ModelRes() = default;
+  Model(const Model::data_t* data);
+  ~Model() = default;
 
-  ModelRes(ModelRes&&) = default;
-  ModelRes(const ModelRes&) = delete;
-  ModelRes& operator=(ModelRes&&) = default;
-  ModelRes& operator=(const ModelRes&) = delete;
+  Model(Model&&) = default;
+  Model(const Model&) = delete;
+  Model& operator=(Model&&) = default;
+  Model& operator=(const Model&) = delete;
 
 public:
   std::vector<Mesh> meshes;
 };
 
-} // namespace ntf
+} // namespace ntf::render

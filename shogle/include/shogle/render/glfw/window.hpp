@@ -4,7 +4,7 @@
 
 #include <GLFW/glfw3.h>
 
-namespace ntf {
+namespace ntf::render {
 
 enum InputButtons {
   KEY_W = GLFW_KEY_W,
@@ -86,4 +86,4 @@ private:
   size_t _win_w, _win_h;
 };
 
-} // namespace ntf
+} // namespace ntf::render

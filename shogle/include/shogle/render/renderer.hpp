@@ -1,9 +1,9 @@
 #pragma once
 
-#include <shogle/res/model.hpp>
-#include <shogle/res/texture.hpp>
+#include <shogle/render/model.hpp>
+#include <shogle/render/texture.hpp>
 
-namespace ntf {
+namespace ntf::render {
 
 template<typename T>
 class ObjRenderer {
@@ -30,8 +30,8 @@ using SpriteRenderer = ObjRenderer<Texture>;
 template<>
 void SpriteRenderer::draw(void);
 
-using ModelRenderer = ObjRenderer<ModelRes>;
+using ModelRenderer = ObjRenderer<Model>;
 template<>
 void ModelRenderer::draw(void);
 
-} // namespace ntf
+} // namespace ntf::render

@@ -2,13 +2,12 @@
 
 #include <shogle/core/singleton.hpp>
 #include <shogle/core/threadpool.hpp>
-#include <shogle/core/log.hpp>
 #include <shogle/core/types.hpp>
 
 #include <memory>
 #include <functional>
 
-namespace ntf {
+namespace ntf::fs {
 
 class ResLoader : public Singleton<ResLoader> {
 public:
@@ -41,12 +40,12 @@ public:
 
 public:
   template<typename T>
-  uptr<resdata_t<T>> resdata_direct_load(pathinfo_t info) {
+  uptr<resdata_t<T>> direct_load(pathinfo_t info) {
     return make_uptr<resdata_t<T>>(info.path);
   }
 
   template<typename T>
-  void resdata_async_load(pathinfo_t info, loadfun_t<T> on_load) {
+  void async_load(pathinfo_t info, loadfun_t<T> on_load) {
     _threadpool.enqueue([this, info, on_load=std::move(on_load)]{
       auto* data = make_ptr<resdata_t<T>>(info.path); // Hopefully won't leak???
 

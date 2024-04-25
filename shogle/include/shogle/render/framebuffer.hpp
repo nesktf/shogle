@@ -1,10 +1,8 @@
 #pragma once
 
-#include <shogle/res/texture.hpp>
-#include <shogle/scene/camera2d.hpp>
-#include <shogle/scene/camera3d.hpp>
+#include <shogle/render/texture.hpp>
 
-namespace ntf {
+namespace ntf::render {
 
 class Framebuffer : public Texture {
 public:
@@ -25,12 +23,8 @@ public:
   void bind(void) const { glBindFramebuffer(GL_FRAMEBUFFER, _tex); }
   void unbind(void) const { glBindFramebuffer(GL_FRAMEBUFFER, 0); }
 
-public:
-  Camera2D cam2D {};
-  Camera3D cam3D {};
-
 private:
   GLuint _rbo, _fbo;
 };
 
-} // namespace ntf
+} // namespace ntf::render

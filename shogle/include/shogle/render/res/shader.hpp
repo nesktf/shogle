@@ -9,7 +9,7 @@
 #include <string>
 #include <memory>
 
-namespace ntf {
+namespace ntf::render {
 
 // Shader::data_t
 class ShaderData {
@@ -68,4 +68,4 @@ private:
   GLuint prog;
 };
 
-} // namespace ntf
+} // namespace ntf::render

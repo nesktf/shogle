@@ -9,26 +9,31 @@
 namespace ntf {
 
 template<typename T>
-struct Task {
-  Task() = default;
-  virtual ~Task() = default;
-
-  Task(Task&&) = default;
-  Task(const Task&) = default;
-  Task& operator=(Task&&) = default;
-  Task& operator=(const Task&) = default;
-
-  virtual void update(T* obj, float dt) = 0;
-
-  bool is_finished {false};
+concept is_dynamic = requires(T t) {
+  { t.update(float{}) };
 };
 
 template<typename T>
-class TaskManager {
+requires(is_dynamic<T>)
+class Tasker : public T {
 public:
-  using task_t = Task<T>;
+  struct task_t {
+    task_t() = default;
+
+    virtual ~task_t() = default;
+    task_t(task_t&&) = default;
+    task_t(const task_t&) = default;
+    task_t& operator=(task_t&&) = default;
+    task_t& operator=(const task_t&) = default;
+
+    virtual void update(T* obj, float dt) = 0;
+
+    bool is_finished {false};
+  };
+
   using taskfun_t = std::function<bool(T*, float)>;
 
+private:
   struct taskfun_wrapper : public task_t {
     taskfun_wrapper(taskfun_t fun) :
       _fun(fun) {}
@@ -40,11 +45,13 @@ public:
     taskfun_t _fun;
   };
 
-protected:
-  TaskManager() = default;
+public:
+  template<typename... Args>
+  Tasker(Args&&... args) :
+    T(std::forward<Args>(args)...) {}
 
-protected:
-  void do_tasks(T* obj, float dt) {
+public:
+  void update(float dt) override {
     // Move new tasks
     for (auto& task : _new_tasks) {
       _tasks.push_back(std::move(task));
@@ -53,9 +60,11 @@ protected:
 
     // Do tasks and clear finished tasks
     for (auto& task : _tasks) {
-      task->update(obj, dt);
+      task->update(static_cast<T*>(this), dt);
     }
     std::erase_if(_tasks, [](const auto& task){ return task->is_finished; });
+
+    static_cast<T*>(this)->update(dt);
   }
 
 public:

@@ -1,38 +1,38 @@
 #pragma once
 
-#include <shogle/scene/task.hpp>
+#include <shogle/core/types.hpp>
 
 #include <functional>
 #include <memory>
 
 namespace ntf {
 
-struct BaseScene {
-  BaseScene() = default;
+struct Scene {
+  struct Object {
+    Object() = default;
 
-  virtual ~BaseScene() = default;
+    virtual ~Object() = default;
+    Object(Object&&) = default;
+    Object(const Object&) = default;
+    Object& operator=(Object&&) = default;
+    Object& operator=(const Object&) = default;
 
-  BaseScene(BaseScene&&) = default; 
-  BaseScene(const BaseScene&) = delete;
-  BaseScene& operator=(BaseScene&&) = default;
-  BaseScene& operator=(const BaseScene&) = delete;
+    virtual void update(float dt) = 0;
+  };
+
+  Scene() = default;
+
+  virtual ~Scene() = default;
+  Scene(Scene&&) = default; 
+  Scene(const Scene&) = delete;
+  Scene& operator=(Scene&&) = default;
+  Scene& operator=(const Scene&) = delete;
 
   virtual void update(float dt) = 0;
-  virtual void ui_draw(void) {}
+  virtual void draw_ui(void) {}
 };
 
-using sceneptr_t = uptr<BaseScene>; 
+using sceneptr_t = uptr<Scene>; 
 using SceneCreator = std::function<sceneptr_t(void)>;
-
-template<typename T>
-struct Scene : public BaseScene {
-  static sceneptr_t create(void) {
-    return std::make_unique<T>();
-  }
-};
-
-template<typename T>
-struct TaskedScene : public Scene<T>, public TaskManager<T>{};
-
 
 } // namespace ntf

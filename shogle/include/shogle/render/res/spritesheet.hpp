@@ -1,11 +1,11 @@
 #pragma once
 
-#include <shogle/res/texture.hpp>
+#include <shogle/render/texture.hpp>
 
 #include <string>
 #include <unordered_map>
 
-namespace ntf {
+namespace ntf::render {
 
 struct SpriteData {
   size_t count;
@@ -42,4 +42,4 @@ public:
   std::unordered_map<std::string, SpriteData> sprites;
 };
 
-} // namespace ntf
+} // namespace ntf::render

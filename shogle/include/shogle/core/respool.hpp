@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/res/resloader.hpp>
+#include <shogle/fs/resloader.hpp>
 
 #include <tuple>
 
@@ -13,14 +13,14 @@ template<typename... TRes>
 class ResPool {
 private:
   template<typename T>
-  using rescontainer_t = std::unordered_map<ResLoader::resid_t, T>;
+  using rescontainer_t = std::unordered_map<fs::ResLoader::resid_t, T>;
 
   using pool_t = std::tuple<rescontainer_t<TRes>...>;
 
 public:
-  using resid_t = ResLoader::resid_t;
-  using pathinfo_t = ResLoader::pathinfo_t;
-  using reqcallback_t = ResLoader::reqcallback_t;
+  using resid_t = fs::ResLoader::resid_t;
+  using pathinfo_t = fs::ResLoader::pathinfo_t;
+  using reqcallback_t = fs::ResLoader::reqcallback_t;
 
 public: // Resources can't be copied, so the pool can't be copied
   ResPool() = default;
@@ -48,36 +48,36 @@ public:
 public: // Resource requesters
   template<typename TReq>
   requires(same_as_defined<TReq, TRes...>)
-  void direct_load(pathinfo_t pathinfo) {
-    direct_load<TReq>({pathinfo});
+  void direct_request(pathinfo_t pathinfo) {
+    direct_request<TReq>({pathinfo});
   }
 
   template<typename TReq>
   requires(same_as_defined<TReq, TRes...>)
-  void direct_load(std::initializer_list<pathinfo_t> pathinfo_list) {
+  void direct_request(std::initializer_list<pathinfo_t> pathinfo_list) {
     for (const auto& res_info : pathinfo_list) {
-      auto& loader = ResLoader::instance();
-      auto data_ptr = loader.resdata_direct_load<TReq>(res_info);
+      auto& loader = fs::ResLoader::instance();
+      auto data_ptr = loader.direct_load<TReq>(res_info);
       emplace<TReq>(res_info.id, data_ptr.get());
     }
   }
 
   template<typename TReq>
   requires(same_as_defined<TReq, TRes...>)
-  void async_load(pathinfo_t pathinfo, reqcallback_t on_load) {
-    async_load<TReq>({pathinfo}, std::move(on_load));
+  void async_request(pathinfo_t pathinfo, reqcallback_t on_load) {
+    async_request<TReq>({pathinfo}, std::move(on_load));
   }
 
   template<typename TReq>
   requires(same_as_defined<TReq, TRes...>)
-  void async_load(std::initializer_list<pathinfo_t> pathinfo_list, reqcallback_t on_load) {
+  void async_request(std::initializer_list<pathinfo_t> pathinfo_list, reqcallback_t on_load) {
     _load_counters.push_back(std::make_pair(pathinfo_list.size(), 0));
     auto* counter = &_load_counters.back();
 
     for (const auto& res_info : pathinfo_list) {
-      auto& loader = ResLoader::instance();
+      auto& loader = fs::ResLoader::instance();
 
-      loader.resdata_async_load<TReq>(res_info, [this, counter, on_load](auto id, auto data_ptr) {
+      loader.async_load<TReq>(res_info, [this, counter, on_load](auto id, auto data_ptr) {
         size_t res_total = counter->first;
         size_t& res_c = counter->second;
         emplace<TReq>(id, data_ptr.get());

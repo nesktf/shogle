@@ -1,13 +1,13 @@
 #pragma once
 
-#include <shogle/res/texture.hpp>
+#include <shogle/render/texture.hpp>
 
 #include <assimp/texture.h>
 #include <assimp/scene.h>
 
 #include <string>
 
-namespace ntf {
+namespace ntf::render {
 
 enum class MaterialType {
   Diffuse,
@@ -51,4 +51,4 @@ private:
   std::string _uniform_basename {"material.diffuse"};
 };
 
-} // namespace ntf
+} // namespace ntf::render

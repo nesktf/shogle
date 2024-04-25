@@ -1,8 +1,8 @@
 #pragma once
 
-#include <shogle/res/shader.hpp>
+#include <shogle/render/shader.hpp>
 
-namespace ntf {
+namespace ntf::render {
 
 // Texture::data_t
 class TextureData {
@@ -56,4 +56,4 @@ protected:
   GLenum _dim;
 };
 
-} // namespace ntf
+} // namespace ntf::render
