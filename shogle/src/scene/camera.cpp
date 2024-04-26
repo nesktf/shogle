@@ -2,66 +2,54 @@
 
 namespace ntf {
 
-Camera2D::Camera2D(data_t::proj proj) :
-  _proj(proj) { update({}); }
-Camera2D::Camera2D(data_t::proj proj, data_t::view view):
-  _proj(proj),
-  _view(view) { update({}); }
-
 void Camera2D::update(float) {
-  if (_proj.upd) {
-    _proj.mat = glm::ortho(
-      0.0f, _proj.viewport.x,
-      _proj.viewport.y, 0.0f,
-      -static_cast<float>(_proj.layer_count), 1.0f
+  if (_upd_proj) {
+    _proj = glm::ortho(
+      0.0f, _viewport.x,
+      _viewport.y, 0.0f,
+      -static_cast<float>(_layer_count), 1.0f
     );
-    _proj.upd = false;
+    _upd_proj = false;
   }
 
-  if (_view.upd) {
+  if (_upd_view) {
     mat4 view {1.0f};
 
-    view = glm::translate(view, vec3{_view.origin, 0.0f});
-    view = glm::rotate(view, _view.rot, vec3{0.0f, 0.0f, 1.0f});
-    view = glm::scale(view, vec3{_view.zoom, 1.0f});
-    view = glm::translate(view, vec3{-_view.center, 0.0f});
+    view = glm::translate(view, vec3{_origin, 0.0f});
+    view = glm::rotate(view, _rot, vec3{0.0f, 0.0f, 1.0f});
+    view = glm::scale(view, vec3{_zoom, 1.0f});
+    view = glm::translate(view, vec3{-_center, 0.0f});
 
-    _view.mat = view;
-    _view.upd = false;
+    _view = view;
+    _upd_view = false;
   }
 }
 
-Camera3D::Camera3D(data_t::proj proj) :
-  _proj(proj) { update({}); }
-Camera3D::Camera3D(data_t::proj proj, data_t::view view) :
-  _proj(proj),
-  _view(view) { update({}); }
-
 void Camera3D::update(float) {
-  if (_proj.upd) {
-    if (_proj.use_ortho) {
-      _proj.mat = glm::ortho(
-        0.0f, _proj.viewport.x,
-        _proj.viewport.y, 0.0f,
-        _proj.draw_dist.x, _proj.draw_dist.y
+  if (_upd_proj) {
+    if (_use_ortho) {
+      _proj = glm::ortho(
+        0.0f, _viewport.x,
+        _viewport.y, 0.0f,
+        _draw_dist.x, _draw_dist.y
       );
     } else {
-      _proj.mat = glm::perspective(
-        _proj.fov,
-        _proj.viewport.x/_proj.viewport.y,
-        _proj.draw_dist.x, _proj.draw_dist.y
+      _proj = glm::perspective(
+        _fov,
+        _viewport.x/_viewport.y,
+        _draw_dist.x, _draw_dist.y
       );
     }
-    _proj.upd = false;
+    _upd_proj = false;
   }
 
-  if (_view.upd) {
-    _view.mat = glm::lookAt(
-      _view.pos,
-      _view.pos + _view.dir,
-      _view.up
+  if (_upd_view) {
+    _view = glm::lookAt(
+      _pos,
+      _pos + _dir,
+      _up
     );
-    _view.upd = false;
+    _upd_view = false;
   }
 }
 

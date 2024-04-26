@@ -12,23 +12,34 @@ protected:
   Entity() = default;
 
 public:
-  virtual void update(float dt) override {
-    if (_update_transform_flag) {
-      update_transform(dt);
-      _update_transform_flag = false;
+  virtual void update(float) override {
+    if (_upd) {
+      mat4 model {1.0f};
+
+      model = glm::translate(model, _pos);
+      model*= glm::mat4_cast(_rot);
+
+      if constexpr (std::same_as<dim_t, vec3>) {
+        model = glm::scale(model, _scale);
+      } else {
+        model = glm::scale(model, vec3{_scale, 1.0f});
+      }
+
+      _model = model;
+      _upd = false;
     }
   }
 
 public:
   inline Entity& set_scale(dim_t scale) {
     _scale = scale;
-    _update_transform_flag = true;
+    _upd = true;
     return *this;
   }
 
   inline Entity& set_pos(vec3 pos) {
     _pos = pos;
-    _update_transform_flag = true;
+    _upd = true;
     return *this;
   }
 
@@ -36,13 +47,15 @@ public:
   requires(std::same_as<_dim_t, vec2>)
   inline Entity& set_pos(vec2 pos, float layer = 0.0f) {
     _pos = vec3{pos, layer};
-    _update_transform_flag = true;
+    _upd = true;
     return *this;
   }
 
+  template<typename _dim_t = dim_t>
+  requires(std::same_as<_dim_t, vec3>)
   inline Entity& set_vel(vec3 vel) {
     _vel = vel;
-    _update_transform_flag = true;
+    _upd = true;
     return *this;
   }
 
@@ -50,13 +63,13 @@ public:
   requires(std::same_as<_dim_t, vec2>)
   inline Entity& set_vel(vec2 vel) {
     _vel = vec3{vel, 0.0f};
-    _update_transform_flag = true;
+    _upd = true;
     return *this;
   }
 
   inline Entity& set_rot(quat rot) {
     _rot = rot;
-    _update_transform_flag = true;
+    _upd = true;
     return *this;
   }
 
@@ -79,15 +92,14 @@ public:
   inline dim_t pos(void) const { return _pos; }
   inline dim_t scale(void) const { return _scale; }
 
-protected:
-  Entity& update_transform(float dt) = 0;
-
 private:
+  mat4 _model {1.0f};
+
   vec3 _pos {0.0f}, _vel {0.0f};
   dim_t _scale {1.0f};
   quat _rot {1.0f, vec3{0.0f}};
 
-  bool _update_transform_flag {false};
+  bool _upd {false};
 };
 
 using Entity2D = Entity<vec2>;
