@@ -1,4 +1,4 @@
-#include <shogle/res/texture.hpp>
+#include <shogle/render/res/texture.hpp>
 
 #include <shogle/core/log.hpp>
 
@@ -7,42 +7,7 @@
 #define DEFAULT_FILTER GL_NEAREST
 #define DEFAULT_WRAP GL_REPEAT
 
-namespace ntf {
-
-// Texture::data_t
-TextureData::TextureData(std::string _path) {
-  tex_data = stbi_load(_path.c_str(), &width, &height, &channels, 0);
-  if (!tex_data) {
-    Log::fatal("[TextureData] File not found: {}", _path);
-  }
-  Log::verbose("[TextureData] Texture data extracted (path: {})", _path);
-}
-
-TextureData::TextureData(TextureData&& tx) noexcept :
-  width(std::move(tx.width)),
-  height(std::move(tx.height)),
-  channels(std::move(tx.channels)),
-  tex_data(std::move(tx.tex_data)) {
-
-  tx.tex_data = nullptr;
-}
-
-TextureData& TextureData::operator=(TextureData&& tx) noexcept {
-  width = std::move(tx.width);
-  height = std::move(tx.height);
-  channels = std::move(tx.channels);
-  tex_data = std::move(tx.tex_data);
-
-  tx.tex_data = nullptr;
-
-  return *this;
-}
-
-TextureData::~TextureData() {
-  if (tex_data) {
-    stbi_image_free(tex_data);
-  }
-}
+namespace ntf::render {
 
 // Texture
 Texture::Texture(const Texture::data_t* data) :
@@ -142,4 +107,4 @@ void Texture::set_filter(GLint filter) {
 //   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, this->tex, 0);
 // }
 
-} // namespace ntf
+} // namespace ntf::render

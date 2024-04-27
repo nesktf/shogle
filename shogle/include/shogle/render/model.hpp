@@ -1,47 +1,37 @@
 #pragma once
 
-#include <shogle/render/material.hpp>
+#include <shogle/render/res/texture.hpp>
+#include <shogle/fs/res/model.hpp>
 
 #include <vector>
 
 namespace ntf::render {
 
-// Model3D::data_t
-class ModelData {
-public:
-  struct Vertex {
-    vec3 ver_coord;
-    vec3 ver_norm;
-    vec2 tex_coord;
-  };
-  struct MeshData {
-    std::vector<Vertex> vert;
-    std::vector<GLuint> ind;
-    std::vector<Material::data_t> materials;
-  };
-
-public: // Resource data can be copied but i don't think is a good idea
-  ModelData(std::string path);
-  ~ModelData() = default;
-
-  ModelData(ModelData&&) = default;
-  ModelData& operator=(ModelData&&) = default;
-
-  ModelData(const ModelData&) = delete;
-  ModelData& operator=(const ModelData&) = delete;
-
-public:
-  std::vector<MeshData> meshes; 
-};
-
-// Model3D
 class Model {
 public:
-  using data_t = ModelData;
+  using data_t = fs::model_data;
+
+  class Material : public Texture {
+  public:
+    using data_t = fs::material_data;
+
+  public:
+    Material(const Material::data_t* data);
+
+  public:
+    void bind_uniform(const Shader* shader, size_t tex_num, size_t tex_ind) const;
+
+  public:
+    fs::material_type type(void) const { return _type; }
+
+  private:
+    fs::material_type _type {fs::material_type::diffuse};
+    std::string _uniform_basename {"material.diffuse"};
+  };
 
   class Mesh {
   public: // Resources can't be copied
-    Mesh(const ModelData::MeshData& mesh);
+    Mesh(const fs::mesh_data& mesh);
     ~Mesh();
 
     Mesh(Mesh&&) noexcept;

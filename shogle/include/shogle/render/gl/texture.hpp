@@ -1,29 +1,13 @@
 #pragma once
 
-#include <shogle/render/shader.hpp>
+#include <shogle/render/res/shader.hpp>
+#include <shogle/fs/res/texture.hpp>
 
 namespace ntf::render {
 
-// Texture::data_t
-class TextureData {
-public: // Resource data can be copied but i don't think is a good idea
-  TextureData(std::string path);
-  ~TextureData();
-
-  TextureData(TextureData&&) noexcept;
-  TextureData& operator=(TextureData&&) noexcept;
-
-  TextureData(const TextureData&) = delete; TextureData& operator=(const TextureData&) = delete;
-public:
-  int width, height, channels;
-  GLenum dim {GL_TEXTURE_2D};
-  unsigned char* tex_data;
-};
-
-// Texture
 class Texture {
 public:
-  using data_t = TextureData;
+  using data_t = fs::texture_data;
 
 protected:
   Texture(size_t w, size_t h, GLenum format, GLenum dim); // Empty texture

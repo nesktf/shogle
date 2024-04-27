@@ -1,6 +1,7 @@
 #pragma once
 
 #include <shogle/core/types.hpp>
+#include <shogle/fs/res/shader.hpp>
 
 #include <glad/glad.h>
 
@@ -11,26 +12,9 @@
 
 namespace ntf::render {
 
-// Shader::data_t
-class ShaderData {
-public: // Resource data can be copied but i don't think is a good idea
-  ShaderData(std::string path);
-  ~ShaderData() = default;
-
-  ShaderData(ShaderData&&) = default;
-  ShaderData(const ShaderData&) = delete;
-  ShaderData& operator=(ShaderData&&) = default;
-  ShaderData& operator=(const ShaderData&) = delete;
-
-public:
-  std::string vert_src;
-  std::string frag_src;
-};
-
-// Shader
 class Shader {
 public:
-  using data_t = ShaderData;
+  using data_t = fs::shader_data;
 
 public: // Resources can't be copied
   Shader(const Shader::data_t* data);

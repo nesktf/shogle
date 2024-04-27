@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/fs/resloader.hpp>
+#include <shogle/core/loader.hpp>
 
 #include <tuple>
 

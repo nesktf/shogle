@@ -10,6 +10,9 @@ public:
   error(const char* _msg) :
     msg(_msg) {}
 
+  error(std::string _msg) :
+    msg(_msg) {}
+
 public:
   const char* what() const noexcept override {
     return msg.c_str();
