@@ -6,11 +6,23 @@
 #include <string>
 #include <unordered_map>
 
-namespace ntf::fs {
+namespace ntf::res {
+
 // texture
 enum class texture_type {
   tex2d = 0,
-  tex3d
+  cubemap
+};
+
+enum class texture_filter {
+  nearest = 0,
+  linear
+};
+
+enum class texture_format {
+  rgb = 0,
+  rgba,
+  mono,
 };
 
 struct texture_loader {
@@ -25,7 +37,9 @@ struct texture_loader {
 
   std::string path {};
   int width {1}, height {1}, channels {0};
-  texture_type t_dim {texture_type::tex2d};
+  texture_type type {texture_type::tex2d};
+  texture_format format {texture_format::rgb};
+  texture_filter filter {texture_filter::nearest};
   unsigned char* pixels {nullptr};
 };
 
@@ -46,53 +60,44 @@ struct script_loader {
   std::string content;
 };
 
-// material
-enum class material_type {
-  diffuse = 0,
-  specular
-};
-
-struct material_loader {
-  material_loader(std::string _path);
-
-  texture_loader tex;
-  material_type type {material_type::diffuse};
-};
-
 // model
-struct mesh_loader {
-  struct vertex {
-    vec3 coord;
-    vec3 normal;
-    vec2 tex_coord;
-  };
-  std::vector<vertex> vertices;
-  std::vector<uint> indices;
-  std::vector<material_loader> materials;
-};
-
 struct model_loader {
+  struct mesh {
+    struct material {
+      texture_loader texture;
+      std::string uniform_name;
+    };
+    struct vertex {
+      vec3 coord;
+      vec3 normal;
+      vec2 tex_coord;
+    };
+    std::vector<vertex> vertices;
+    std::vector<uint> indices;
+    std::vector<material> materials;
+  };
+
   model_loader(std::string _path);
 
   std::string path;
-  std::vector<mesh_loader> meshes;
+  std::vector<mesh> meshes;
 };
 
 // spritesheet
-struct sprite_data {
-  size_t count;
-  size_t x, y;
-  size_t x0, y0;
-  size_t dx, dy;
-  size_t cols, rows;
-};
-
 struct spritesheet_loader {
+  struct sprite {
+    size_t count;
+    size_t x, y;
+    size_t x0, y0;
+    size_t dx, dy;
+    size_t cols, rows;
+  };
+
   spritesheet_loader(std::string _path);
 
   std::string path;
   texture_loader tex;
-  std::unordered_map<std::string, sprite_data> sprites;
+  std::unordered_map<std::string, sprite> sprites;
 };
 
-} // namespace ntf::fs
+} // namespace ntf::res

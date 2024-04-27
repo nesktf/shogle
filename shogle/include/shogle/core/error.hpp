@@ -1,5 +1,7 @@
 #pragma once
 
+#include <fmt/format.h>
+
 #include <string>
 #include <exception>
 
@@ -7,11 +9,9 @@ namespace ntf {
 
 class error : public std::exception {
 public:
-  error(const char* _msg) :
-    msg(_msg) {}
-
-  error(std::string _msg) :
-    msg(_msg) {}
+  template<typename... Args>
+  error(fmt::format_string<Args...> format, Args&&... args) :
+    msg(fmt::format(format, std::forward<Args>(args)...)) {}
 
 public:
   const char* what() const noexcept override {

@@ -1,19 +1,18 @@
-#include <shogle/fs/common.hpp>
-#include <shogle/core/error.hpp>
+#include <shogle/res/util.hpp>
 
-#include <fmt/format.h>
+#include <shogle/core/error.hpp>
 
 #include <fstream>
 #include <sstream>
 
-namespace ntf::fs {
+namespace ntf::res {
 
 std::string file_contents(std::string path) {
   std::string out {};
   std::fstream fs{path};
 
   if (!fs.is_open()) {
-    throw ntf::error(fmt::format("File not found: {}", path).c_str());
+    throw ntf::error{"File not found: {}", path};
   } else {
     std::ostringstream ss;
     ss << fs.rdbuf();
@@ -28,4 +27,4 @@ std::string file_dir(std::string path) {
   return path.substr(0, path.find_last_of('/'));
 }
 
-} // namespace ntf::fs
+} // namespace ntf::res

@@ -7,9 +7,9 @@
 #include <memory>
 #include <functional>
 
-namespace ntf::fs {
+namespace ntf::res {
 
-class ResLoader : public Singleton<ResLoader> {
+class loader : public Singleton<loader> {
 public:
   using resid_t = std::string;
 
@@ -27,7 +27,7 @@ public:
   using reqcallback_t = std::function<void()>;
 
 public:
-  ResLoader() = default;
+  loader() = default;
 
 public:
   inline void do_requests(void) {
@@ -62,4 +62,4 @@ private:
   ThreadPool _threadpool;
 };
 
-} // namespace ntf::fs
+} // namespace ntf::res
