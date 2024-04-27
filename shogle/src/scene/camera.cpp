@@ -3,54 +3,41 @@
 namespace ntf {
 
 void Camera2D::update(float) {
-  if (_upd_proj) {
-    _proj = glm::ortho(
-      0.0f, _viewport.x,
-      _viewport.y, 0.0f,
-      -static_cast<float>(_layer_count), 1.0f
-    );
-    _upd_proj = false;
-  }
+  _proj = glm::ortho(
+    0.0f, _viewport.x,
+    _viewport.y, 0.0f,
+    -static_cast<float>(_layer_count), 1.0f
+  );
 
-  if (_upd_view) {
-    mat4 view {1.0f};
+  mat4 view {1.0f};
 
-    view = glm::translate(view, vec3{_origin, 0.0f});
-    view = glm::rotate(view, _rot, vec3{0.0f, 0.0f, 1.0f});
-    view = glm::scale(view, vec3{_zoom, 1.0f});
-    view = glm::translate(view, vec3{-_center, 0.0f});
+  view = glm::translate(view, vec3{_origin, 0.0f});
+  view = glm::rotate(view, _rot, vec3{0.0f, 0.0f, 1.0f});
+  view = glm::scale(view, vec3{_zoom, 1.0f});
+  view = glm::translate(view, vec3{-_center, 0.0f});
 
-    _view = view;
-    _upd_view = false;
-  }
+  _view = view;
 }
 
 void Camera3D::update(float) {
-  if (_upd_proj) {
-    if (_use_ortho) {
-      _proj = glm::ortho(
-        0.0f, _viewport.x,
-        _viewport.y, 0.0f,
-        _draw_dist.x, _draw_dist.y
-      );
-    } else {
-      _proj = glm::perspective(
-        _fov,
-        _viewport.x/_viewport.y,
-        _draw_dist.x, _draw_dist.y
-      );
-    }
-    _upd_proj = false;
-  }
-
-  if (_upd_view) {
-    _view = glm::lookAt(
-      _pos,
-      _pos + _dir,
-      _up
+  if (_use_ortho) {
+    _proj = glm::ortho(
+      0.0f, _viewport.x,
+      _viewport.y, 0.0f,
+      _draw_dist.x, _draw_dist.y
     );
-    _upd_view = false;
+  } else {
+    _proj = glm::perspective(
+      _fov,
+      _viewport.x/_viewport.y,
+      _draw_dist.x, _draw_dist.y
+    );
   }
+  _view = glm::lookAt(
+    _pos,
+    _pos + _dir,
+    _up
+  );
 }
 
 // void Camera3D::upd_target(vec2 screen_pos, float sensitivity) {
