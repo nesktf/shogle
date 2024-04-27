@@ -7,7 +7,7 @@ namespace ntf {
 
 class Camera2D : public Scene::Object {
 public:
-  Camera2D() = default;
+  Camera2D();
 
 public:
   void update(float) final;
@@ -55,6 +55,9 @@ public:
   inline mat4 proj(void) { return _proj; }
   inline mat4 view(void) { return _view; }
 
+public:
+  static Camera2D default_cam;
+
 private:
   mat4 _proj {1.0f};
   vec2 _viewport {800.0f, 600.0f};
@@ -69,7 +72,7 @@ private:
 
 class Camera3D : public Scene::Object {
 public:
-  Camera3D() = default;
+  Camera3D();
 
 public:
   void update(float) final;
@@ -116,6 +119,9 @@ public:
 
   inline mat4 proj(void) { return _proj; }
   inline mat4 view(void) { return _view; }
+
+public:
+  static Camera3D default_cam;
 
 private:
   mat4 _proj {1.0f};

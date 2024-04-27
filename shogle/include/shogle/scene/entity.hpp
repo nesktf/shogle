@@ -24,7 +24,7 @@ public:
       model = glm::scale(model, vec3{_scale, 1.0f});
     }
 
-    _model = model;
+    _model_mat = model;
   }
 
 public:
@@ -68,9 +68,10 @@ public:
   inline quat rot(void) const { return _rot; }
   inline dim_t pos(void) const { return _pos; }
   inline dim_t scale(void) const { return _scale; }
+  inline mat4 model(void) const { return _model_mat; }
 
 private:
-  mat4 _model {1.0f};
+  mat4 _model_mat {1.0f};
 
   vec3 _pos {0.0f};
   dim_t _scale {1.0f};

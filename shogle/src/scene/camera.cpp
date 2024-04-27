@@ -2,6 +2,8 @@
 
 namespace ntf {
 
+Camera2D::Camera2D() { this->update({}); }
+
 void Camera2D::update(float) {
   _proj = glm::ortho(
     0.0f, _viewport.x,
@@ -18,6 +20,11 @@ void Camera2D::update(float) {
 
   _view = view;
 }
+
+Camera2D Camera2D::default_cam {};
+
+
+Camera3D::Camera3D() { this->update({}); }
 
 void Camera3D::update(float) {
   if (_use_ortho) {
@@ -39,6 +46,9 @@ void Camera3D::update(float) {
     _up
   );
 }
+
+Camera3D Camera3D::default_cam {};
+
 
 // void Camera3D::upd_target(vec2 screen_pos, float sensitivity) {
 //   if (_first_movement) {
