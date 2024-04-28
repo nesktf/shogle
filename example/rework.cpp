@@ -39,13 +39,15 @@ struct TestScene : public ntf::Scene {
 
   void update(float dt) override {
     static float t = 0.0f;
+    static float t2 = 0.0f;
     static size_t i = 0;
     t += dt;
+    t2 += dt;
     if (t > 1/30.0f) {
       t = 0.0f;
       cino->set_index(++i);
     }
-    auto rot = ntf::quat{M_PIf*0.5f, {0.0f, M_PIf*0.5f, 0.0f}};
+    auto rot = ntf::quat{glm::cos(t2*M_PIf*0.5f), {0.0f, glm::sin(t2*M_PIf*0.5f), 0.0f}};
     cino_fumo->set_rot(rot);
     ntf::Shogle::instance().enable_depth_test(true);
     cino_fumo->update(dt);
