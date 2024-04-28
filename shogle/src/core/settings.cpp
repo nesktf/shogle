@@ -1,7 +1,7 @@
 #include <shogle/core/settings.hpp>
 #include <shogle/core/log.hpp>
 
-#include <shogle/util/fs.hpp>
+#include <shogle/res/util.hpp>
 
 #include <sol/sol.hpp>
 
@@ -13,7 +13,7 @@ Settings::Settings(int, char*[]) {
 
 Settings::Settings(int argc, char* argv[], const char* path) :
   Settings(argc, argv) {
-  const auto script = fs::file_contents(path);
+  const auto script = res::file_contents(path);
   if (script.empty())
     return;
 

@@ -37,7 +37,7 @@ private:
 struct ModelDynamic : public Tasker<Model> { 
   template<typename... Args>
   ModelDynamic(Args&&... args) : 
-    Tasker<Model>(std::forward<Args>(args)...) {};
+    Tasker<Model>(std::forward<Args>(args)...) {}
 };
 
 } // namespace ntf

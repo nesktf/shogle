@@ -43,9 +43,9 @@ void gl::draw_mesh(const mesh& mesh) {
   glBindVertexArray(0);
 }
 
-void gl::draw_quad(const texture& texture, bool inverted) {
+void gl::draw_quad(const texture* texture, bool inverted) {
   auto& quad {gl_quad_2d::instance()};
-  glBindTexture(texture.gltype, texture.id);
+  glBindTexture(texture->gltype, texture->id);
   glActiveTexture(GL_TEXTURE0);
 
   glBindVertexArray(inverted ? quad.vao_inv : quad.vao);
@@ -88,9 +88,10 @@ gl::texture::texture(size_t w, size_t h, res::texture_format format, res::textur
   glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glfilter);
   glTexParameteri(gltype, GL_TEXTURE_MAG_FILTER, glfilter);
   glBindTexture(gltype, 0);
-
 }
-gl::texture::texture(res::texture_loader loader) {
+
+gl::texture::texture(res::texture_loader loader) :
+  width(loader.width), height(loader.height) {
   switch (loader.type) {
     case res::texture_type::tex2d: {
       gltype = GL_TEXTURE_2D;
@@ -145,12 +146,12 @@ gl::texture::~texture() {
 }
 
 gl::texture::texture(texture&& t) noexcept :
-  id(t.id), glformat(t.glformat), gltype(t.gltype), glfilter(t.glfilter),
+  id(std::move(t.id)), glformat(t.glformat), gltype(t.gltype), glfilter(t.glfilter),
   format(t.format), type(t.type), filter(t.filter),
   width(t.width), height(t.height) { t.id = 0; }
 
 gl::texture& gl::texture::operator=(texture&& t) noexcept {
-  id = t.id; glformat = t.glformat; gltype = t.gltype; glfilter = t.glfilter;
+  id = std::move(t.id); glformat = t.glformat; gltype = t.gltype; glfilter = t.glfilter;
   format = t.format; type = t.type; filter = t.filter;
   width = t.width; height = t.height;
 
@@ -161,13 +162,13 @@ gl::texture& gl::texture::operator=(texture&& t) noexcept {
 
 // framebuffer
 gl::framebuffer::framebuffer(size_t w, size_t h) :
-  texture(w, h, res::texture_format::rgb, res::texture_filter::nearest) {
-  auto dim = texture.gltype;
+  tex(w, h, res::texture_format::rgb, res::texture_filter::nearest) {
+  auto dim = tex.gltype;
 
   glGenFramebuffers(1, &fbo);
   glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dim, texture.id, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dim, tex.id, 0);
 
   glGenRenderbuffers(1, &rbo);
   glBindRenderbuffer(GL_RENDERBUFFER, rbo);
@@ -190,10 +191,10 @@ gl::framebuffer::~framebuffer() {
 }
 
 gl::framebuffer::framebuffer(framebuffer&& f) noexcept :
-  fbo(f.fbo), rbo(f.rbo), texture(std::move(f.texture)) { f.fbo = 0; f.rbo = 0; }
+  fbo(f.fbo), rbo(f.rbo), tex(std::move(f.tex)) { f.fbo = 0; f.rbo = 0; }
 
 gl::framebuffer& gl::framebuffer::operator=(framebuffer&& f) noexcept {
-  fbo = f.fbo; rbo = f.rbo; texture = std::move(f.texture);
+  fbo = f.fbo; rbo = f.rbo; tex = std::move(f.tex);
 
   f.fbo = 0; f.rbo = 0;
 

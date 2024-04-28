@@ -19,7 +19,7 @@ public:
   };
 
   template<typename T>
-  using resdata_t = T::data_t;
+  using resdata_t = T::loader_t;
 
   template<typename T>
   using loadfun_t = std::function<void(resid_t,uptr<resdata_t<T>>)>;
@@ -40,8 +40,8 @@ public:
 
 public:
   template<typename T>
-  uptr<resdata_t<T>> direct_load(pathinfo_t info) {
-    return make_uptr<resdata_t<T>>(info.path);
+  resdata_t<T> direct_load(pathinfo_t info) {
+    return resdata_t<T>{info.path};
   }
 
   template<typename T>

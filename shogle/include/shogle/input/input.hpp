@@ -1,8 +1,9 @@
 #pragma once
 
 #include <shogle/core/types.hpp>
-#include <shogle/core/window.hpp>
 #include <shogle/core/singleton.hpp>
+
+#include <shogle/render/backends/glfw.hpp>
 
 #include <functional>
 
@@ -14,8 +15,8 @@ using InEventId = unsigned int;
 struct InputEvent {
   InputListener listener;
   InEventId id;
-  InputButtons but;
-  InputAction action;
+  render::InputButtons but;
+  render::InputAction action;
 };
 
 class InputHandler : public Singleton<InputHandler> {
@@ -23,18 +24,18 @@ public:
   InputHandler() = default;
   ~InputHandler() = default;
 
-  void init(GLWindow* win);
+  void init(render::window* win);
   void poll(void);
 
-  InEventId register_listener(InputButtons but, InputAction action, InputListener listener);
+  InEventId register_listener(render::InputButtons but, render::InputAction action, InputListener listener);
   void unregister_listener(InEventId id);
   void unregister_all(void);
-  bool is_key_pressed(InputButtons but) {
+  bool is_key_pressed(render::InputButtons but) {
     return _window->is_button_pressed(static_cast<int>(but));
   }
 
 private:
-  GLWindow* _window;
+  render::window* _window;
   uint _event_count{0};
   std::vector<InputEvent> _listeners;
 };

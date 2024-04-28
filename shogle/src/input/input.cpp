@@ -1,9 +1,10 @@
-#include <shogle/core/input.hpp>
+#include <shogle/input/input.hpp>
+
 #include <shogle/core/log.hpp>
 
-namespace ntf {
+namespace ntf::input {
 
-void InputHandler::init(GLWindow* win) {
+void InputHandler::init(render::window* win) {
   this->_window = win;
   win->set_key_callback([](auto, int key, int, int action, int) {
     auto& handler = InputHandler::instance();
@@ -20,7 +21,7 @@ void InputHandler::poll(void) {
   _window->poll_events();
 }
 
-InEventId InputHandler::register_listener(InputButtons but, InputAction action, InputListener listener) {
+InEventId InputHandler::register_listener(render::InputButtons but, render::InputAction action, InputListener listener) {
   _listeners.push_back(InputEvent{.listener = listener, .id = ++_event_count, .but = but, .action = action});
   return _event_count;
 }

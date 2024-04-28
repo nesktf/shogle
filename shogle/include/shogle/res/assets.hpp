@@ -25,9 +25,14 @@ enum class texture_format {
   mono,
 };
 
+struct spritesheet_loader;
+
 struct texture_loader {
-  texture_loader(std::string _path);
+private:
+  friend spritesheet_loader;
   texture_loader() = default;
+public:
+  texture_loader(std::string _path);
   ~texture_loader();
 
   texture_loader(texture_loader&&) noexcept;

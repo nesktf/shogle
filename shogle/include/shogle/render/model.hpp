@@ -1,10 +1,9 @@
 #pragma once
 
 #include <shogle/render/backends/gl.hpp>
+#include <shogle/render/shader.hpp>
 
 namespace ntf::render {
-
-class shader;
 
 class model {
 public:

@@ -1,10 +1,9 @@
 #pragma once
 
 #include <shogle/render/backends/gl.hpp>
+#include <shogle/render/shader.hpp>
 
 namespace ntf::render {
-
-class shader;
 
 class sprite {
 public:
@@ -12,16 +11,18 @@ public:
   using data_t = res::spritesheet_loader::sprite;
 
 public:
-  sprite(const renderer::texture& tex, data_t data);
+  sprite(renderer::texture* tex, data_t data);
 
 public:
   void draw(shader& shader, size_t index = 0) const;
 
 public:
   inline size_t count(void) const { return _uniform_offset_const.size(); }
+  inline float aspect(void) const { return _aspect; }
 
 private:
-  const renderer::texture& _tex;
+  float _aspect;
+  renderer::texture* _tex;
   vec2 _uniform_offset_linear;
   std::vector<vec2> _uniform_offset_const;
 };
@@ -33,9 +34,12 @@ public:
 
 public:
   spritesheet(loader_t loader);
+  
+public:
+  inline sprite* get(std::string name) { return &_sprites.at(name); }
 
 private:
-  renderer::texture _tex;
+  uptr<renderer::texture> _tex;
   std::unordered_map<std::string, sprite> _sprites;
 };
 

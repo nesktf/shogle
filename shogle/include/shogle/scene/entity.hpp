@@ -33,6 +33,11 @@ public:
     return *this;
   }
 
+  inline Entity& set_scale(float val) {
+    _scale = dim_t{val};
+    return *this;
+  }
+
   inline Entity& set_pos(vec3 pos) {
     _pos = pos;
     return *this;

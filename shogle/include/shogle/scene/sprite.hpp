@@ -15,30 +15,39 @@ public:
 
 public:
   virtual void update(float dt) override;
-  virtual void update_shader(void);
 
 public:
-  inline void draw() { _sprite->draw(*_shader); }
+  inline void draw() { _sprite->draw(*_shader, _index); }
 
+public:
   inline void set_sprite(render::sprite* sprite) { _sprite = sprite; }
   inline void set_shader(render::shader* shader) { _shader = shader; }
   inline void set_cam(Camera2D* cam) { _cam = cam; };
+  inline void set_index(size_t i) { _index = i; }
+
+  inline size_t index_count(void) { return _sprite->count(); }
+
+  inline vec2 corrected_scale(float base = 1.0f) { return vec2{base*_sprite->aspect(), base}; }
 
 public:
   bool use_screen_space {false};
   bool draw_on_update {false};
   color4 color {1.0f};
 
+protected:
+  virtual void update_shader(void);
+
 private:
   render::sprite* _sprite;
   render::shader* _shader;
   Camera2D* _cam;
+  size_t _index {0};
 };
 
 struct SpriteDynamic : public Tasker<Sprite> { 
   template<typename... Args>
   SpriteDynamic(Args&&... args) : 
-    Tasker<Sprite>(std::forward<Args>(args)...) {};
+    Tasker<Sprite>(std::forward<Args>(args)...) {}
 };
 
 } // namespace ntf

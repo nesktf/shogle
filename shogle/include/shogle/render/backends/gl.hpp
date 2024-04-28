@@ -89,7 +89,7 @@ public:
 
     GLuint fbo;
     GLuint rbo;
-    texture texture;
+    texture tex;
   };
 
 public:
@@ -99,7 +99,7 @@ public:
   static void set_tex_filter(texture& tex, res::texture_filter filter);
 
   static void draw_mesh(const mesh& mesh);
-  static void draw_quad(const texture& texture, bool inverted = false);
+  static void draw_quad(const texture* texture, bool inverted = false);
 
 public:
   static inline void framebuffer_bind(const framebuffer* fbo) {
@@ -113,6 +113,7 @@ public:
     glBindTexture(tex.gltype, tex.id);
     glActiveTexture(GL_TEXTURE0+number);
   }
+
   static inline void clear_viewport(vec4 col = {vec3{0.2f}, 1.0f}, bool clear_depth = true) {
     GLbitfield mask = GL_COLOR_BUFFER_BIT;
     if (clear_depth) {
@@ -122,12 +123,32 @@ public:
     glClear(mask);
   }
 
+  static inline void depth_test(bool flag = true) {
+    if (flag) {
+      glEnable(GL_DEPTH_TEST);
+    } else {
+      glDisable(GL_DEPTH_TEST);
+    }
+  }
+
+  static inline void blend(bool flag = true) {
+    if (flag) {
+      glEnable(GL_BLEND);
+      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+    } else {
+      glDisable(GL_BLEND);
+    }
+  }
+
   static inline void set_viewport(size_t w, size_t h) {
     glViewport(0, 0, w, h);
   }
 
   static inline void shader_enable(shader& shader) {
     glUseProgram(shader.prog);
+  }
+  static inline void shader_unif(shader& shader, const char* name, long unsigned int val) {
+    glUniform1i(glGetUniformLocation(shader.prog, name), val);
   }
   static inline void shader_unif(shader& shader, const char* name, int val) {
     glUniform1i(glGetUniformLocation(shader.prog, name), val);

@@ -25,6 +25,21 @@ texture_loader::texture_loader(std::string _path) :
   if (!pixels) {
     throw ntf::error{"Error loading texture: {}", path};
   }
+
+  switch (channels) {
+    case 1: {
+      format = texture_format::mono;
+      break;
+    }
+    case 4: {
+      format = texture_format::rgba;
+      break;
+    }
+    default: {
+      format = texture_format::rgb;
+      break;
+    }
+  }
 }
 
 texture_loader::~texture_loader() {
@@ -39,6 +54,8 @@ texture_loader::texture_loader(texture_loader&& t) noexcept :
   height(std::move(t.height)),
   channels(std::move(t.channels)),
   type(std::move(t.type)),
+  format(std::move(t.format)),
+  filter(std::move(t.filter)),
   pixels(std::move(t.pixels)) { t.pixels = nullptr; }
 
 texture_loader& texture_loader::operator=(texture_loader&& t) noexcept {
@@ -47,6 +64,8 @@ texture_loader& texture_loader::operator=(texture_loader&& t) noexcept {
   height = std::move(t.height);
   channels = std::move(t.channels);
   type = std::move(t.type);
+  format = std::move(t.format);
+  filter = std::move(t.filter);
   pixels = std::move(t.pixels);
 
   t.pixels = nullptr;
@@ -166,7 +185,7 @@ spritesheet_loader::spritesheet_loader(std::string _path) :
   std::ifstream f{path};
   json data = json::parse(f);
 
-  tex = texture_loader {file_dir(path)+"/"+data["file"].template get<std::string>()};
+  tex = texture_loader{file_dir(path)+"/"+data["file"].template get<std::string>()};
 
   auto content = data["content"];
   for (auto& curr_sprite : content) {

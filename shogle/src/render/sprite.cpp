@@ -4,17 +4,21 @@
 
 namespace ntf::render {
 
-spritesheet::spritesheet(loader_t loader) :
-  _tex(std::move(loader.tex)) {
+spritesheet::spritesheet(loader_t loader) {
+  _tex = make_uptr<renderer::texture>(std::move(loader.tex));
   for (const auto& sprite_entry : loader.sprites) {
-    auto& spr_data = sprite_entry.second;
     auto& name = sprite_entry.first;
-    _sprites.emplace(std::make_pair(name, sprite{_tex, std::move(spr_data)}));
+    auto& spr_data = sprite_entry.second;
+
+    _sprites.emplace(std::make_pair(name, sprite{_tex.get(), spr_data}));
   }
 }
 
-sprite::sprite(const renderer::texture& tex, data_t data) :
+sprite::sprite(renderer::texture* tex, data_t data) :
   _tex(tex), _uniform_offset_const(data.count) {
+
+  _aspect =
+    static_cast<float>(data.dx*data.rows) / static_cast<float>(data.dy*data.cols);
 
   // sprite texture offset pre-calculations
   _uniform_offset_linear.x = 

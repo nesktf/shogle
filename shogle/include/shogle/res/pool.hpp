@@ -1,6 +1,7 @@
 #pragma once
 
 #include <shogle/res/loader.hpp>
+#include <shogle/core/log.hpp>
 
 #include <tuple>
 
@@ -13,9 +14,9 @@ template<typename T>
 concept uses_loader = requires { T::loader_t; };
 
 template<typename... T>
-requires(uses_loader<T> && ...)
+// requires(uses_loader<T> && ...)
 class pool {
-private:
+// private:
   template<typename _T>
   using rescontainer_t = std::unordered_map<loader::resid_t, _T>;
 
@@ -38,15 +39,16 @@ public: // Resources can't be copied, so the pool can't be copied
 public:
   template<typename TReq>
   requires(same_as_defined<TReq, T...>)
-  inline const TReq* get(resid_t id) {
-    return &std::get<rescontainer_t<TReq>>(_pool).at(id);
+  inline TReq* get(resid_t id) {
+    auto& cont = std::get<rescontainer_t<TReq>>(_pool);
+    return &cont.at(id);
   }
 
   template<typename TReq>
   requires(same_as_defined<TReq, T...>)
-  inline void emplace(resid_t id, TReq::data_t* data) {
+  inline void emplace(resid_t id, TReq::loader_t data) {
     auto& container = std::get<rescontainer_t<TReq>>(_pool);
-    container.emplace(std::make_pair(id, TReq{data}));
+    container.emplace(std::make_pair(id, TReq{std::move(data)}));
   }
 
 public: // Resource requesters
@@ -61,8 +63,7 @@ public: // Resource requesters
   void direct_request(std::initializer_list<pathinfo_t> pathinfo_list) {
     for (const auto& res_info : pathinfo_list) {
       auto& loader = loader::instance();
-      auto data_ptr = loader.direct_load<TReq>(res_info);
-      emplace<TReq>(res_info.id, data_ptr.get());
+      emplace<TReq>(res_info.id, loader.direct_load<TReq>(res_info));
     }
   }
 
@@ -84,13 +85,13 @@ public: // Resource requesters
       loader.async_load<TReq>(res_info, [this, counter, on_load](auto id, auto data_ptr) {
         size_t res_total = counter->first;
         size_t& res_c = counter->second;
-        emplace<TReq>(id, data_ptr.get());
+        emplace<TReq>(id, *data_ptr.get());
         if (++res_c == res_total) { on_load(); }
       });
     }
   }
 
-private:
+// private:
   pool_t _pool;
   std::vector<std::pair<size_t, size_t>> _load_counters;
 };

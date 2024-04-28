@@ -1,4 +1,6 @@
-#include <shogle/core/window.hpp>
+#include <shogle/render/backends/glfw.hpp>
+#include <shogle/render/backends/gl.hpp>
+
 #include <shogle/core/log.hpp>
 #include <shogle/core/error.hpp>
 
@@ -9,9 +11,9 @@
 #define GL_MAJOR 3
 #define GL_MINOR 3
 
-namespace ntf {
+namespace ntf::render {
 
-GLWindow::GLWindow(size_t w, size_t h, const char* w_title) :
+window::window(size_t w, size_t h, const char* w_title) :
   _win_w(w),
   _win_h(h) {
 
@@ -21,25 +23,23 @@ GLWindow::GLWindow(size_t w, size_t h, const char* w_title) :
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHintString(GLFW_X11_CLASS_NAME, "shogle");
 
-  if ((this->_glfw_win = glfwCreateWindow(_win_w, _win_h, w_title, NULL, NULL)) == nullptr) {
+  if ((_glfw_win = glfwCreateWindow(_win_w, _win_h, w_title, NULL, NULL)) == nullptr) {
     glfwTerminate();
-    throw error("[GLWindow] Failed to create GLFW window");
+    throw error("[window] Failed to create GLFW window");
   }
-  glfwMakeContextCurrent(this->_glfw_win); 
+  glfwMakeContextCurrent(_glfw_win); 
   glfwSwapInterval(1); //Vsync
-  Log::verbose("[GLWindow] GLFW initialized");
+  Log::verbose("[window] GLFW initialized");
 
-  // Load opengl function pointers to glfwGetProcAddress
-  if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-    glfwDestroyWindow(this->_glfw_win); 
+  try {
+    gl::instance().init((GLADloadproc)glfwGetProcAddress);
+  } catch (const ntf::error& err) {
+    glfwDestroyWindow(_glfw_win);
     glfwTerminate();
-    throw error("[GLWindow] Failed to load GLAD");
+    throw;
   }
-  Log::verbose("[GLWindow] GLAD loaded");
-
-  // Viewport things
-  glViewport(0, 0, _win_w, _win_h); // 1,2 -> Location in window. 3,4 -> Size
-  // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // lock mouse
+  gl::set_viewport(_win_w, _win_h);
+  Log::verbose("[window] OpenGL initialized - ver {}.{}", GL_MAJOR, GL_MINOR);
 
 
   IMGUI_CHECKVERSION();
@@ -51,48 +51,48 @@ GLWindow::GLWindow(size_t w, size_t h, const char* w_title) :
   ImGui::StyleColorsDark();
   ImGui_ImplGlfw_InitForOpenGL(_glfw_win, true);
   ImGui_ImplOpenGL3_Init("#version 130");
+  Log::verbose("[window] ImGui initialized");
 
-  Log::debug("[GLWindow] Initialized - OpenGL {}.{}", GL_MAJOR, GL_MINOR);
 };
 
-GLWindow::~GLWindow() {
+window::~window() {
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
 
   glfwDestroyWindow(_glfw_win);
   glfwTerminate();
-  Log::debug("[GLWindow] Deleted");
+  Log::debug("[window] Deleted");
 }
 
-void GLWindow::close(void) {
+void window::close(void) {
   glfwSetWindowShouldClose(_glfw_win, true);
-  Log::verbose("[GLWindow] Set window close");
+  Log::verbose("[window] Set window close");
 }
 
-void GLWindow::swap_buffers(void) {
+void window::swap_buffers(void) {
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
   glfwSwapBuffers(_glfw_win);
 }
 
-void GLWindow::set_fb_callback(GLFWframebuffersizefun cb) {
+void window::set_fb_callback(GLFWframebuffersizefun cb) {
   glfwSetFramebufferSizeCallback(_glfw_win, cb);
-  Log::verbose("[GLWindow] Framebuffer callback set");
+  Log::verbose("[window] Framebuffer callback set");
 }
 
-void GLWindow::set_key_callback(GLFWkeyfun cb) {
+void window::set_key_callback(GLFWkeyfun cb) {
   glfwSetKeyCallback(_glfw_win, cb);
-  Log::verbose("[GLWindow] Key callback set");
+  Log::verbose("[window] Key callback set");
 }
 
-void GLWindow::set_cursorpos_callback(cursorposcallback_t cb) {
+void window::set_cursorpos_callback(cursorposcallback_t cb) {
   glfwSetCursorPosCallback(_glfw_win, cb);
-  Log::verbose("[GLWindow] Cursor pos callback set");
+  Log::verbose("[window] Cursor pos callback set");
 }
 
-void GLWindow::set_title(const char* w_title) {
+void window::set_title(const char* w_title) {
   glfwSetWindowTitle(_glfw_win, w_title);
-  Log::verbose("[GLWindow] Title set: {}", w_title);
+  Log::verbose("[window] Title set: {}", w_title);
 }
 
 } // namespace ntf

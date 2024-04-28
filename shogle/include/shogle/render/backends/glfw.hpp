@@ -32,20 +32,20 @@ enum InputAction {
   KEY_RELEASE = GLFW_RELEASE
 };
 
-class GLWindow {
+class window {
 public:
   using fbcallback_t = GLFWframebuffersizefun;
   using keycallback_t = GLFWkeyfun;
   using cursorposcallback_t = GLFWcursorposfun;
 
 public:
-  GLWindow(size_t w, size_t h, const char* w_title);
-  ~GLWindow();
+  window(size_t w, size_t h, const char* w_title);
+  ~window();
 
-  GLWindow(GLWindow&&) = default;
-  GLWindow(const GLWindow&) = delete;
-  GLWindow& operator=(GLWindow&&) = default;
-  GLWindow& operator=(const GLWindow&) = delete;
+  window(window&&) = default;
+  window(const window&) = delete;
+  window& operator=(window&&) = default;
+  window& operator=(const window&) = delete;
 
 public:
   void close(void);

@@ -1,4 +1,4 @@
-#include <shogle/math/collision.hpp>
+#include <shogle/physics/collision_2d.hpp>
 
 namespace ntf {
 
