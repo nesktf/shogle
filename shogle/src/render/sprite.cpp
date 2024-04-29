@@ -14,6 +14,14 @@ spritesheet::spritesheet(loader_t loader) {
   }
 }
 
+sprite::sprite(renderer::texture* tex, size_t w, size_t h) :
+  _tex(tex), _uniform_offset_const(1) {
+
+  _aspect = static_cast<float>(w)/static_cast<float>(h);
+  _uniform_offset_linear = vec2{1.0f};
+  _uniform_offset_const[0] = vec2{0.0f};
+}
+
 sprite::sprite(renderer::texture* tex, data_t data) :
   _tex(tex), _uniform_offset_const(data.count) {
 
@@ -46,14 +54,14 @@ sprite::sprite(renderer::texture* tex, data_t data) :
 
 }
 
-void sprite::draw(shader& shader, size_t index) const {
+void sprite::draw(shader& shader, size_t index, bool inverted_draw) const {
   vec4 _offset {_uniform_offset_linear, _uniform_offset_const[index % count()]};
 
   shader.use();
   shader.set_uniform("sprite_offset", _offset);
   shader.set_uniform("sprite_sampler", 0);
 
-  renderer::draw_quad(_tex);
+  renderer::draw_quad(_tex, inverted_draw);
 }
 
 

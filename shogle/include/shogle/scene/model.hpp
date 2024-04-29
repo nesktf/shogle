@@ -34,10 +34,10 @@ private:
   Camera3D* _cam;
 };
 
-struct ModelDynamic : public Tasker<Model> { 
+struct ModelDynamic : public Tasker<Model, ModelDynamic> { 
   template<typename... Args>
   ModelDynamic(Args&&... args) : 
-    Tasker<Model>(std::forward<Args>(args)...) {}
+    Tasker(std::forward<Args>(args)...) {}
 };
 
 } // namespace ntf

@@ -67,7 +67,7 @@ private:
   vec2 _center {0.0f, 0.0f};
   vec2 _origin {400.0f, 300.0f};
   vec2 _zoom {1.0f};
-  float _rot {1.0f};
+  float _rot {0.0f};
 };
 
 class Camera3D : public Scene::Object {

@@ -12,9 +12,10 @@ public:
 
 public:
   sprite(renderer::texture* tex, data_t data);
+  sprite(renderer::texture* tex, size_t w, size_t h);
 
 public:
-  void draw(shader& shader, size_t index = 0) const;
+  void draw(shader& shader, size_t index = 0, bool inverted_draw = false) const;
 
 public:
   inline size_t count(void) const { return _uniform_offset_const.size(); }

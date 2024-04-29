@@ -17,7 +17,7 @@ public:
   virtual void update(float dt) override;
 
 public:
-  inline void draw() { _sprite->draw(*_shader, _index); }
+  inline void draw() { _sprite->draw(*_shader, _index, inverted_draw); }
 
 public:
   inline void set_sprite(render::sprite* sprite) { _sprite = sprite; }
@@ -32,6 +32,7 @@ public:
 public:
   bool use_screen_space {false};
   bool draw_on_update {false};
+  bool inverted_draw {false};
   color4 color {1.0f};
 
 protected:
@@ -44,10 +45,10 @@ private:
   size_t _index {0};
 };
 
-struct SpriteDynamic : public Tasker<Sprite> { 
+struct SpriteDynamic : public Tasker<Sprite, SpriteDynamic> { 
   template<typename... Args>
   SpriteDynamic(Args&&... args) : 
-    Tasker<Sprite>(std::forward<Args>(args)...) {}
+    Tasker(std::forward<Args>(args)...) {}
 };
 
 } // namespace ntf
