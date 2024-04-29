@@ -10,7 +10,7 @@ Sprite::Sprite(render::sprite* sprite, render::shader* shader, Camera2D* cam) :
     assert(sprite);
     assert(shader);
     assert(cam);
-  set_scale(corrected_scale());
+  scale = corrected_scale();
 }
 
 void Sprite::update(float dt) {
