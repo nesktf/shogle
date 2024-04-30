@@ -3,41 +3,49 @@
 #include <shogle/core/types.hpp>
 #include <shogle/core/singleton.hpp>
 
-#include <shogle/render/backends/glfw.hpp>
+#include <shogle/input/backends/glfw.hpp>
 
 #include <functional>
 
 namespace ntf::input {
 
-using InputListener = std::function<void()>;
-using InEventId = unsigned int;
+using key = input::glfw; // for covenience
 
-struct InputEvent {
-  InputListener listener;
-  InEventId id;
-  render::InputButtons but;
-  render::InputAction action;
-};
+class KeyListener : public Singleton<KeyListener> {
+private:
+  using backend = input::glfw;
 
-class InputHandler : public Singleton<InputHandler> {
 public:
-  InputHandler() = default;
-  ~InputHandler() = default;
+  using listenerfun_t = std::function<void()>;
+  using listenerid_t = uint;
+  using keys = backend::key;
+  using key_action = backend::key_action;
 
-  void init(render::window* win);
-  void poll(void);
+  struct key_listener {
+    listenerfun_t listener;
+    listenerid_t id;
+    keys key;
+    key_action action;
+  };
 
-  InEventId register_listener(render::InputButtons but, render::InputAction action, InputListener listener);
-  void unregister_listener(InEventId id);
-  void unregister_all(void);
-  bool is_key_pressed(render::InputButtons but) {
-    return _window->is_button_pressed(static_cast<int>(but));
+public:
+  KeyListener() = default;
+
+public:
+  void init(void);
+
+public:
+  listenerid_t register_listener(keys key, key_action action, listenerfun_t listener);
+  bool unregister_listener(listenerid_t listener);
+
+public:
+  inline bool is_key_pressed(keys key) {
+    return backend::instance().is_pressed(key);
   }
 
-private:
-  render::window* _window;
-  uint _event_count{0};
-  std::vector<InputEvent> _listeners;
+public:
+  size_t _event_count {0};
+  std::vector<key_listener> _listeners;
 };
 
 } // namespace ntf::input

@@ -1,7 +1,5 @@
 #include <shogle.hpp>
 
-#include <shogle/render/framebuffer.hpp>
-
 #define PI M_PIf
 
 struct TestScene : public ntf::Scene {

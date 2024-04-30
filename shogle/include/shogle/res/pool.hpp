@@ -16,7 +16,7 @@ concept uses_loader = requires { T::loader_t; };
 template<typename... T>
 // requires(uses_loader<T> && ...)
 class pool {
-// private:
+private:
   template<typename _T>
   using rescontainer_t = std::unordered_map<loader::resid_t, _T>;
 
@@ -91,7 +91,7 @@ public: // Resource requesters
     }
   }
 
-// private:
+private:
   pool_t _pool;
   std::vector<std::pair<size_t, size_t>> _load_counters;
 };

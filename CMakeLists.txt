@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(SHOGLE_VER_MAJ "0")
-set(SHOGLE_VER_MIN "2")
-set(SHOGLE_VER_REV "0")
+set(SHOGLE_VER_MIN "1")
+set(SHOGLE_VER_REV "1")
 execute_process(COMMAND git rev-parse --short HEAD
   OUTPUT_VARIABLE GIT_TAG_SHORT
   OUTPUT_STRIP_TRAILING_WHITESPACE

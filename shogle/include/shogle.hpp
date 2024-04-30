@@ -10,6 +10,9 @@
 
 #include <shogle/scene/sprite.hpp>
 #include <shogle/scene/model.hpp>
+#include <shogle/scene/entity_task/common.hpp>
+
+#include <shogle/render/framebuffer.hpp>
 
 #include <shogle/physics/collision_2d.hpp>
 
