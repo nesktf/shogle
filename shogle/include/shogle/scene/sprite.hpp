@@ -8,7 +8,7 @@
 
 namespace ntf {
 
-class sprite : public entity2D {
+class sprite : public entity2d {
 public:
   sprite(render::sprite* sprite, render::shader* shader, camera2D& cam);
 
@@ -19,14 +19,15 @@ public:
   inline void set_sprite(render::sprite* sprite) { _sprite = sprite; }
   inline void set_shader(render::shader* shader) { _shader = shader; }
   inline void set_cam(camera2D& cam) { _cam = cam; };
-  inline void set_index(size_t i) { _index = i; }
+  inline void set_index(size_t i) { _index = i%index_count(); }
+  inline void next_index(void) { set_index(++_index); }
 
   inline size_t index_count(void) { return _sprite->count(); }
+  inline size_t index(void) { return _index; }
 
   inline vec2 corrected_scale(float base = 1.0f) { return vec2{base*_sprite->aspect(), base}; }
 
 public:
-  bool use_screen_space {false};
   bool inverted_draw {false};
   color4 color {1.0f};
 

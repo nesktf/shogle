@@ -205,6 +205,18 @@ spritesheet_loader::spritesheet_loader(std::string _path) :
 
     sprites.emplace(std::make_pair(name, std::move(sp_data)));
   }
+
+  sprites.emplace(std::make_pair("__sheet", sprite{ 
+    .count = 1,
+    .x = static_cast<size_t>(tex.width),
+    .y = static_cast<size_t>(tex.height),
+    .x0 = 0,
+    .y0 = 0,
+    .dx = static_cast<size_t>(tex.width),
+    .dy = static_cast<size_t>(tex.height),
+    .cols = 1,
+    .rows = 1
+  }));
 }
 
 } // namespace ntf::res

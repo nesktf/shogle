@@ -10,7 +10,7 @@ public:
   camera2D() = default;
 
 public:
-  void update(float) final;
+  void update(float dt = 0.0f) final;
 
 public:
   inline camera2D& set_viewport(vec2 viewport) {
@@ -72,7 +72,7 @@ public:
   camera3D() = default;
 
 public:
-  void update(float) final;
+  void update(float dt = 0.0f) final;
 
 public:
   inline camera3D& use_ortho(bool flag) {

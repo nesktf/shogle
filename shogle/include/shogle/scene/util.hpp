@@ -28,35 +28,6 @@ inline quat euler2quat(vec3 rot) {
     quat{glm::cos(rot.z*0.5f), glm::sin(rot.z*0.5f)*vec3{0.0f, 0.0f, 1.0f}};
 };
 
-
-// entity manipulation
-template<typename T>
-inline void rotate_entity(T& obj, float ang, vec3 axis) {
-  obj.rot = quat{glm::cos(ang*0.5f), glm::sin(ang*0.5f)*axis};
-}
-template<typename T>
-inline void rotate_entity(T& obj, quat rot) {
-  obj.rot = rot;
-}
-template<typename T>
-inline void rotate_entity(T& obj, vec3 rot) {
-  obj.rot = euler2quat(rot);
-}
-inline void rotate_entity(entity2D& obj, float ang) {
-  rotate_entity(obj, -ang, vec3{0.0f, 0.0f, 1.0f});
-}
-
-template<typename T, typename dim_t>
-inline void move_entity(T& obj, dim_t pos) {
-  obj.pos = pos;
-}
-
-template<typename T, typename dim_t>
-inline void scale_entity(T& obj, dim_t scale) {
-  obj.scale = scale;
-}
-
-
 // misc
 template<typename TL, typename TR>
 constexpr auto periodic_add(TL a, TR b, decltype(a+b) min, decltype(a+b) max) {
