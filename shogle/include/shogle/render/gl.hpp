@@ -93,7 +93,7 @@ public:
   };
 
 public:
-  void init(GLADloadproc proc);
+  static void init(GLADloadproc proc);
 
 public:
   static void set_tex_filter(texture& tex, res::texture_filter filter);

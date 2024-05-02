@@ -1,4 +1,4 @@
-#include <shogle/render/backends/gl.hpp>
+#include <shogle/render/gl.hpp>
 
 #include <shogle/core/error.hpp>
 
@@ -15,7 +15,7 @@ struct gl_quad_2d : public Singleton<gl_quad_2d> {
 
 void gl::init(GLADloadproc proc) {
   if (!gladLoadGLLoader(proc)) {
-    throw ntf::error("[GL Renderer] Failed to load GLAD");
+    throw ntf::error("[GL renderer] Failed to load GLAD");
   }
 }
 

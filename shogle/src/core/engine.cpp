@@ -1,87 +1,93 @@
 #include <shogle/core/engine.hpp>
-#include <shogle/core/log.hpp>
+
 #include <shogle/core/error.hpp>
+#include <shogle/core/log.hpp>
 
-#include <shogle/input/input.hpp>
-
-#include <shogle/scene/camera.hpp>
+#include <shogle/render/imgui.hpp>
 
 #include <shogle/res/loader.hpp>
 
-#include <imgui/imgui.h>
-#include <imgui/backends/imgui_impl_glfw.h>
-#include <imgui/backends/imgui_impl_opengl3.h>
-
 namespace ntf {
 
-bool Shogle::init(const Settings& sett) {
+using namespace render;
+
+static void update_cameras(camera2D& cam_2d, camera3D& cam_3d, size_t w, size_t h);
+
+shogle_state::shogle_state(glfw::window window, size_t w, size_t h) :
+  win(window), input(win) { update_cameras(cam_2d, cam_3d, w, h); }
+
+shogle_state::~shogle_state() {
+  glfw::destroy_window(win);
+}
+
+shogle_state shogle_create(size_t window_width, size_t window_height, std::string window_title) {
+  glfw::window win;
+
   try {
-    _window = make_uptr<render::window>(sett.w_width, sett.w_height, sett.w_title.c_str());
-  } catch(const ntf::error& e) {  
-    Log::error("{}", e.what());
-    return false;
+    win = glfw::create_window(window_width, window_height, window_title);
+  } catch(const ntf::error& err) {
+    Log::error("{}", err.what());
+    throw;
   }
-  clear_color = sett.clear_color;
 
-  Camera2D::default_cam.set_viewport({static_cast<float>(sett.w_width), static_cast<float>(sett.w_height)});
-  Camera2D::default_cam.update({});
+  return shogle_state{std::move(win), window_width, window_height};
+}
 
-  Camera3D::default_cam.set_viewport({static_cast<float>(sett.w_width), static_cast<float>(sett.w_height)});
-  Camera3D::default_cam.update({});
+void shogle_start(shogle_state& state, scene_creator_t creator) {
+  glfw::set_user_ptr(state.win, &state);
 
-  Log::verbose("[Shogle] Settings applied");
-
-  _window->set_fb_callback([](auto, int w, int h) {
+  glfw::set_viewport_callback(state.win, [](GLFWwindow* win, int w, int h) {
+    auto* state = static_cast<shogle_state*>(glfw::get_user_ptr(win));
     render::gl::set_viewport(w, h);
-
-    Camera2D::default_cam.set_viewport({static_cast<float>(w), static_cast<float>(h)});
-    Camera2D::default_cam.update({});
-
-    Camera3D::default_cam.set_viewport({static_cast<float>(w), static_cast<float>(h)});
-    Camera3D::default_cam.update({});
-
-    Log::verbose("[Window] Viewport updated");
+    update_cameras(state->cam_2d, state->cam_3d, w, h);
+    state->viewport.fire(w, h);
   });
-  Log::verbose("[InputHandler] Framebuffer callback set");
 
-  input::InputHandler::instance().init(_window.get());
+  glfw::set_key_callback(state.win, [](GLFWwindow* win, int key, int, int action, int) {
+    auto state = static_cast<shogle_state*>(glfw::get_user_ptr(win));
+    state->input.fire(static_cast<glfw::key>(key), static_cast<glfw::key_action>(action));
+  });
 
-  Log::info("[Shogle] Initialized");
-  return true;
-}
+  imgui::init(state.win);
 
-void Shogle::start(SceneCreator creator) {
-  _scene = creator();
-  Log::verbose("[Shogle] Initial level created");
+  double last_frame {0.0};
 
-  Log::info("[Shogle] Entering main loop");
-  while (!_window->should_close()) {
-    input::InputHandler::instance().poll();
-    res::loader::instance().do_requests();
+  auto scene = creator(state);
+  scene->on_create(state);
 
+  while (glfw::is_window_open(state.win)) {
+    state.loader.do_requests();
 
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
+    imgui::new_frame();
+    glfw::new_frame(state.win);
 
-    double curr_frame = _window->get_time();
-    double dt = curr_frame - _last_frame;
-    _last_frame = curr_frame;
+    double curr_frame = glfw::elapsed_time(state.win);
+    double dt = curr_frame - last_frame;
+    last_frame = curr_frame;
 
-    render::gl::clear_viewport({clear_color, 1.0f});
+    gl::clear_viewport();
+    scene->update(state, dt);
+    scene->draw(state);
 
-    _scene->update(dt);
-
-    if (_window->imgui_demo) {
-      ImGui::ShowDemoWindow(&_window->imgui_demo);
-    }
-    _scene->draw_ui();
-
-    ImGui::Render();
-
-    _window->swap_buffers();
+    imgui::render();
+    glfw::end_frame(state.win);
   }
-  Log::info("[Shogle] Terminating program");
+
+  state.input.clear();
+  state.viewport.clear();
 }
+
+void shogle_close_window(shogle_state& state) {
+  glfw::set_close(state.win, true);
+}
+
+static void update_cameras(camera2D& cam_2d, camera3D& cam_3d, size_t w, size_t h) {
+  cam_2d.set_viewport({static_cast<float>(w), static_cast<float>(h)});
+  cam_2d.update({});
+
+  cam_3d.set_viewport({static_cast<float>(w), static_cast<float>(h)});
+  cam_3d.update({});
+}
+
 
 } // namespace ntf

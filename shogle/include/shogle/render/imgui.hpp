@@ -1,6 +1,7 @@
 #pragma once
 
 #include <shogle/core/singleton.hpp>
+#include <shogle/render/glfw.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
@@ -13,8 +14,8 @@ public:
   imgui() = default;
 
 public:
-  void init(GLFWwindow* win);
-  void destroy(void);
+  static void init(const glfw::window& win);
+  static void destroy(void);
 
 public:
   static inline void new_frame(void) {
@@ -24,16 +25,15 @@ public:
   }
 
   static inline void render(void) {
-    if (imgui::instance().toggle_demo) {
-      ImGui::ShowDemoWindow(&imgui::instance().toggle_demo);
+    if (imgui::instance().show_demo) {
+      ImGui::ShowDemoWindow(&imgui::instance().show_demo);
     }
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
   }
 
 public:
-  bool toggle_demo {true};
+  static bool show_demo;
 };
-
 
 } // namespace ntf::render

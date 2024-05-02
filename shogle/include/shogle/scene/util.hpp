@@ -4,6 +4,8 @@
 
 #include <shogle/scene/entity.hpp>
 
+#define PI M_PIf
+
 namespace ntf {
 
 // conversions
@@ -40,7 +42,7 @@ template<typename T>
 inline void rotate_entity(T& obj, vec3 rot) {
   obj.rot = euler2quat(rot);
 }
-inline void rotate_entity(Entity2D& obj, float ang) {
+inline void rotate_entity(entity2D& obj, float ang) {
   rotate_entity(obj, -ang, vec3{0.0f, 0.0f, 1.0f});
 }
 

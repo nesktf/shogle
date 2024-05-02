@@ -2,27 +2,23 @@
 
 #include <shogle/scene/entity.hpp>
 #include <shogle/scene/camera.hpp>
+#include <shogle/scene/tasker.hpp>
 
 #include <shogle/render/sprite.hpp>
 
-#include <shogle/core/tasker.hpp>
-
 namespace ntf {
 
-class Sprite : public Entity2D {
+class sprite : public entity2D {
 public:
-  Sprite(render::sprite* sprite, render::shader* shader, Camera2D* cam = &Camera2D::default_cam);
+  sprite(render::sprite* sprite, render::shader* shader, camera2D& cam);
 
 public:
-  virtual void update(float dt) override;
-
-public:
-  inline void draw() { _sprite->draw(*_shader, _index, inverted_draw); }
+  virtual void draw() override;
 
 public:
   inline void set_sprite(render::sprite* sprite) { _sprite = sprite; }
   inline void set_shader(render::shader* shader) { _shader = shader; }
-  inline void set_cam(Camera2D* cam) { _cam = cam; };
+  inline void set_cam(camera2D& cam) { _cam = cam; };
   inline void set_index(size_t i) { _index = i; }
 
   inline size_t index_count(void) { return _sprite->count(); }
@@ -31,7 +27,6 @@ public:
 
 public:
   bool use_screen_space {false};
-  bool draw_on_update {false};
   bool inverted_draw {false};
   color4 color {1.0f};
 
@@ -41,14 +36,14 @@ protected:
 private:
   render::sprite* _sprite;
   render::shader* _shader;
-  Camera2D* _cam;
+  camera2D& _cam;
   size_t _index {0};
 };
 
-struct SpriteDynamic : public Tasker<Sprite, SpriteDynamic> { 
+struct dynamic_sprite : public tasker<sprite, dynamic_sprite> { 
   template<typename... Args>
-  SpriteDynamic(Args&&... args) : 
-    Tasker(std::forward<Args>(args)...) {}
+  dynamic_sprite(Args&&... args) : 
+    tasker(std::forward<Args>(args)...) {}
 };
 
 } // namespace ntf

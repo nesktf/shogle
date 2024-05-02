@@ -1,6 +1,5 @@
 #pragma once
 
-#include <shogle/core/singleton.hpp>
 #include <shogle/core/threadpool.hpp>
 #include <shogle/core/types.hpp>
 
@@ -9,7 +8,7 @@
 
 namespace ntf::res {
 
-class loader : public Singleton<loader> {
+class async_loader {
 public:
   using resid_t = std::string;
 
@@ -27,7 +26,7 @@ public:
   using reqcallback_t = std::function<void()>;
 
 public:
-  loader() = default;
+  async_loader() = default;
 
 public:
   inline void do_requests(void) {

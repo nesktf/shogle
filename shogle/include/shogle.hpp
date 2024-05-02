@@ -2,15 +2,13 @@
 
 #include <shogle/core/engine.hpp>
 #include <shogle/core/log.hpp>
-#include <shogle/core/event.hpp>
-
-#include <shogle/input/input.hpp>
+#include <shogle/core/settings.hpp>
 
 #include <shogle/res/pool.hpp>
 
 #include <shogle/scene/sprite.hpp>
 #include <shogle/scene/model.hpp>
-#include <shogle/scene/entity_task/common.hpp>
+#include <shogle/scene/util.hpp>
 
 #include <shogle/render/framebuffer.hpp>
 

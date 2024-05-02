@@ -6,10 +6,10 @@
 
 namespace ntf {
 
-class Settings {
+class settings {
 public:
-  Settings(int argc, char* argv[]);
-  Settings(int argc, char* argv[], const char* path);
+  settings(int argc, char* argv[]);
+  settings(int argc, char* argv[], const char* path);
 
 public:
   color3 clear_color {0.2f, 0.2f, 0.2f};

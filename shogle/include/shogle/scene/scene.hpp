@@ -7,32 +7,46 @@
 
 namespace ntf {
 
-struct Scene {
-  struct Object {
-    Object() = default;
+struct shogle_state;
 
-    virtual ~Object() = default;
-    Object(Object&&) = default;
-    Object(const Object&) = default;
-    Object& operator=(Object&&) = default;
-    Object& operator=(const Object&) = default;
+class scene {
+public:
+  class object {
+  public:
+    object() = default;
 
+  public:
+    virtual ~object() = default;
+    object(object&&) = default;
+    object(const object&) = default;
+    object& operator=(object&&) = default;
+    object& operator=(const object&) = default;
+
+  public:
     virtual void update(float dt) = 0;
   };
 
-  Scene() = default;
+  class drawable : public object {
+  public:
+    virtual void draw(void) = 0;
+  };
 
-  virtual ~Scene() = default;
-  Scene(Scene&&) = default; 
-  Scene(const Scene&) = delete;
-  Scene& operator=(Scene&&) = default;
-  Scene& operator=(const Scene&) = delete;
+public:
+  scene() = default;
 
-  virtual void update(float dt) = 0;
-  virtual void draw_ui(void) {}
+public:
+  virtual ~scene() = default;
+  scene(scene&&) = default; 
+  scene(const scene&) = delete;
+  scene& operator=(scene&&) = default;
+  scene& operator=(const scene&) = delete;
+
+public:
+  virtual void on_create(shogle_state& state) = 0;
+  virtual void update(shogle_state& state, float dt) = 0;
+  virtual void draw(shogle_state& state) = 0;
 };
 
-using sceneptr_t = uptr<Scene>; 
-using SceneCreator = std::function<sceneptr_t(void)>;
+using scene_creator_t = uptr<scene> (*)(shogle_state&);
 
 } // namespace ntf

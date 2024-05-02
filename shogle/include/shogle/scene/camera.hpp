@@ -5,41 +5,41 @@
 
 namespace ntf {
 
-class Camera2D : public Scene::Object {
+class camera2D : public scene::object {
 public:
-  Camera2D();
+  camera2D() = default;
 
 public:
   void update(float) final;
 
 public:
-  inline Camera2D& set_viewport(vec2 viewport) {
+  inline camera2D& set_viewport(vec2 viewport) {
     _viewport = viewport;
     _origin = viewport*0.5f;
     return *this;
   }
 
-  inline Camera2D& set_layer_count(size_t layer_count) {
+  inline camera2D& set_layer_count(size_t layer_count) {
     _layer_count = layer_count;
     return *this;
   }
 
-  inline Camera2D& set_center(vec2 center) {
+  inline camera2D& set_center(vec2 center) {
     _center = center;
     return *this;
   }
 
-  inline Camera2D& set_zoom(vec2 zoom) {
+  inline camera2D& set_zoom(vec2 zoom) {
     _zoom = zoom;
     return *this;
   }
 
-  inline Camera2D& set_zoom(float zoom) {
+  inline camera2D& set_zoom(float zoom) {
     _zoom = vec2{zoom};
     return *this;
   }
 
-  inline Camera2D& set_rot(float rot) {
+  inline camera2D& set_rot(float rot) {
     _rot = rot;
     return *this;
   }
@@ -55,9 +55,6 @@ public:
   inline mat4 proj(void) { return _proj; }
   inline mat4 view(void) { return _view; }
 
-public:
-  static Camera2D default_cam;
-
 private:
   mat4 _proj {1.0f};
   vec2 _viewport {800.0f, 600.0f};
@@ -70,40 +67,40 @@ private:
   float _rot {0.0f};
 };
 
-class Camera3D : public Scene::Object {
+class camera3D : public scene::object {
 public:
-  Camera3D();
+  camera3D() = default;
 
 public:
   void update(float) final;
 
 public:
-  inline Camera3D& use_ortho(bool flag) {
+  inline camera3D& use_ortho(bool flag) {
     _use_ortho = flag;
     return *this;
   }
   
-  inline Camera3D& set_viewport(vec2 viewport) {
+  inline camera3D& set_viewport(vec2 viewport) {
     _viewport = viewport;
     return *this;
   }
 
-  inline Camera3D& set_draw_dist(float zfar, float znear = 0.1f) {
+  inline camera3D& set_draw_dist(float zfar, float znear = 0.1f) {
     _draw_dist = vec2{znear, zfar};
     return *this;
   }
 
-  inline Camera3D& set_fov(float fov) {
+  inline camera3D& set_fov(float fov) {
     _fov = fov;
     return *this;
   }
 
-  inline Camera3D& set_pos(vec3 pos) {
+  inline camera3D& set_pos(vec3 pos) {
     _pos = pos;
     return *this;
   }
 
-  inline Camera3D& set_dir(vec3 dir) {
+  inline camera3D& set_dir(vec3 dir) {
     _dir = dir;
     return *this;
   }
@@ -119,9 +116,6 @@ public:
 
   inline mat4 proj(void) { return _proj; }
   inline mat4 view(void) { return _view; }
-
-public:
-  static Camera3D default_cam;
 
 private:
   mat4 _proj {1.0f};

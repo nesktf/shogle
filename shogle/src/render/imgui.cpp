@@ -1,8 +1,10 @@
-#include <shogle/render/backends/imgui.hpp>
+#include <shogle/render/imgui.hpp>
 
 namespace ntf::render {
 
-void imgui_init(GLFWwindow* win) {
+bool imgui::show_demo = true;
+
+void imgui::init(const glfw::window& win) {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -10,14 +12,14 @@ void imgui_init(GLFWwindow* win) {
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
   ImGui::StyleColorsDark();
-  ImGui_ImplGlfw_InitForOpenGL(win, true);
+  ImGui_ImplGlfw_InitForOpenGL(win.glfw_win, true);
   ImGui_ImplOpenGL3_Init("#version 130");
 }
 
-void imgui_destroy(void) {
+void imgui::destroy(void) {
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
 }
 
-}
+} // namespace ntf::render

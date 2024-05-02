@@ -7,12 +7,12 @@
 
 namespace ntf {
 
-Settings::Settings(int, char*[]) {
+settings::settings(int, char*[]) {
   // TODO: parse args
 }
 
-Settings::Settings(int argc, char* argv[], const char* path) :
-  Settings(argc, argv) {
+settings::settings(int argc, char* argv[], const char* path) :
+  settings(argc, argv) {
   const auto script = res::file_contents(path);
   if (script.empty())
     return;
@@ -39,7 +39,7 @@ Settings::Settings(int argc, char* argv[], const char* path) :
     col_vec["G"],
     col_vec["B"]
   };
-  Log::info("[Settings] Settings loaded (file: {})", path);
+  Log::info("[settings] settings loaded (file: {})", path);
 }
 
-} // ntf
+} // namespace ntf

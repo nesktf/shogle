@@ -2,42 +2,40 @@
 
 #include <shogle/scene/entity.hpp>
 #include <shogle/scene/camera.hpp>
+#include <shogle/scene/tasker.hpp>
 
 #include <shogle/render/model.hpp>
 
-#include <shogle/core/tasker.hpp>
-
 namespace ntf {
 
-class Model : public Entity3D {
+class model : public entity3D {
 public:
-  Model(render::model* model, render::shader* shader, Camera3D* cam = &Camera3D::default_cam);
+  model(render::model* model, render::shader* shader, camera3D& cam);
 
 public:
-  virtual void update(float dt) override;
-  virtual void update_shader(void);
+  virtual void draw(void) override;
 
 public:
-  inline void draw() { _model->draw(*_shader); }
-
   inline void set_shader(render::shader* shader) { _shader = shader; }
   inline void set_model(render::model* model) { _model = model; }
-  inline void set_cam(Camera3D* cam) { _cam = cam; };
+  inline void set_cam(camera3D& cam) { _cam = cam; };
 
 public:
   bool use_screen_space {false};
-  bool draw_on_update {false};
+
+protected:
+  virtual void update_shader(void);
 
 private:
   render::model* _model;
   render::shader* _shader;
-  Camera3D* _cam;
+  camera3D& _cam;
 };
 
-struct ModelDynamic : public Tasker<Model, ModelDynamic> { 
+struct dynamic_model : public tasker<model, dynamic_model> { 
   template<typename... Args>
-  ModelDynamic(Args&&... args) : 
-    Tasker(std::forward<Args>(args)...) {}
+  dynamic_model(Args&&... args) : 
+    tasker(std::forward<Args>(args)...) {}
 };
 
 } // namespace ntf

@@ -1,46 +1,38 @@
 #pragma once
 
-#include <shogle/core/singleton.hpp>
-#include <shogle/core/singleton.hpp>
-#include <shogle/core/settings.hpp>
-#include <shogle/core/types.hpp>
+#include <shogle/core/event.hpp>
+#include <shogle/core/input.hpp>
 
-#include <shogle/scene/scene.hpp>
+#include <shogle/res/loader.hpp>
 
-#include <shogle/render/backends/glfw.hpp>
-#include <shogle/render/backends/gl.hpp>
+#include <shogle/scene/camera.hpp>
 
 namespace ntf {
 
-class Shogle : public Singleton<Shogle> {
-public:
-  bool init(const Settings& sett);
-  void start(SceneCreator creator);
+using key = render::glfw; // for convenience
+using gl = render::gl;
 
-public:
-  inline void stop(void) {
-    _window->close();
-  }
+using viewport_event = event<size_t, size_t>;
 
-  inline void enable_depth_test(bool flag) {
-    render::gl::depth_test(flag);
-  }
+struct shogle_state {
+  using glfw = render::glfw;
 
-  inline void enable_blend(bool flag) {
-    render::gl::blend(flag);
-  }
+  shogle_state(glfw::window window, size_t w, size_t h);
+  ~shogle_state();
 
-public:
-  vec3 view_pos;
-  color3 clear_color;
+  glfw::window win;
 
-private:
-  uptr<render::window> _window;
+  input_event input;
+  viewport_event viewport;
+  res::async_loader loader;
 
-  sceneptr_t _scene;
-
-  bool _should_close {false};
-  double _last_frame {0.0f};
+  camera2D cam_2d;
+  camera3D cam_3d;
 };
 
-} // namespace ntf::shogle
+shogle_state shogle_create(size_t window_width, size_t window_height, std::string window_title);
+void shogle_close_window(shogle_state& state);
+void shogle_start(shogle_state& state, scene_creator_t creator);
+
+
+} // namespace ntf

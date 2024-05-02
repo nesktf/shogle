@@ -1,6 +1,5 @@
 #pragma once
 
-#include <shogle/render/backends/gl.hpp>
 #include <shogle/render/shader.hpp>
 
 namespace ntf::render {

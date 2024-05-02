@@ -18,17 +18,19 @@ template<typename... T>
 class pool {
 private:
   template<typename _T>
-  using rescontainer_t = std::unordered_map<loader::resid_t, _T>;
+  using rescontainer_t = std::unordered_map<async_loader::resid_t, _T>;
 
   using pool_t = std::tuple<rescontainer_t<T>...>;
 
 public:
-  using resid_t = loader::resid_t;
-  using pathinfo_t = loader::pathinfo_t;
-  using reqcallback_t = loader::reqcallback_t;
+  using resid_t = async_loader::resid_t;
+  using pathinfo_t = async_loader::pathinfo_t;
+  using reqcallback_t = async_loader::reqcallback_t;
 
 public: // Resources can't be copied, so the pool can't be copied
-  pool() = default;
+  pool(async_loader& loader) :
+    _loader(loader) {}
+
   ~pool() = default;
 
   pool(pool&&) = default;
@@ -62,8 +64,7 @@ public: // Resource requesters
   requires(same_as_defined<TReq, T...>)
   void direct_request(std::initializer_list<pathinfo_t> pathinfo_list) {
     for (const auto& res_info : pathinfo_list) {
-      auto& loader = loader::instance();
-      emplace<TReq>(res_info.id, loader.direct_load<TReq>(res_info));
+      emplace<TReq>(res_info.id, _loader.direct_load<TReq>(res_info));
     }
   }
 
@@ -80,9 +81,7 @@ public: // Resource requesters
     auto* counter = &_load_counters.back();
 
     for (const auto& res_info : pathinfo_list) {
-      auto& loader = loader::instance();
-
-      loader.async_load<TReq>(res_info, [this, counter, on_load](auto id, auto data_ptr) {
+      _loader.async_load<TReq>(res_info, [this, counter, on_load](auto id, auto data_ptr) {
         size_t res_total = counter->first;
         size_t& res_c = counter->second;
         emplace<TReq>(id, *data_ptr.get());
@@ -92,6 +91,7 @@ public: // Resource requesters
   }
 
 private:
+  async_loader& _loader;
   pool_t _pool;
   std::vector<std::pair<size_t, size_t>> _load_counters;
 };

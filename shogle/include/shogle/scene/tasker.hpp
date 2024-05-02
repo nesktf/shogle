@@ -15,7 +15,7 @@ concept is_dynamic = requires(T t) {
 
 template<typename TParent, typename TName = TParent>
 requires(is_dynamic<TParent>)
-class Tasker : public TParent {
+class tasker : public TParent {
 public:
   struct task_t {
     task_t() = default;
@@ -47,7 +47,7 @@ private:
 
 public:
   template<typename... Args>
-  Tasker(Args&&... args) :
+  tasker(Args&&... args) :
     TParent(std::forward<Args>(args)...) {}
 
 public:

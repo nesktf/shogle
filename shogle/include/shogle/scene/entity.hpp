@@ -7,9 +7,9 @@ namespace ntf {
 
 template<typename dim_t>
 requires(std::same_as<dim_t, vec2> || std::same_as<dim_t, vec3>)
-class Entity : public Scene::Object {
+class entity : public scene::drawable {
 protected:
-  Entity() = default;
+  entity() = default;
 
 public:
   virtual void update(float) override {
@@ -29,7 +29,7 @@ public:
   }
 
 public:
-  inline mat4 model(void) { return _model_mat; }
+  inline mat4 model_mat(void) { return _model_mat; }
 
 public:
   dim_t pos {0.0f};
@@ -40,7 +40,7 @@ private:
   mat4 _model_mat {1.0f};
 };
 
-using Entity2D = Entity<vec2>;
-using Entity3D = Entity<vec3>;
+using entity2D = entity<vec2>;
+using entity3D = entity<vec3>;
 
 } // namespace ntf

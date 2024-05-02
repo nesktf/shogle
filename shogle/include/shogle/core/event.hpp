@@ -32,46 +32,46 @@ namespace ntf {
 //    it wil return true if at least one subscriber exists
 //    for that event
 template <typename... Ts>
-class Event
+class event
 {
   public:
-    typedef std::function<void(Ts...)> Callback;
-    typedef std::list<Callback> CallbacksList;
-    typedef typename CallbacksList::iterator Subscription;
+    typedef std::function<void(Ts...)> callback;
+    typedef std::list<callback> callbacks_list;
+    typedef typename callbacks_list::iterator subscription;
 
-    Subscription subscribe(Callback cb);
-    void unsubscribe(Subscription subscription);
+    subscription subscribe(callback cb);
+    void unsubscribe(subscription subscription);
     void clear();
     bool fire(Ts... args);
 
   private:
-    CallbacksList callbacks;
+    callbacks_list callbacks;
 };
 
 template <typename... Ts>
-typename Event<Ts...>::Subscription Event<Ts...>::subscribe(Event<Ts...>::Callback cb)
+typename event<Ts...>::subscription event<Ts...>::subscribe(event<Ts...>::callback cb)
 {
     this->callbacks.push_back(cb);
     return --this->callbacks.end();
 }
 
 template <typename... Ts>
-void Event<Ts...>::unsubscribe(Event<Ts...>::Subscription subscription)
+void event<Ts...>::unsubscribe(event<Ts...>::subscription subscription)
 {
     if (this->callbacks.size() > 0)
         this->callbacks.erase(subscription);
 }
 
 template <typename... Ts>
-void Event<Ts...>::clear()
+void event<Ts...>::clear()
 {
     this->callbacks.clear();
 }
 
 template <typename... Ts>
-bool Event<Ts...>::fire(Ts... args)
+bool event<Ts...>::fire(Ts... args)
 {
-    for (Callback cb : this->callbacks)
+    for (callback cb : this->callbacks)
         cb(args...);
 
     return !this->callbacks.empty();

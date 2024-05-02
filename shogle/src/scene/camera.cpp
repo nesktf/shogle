@@ -2,9 +2,7 @@
 
 namespace ntf {
 
-Camera2D::Camera2D() { this->update({}); }
-
-void Camera2D::update(float) {
+void camera2D::update(float) {
   _proj = glm::ortho(
     0.0f, _viewport.x,
     _viewport.y, 0.0f,
@@ -21,12 +19,8 @@ void Camera2D::update(float) {
   _view = view;
 }
 
-Camera2D Camera2D::default_cam {};
 
-
-Camera3D::Camera3D() { this->update({}); }
-
-void Camera3D::update(float) {
+void camera3D::update(float) {
   if (_use_ortho) {
     _proj = glm::ortho(
       0.0f, _viewport.x,
@@ -47,10 +41,8 @@ void Camera3D::update(float) {
   );
 }
 
-Camera3D Camera3D::default_cam {};
 
-
-// void Camera3D::upd_target(vec2 screen_pos, float sensitivity) {
+// void camera3D::upd_target(vec2 screen_pos, float sensitivity) {
 //   if (_first_movement) {
 //     _last_screen_pos = screen_pos;
 //     _first_movement = false;
@@ -65,7 +57,7 @@ Camera3D Camera3D::default_cam {};
 //   });
 // }
 //
-// vec3 Camera3D::dir_to_vec(cam_dir dir) {
+// vec3 camera3D::dir_to_vec(cam_dir dir) {
 //   vec3 dir_;
 //
 //   dir_.x = glm::cos(dir.yaw) * glm::cos(dir.pitch);
@@ -77,7 +69,7 @@ Camera3D Camera3D::default_cam {};
 //   return dir_vec;
 // }
 //
-// Camera3D::cam_dir Camera3D::vec_to_dir(vec3 dir_vec, vec3) {
+// camera3D::cam_dir camera3D::vec_to_dir(vec3 dir_vec, vec3) {
 //   cam_dir dir{};
 //
 //   dir.pitch = glm::asin(-dir_vec.y);
@@ -86,4 +78,4 @@ Camera3D Camera3D::default_cam {};
 //   return dir;
 // }
 
-}; // namespace ntf
+}; // namespace ntf::scene
