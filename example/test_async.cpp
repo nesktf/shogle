@@ -78,7 +78,7 @@ struct fumo_jump : public dynamic_model::task_t {
 };
 
 struct test_async : public scene {
-  res::pool<render::shader, render::spritesheet, render::model> pool;
+  res::pool<render::shader, render::sprite, render::model> pool;
 
   uptr<dynamic_sprite> cino;
 
@@ -95,8 +95,8 @@ struct test_async : public scene {
       {.id="generic_2d", .path="res/shaders/generic_2d"}, 
       {.id="generic_3d", .path="res/shaders/generic_3d"}
     });
-    pool.direct_request<render::spritesheet>({
-      {.id="chiruno", .path="_temp/cirno.json"}
+    pool.direct_request<render::sprite>({
+      {.id="chiruno", .path="res/textures/cirno.png"}
     });
     pool.async_request<render::model>({
       {.id="chiruno_fumo", .path="_temp/models/cirno_fumo/cirno_fumo.obj"}, 
@@ -109,7 +109,7 @@ struct test_async : public scene {
   void on_create(shogle_state& state) override {
     float t = 0.0f;
     cino = make_uptr<dynamic_sprite>(
-      pool.get<render::spritesheet>("chiruno")->get("cirno"),
+      pool.get<render::sprite>("chiruno"),
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
@@ -128,6 +128,9 @@ struct test_async : public scene {
       return false;
     });
     gl::depth_test(false);
+    state.input.subscribe(key::ESCAPE, key::PRESS, [&state]() {
+      shogle_close_window(state);
+    });
   }
 
   void on_load(shogle_state& state) {

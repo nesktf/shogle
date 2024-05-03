@@ -30,7 +30,7 @@ struct test_framebuffer : public scene {
 
   void on_create(shogle_state& state) override {
     rin = make_uptr<dynamic_sprite>(
-      pool.get<render::spritesheet>("2hus")->get("rin_dance"),
+      pool.get<render::spritesheet>("2hus")->get_sprite("rin_dance"),
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );

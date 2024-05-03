@@ -43,9 +43,9 @@ void gl::draw_mesh(const mesh& mesh) {
   glBindVertexArray(0);
 }
 
-void gl::draw_quad(const texture* texture, bool inverted) {
+void gl::draw_quad(const texture& texture, bool inverted) {
   auto& quad {gl_quad_2d::instance()};
-  glBindTexture(texture->gltype, texture->id);
+  glBindTexture(texture.gltype, texture.id);
   glActiveTexture(GL_TEXTURE0);
 
   glBindVertexArray(inverted ? quad.vao_inv : quad.vao);

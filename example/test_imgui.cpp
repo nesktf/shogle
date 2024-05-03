@@ -27,7 +27,7 @@ struct test_imgui : public scene {
 
   void on_create(shogle_state& state) override {
     sheet = make_uptr<dynamic_sprite>(
-      pool.get<render::spritesheet>("2hus")->get("__sheet"),
+      pool.get<render::spritesheet>("2hus")->get_sprite("__sheet"),
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
@@ -35,7 +35,7 @@ struct test_imgui : public scene {
     sprite::scale(*sheet, sheet->corrected_scale(200.0f));
 
     rin = make_uptr<dynamic_sprite>(
-      pool.get<render::spritesheet>("2hus")->get("rin_dance"),
+      pool.get<render::spritesheet>("2hus")->get_sprite("rin_dance"),
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
@@ -44,7 +44,7 @@ struct test_imgui : public scene {
     sprite::scale(*rin, rin->corrected_scale(200.0f));
 
     cirno = make_uptr<dynamic_sprite>(
-      pool.get<render::spritesheet>("2hus")->get("cirno_fall"),
+      pool.get<render::spritesheet>("2hus")->get_sprite("cirno_fall"),
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );

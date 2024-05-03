@@ -6,12 +6,22 @@ namespace ntf::render {
 
 class sprite {
 public:
-  using renderer = gl;
   using data_t = res::spritesheet_loader::sprite;
+  using loader_t = res::texture_loader;
 
 public:
-  sprite(renderer::texture* tex, data_t data);
-  sprite(renderer::texture* tex, size_t w, size_t h);
+  sprite(std::string path); // unique constructors
+  sprite(loader_t loader);
+
+  sprite(gl::texture* tex, data_t data); // spritesheet constructor
+  sprite(gl::texture* tex, size_t w, size_t h); // fbo constructor
+  
+public:
+  ~sprite();
+  sprite(sprite&&) noexcept;
+  sprite(const sprite&) = delete;
+  sprite& operator=(sprite&&) noexcept;
+  sprite& operator=(const sprite&) = delete;
 
 public:
   void draw(shader& shader, size_t index = 0, bool inverted_draw = false) const;
@@ -21,25 +31,25 @@ public:
   inline float aspect(void) const { return _aspect; }
 
 private:
+  bool _unique {false};
+  gl::texture* _tex;
   float _aspect;
-  renderer::texture* _tex;
   vec2 _uniform_offset_linear;
   std::vector<vec2> _uniform_offset_const;
 };
 
 class spritesheet { 
 public:
-  using renderer = gl;
   using loader_t = res::spritesheet_loader;
 
 public:
   spritesheet(loader_t loader);
   
 public:
-  inline sprite* get(std::string name) { return &_sprites.at(name); }
+  inline sprite* get_sprite(std::string name) { return &_sprites.at(name); }
 
 private:
-  uptr<renderer::texture> _tex;
+  uptr<gl::texture> _tex;
   std::unordered_map<std::string, sprite> _sprites;
 };
 

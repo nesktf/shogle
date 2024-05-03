@@ -32,6 +32,9 @@ using path_t = std::string;
 template<typename T>
 using uptr = std::unique_ptr<T>;
 
+template<typename T>
+using sptr = std::shared_ptr<T>;
+
 template<typename T, typename... Args>
 inline T* make_ptr(Args&&... args) {
   return new T{std::forward<Args>(args)...};

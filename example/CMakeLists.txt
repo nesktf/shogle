@@ -8,6 +8,5 @@ function(shogle_build_example NAME)
 endfunction()
 
 shogle_build_example(test_async)
-# shogle_build_example(test_event)
 shogle_build_example(test_imgui)
 shogle_build_example(test_framebuffer)

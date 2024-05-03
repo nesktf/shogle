@@ -99,7 +99,7 @@ public:
   static void set_tex_filter(texture& tex, res::texture_filter filter);
 
   static void draw_mesh(const mesh& mesh);
-  static void draw_quad(const texture* texture, bool inverted = false);
+  static void draw_quad(const texture& texture, bool inverted = false);
 
 public:
   static inline void framebuffer_bind(const framebuffer* fbo) {

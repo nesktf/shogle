@@ -29,7 +29,12 @@ public:
 
 public:
   bool inverted_draw {false};
-  color4 color {1.0f};
+  color4 _color {1.0f};
+  
+public:
+  static void set_color(sprite& obj, color4 color) {
+    obj._color = color;
+  }
 
 protected:
   virtual void update_shader(void);

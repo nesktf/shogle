@@ -5,7 +5,7 @@
 namespace ntf::render {
 
 spritesheet::spritesheet(loader_t loader) {
-  _tex = make_uptr<renderer::texture>(std::move(loader.tex));
+  _tex = make_uptr<gl::texture>(std::move(loader.tex));
   for (const auto& sprite_entry : loader.sprites) {
     auto& name = sprite_entry.first;
     auto& spr_data = sprite_entry.second;
@@ -14,7 +14,21 @@ spritesheet::spritesheet(loader_t loader) {
   }
 }
 
-sprite::sprite(renderer::texture* tex, size_t w, size_t h) :
+sprite::sprite(std::string path) :
+  sprite(loader_t{path}) {}
+
+sprite::sprite(loader_t loader) :
+  _uniform_offset_const(1) {
+
+  _unique = true;
+  _tex = new gl::texture(std::move(loader));
+  _aspect = static_cast<float>(_tex->width)/static_cast<float>(_tex->height);
+
+  _uniform_offset_linear = vec2{1.0f};
+  _uniform_offset_const[0] = vec2{0.0f};
+}
+
+sprite::sprite(gl::texture* tex, size_t w, size_t h) :
   _tex(tex), _uniform_offset_const(1) {
 
   _aspect = static_cast<float>(w)/static_cast<float>(h);
@@ -22,7 +36,7 @@ sprite::sprite(renderer::texture* tex, size_t w, size_t h) :
   _uniform_offset_const[0] = vec2{0.0f};
 }
 
-sprite::sprite(renderer::texture* tex, data_t data) :
+sprite::sprite(gl::texture* tex, data_t data) :
   _tex(tex), _uniform_offset_const(data.count) {
 
   _aspect =
@@ -54,6 +68,37 @@ sprite::sprite(renderer::texture* tex, data_t data) :
 
 }
 
+sprite::~sprite() {
+  if (_unique) {
+    delete _tex;
+  }
+}
+
+sprite::sprite(sprite&& s) noexcept :
+  _unique(std::move(s._unique)),
+  _tex(std::move(s._tex)),
+  _aspect(std::move(s._aspect)),
+  _uniform_offset_linear(std::move(s._uniform_offset_linear)),
+  _uniform_offset_const(std::move(s._uniform_offset_const)) {
+    if (_unique) {
+      s._tex = nullptr;
+    }
+}
+
+sprite& sprite::operator=(sprite&& s) noexcept {
+  _unique = std::move(s._unique);
+  _tex = std::move(s._tex);
+  _aspect = std::move(s._aspect);
+  _uniform_offset_linear = std::move(s._uniform_offset_linear);
+  _uniform_offset_const = std::move(s._uniform_offset_const);
+
+  if (_unique) {
+    s._tex = nullptr;
+  }
+
+  return *this;
+}
+
 void sprite::draw(shader& shader, size_t index, bool inverted_draw) const {
   vec4 _offset {_uniform_offset_linear, _uniform_offset_const[index % count()]};
 
@@ -61,8 +106,7 @@ void sprite::draw(shader& shader, size_t index, bool inverted_draw) const {
   shader.set_uniform("sprite_offset", _offset);
   shader.set_uniform("sprite_sampler", 0);
 
-  renderer::draw_quad(_tex, inverted_draw);
+  gl::draw_quad(*_tex, inverted_draw);
 }
-
 
 } // namespace ntf::render
