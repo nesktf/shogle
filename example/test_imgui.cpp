@@ -18,10 +18,10 @@ struct test_imgui : public scene {
       {.id="generic_3d", .path="res/shaders/generic_3d"}
     });
     pool.direct_request<render::spritesheet>({
-      .id="2hus", .path="_temp/2hus.json"
+      {.id="2hus", .path="_temp/2hus.json"}
     });
     pool.direct_request<render::model>({
-      .id="cirno_fumo", .path="_temp/models/cirno_fumo/cirno_fumo.obj"
+      {.id="cirno_fumo", .path="_temp/models/cirno_fumo/cirno_fumo.obj"}
     });
   }
 
@@ -31,35 +31,35 @@ struct test_imgui : public scene {
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
-    entity2d::move(*sheet, vec2{0.0f, 0.0f});
-    entity2d::scale(*sheet, sheet->corrected_scale(200.0f));
+    sprite::move(*sheet, vec2{0.0f, 0.0f});
+    sprite::scale(*sheet, sheet->corrected_scale(200.0f));
 
     rin = make_uptr<dynamic_sprite>(
       pool.get<render::spritesheet>("2hus")->get("rin_dance"),
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
-    entity2d::toggle_screen_space(*rin, true);
-    entity2d::move(*rin, vec2{700.0f, 100.0f});
-    entity2d::scale(*rin, rin->corrected_scale(200.0f));
+    sprite::toggle_screen_space(*rin, true);
+    sprite::move(*rin, vec2{700.0f, 100.0f});
+    sprite::scale(*rin, rin->corrected_scale(200.0f));
 
     cirno = make_uptr<dynamic_sprite>(
       pool.get<render::spritesheet>("2hus")->get("cirno_fall"),
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
-    entity2d::toggle_screen_space(*cirno, true);
-    entity2d::move(*cirno, vec2{100.0f, 100.0f});
-    entity2d::scale(*cirno, cirno->corrected_scale(200.0f));
+    sprite::toggle_screen_space(*cirno, true);
+    sprite::move(*cirno, vec2{100.0f, 100.0f});
+    sprite::scale(*cirno, cirno->corrected_scale(200.0f));
 
     cirno_fumo = make_uptr<dynamic_model>(
       pool.get<render::model>("cirno_fumo"),
       pool.get<render::shader>("generic_3d"),
       state.cam_3d
     );
-    entity3d::move(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f});
-    entity3d::rotate(*cirno_fumo, vec3{0.0f, 90.0, 0.0f});
-    entity3d::scale(*cirno_fumo, vec3{0.015f});
+    model::move(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f});
+    model::rotate(*cirno_fumo, vec3{0.0f, 90.0, 0.0f});
+    model::scale(*cirno_fumo, vec3{0.015f});
 
     float t = 0.0f;
     float rate = 1.0f/12.0f;
@@ -85,7 +85,7 @@ struct test_imgui : public scene {
       float b_scale = 0.015f/2.0f;
       float ang_speed = 5.0f;
       float jum_speed = 10.0f;
-      entity3d::rotate(*obj, ang_speed*t, vec3{0.0f, 1.0f, 0.0f});
+      model::rotate(*obj, ang_speed*t, vec3{0.0f, 1.0f, 0.0f});
       obj->_scale.y = b_scale + (b_scale*glm::abs(glm::sin(jum_speed*t)));
       return false;
     });

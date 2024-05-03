@@ -81,10 +81,10 @@ public: // Resource requesters
     auto* counter = &_load_counters.back();
 
     for (const auto& res_info : pathinfo_list) {
-      _loader.async_load<TReq>(res_info, [this, counter, on_load](auto id, auto data_ptr) {
+      _loader.async_load<TReq>(res_info, [this, counter, on_load](auto id, auto data) {
         size_t res_total = counter->first;
         size_t& res_c = counter->second;
-        emplace<TReq>(id, *data_ptr.get());
+        emplace<TReq>(id, std::move(data));
         if (++res_c == res_total) { on_load(); }
       });
     }

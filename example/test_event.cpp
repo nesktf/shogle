@@ -1,11 +1,13 @@
 #include <shogle.hpp>
 
-struct TestScene;
+using namespace ntf;
 
-struct danmaku_spawner : public ntf::Task<TestScene> {
+struct test_event;
+
+struct danmaku_spawner : public dynamic_sprite::task_t {
   danmaku_spawner(const ntf::Texture* tex, const ntf::Shader* sha, float ph, float fire_sp, float sp, unsigned int c);
 
-  void update(TestScene* obj, float dt) override;
+  void update(test_event* obj, float dt) override;
 
   const ntf::Texture* danmaku_texture;
   const ntf::Shader* danmaku_shader;
@@ -74,7 +76,7 @@ struct chen_behaviour : public ntf::Task<ntf::Sprite> {
   glm::vec2 vel{};
 };
 
-struct TestScene : public ntf::TaskedScene<TestScene> {
+struct test_event : public ntf::TaskedScene<TestScene> {
   ntf::ResPool<ntf::Texture, ntf::Shader, ntf::ModelRes, ntf::Spritesheet> pool;
 
   std::vector<ntf::Sprite> new_danmaku;
@@ -86,7 +88,7 @@ struct TestScene : public ntf::TaskedScene<TestScene> {
 
   ntf::Event<bool>::Subscription chen_event_sub;
 
-  TestScene() {
+  test_event() {
     pool.direct_load<ntf::Texture>({
       {
         .id="marisa",
@@ -276,7 +278,7 @@ danmaku_spawner::danmaku_spawner(const ntf::Texture* tex, const ntf::Shader* sha
     s_speed(sp),
     count(c){}
 
-void danmaku_spawner::update(TestScene* scene, float dt) {
+void danmaku_spawner::update(test_event* scene, float dt) {
   t += dt;
   phi += phase*dt;
 

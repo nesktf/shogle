@@ -17,14 +17,14 @@ struct test_framebuffer : public scene {
   test_framebuffer(shogle_state& state) :
     pool(state.loader) {
     pool.direct_request<render::shader>({
-      {.id = "generic_2d", .path = "res/shaders/generic_2d"},
-      {.id = "generic_3d", .path = "res/shaders/generic_3d"}
+      {.id="generic_2d", .path="res/shaders/generic_2d"},
+      {.id="generic_3d", .path="res/shaders/generic_3d"}
     });
     pool.direct_request<render::spritesheet>({
-      {.id = "2hus", .path="_temp/2hus.json"}
+      {.id="2hus", .path="_temp/2hus.json"}
     });
     pool.direct_request<render::model>({
-      {.id = "cino", .path="_temp/models/cirno_fumo/cirno_fumo.obj"}
+      {.id="cino", .path="_temp/models/cirno_fumo/cirno_fumo.obj"}
     });
   }
 
@@ -34,9 +34,9 @@ struct test_framebuffer : public scene {
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
-    entity2d::toggle_screen_space(*rin, true);
-    entity2d::move(*rin, vec2{400.0f, 300.0f});
-    entity2d::scale(*rin, rin->corrected_scale(200.0f));
+    sprite::toggle_screen_space(*rin, true);
+    sprite::move(*rin, vec2{400.0f, 300.0f});
+    sprite::scale(*rin, rin->corrected_scale(200.0f));
 
     float t {0.0f};
     rin->add_task([t](auto* obj, float dt) mutable -> bool {
@@ -55,9 +55,9 @@ struct test_framebuffer : public scene {
       pool.get<render::shader>("generic_3d"),
       state.cam_3d
     );
-    entity3d::toggle_screen_space(*cirno_fumo, true);
-    entity3d::move(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f});
-    entity3d::scale(*cirno_fumo, vec3{0.015f});
+    model::toggle_screen_space(*cirno_fumo, true);
+    model::move(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f});
+    model::scale(*cirno_fumo, vec3{0.015f});
 
     fbo_sprite = make_uptr<sprite>(
       fbo.get_sprite(),
@@ -65,8 +65,8 @@ struct test_framebuffer : public scene {
       state.cam_2d
     );
     fbo_sprite->inverted_draw = true;
-    entity2d::move(*fbo_sprite, vec2{0.0f, 0.0f});
-    entity2d::scale(*fbo_sprite, fbo_sprite->corrected_scale(200.0f));
+    sprite::move(*fbo_sprite, vec2{0.0f, 0.0f});
+    sprite::scale(*fbo_sprite, fbo_sprite->corrected_scale(200.0f));
 
     state.input.subscribe(key::ESCAPE, key::PRESS, [&state]() {
       shogle_close_window(state);
@@ -78,21 +78,21 @@ struct test_framebuffer : public scene {
 
   void cirno_truco(float t) {
     float ypos = -0.25f + 1.0f*glm::abs(glm::sin(t*PI));
-    entity3d::rotate(*cirno_fumo, vec3{t*PI*2.0f, -PI*1.3f + t*PI*3.0f, 0.0f});
-    entity3d::move(*cirno_fumo, vec3{0.0f, ypos, -2.0f});
-    entity3d::scale(*cirno_fumo, vec3{0.015f});
+    model::rotate(*cirno_fumo, vec3{t*PI*2.0f, -PI*1.3f + t*PI*3.0f, 0.0f});
+    model::move(*cirno_fumo, vec3{0.0f, ypos, -2.0f});
+    model::scale(*cirno_fumo, vec3{0.015f});
   }
 
   void cirno_vueltitas(float t) {
-    entity3d::rotate(*cirno_fumo, -PI*0.5f + t*PI, {0.0f, 1.0f, 0.0f});
-    entity3d::move(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f}+0.25f*vec3{glm::cos(-t*PI), 0.0f, glm::sin(-t*PI)});
-    entity3d::scale(*cirno_fumo, vec3{0.015f, 0.0075f+0.0075f*glm::abs(glm::sin(t*PI*4.0f)), 0.015f});
+    model::rotate(*cirno_fumo, -PI*0.5f + t*PI, {0.0f, 1.0f, 0.0f});
+    model::move(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f}+0.25f*vec3{glm::cos(-t*PI), 0.0f, glm::sin(-t*PI)});
+    model::scale(*cirno_fumo, vec3{0.015f, 0.0075f+0.0075f*glm::abs(glm::sin(t*PI*4.0f)), 0.015f});
   }
 
   void rin_vueltitas(float t) {
-    entity2d::rotate(*rin, t*PI);
-    entity2d::move(*rin, vec2{400.0f, 300.0f}+200.0f*vec2{glm::cos(-t*PI), glm::sin(-t*PI)});
-    entity2d::scale(*rin, 100.0f+200.0f*glm::abs(glm::sin(t*PI))*rin->corrected_scale());
+    sprite::rotate(*rin, t*PI);
+    sprite::move(*rin, vec2{400.0f, 300.0f}+200.0f*vec2{glm::cos(-t*PI), glm::sin(-t*PI)});
+    sprite::scale(*rin, 100.0f+200.0f*glm::abs(glm::sin(t*PI))*rin->corrected_scale());
   }
 
   void update_cameras(shogle_state& state, float dt) {

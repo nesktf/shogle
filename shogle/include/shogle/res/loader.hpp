@@ -17,11 +17,21 @@ public:
     path_t path;
   };
 
+
   template<typename T>
   using resdata_t = T::loader_t;
 
   template<typename T>
-  using loadfun_t = std::function<void(resid_t,uptr<resdata_t<T>>)>;
+  using loadfun_t = std::function<void(resid_t,resdata_t<T>)>;
+
+  template<typename T>
+  struct load_wrapper {
+    load_wrapper(resdata_t<T> data, resid_t id, loadfun_t<T> on_load) :
+      _data(std::move(data)), _id(id), _on_load(std::move(on_load)) {}
+    resdata_t<T> _data;
+    resid_t _id;
+    loadfun_t<T> _on_load;
+  };
 
   using reqcallback_t = std::function<void()>;
 
@@ -46,11 +56,12 @@ public:
   template<typename T>
   void async_load(pathinfo_t info, loadfun_t<T> on_load) {
     _threadpool.enqueue([this, info, on_load=std::move(on_load)]{
-      auto* data = make_ptr<resdata_t<T>>(info.path); // Hopefully won't leak???
+      auto* wrapper = make_ptr<load_wrapper<T>>(resdata_t<T>{info.path}, info.id, std::move(on_load)); // Hopefully won't leak???
 
       std::unique_lock<std::mutex> lock{_req_mtx};
-      _req.emplace([data, id=info.id, on_load=std::move(on_load)]{
-        on_load(id, uptr<resdata_t<T>>{data});
+      _req.emplace([wrapper]() { // why are lambdas only copyconstructible?????
+        wrapper->_on_load(wrapper->_id, std::move(wrapper->_data));
+        delete wrapper;
       });
     });
   }
