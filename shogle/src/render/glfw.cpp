@@ -19,7 +19,7 @@ glfw::window glfw::create_window(size_t width, size_t height, std::string title)
 
   if (!(win.glfw_win = glfwCreateWindow(width, height, title.c_str(), NULL, NULL))) {
     glfwTerminate();
-    throw ntf::error{"[GLFW window] Failed to create window"};
+    throw ntf::error{"[GLFW] Failed to create window"};
   }
 
   glfwMakeContextCurrent(win.glfw_win);
@@ -33,10 +33,14 @@ glfw::window glfw::create_window(size_t width, size_t height, std::string title)
   }
   gl::set_viewport(width, height);
 
+  Log::debug("[GLFW] Window created");
+
   return win;
 }
 
 void glfw::destroy_window(window& win) {
+  gl::destroy();
+  Log::debug("[GLFW] Window destroyed");
   glfwDestroyWindow(win.glfw_win);
   glfwTerminate();
   win.glfw_win = nullptr;

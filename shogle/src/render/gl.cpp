@@ -1,6 +1,7 @@
 #include <shogle/render/gl.hpp>
 
 #include <shogle/core/error.hpp>
+#include <shogle/core/log.hpp>
 
 #define DEFAULT_WRAP GL_REPEAT
 
@@ -8,15 +9,21 @@ namespace ntf::render {
 
 struct gl_quad_2d : public Singleton<gl_quad_2d> {
   gl_quad_2d();
-  ~gl_quad_2d();
+  void destroy(void);
   GLuint vao, vbo, ebo;
   GLuint vao_inv, vbo_inv, ebo_inv;
 };
 
 void gl::init(GLADloadproc proc) {
   if (!gladLoadGLLoader(proc)) {
-    throw ntf::error("[GL renderer] Failed to load GLAD");
+    throw ntf::error("[gl] Failed to load GLAD");
   }
+  Log::debug("[gl] Initialized");
+}
+
+void gl::destroy(void) {
+  gl_quad_2d::instance().destroy();
+  Log::debug("[gl] Terminated");
 }
 
 void gl::set_tex_filter(texture& texture, res::texture_filter filter) {
@@ -35,6 +42,7 @@ void gl::set_tex_filter(texture& texture, res::texture_filter filter) {
   glTexParameteri(texture.gltype, GL_TEXTURE_MIN_FILTER, texture.glfilter);
   glTexParameteri(texture.gltype, GL_TEXTURE_MAG_FILTER, texture.glfilter);
   glBindTexture(texture.gltype, 0);
+  Log::verbose("[gl::texture] Texture filter modified (id: {}, filter: {})", texture.id, texture.glfilter);
 }
 
 void gl::draw_mesh(const mesh& mesh) {
@@ -88,6 +96,7 @@ gl::texture::texture(size_t w, size_t h, res::texture_format format, res::textur
   glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glfilter);
   glTexParameteri(gltype, GL_TEXTURE_MAG_FILTER, glfilter);
   glBindTexture(gltype, 0);
+  Log::verbose("[gl::texture] Empty texture created (id: {}, type: {})", id, gltype);
 }
 
 gl::texture::texture(res::texture_loader loader) :
@@ -138,10 +147,12 @@ gl::texture::texture(res::texture_loader loader) :
   glTexParameteri(gltype, GL_TEXTURE_WRAP_T, DEFAULT_WRAP);
   glTexParameteri(gltype, GL_TEXTURE_WRAP_S, DEFAULT_WRAP);
   glBindTexture(gltype, 0);
+  Log::verbose("[gl::texture] Texture created (id: {}, type: {})", id, gltype);
 }
 
 gl::texture::~texture() {
   if (!id) return;
+  Log::verbose("[gl::texture] Texture deleted (id: {}, type: {})", id, gltype);
   glDeleteTextures(1, &id);
 }
 
@@ -182,10 +193,12 @@ gl::framebuffer::framebuffer(size_t w, size_t h) :
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  Log::verbose("[gl::framebuffer] Framebuffer created (id: {})", fbo);
 }
 
 gl::framebuffer::~framebuffer() {
   if (!fbo) return;
+  Log::verbose("[gl::framebuffer] Framebuffer deleted (id: {})", fbo);
   glDeleteFramebuffers(1, &fbo);
   glDeleteBuffers(1, &rbo); // ?
 }
@@ -234,10 +247,12 @@ gl::mesh::mesh(loader_t loader) {
       std::move(mat.uniform_name)
     );
   }
+  Log::verbose("[gl::mesh] Mesh created (id: {}, material_count: {})", vao, materials.size());
 }
 
 gl::mesh::~mesh() {
   if (!vao) return;
+  Log::verbose("[gl::mesh] Mesh deleted (id: {})", vao);
   glBindVertexArray(vao);
   glDisableVertexAttribArray(0);
   glDisableVertexAttribArray(1);
@@ -276,7 +291,7 @@ gl::shader::shader(res::shader_loader loader) {
   if (!succ) {
     glGetShaderInfoLog(vert, 512, nullptr, log);
     glDeleteShader(vert); // ?
-    throw ntf::error{"[Shader] Vertex shader compilation falied: {}", log};
+    throw ntf::error{"[gl::shader] Vertex shader compilation falied: {}", log};
   }
 
   auto frag = glCreateShader(GL_FRAGMENT_SHADER);
@@ -287,7 +302,7 @@ gl::shader::shader(res::shader_loader loader) {
     glGetShaderInfoLog(frag, 512, nullptr, log);
     glDeleteShader(vert);
     glDeleteShader(frag); // ??
-    throw ntf::error{"[Shader] Fragment shader compilation falied: {}", log};
+    throw ntf::error{"[gl::shader] Fragment shader compilation falied: {}", log};
   }
 
   prog = glCreateProgram();
@@ -300,14 +315,16 @@ gl::shader::shader(res::shader_loader loader) {
     std::string err {fmt::format("[Shader] Shader linking failed: {}", log)};
     glDeleteShader(frag);
     glDeleteShader(vert);
-    throw ntf::error{"[Shader] Shader linking failed: {}", log};
+    throw ntf::error{"[gl::shader] Shader linking failed: {}", log};
   }
   glDeleteShader(frag);
   glDeleteShader(vert);
+  Log::verbose("[gl::shader] Shader created (id: {})", prog);
 }
 
 gl::shader::~shader() {
   if (!prog) return;
+  Log::verbose("[gl::shader] Shader deleted (id: {})", prog);
   glDeleteProgram(prog);
 }
 
@@ -371,9 +388,11 @@ gl_quad_2d::gl_quad_2d() {
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
   glBindVertexArray(0);
+  Log::verbose("[gl::quad] Sprite quads created (id: {},{})", vao, vao_inv);
 }
 
-gl_quad_2d::~gl_quad_2d() {
+void gl_quad_2d::destroy(void) {
+  Log::verbose("[gl::quad] Sprite quads deleted (id: {},{})", vao, vao_inv);
   glBindVertexArray(vao_inv);
   glDisableVertexAttribArray(0);
   glBindVertexArray(0);

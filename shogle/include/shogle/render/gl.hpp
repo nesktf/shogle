@@ -94,6 +94,7 @@ public:
 
 public:
   static void init(GLADloadproc proc);
+  static void destroy(void);
 
 public:
   static void set_tex_filter(texture& tex, res::texture_filter filter);
