@@ -53,7 +53,7 @@ void shogle_start(shogle_state& state, scene_creator_t creator) {
   Log::verbose("[shogle] GLFW viewport callback set");
 
   glfw::set_key_callback(state.win, [](GLFWwindow* win, int key, int, int action, int) {
-    Log::debug("[shogle] Key event: {} {}", key, action);
+    Log::verbose("[shogle] Key event: {} {}", key, action);
     auto state = static_cast<shogle_state*>(glfw::get_user_ptr(win));
     state->input.fire(static_cast<glfw::key>(key), static_cast<glfw::key_action>(action));
   });
