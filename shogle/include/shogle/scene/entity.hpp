@@ -63,9 +63,27 @@ public:
   }
 
   template<typename _dim_t = dim_t>
+  requires(std::same_as<_dim_t, vec3>)
+  static inline void add_rotation(entity& obj, float ang, vec3 axis) {
+    obj._rot *= quat{glm::cos(ang*0.5f), glm::sin(ang*0.5f)*axis};
+  }
+
+  template<typename _dim_t = dim_t>
+  requires(std::same_as<_dim_t, vec3>)
+  static inline void add_rotation(entity& obj, vec3 euler_rot) {
+    obj._rot *= euler2quat(euler_rot);
+  }
+
+  template<typename _dim_t = dim_t>
   requires(std::same_as<_dim_t, vec2>)
   static inline void rotate(entity& obj, float ang) {
     obj._rot = quat{glm::cos(-ang*0.5f), vec3{0.0f, 0.0f, glm::sin(-ang*0.5f)}};
+  }
+
+  template<typename _dim_t = dim_t>
+  requires(std::same_as<_dim_t, vec2>)
+  static inline void add_rotation(entity& obj, float ang) {
+    obj._rot *= quat{glm::cos(-ang*0.5f), vec3{0.0f, 0.0f, glm::sin(-ang*0.5f)}};
   }
 
 public:
