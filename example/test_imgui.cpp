@@ -235,16 +235,11 @@ struct test_imgui : public scene {
   static uptr<scene> create(shogle_state& state) { return make_uptr<test_imgui>(state); }
 };
 
-int main(int argc, char* argv[]) {
+int main(void) {
   Log::set_level(LogLevel::LOG_VERBOSE);
 
-  std::string sett_path {SHOGLE_RESOURCES};
-  sett_path += "/script/default_settings.lua";
-  settings sett{argc, argv, sett_path.c_str()};
-
-  auto shogle = shogle_create(sett.w_width, sett.w_height, sett.w_title);
-  gl::blend(true);
-  shogle_start(shogle, test_imgui::create);
+  auto shogle = shogle_create(800, 600, shogle_gen_title("test_imgui"));
+  shogle_main_loop(shogle, test_imgui::create);
 
   return EXIT_SUCCESS;
 }

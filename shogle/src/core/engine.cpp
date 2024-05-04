@@ -39,7 +39,7 @@ shogle_state shogle_create(size_t window_width, size_t window_height, std::strin
   return shogle_state{std::move(win), window_width, window_height};
 }
 
-void shogle_start(shogle_state& state, scene_creator_t creator) {
+void shogle_main_loop(shogle_state& state, scene_creator_t creator) {
   Log::debug("[shogle] Creating scene");
   glfw::set_user_ptr(state.win, &state);
 
@@ -47,13 +47,15 @@ void shogle_start(shogle_state& state, scene_creator_t creator) {
     Log::debug("[shogle] Viewport event: {} {}", w, h);
     auto* state = static_cast<shogle_state*>(glfw::get_user_ptr(win));
     render::gl::set_viewport(w, h);
-    update_cameras(state->cam_2d, state->cam_3d, w, h);
+    if (state->update_camera_viewport) {
+      update_cameras(state->cam_2d, state->cam_3d, w, h);
+    }
     state->viewport.fire(w, h);
   });
   Log::verbose("[shogle] GLFW viewport callback set");
 
   glfw::set_key_callback(state.win, [](GLFWwindow* win, int key, int, int action, int) {
-    Log::verbose("[shogle] Key event: {} {}", key, action);
+    // Log::verbose("[shogle] Key event: {} {}", key, action);
     auto state = static_cast<shogle_state*>(glfw::get_user_ptr(win));
     state->input.fire(static_cast<glfw::key>(key), static_cast<glfw::key_action>(action));
   });
@@ -61,6 +63,8 @@ void shogle_start(shogle_state& state, scene_creator_t creator) {
 
   imgui::init(state.win);
   Log::debug("[shogle] imgui initialized");
+
+  gl::blend(true); // temp?
 
   double last_frame {0.0};
 

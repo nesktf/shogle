@@ -2,7 +2,6 @@
 
 #include <shogle/core/engine.hpp>
 #include <shogle/core/log.hpp>
-#include <shogle/core/settings.hpp>
 
 #include <shogle/res/pool.hpp>
 
