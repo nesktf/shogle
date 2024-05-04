@@ -33,7 +33,7 @@ public:
   }
 
 public:
-  static bool show_demo;
+  bool show_demo {true};
 };
 
 } // namespace ntf::render

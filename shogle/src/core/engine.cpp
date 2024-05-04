@@ -60,7 +60,7 @@ void shogle_start(shogle_state& state, scene_creator_t creator) {
   Log::verbose("[shogle] GLFW key callback set");
 
   imgui::init(state.win);
-  Log::verbose("[shogle] imgui initialized");
+  Log::debug("[shogle] imgui initialized");
 
   double last_frame {0.0};
 
@@ -87,6 +87,9 @@ void shogle_start(shogle_state& state, scene_creator_t creator) {
     glfw::end_frame(state.win);
   }
   Log::info("[shogle] Main loop exit");
+
+  imgui::destroy();
+  Log::debug("[shogle] imgui destroyed");
 
   state.input.clear();
   Log::verbose("[shogle] Cleared input events");

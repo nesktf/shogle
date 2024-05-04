@@ -2,8 +2,6 @@
 
 namespace ntf::render {
 
-bool imgui::show_demo = true;
-
 void imgui::init(const glfw::window& win) {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
