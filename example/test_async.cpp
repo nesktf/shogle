@@ -36,18 +36,14 @@ struct car_movement : public dynamic_model::task_t {
         break;
       }
       case State::AtRight: {
-        vec3 rot = glm::eulerAngles(obj->rot);
-        rot.y = PI*0.5f;
-        set_rotation(*obj, rot);
+        rotate(*obj, PI*0.5f*dt, {0.0f, 1.0f, 0.0f});
 
         obj->pos.x = 2.0f;
         this->state = State::GoingLeft;
         break;
       }
       case State::AtLeft: {
-        vec3 rot = glm::eulerAngles(obj->rot);
-        rot.y = -PI*0.5f;
-        set_rotation(*obj, rot);
+        rotate(*obj, -PI*0.5f*dt, {0.0f, 1.0f, 0.0f});
 
         obj->pos.x = -2.0f;
         this->state = State::GoingRight;
