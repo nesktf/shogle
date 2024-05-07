@@ -17,39 +17,39 @@ struct car_movement : public dynamic_model::task_t {
   void update(dynamic_model* obj, float dt) override {
     switch (state) {
       case State::Init: {
-        obj->_pos.x = limit;
+        obj->pos.x = limit;
         this->state = State::GoingLeft;
         break;
       }
       case State::GoingLeft: {
-        obj->_pos.x -= speed*dt;
-        if (obj->_pos.x < -1.0f*limit) {
+        obj->pos.x -= speed*dt;
+        if (obj->pos.x < -1.0f*limit) {
           this->state = State::AtLeft;
         }
         break;
       }
       case State::GoingRight: {
-        obj->_pos.x += speed*dt;
-        if (obj->_pos.x > limit) {
+        obj->pos.x += speed*dt;
+        if (obj->pos.x > limit) {
           this->state = State::AtRight;
         }
         break;
       }
       case State::AtRight: {
-        vec3 rot = glm::eulerAngles(obj->_rot);
+        vec3 rot = glm::eulerAngles(obj->rot);
         rot.y = PI*0.5f;
-        model::rotate(*obj, rot);
+        set_rotation(*obj, rot);
 
-        obj->_pos.x = 2.0f;
+        obj->pos.x = 2.0f;
         this->state = State::GoingLeft;
         break;
       }
       case State::AtLeft: {
-        vec3 rot = glm::eulerAngles(obj->_rot);
+        vec3 rot = glm::eulerAngles(obj->rot);
         rot.y = -PI*0.5f;
-        model::rotate(*obj, rot);
+        set_rotation(*obj, rot);
 
-        obj->_pos.x = -2.0f;
+        obj->pos.x = -2.0f;
         this->state = State::GoingRight;
         break;
       }
@@ -68,9 +68,9 @@ struct fumo_jump : public dynamic_model::task_t {
 
   void update(dynamic_model* obj, float dt) override {
     t += dt;
-    obj->_scale.y = _half_scale + (_half_scale*glm::abs(glm::sin(_jump_force*t)));
+    obj->scale.y = _half_scale + (_half_scale*glm::abs(glm::sin(_jump_force*t)));
 
-    model::rotate(*obj, {0.0f, _ang_speed*t, 0.0f});
+    set_rotation(*obj, {0.0f, _ang_speed*t, 0.0f});
   }
 
   float t {0.0f};
@@ -113,18 +113,18 @@ struct test_async : public scene {
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
-    sprite::toggle_screen_space(*cino, true);
-    sprite::move(*cino, {400.0f, 300.0f});
-    sprite::scale(*cino, vec2{100.0f});
+    cino->toggle_screen_space(true);
+    set_pos(*cino, {400.0f, 300.0f});
+    set_scale(*cino, vec2{100.0f});
 
     cino->add_task([t](dynamic_sprite* obj, float dt) mutable {
       t += dt;
-      sprite::rotate(*obj, PI*t);
+      rotate(*obj, PI*dt);
       return false;
     });
     cino->add_task([t](dynamic_sprite* obj, float dt) mutable {
       t += dt;
-      sprite::move(*obj, vec2{400.0f, 300.0f} + 100.0f*vec2{glm::cos(10.0f*t), glm::sin(10.0f*t)});
+      set_pos(*obj, vec2{400.0f, 300.0f} + 100.0f*vec2{glm::cos(10.0f*t), glm::sin(10.0f*t)});
       return false;
     });
     gl::depth_test(false);
@@ -140,9 +140,9 @@ struct test_async : public scene {
       pool.get<render::shader>("generic_3d"),
       state.cam_3d
     );
-    model::toggle_screen_space(*cino_fumo, true);
-    model::move(*cino_fumo, {-0.35f, -0.25f, -1.0f});
-    model::scale(*cino_fumo, vec3{0.015f});
+    cino_fumo->toggle_screen_space(true);
+    set_pos(*cino_fumo, {-0.35f, -0.25f, -1.0f});
+    set_scale(*cino_fumo, vec3{0.015f});
     cino_fumo->add_task(make_uptr<fumo_jump>(PI*2.0f, 12.0f, 0.015f*0.5f));
 
     remu_fumo = make_uptr<dynamic_model>(
@@ -150,9 +150,9 @@ struct test_async : public scene {
       pool.get<render::shader>("generic_3d"),
       state.cam_3d
     );
-    model::toggle_screen_space(*remu_fumo, true);
-    model::move(*remu_fumo, {0.35f, -0.25f, -1.0f});
-    model::scale(*remu_fumo, vec3{0.015f});
+    remu_fumo->toggle_screen_space(true);
+    set_pos(*remu_fumo, {0.35f, -0.25f, -1.0f});
+    set_scale(*remu_fumo, vec3{0.015f});
     remu_fumo->add_task(make_uptr<fumo_jump>(-PI*2.0f, 12.0f, 0.015f*0.5f));
 
     mari_fumo = make_uptr<dynamic_model>(
@@ -160,13 +160,13 @@ struct test_async : public scene {
       pool.get<render::shader>("generic_3d"),
       state.cam_3d
     );
-    model::toggle_screen_space(*mari_fumo, true);
-    model::move(*mari_fumo, {0.0f, -0.25f, -2.0f});
-    model::scale(*mari_fumo, vec3{0.02f});
-    model::rotate(*mari_fumo, {0.0f, -PI, 0.0f});
+    mari_fumo->toggle_screen_space(true);
+    set_pos(*mari_fumo, {0.0f, -0.25f, -2.0f});
+    set_scale(*mari_fumo, vec3{0.02f});
+    set_rotation(*mari_fumo, {0.0f, -PI, 0.0f});
     mari_fumo->add_task([t](dynamic_model* obj, float dt) mutable {
       t += dt;
-      model::rotate(*obj, {PI*2.0f*t, PI*3.0f*t, 0.0f});
+      set_rotation(*obj, {PI*2.0f*t, PI*3.0f*t, 0.0f});
       return false;
     });
     mari_fumo->add_task([t](dynamic_model* obj, float dt) mutable {
@@ -174,7 +174,7 @@ struct test_async : public scene {
       float force = 0.75f;
       float speed = 3.15f;
       t += dt;
-      obj->_pos.y = base_y + (force*glm::abs(glm::sin(speed*t)));
+      obj->pos.y = base_y + (force*glm::abs(glm::sin(speed*t)));
       return false;
     });
 
@@ -183,10 +183,10 @@ struct test_async : public scene {
       pool.get<render::shader>("generic_3d"),
       state.cam_3d
     );
-    model::toggle_screen_space(*car, true);
-    model::move(*car, {0.0f, -0.25f, -2.0f});
-    model::scale(*car, vec3{0.3f});
-    model::rotate(*car, {0.0f, PI*0.5f, 0.0f});
+    car->toggle_screen_space(true);
+    set_pos(*car, {0.0f, -0.25f, -2.0f});
+    set_scale(*car, vec3{0.3f});
+    set_rotation(*car, {0.0f, PI*0.5f, 0.0f});
     car->add_task(make_uptr<car_movement>(4.4f, 2.2f));
 
     loaded = true;

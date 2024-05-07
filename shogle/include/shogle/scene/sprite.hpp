@@ -27,14 +27,10 @@ public:
 
   inline vec2 corrected_scale(float base = 1.0f) { return vec2{base*_sprite->aspect(), base}; }
 
+  inline void toggle_inverted_draw(bool flag) { _inverted_draw = flag; }
+
 public:
-  bool inverted_draw {false};
-  color4 _color {1.0f};
-  
-public:
-  static void set_color(sprite& obj, color4 color) {
-    obj._color = color;
-  }
+  color4 color {1.0f};
 
 protected:
   virtual void update_shader(void);
@@ -44,6 +40,7 @@ private:
   render::shader* _shader;
   camera2D& _cam;
   size_t _index {0};
+  bool _inverted_draw {false};
 };
 
 struct dynamic_sprite : public tasker<sprite, dynamic_sprite> { 

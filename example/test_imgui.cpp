@@ -31,35 +31,35 @@ struct test_imgui : public scene {
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
-    sprite::move(*sheet, vec2{0.0f, 0.0f});
-    sprite::scale(*sheet, sheet->corrected_scale(200.0f));
+    set_pos(*sheet, vec2{0.0f, 0.0f});
+    scale(*sheet, 200.0f);
 
     rin = make_uptr<dynamic_sprite>(
       pool.get<render::spritesheet>("2hus")->get_sprite("rin_dance"),
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
-    sprite::toggle_screen_space(*rin, true);
-    sprite::move(*rin, vec2{700.0f, 100.0f});
-    sprite::scale(*rin, rin->corrected_scale(200.0f));
+    rin->toggle_screen_space(true);
+    set_pos(*rin, vec2{700.0f, 100.0f});
+    scale(*rin, 200.0f);
 
     cirno = make_uptr<dynamic_sprite>(
       pool.get<render::spritesheet>("2hus")->get_sprite("cirno_fall"),
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
-    sprite::toggle_screen_space(*cirno, true);
-    sprite::move(*cirno, vec2{100.0f, 100.0f});
-    sprite::scale(*cirno, cirno->corrected_scale(200.0f));
+    cirno->toggle_screen_space(true);
+    set_pos(*cirno, vec2{100.0f, 100.0f});
+    scale(*cirno, 200.0f);
 
     cirno_fumo = make_uptr<dynamic_model>(
       pool.get<render::model>("cirno_fumo"),
       pool.get<render::shader>("generic_3d"),
       state.cam_3d
     );
-    model::move(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f});
-    model::rotate(*cirno_fumo, vec3{0.0f, 90.0, 0.0f});
-    model::scale(*cirno_fumo, vec3{0.015f});
+    set_pos(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f});
+    set_rotation(*cirno_fumo, PI*0.5f, {0.0f, 1.0f, 0.0f});
+    set_scale(*cirno_fumo, vec3{0.015f});
 
     float t = 0.0f;
     float rate = 1.0f/12.0f;
@@ -85,8 +85,8 @@ struct test_imgui : public scene {
       float b_scale = 0.015f/2.0f;
       float ang_speed = 5.0f;
       float jum_speed = 10.0f;
-      model::rotate(*obj, ang_speed*t, vec3{0.0f, 1.0f, 0.0f});
-      obj->_scale.y = b_scale + (b_scale*glm::abs(glm::sin(jum_speed*t)));
+      rotate(*obj, ang_speed*dt, vec3{0.0f, 1.0f, 0.0f});
+      obj->scale.y = b_scale + (b_scale*glm::abs(glm::sin(jum_speed*t)));
       return false;
     });
     state.input.subscribe(key::ESCAPE, key::PRESS, [&state]() {
@@ -185,7 +185,7 @@ struct test_imgui : public scene {
     static float vals[90];
     static int vals_offset = 0;
 
-    vals[vals_offset] = cirno_fumo->_scale.y;
+    vals[vals_offset] = cirno_fumo->scale.y;
     vals_offset = (vals_offset + 1) % IM_ARRAYSIZE(vals);
     
     ImGui::Begin("scene_state");{

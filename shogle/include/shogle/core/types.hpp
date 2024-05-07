@@ -45,8 +45,4 @@ inline uptr<T> make_uptr(Args&&... args) {
   return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
-inline quat axis_quat(float ang, vec3 axis) {
-  return quat{ang*0.5f, ang*0.5f*axis};
-}
-
 } // namespace ntf

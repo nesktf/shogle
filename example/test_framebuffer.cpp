@@ -34,9 +34,9 @@ struct test_framebuffer : public scene {
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
-    sprite::toggle_screen_space(*rin, true);
-    sprite::move(*rin, vec2{400.0f, 300.0f});
-    sprite::scale(*rin, rin->corrected_scale(200.0f));
+    rin->toggle_screen_space(true);
+    set_pos(*rin, {400.0f, 300.0f});
+    scale(*rin, 200.0f);
 
     float t {0.0f};
     rin->add_task([t](auto* obj, float dt) mutable -> bool {
@@ -55,18 +55,18 @@ struct test_framebuffer : public scene {
       pool.get<render::shader>("generic_3d"),
       state.cam_3d
     );
-    model::toggle_screen_space(*cirno_fumo, true);
-    model::move(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f});
-    model::scale(*cirno_fumo, vec3{0.015f});
+    cirno_fumo->toggle_screen_space(true);
+    set_pos(*cirno_fumo, {0.0f, -0.25f, -1.0f});
+    set_scale(*cirno_fumo, vec3{0.015f});
 
     fbo_sprite = make_uptr<sprite>(
       fbo.get_sprite(),
       pool.get<render::shader>("generic_2d"),
       state.cam_2d
     );
-    fbo_sprite->inverted_draw = true;
-    sprite::move(*fbo_sprite, vec2{0.0f, 0.0f});
-    sprite::scale(*fbo_sprite, fbo_sprite->corrected_scale(200.0f));
+    fbo_sprite->toggle_inverted_draw(true);
+    set_pos(*fbo_sprite, {0.0f, 0.0f});
+    scale(*fbo_sprite, 200.0f);
 
     state.input.subscribe(key::ESCAPE, key::PRESS, [&state]() {
       shogle_close_window(state);
@@ -78,21 +78,21 @@ struct test_framebuffer : public scene {
 
   void cirno_truco(float t) {
     float ypos = -0.25f + 1.0f*glm::abs(glm::sin(t*PI));
-    model::rotate(*cirno_fumo, vec3{t*PI*2.0f, -PI*1.3f + t*PI*3.0f, 0.0f});
-    model::move(*cirno_fumo, vec3{0.0f, ypos, -2.0f});
-    model::scale(*cirno_fumo, vec3{0.015f});
+    set_rotation(*cirno_fumo, {t*PI*2.0f, -PI*1.3f + t*PI*3.0f, 0.0f});
+    set_pos(*cirno_fumo, vec3{0.0f, ypos, -2.0f});
+    set_scale(*cirno_fumo, vec3{0.015f});
   }
 
   void cirno_vueltitas(float t) {
-    model::rotate(*cirno_fumo, -PI*0.5f + t*PI, {0.0f, 1.0f, 0.0f});
-    model::move(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f}+0.25f*vec3{glm::cos(-t*PI), 0.0f, glm::sin(-t*PI)});
-    model::scale(*cirno_fumo, vec3{0.015f, 0.0075f+0.0075f*glm::abs(glm::sin(t*PI*4.0f)), 0.015f});
+    set_rotation(*cirno_fumo, -PI*0.5f + t*PI, {0.0f, 1.0f, 0.0f});
+    set_pos(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f}+0.25f*vec3{glm::cos(-t*PI), 0.0f, glm::sin(-t*PI)});
+    set_scale(*cirno_fumo, vec3{0.015f, 0.0075f+0.0075f*glm::abs(glm::sin(t*PI*4.0f)), 0.015f});
   }
 
   void rin_vueltitas(float t) {
-    sprite::rotate(*rin, t*PI);
-    sprite::move(*rin, vec2{400.0f, 300.0f}+200.0f*vec2{glm::cos(-t*PI), glm::sin(-t*PI)});
-    sprite::scale(*rin, 100.0f+200.0f*glm::abs(glm::sin(t*PI))*rin->corrected_scale());
+    set_rotation(*rin, t*PI);
+    set_pos(*rin, vec2{400.0f, 300.0f}+200.0f*vec2{glm::cos(-t*PI), glm::sin(-t*PI)});
+    set_scale(*rin, 100.0f+200.0f*glm::abs(glm::sin(t*PI))*rin->corrected_scale());
   }
 
   void update_cameras(shogle_state& state, float dt) {
