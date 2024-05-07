@@ -32,7 +32,7 @@ struct test_framebuffer : public scene {
     rin = make_uptr<dynamic_sprite>(
       pool.get<render::spritesheet>("2hus")->get_sprite("rin_dance"),
       pool.get<render::shader>("generic_2d"),
-      state.cam_2d
+      &state.cam_2d
     );
     rin->toggle_screen_space(true);
     set_pos(*rin, {400.0f, 300.0f});
@@ -53,7 +53,7 @@ struct test_framebuffer : public scene {
     cirno_fumo = make_uptr<model>(
       pool.get<render::model>("cino"),
       pool.get<render::shader>("generic_3d"),
-      state.cam_3d
+      &state.cam_3d
     );
     cirno_fumo->toggle_screen_space(true);
     set_pos(*cirno_fumo, {0.0f, -0.25f, -1.0f});
@@ -62,7 +62,7 @@ struct test_framebuffer : public scene {
     fbo_sprite = make_uptr<sprite>(
       fbo.get_sprite(),
       pool.get<render::shader>("generic_2d"),
-      state.cam_2d
+      &state.cam_2d
     );
     fbo_sprite->toggle_inverted_draw(true);
     set_pos(*fbo_sprite, {0.0f, 0.0f});

@@ -29,7 +29,7 @@ struct test_imgui : public scene {
     sheet = make_uptr<dynamic_sprite>(
       pool.get<render::spritesheet>("2hus")->get_sprite("__sheet"),
       pool.get<render::shader>("generic_2d"),
-      state.cam_2d
+      &state.cam_2d
     );
     set_pos(*sheet, vec2{0.0f, 0.0f});
     scale(*sheet, 200.0f);
@@ -37,7 +37,7 @@ struct test_imgui : public scene {
     rin = make_uptr<dynamic_sprite>(
       pool.get<render::spritesheet>("2hus")->get_sprite("rin_dance"),
       pool.get<render::shader>("generic_2d"),
-      state.cam_2d
+      &state.cam_2d
     );
     rin->toggle_screen_space(true);
     set_pos(*rin, vec2{700.0f, 100.0f});
@@ -46,7 +46,7 @@ struct test_imgui : public scene {
     cirno = make_uptr<dynamic_sprite>(
       pool.get<render::spritesheet>("2hus")->get_sprite("cirno_fall"),
       pool.get<render::shader>("generic_2d"),
-      state.cam_2d
+      &state.cam_2d
     );
     cirno->toggle_screen_space(true);
     set_pos(*cirno, vec2{100.0f, 100.0f});
@@ -55,7 +55,7 @@ struct test_imgui : public scene {
     cirno_fumo = make_uptr<dynamic_model>(
       pool.get<render::model>("cirno_fumo"),
       pool.get<render::shader>("generic_3d"),
-      state.cam_3d
+      &state.cam_3d
     );
     set_pos(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f});
     set_rotation(*cirno_fumo, PI*0.5f, {0.0f, 1.0f, 0.0f});

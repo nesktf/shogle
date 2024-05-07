@@ -107,7 +107,7 @@ struct test_async : public scene {
     cino = make_uptr<dynamic_sprite>(
       pool.get<render::sprite>("chiruno"),
       pool.get<render::shader>("generic_2d"),
-      state.cam_2d
+      &state.cam_2d
     );
     cino->toggle_screen_space(true);
     set_pos(*cino, {400.0f, 300.0f});
@@ -134,7 +134,7 @@ struct test_async : public scene {
     cino_fumo = make_uptr<dynamic_model>(
       pool.get<render::model>("chiruno_fumo"),
       pool.get<render::shader>("generic_3d"),
-      state.cam_3d
+      &state.cam_3d
     );
     cino_fumo->toggle_screen_space(true);
     set_pos(*cino_fumo, {-0.35f, -0.25f, -1.0f});
@@ -144,7 +144,7 @@ struct test_async : public scene {
     remu_fumo = make_uptr<dynamic_model>(
       pool.get<render::model>("reimu_fumo"),
       pool.get<render::shader>("generic_3d"),
-      state.cam_3d
+      &state.cam_3d
     );
     remu_fumo->toggle_screen_space(true);
     set_pos(*remu_fumo, {0.35f, -0.25f, -1.0f});
@@ -154,7 +154,7 @@ struct test_async : public scene {
     mari_fumo = make_uptr<dynamic_model>(
       pool.get<render::model>("marisa_fumo"),
       pool.get<render::shader>("generic_3d"),
-      state.cam_3d
+      &state.cam_3d
     );
     mari_fumo->toggle_screen_space(true);
     set_pos(*mari_fumo, {0.0f, -0.25f, -2.0f});
@@ -177,7 +177,7 @@ struct test_async : public scene {
     car = make_uptr<dynamic_model>(
       pool.get<render::model>("car"),
       pool.get<render::shader>("generic_3d"),
-      state.cam_3d
+      &state.cam_3d
     );
     car->toggle_screen_space(true);
     set_pos(*car, {0.0f, -0.25f, -2.0f});

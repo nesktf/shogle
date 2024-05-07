@@ -10,7 +10,7 @@ namespace ntf {
 
 class model : public entity3d {
 public:
-  model(render::model* model, render::shader* shader, camera3D& cam);
+  model(render::model* model, render::shader* shader, camera3D* cam);
 
 public:
   virtual void draw(void) override;
@@ -18,7 +18,7 @@ public:
 public:
   inline void set_shader(render::shader* shader) { _shader = shader; }
   inline void set_model(render::model* model) { _model = model; }
-  inline void set_cam(camera3D& cam) { _cam = cam; };
+  inline void set_cam(camera3D* cam) { _cam = cam; };
 
 protected:
   virtual void update_shader(void);
@@ -26,7 +26,7 @@ protected:
 private:
   render::model* _model;
   render::shader* _shader;
-  camera3D& _cam;
+  camera3D* _cam;
 };
 
 struct dynamic_model : public tasker<model, dynamic_model> { 

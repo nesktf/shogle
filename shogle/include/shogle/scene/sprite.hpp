@@ -10,7 +10,7 @@ namespace ntf {
 
 class sprite : public entity2d {
 public:
-  sprite(render::sprite* sprite, render::shader* shader, camera2D& cam);
+  sprite(render::sprite* sprite, render::shader* shader, camera2D* cam);
 
 public:
   virtual void draw() override;
@@ -18,7 +18,7 @@ public:
 public:
   inline void set_sprite(render::sprite* sprite) { _sprite = sprite; }
   inline void set_shader(render::shader* shader) { _shader = shader; }
-  inline void set_cam(camera2D& cam) { _cam = cam; };
+  inline void set_cam(camera2D* cam) { _cam = cam; };
   inline void set_index(size_t i) { _index = i%index_count(); }
   inline void next_index(void) { set_index(++_index); }
 
@@ -38,7 +38,7 @@ protected:
 private:
   render::sprite* _sprite;
   render::shader* _shader;
-  camera2D& _cam;
+  camera2D* _cam;
   size_t _index {0};
   bool _inverted_draw {false};
 };
