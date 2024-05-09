@@ -32,7 +32,6 @@ struct shogle_state {
 
   input_event input;
   viewport_event viewport;
-  res::async_loader loader;
 
   camera2D cam_2d;
   camera3D cam_3d;

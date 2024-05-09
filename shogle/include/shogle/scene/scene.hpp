@@ -47,6 +47,6 @@ public:
   virtual void draw(shogle_state& state) = 0;
 };
 
-using scene_creator_t = uptr<scene> (*)(shogle_state&);
+using scene_creator_t = uptr<scene> (*)(void);
 
 } // namespace ntf

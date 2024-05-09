@@ -2,7 +2,7 @@
 
 namespace ntf {
 
-ThreadPool::ThreadPool(size_t n_threads) {
+thread_pool::thread_pool(size_t n_threads) {
   for (size_t i = 0; i < n_threads; ++i) {
     _threads.emplace_back([this]() { while(true) {
       task_t task;
@@ -26,7 +26,7 @@ ThreadPool::ThreadPool(size_t n_threads) {
   }
 }
 
-ThreadPool::~ThreadPool() {
+thread_pool::~thread_pool() {
   {
     std::unique_lock<std::mutex> lock(_task_mtx);
     _stop = true;
@@ -39,7 +39,7 @@ ThreadPool::~ThreadPool() {
   }
 }
 
-void ThreadPool::enqueue(std::function<void()> task) {
+void thread_pool::enqueue(task_t task) {
   {
     std::unique_lock<std::mutex> lock(_task_mtx);
     _tasks.emplace(std::move(task));

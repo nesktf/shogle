@@ -36,14 +36,14 @@ struct car_movement : public dynamic_model::task_t {
         break;
       }
       case State::AtRight: {
-        rotate(*obj, PI*0.5f*dt, {0.0f, 1.0f, 0.0f});
+        set_rotation(*obj, {0.0f, PI*0.5f, 0.0f});
 
         obj->pos.x = 2.0f;
         this->state = State::GoingLeft;
         break;
       }
       case State::AtLeft: {
-        rotate(*obj, -PI*0.5f*dt, {0.0f, 1.0f, 0.0f});
+        set_rotation(*obj, {0.0f, -PI*0.5f, 0.0f});
 
         obj->pos.x = -2.0f;
         this->state = State::GoingRight;
@@ -75,6 +75,7 @@ struct fumo_jump : public dynamic_model::task_t {
 
 struct test_async : public scene {
   res::pool<render::shader, render::sprite, render::model> pool;
+  res::async_loader loader;
 
   uptr<dynamic_sprite> cino;
 
@@ -85,8 +86,7 @@ struct test_async : public scene {
 
   bool loaded {false};
 
-  test_async(shogle_state& state) :
-    pool(state.loader) {
+  test_async() {
     pool.direct_request<render::shader>({
       {.id="generic_2d", .path="res/shaders/generic_2d"}, 
       {.id="generic_3d", .path="res/shaders/generic_3d"}
@@ -94,15 +94,16 @@ struct test_async : public scene {
     pool.direct_request<render::sprite>({
       {.id="chiruno", .path="res/textures/cirno.png"}
     });
-    pool.async_request<render::model>({
+  }
+
+  void on_create(shogle_state& state) override {
+    pool.async_request<render::model>(loader, [this, &state] { on_load(state); }, {
       {.id="chiruno_fumo", .path="_temp/models/cirno_fumo/cirno_fumo.obj"}, 
       {.id="reimu_fumo", .path="_temp/models/reimu_fumo/reimu_fumo.obj"},
       {.id="marisa_fumo", .path="_temp/models/marisa_fumo/marisa_fumo.obj"},
       {.id="car", .path="_temp/models/homer-v/homer-v.obj" }
-    }, [this, &state]{ on_load(state); });
-  }
+    });
 
-  void on_create(shogle_state& state) override {
     float t = 0.0f;
     cino = make_uptr<dynamic_sprite>(
       pool.get<render::sprite>("chiruno"),
@@ -190,6 +191,8 @@ struct test_async : public scene {
   }
 
   void update(shogle_state&, float dt) override {
+    loader.do_requests();
+
     if (!loaded) {
       cino->update(dt);
     } else {
@@ -211,7 +214,7 @@ struct test_async : public scene {
     }
   }
 
-  static uptr<scene> create(shogle_state& state) { return make_uptr<test_async>(state); }
+  static uptr<scene> create(void) { return make_uptr<test_async>(); }
 };
 
 int main(void) {

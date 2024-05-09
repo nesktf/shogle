@@ -10,88 +10,68 @@ namespace ntf::res {
 template<typename T, typename... TRes>
 concept same_as_defined = (... or std::same_as<T, TRes>);
 
-template<typename T>
-concept uses_loader = requires { T::loader_t; };
-
-template<typename... T>
-// requires(uses_loader<T> && ...)
+template<typename... pool_types>
 class pool {
+public:
+  using id_t = std::string;
+  using load_callback = async_loader::reqfun_t;
+
+  struct path_info {
+    id_t id;
+    path_t path;
+  };
+
 private:
-  template<typename _T>
-  using rescontainer_t = std::unordered_map<async_loader::resid_t, _T>;
+  template<typename T>
+  using map_t = std::unordered_map<id_t, T>;
 
-  using pool_t = std::tuple<rescontainer_t<T>...>;
-
-public:
-  using resid_t = async_loader::resid_t;
-  using pathinfo_t = async_loader::pathinfo_t;
-  using reqcallback_t = async_loader::reqcallback_t;
-
-public: // Resources can't be copied, so the pool can't be copied
-  pool(async_loader& loader) :
-    _loader(loader) {}
-
-  ~pool() = default;
-
-  pool(pool&&) = default;
-  pool(const pool&) = delete;
-  pool& operator=(pool&&) = default;
-  pool& operator=(const pool&) = delete;
+  using pool_t = std::tuple<map_t<pool_types>...>;
 
 public:
-  template<typename TReq>
-  requires(same_as_defined<TReq, T...>)
-  inline TReq* get(resid_t id) {
-    auto& cont = std::get<rescontainer_t<TReq>>(_pool);
-    return &cont.at(id);
+  pool() = default;
+
+public:
+  template<typename T>
+  requires(same_as_defined<T, pool_types...>)
+  inline T* get(id_t id) {
+    return &std::get<map_t<T>>(_pool).at(id);
   }
 
-  template<typename TReq>
-  requires(same_as_defined<TReq, T...>)
-  inline void emplace(resid_t id, TReq::loader_t data) {
-    auto& container = std::get<rescontainer_t<TReq>>(_pool);
-    container.emplace(std::make_pair(id, TReq{std::move(data)}));
-  }
-
-public: // Resource requesters
-  template<typename TReq>
-  requires(same_as_defined<TReq, T...>)
-  void direct_request(pathinfo_t pathinfo) {
-    direct_request<TReq>({pathinfo});
-  }
-
-  template<typename TReq>
-  requires(same_as_defined<TReq, T...>)
-  void direct_request(std::initializer_list<pathinfo_t> pathinfo_list) {
-    for (const auto& res_info : pathinfo_list) {
-      emplace<TReq>(res_info.id, _loader.direct_load<TReq>(res_info));
+public:
+  template<typename T>
+  requires(same_as_defined<T, pool_types...>)
+  void direct_request(std::initializer_list<path_info> list) {
+    using loader_t = T::loader_t;
+    for (const auto& info : list) {
+      std::get<map_t<T>>(_pool).emplace(
+        std::make_pair(info.id, loader_t{info.path})
+      );
     }
   }
 
-  template<typename TReq>
-  requires(same_as_defined<TReq, T...>)
-  void async_request(pathinfo_t pathinfo, reqcallback_t on_load) {
-    async_request<TReq>({pathinfo}, std::move(on_load));
-  }
+  template<typename T>
+  requires(same_as_defined<T, pool_types...>)
+  void async_request(async_loader& loader, load_callback on_load, std::initializer_list<path_info> list) {
+    using loader_t = T::loader_t;
 
-  template<typename TReq>
-  requires(same_as_defined<TReq, T...>)
-  void async_request(std::initializer_list<pathinfo_t> pathinfo_list, reqcallback_t on_load) {
-    _load_counters.push_back(std::make_pair(pathinfo_list.size(), 0));
-    auto* counter = &_load_counters.back();
+    _load_counters.push_back(std::make_pair(list.size(), 0));
+    auto* c_it = &_load_counters.back();
 
-    for (const auto& res_info : pathinfo_list) {
-      _loader.async_load<TReq>(res_info, [this, counter, on_load](auto id, auto data) {
-        size_t res_total = counter->first;
-        size_t& res_c = counter->second;
-        emplace<TReq>(id, std::move(data));
+    for (const auto& info : list) {
+      auto id = info.id;
+      loader.add_request<loader_t>([this, c_it, id=std::move(id), on_load](loader_t data) {
+        size_t res_total = c_it->first;
+        size_t& res_c = c_it->second;
+
+        std::get<map_t<T>>(_pool).emplace(
+          std::make_pair(std::move(id), std::move(data))
+        );
         if (++res_c == res_total) { on_load(); }
-      });
+      }, info.path);
     }
   }
 
 private:
-  async_loader& _loader;
   pool_t _pool;
   std::vector<std::pair<size_t, size_t>> _load_counters;
 };

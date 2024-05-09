@@ -68,14 +68,12 @@ void shogle_main_loop(shogle_state& state, scene_creator_t creator) {
 
   double last_frame {0.0};
 
-  auto scene = creator(state);
+  auto scene = creator();
   scene->on_create(state);
   Log::debug("[shogle] Scene created");
 
   Log::info("[shogle] Main loop start");
   while (glfw::is_window_open(state.win)) {
-    state.loader.do_requests();
-
     imgui::new_frame();
     glfw::new_frame(state.win);
 

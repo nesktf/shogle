@@ -11,8 +11,7 @@ struct test_imgui : public scene {
 
   uptr<sprite> sheet;
 
-  test_imgui(shogle_state& state) : 
-    pool(state.loader) {
+  test_imgui() {
     pool.direct_request<render::shader>({
       {.id="generic_2d", .path="res/shaders/generic_2d"},
       {.id="generic_3d", .path="res/shaders/generic_3d"}
@@ -232,7 +231,7 @@ struct test_imgui : public scene {
     }ImGui::End();
   }
 
-  static uptr<scene> create(shogle_state& state) { return make_uptr<test_imgui>(state); }
+  static uptr<scene> create(void) { return make_uptr<test_imgui>(); }
 };
 
 int main(void) {

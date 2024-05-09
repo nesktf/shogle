@@ -10,66 +10,63 @@ namespace ntf::res {
 
 class async_loader {
 public:
-  using resid_t = std::string;
+  using reqfun_t = std::function<void()>;
 
-  struct pathinfo_t {
-    resid_t id;
-    path_t path;
-  };
-
+private:
+  template<typename T>
+  using loadfun_t = std::function<void(T)>;
 
   template<typename T>
-  using resdata_t = T::loader_t;
-
-  template<typename T>
-  using loadfun_t = std::function<void(resid_t,resdata_t<T>)>;
-
-  template<typename T>
-  struct load_wrapper {
-    load_wrapper(resdata_t<T> data, resid_t id, loadfun_t<T> on_load) :
-      _data(std::move(data)), _id(id), _on_load(std::move(on_load)) {}
-    resdata_t<T> _data;
-    resid_t _id;
+  struct load_wrapper { // to be used as a reqfun_t
     loadfun_t<T> _on_load;
-  };
+    T* _data; // has to be in the heap because of std::function
 
-  using reqcallback_t = std::function<void()>;
+    template<typename... Args>
+    load_wrapper(loadfun_t<T> fun, Args&&... args) :
+      _on_load(std::move(fun)),
+      _data(new T{std::forward<Args>(args)...}) {}
+
+    void operator()(void) {
+      _on_load(std::move(*_data));
+
+      // when the callback fires we no longer need the memory
+      delete _data;
+    }
+  };
 
 public:
   async_loader() = default;
+  async_loader(size_t n_threads) :
+    _thpool(n_threads) {}
 
 public:
   inline void do_requests(void) {
     while (!_req.empty()) {
-      auto _request_callback = std::move(_req.front());
+      auto req_callback = std::move(_req.front());
       _req.pop();
-      _request_callback();
+      req_callback();
     }
   }
 
 public:
-  template<typename T>
-  resdata_t<T> direct_load(pathinfo_t info) {
-    return resdata_t<T>{info.path};
-  }
-
-  template<typename T>
-  void async_load(pathinfo_t info, loadfun_t<T> on_load) {
-    _threadpool.enqueue([this, info, on_load=std::move(on_load)]{
-      auto* wrapper = make_ptr<load_wrapper<T>>(resdata_t<T>{info.path}, info.id, std::move(on_load)); // Hopefully won't leak???
-
-      std::unique_lock<std::mutex> lock{_req_mtx};
-      _req.emplace([wrapper]() { // why are lambdas only copyconstructible?????
-        wrapper->_on_load(wrapper->_id, std::move(wrapper->_data));
-        delete wrapper;
-      });
-    });
-  }
+  template<typename T, typename... Args>
+  void add_request(loadfun_t<T> on_load, Args&&... load_args);
 
 private:
   std::mutex _req_mtx;
-  std::queue<reqcallback_t> _req;
-  ThreadPool _threadpool;
+  std::queue<reqfun_t> _req;
+  thread_pool _thpool;
 };
+
+
+template<typename T, typename... Args>
+void async_loader::add_request(loadfun_t<T> on_load, Args&&... load_args) {
+  // thank you based c++20
+  _thpool.enqueue([this, on_load=std::move(on_load), ...args=std::forward<Args>(load_args)]() {
+    load_wrapper<T> loader { std::move(on_load), std::forward<Args>(args)...};
+    std::unique_lock lock{_req_mtx};
+    _req.emplace(std::move(loader));
+  });
+}
 
 } // namespace ntf::res

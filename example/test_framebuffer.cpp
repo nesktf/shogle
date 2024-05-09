@@ -14,8 +14,7 @@ struct test_framebuffer : public scene {
 
   float fbo_t {0.0f};
 
-  test_framebuffer(shogle_state& state) :
-    pool(state.loader) {
+  test_framebuffer() {
     pool.direct_request<render::shader>({
       {.id="generic_2d", .path="res/shaders/generic_2d"},
       {.id="generic_3d", .path="res/shaders/generic_3d"}
@@ -153,7 +152,7 @@ struct test_framebuffer : public scene {
     fbo_sprite->draw();
   }
 
-  static uptr<scene> create(shogle_state& state) { return make_uptr<test_framebuffer>(state); }
+  static uptr<scene> create(void) { return make_uptr<test_framebuffer>(); }
 };
 
 int main(void) {
