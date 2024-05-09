@@ -133,13 +133,13 @@ struct test_framebuffer : public scene {
   }
 
   void draw(shogle_state&) override {
-    render::gl::depth_test(true);
+    gl::depth_test(true);
     cirno_fumo->draw();
 
-    render::gl::depth_test(false);
+    gl::depth_test(false);
     {
       auto bind = fbo.bind_scoped();
-      render::gl::clear_viewport(vec4{vec3{glm::abs(glm::sin(PI*fbo_time))}, 1.0f});
+      gl::clear_viewport(vec4{vec3{glm::abs(glm::sin(PI*fbo_time))}, 1.0f});
       rin->draw();
     }
     fbo_sprite->draw();

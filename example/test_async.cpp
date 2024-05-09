@@ -124,7 +124,7 @@ struct test_async : public scene {
       set_pos(*obj, vec2{400.0f, 300.0f} + 100.0f*vec2{glm::cos(10.0f*t), glm::sin(10.0f*t)});
       return false;
     });
-    render::gl::depth_test(false);
+    gl::depth_test(false);
     state.input.subscribe(key::ESCAPE, key::PRESS, [&state]() {
       shogle_close_window(state);
     });
@@ -187,7 +187,7 @@ struct test_async : public scene {
     car->add_task(make_uptr<car_movement>(4.4f, 2.2f));
 
     loaded = true;
-    render::gl::depth_test(true);
+    gl::depth_test(true);
   }
 
   void update(shogle_state&, float dt) override {

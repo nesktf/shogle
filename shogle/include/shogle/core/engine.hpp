@@ -10,6 +10,7 @@
 namespace ntf {
 
 using key = render::glfw; // for convenience
+using gl = render::gl;
 
 using viewport_event = event<size_t, size_t>;
 

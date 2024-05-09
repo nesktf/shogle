@@ -9,7 +9,8 @@
 
 namespace ntf {
 
-using namespace render;
+using imgui = render::imgui;
+using glfw = render::glfw;
 
 static void update_cameras(camera2D& cam_2d, camera3D& cam_3d, size_t w, size_t h);
 

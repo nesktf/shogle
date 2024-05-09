@@ -155,10 +155,10 @@ struct test_imgui : public scene {
   };
 
   void draw(shogle_state& state) override {
-    render::gl::depth_test(true);
+    gl::depth_test(true);
     cirno_fumo->draw();
 
-    render::gl::depth_test(false);
+    gl::depth_test(false);
     sheet->draw();
     rin->draw();
     cirno->draw();
