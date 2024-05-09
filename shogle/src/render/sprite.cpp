@@ -112,7 +112,9 @@ void draw_sprite(sprite& sprite, shader& shader, size_t index, bool inverted) {
   shader.use();
   shader.set_uniform("sprite_offset", sprite.uniform_offset(index));
   shader.set_uniform("sprite_sampler", 0);
-  gl::draw_quad(sprite._tex, inverted);
+
+  gl::texture_bind(sprite._tex, 0);
+  gl::draw_quad_2d(inverted);
 }
 
 } // namespace ntf::render

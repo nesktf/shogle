@@ -7,22 +7,31 @@
 
 namespace ntf::render {
 
-struct gl_quad_2d : public Singleton<gl_quad_2d> {
-  gl_quad_2d();
+struct common_vaos : public Singleton<common_vaos> {
+  struct vao {
+    GLuint vao, vbo, ebo;
+  };
+
+  common_vaos() = default;
+
+  void init(void);
   void destroy(void);
-  GLuint vao, vbo, ebo;
-  GLuint vao_inv, vbo_inv, ebo_inv;
+
+  vao quad2d, quad2d_inv;
+  vao quad3d, quad3d_inv;
+  vao cube;
 };
 
 void gl::init(GLADloadproc proc) {
   if (!gladLoadGLLoader(proc)) {
     throw ntf::error("[gl] Failed to load GLAD");
   }
+  common_vaos::instance().init();
   Log::debug("[gl] Initialized");
 }
 
 void gl::destroy(void) {
-  gl_quad_2d::instance().destroy();
+  common_vaos::instance().destroy();
   Log::debug("[gl] Terminated");
 }
 
@@ -50,13 +59,25 @@ void gl::draw_mesh(const mesh& mesh) {
   glBindVertexArray(0);
 }
 
-void gl::draw_quad(const texture& texture, bool inverted) {
-  auto& quad {gl_quad_2d::instance()};
-  glBindTexture(texture.type, texture.id);
-  glActiveTexture(GL_TEXTURE0);
-
-  glBindVertexArray(inverted ? quad.vao_inv : quad.vao);
+void gl::draw_quad_2d(bool inverted) {
+  auto& vaos {common_vaos::instance()};
+  glBindVertexArray(inverted ? vaos.quad2d_inv.vao : vaos.quad2d.vao);
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+  glBindVertexArray(0);
+}
+
+void gl::draw_quad_3d(bool inverted) {
+  auto& vaos {common_vaos::instance()};
+  glBindVertexArray(inverted ? vaos.quad3d_inv.vao : vaos.quad3d.vao);
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+  glBindVertexArray(0);
+}
+
+void gl::draw_cube(void) {
+  auto& vaos {common_vaos::instance()};
+  glBindVertexArray(vaos.cube.vao);
+  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glBindVertexArray(0);
 }
 
 // texture
@@ -309,73 +330,249 @@ void gl::destroy_shader(shader& shad) {
   shad.prog = 0;
 }
 
-gl_quad_2d::gl_quad_2d() {
-  float quad_vert[] = {
-    // coord      // tex_coord
-    -0.5f, -0.5f, 0.0f, 0.0f,
-     0.5f, -0.5f, 1.0f, 0.0f,
-     0.5f,  0.5f, 1.0f, 1.0f,
-    -0.5f,  0.5f, 0.0f, 1.0f
+void common_vaos::init() {
+  // inverted texture quads are considered "normal" for convenience
+  float quad2d_vert[] = { // inverted in texture space (for stb_image textures)
+    // coord        // tex_coord
+    -0.5f, -0.5f,   0.0f, 0.0f,
+     0.5f, -0.5f,   1.0f, 0.0f,
+     0.5f,  0.5f,   1.0f, 1.0f,
+    -0.5f,  0.5f,   0.0f, 1.0f
   };
-  float quad_vert_inv[] = { // for framebuffers
-    // coord      // tex_coord
-    -0.5f, -0.5f, 0.0f, 1.0f,
-     0.5f, -0.5f, 1.0f, 1.0f,
-     0.5f,  0.5f, 1.0f, 0.0f,
-    -0.5f,  0.5f, 0.0f, 0.0f
+  float quad2d_vert_inv[] = { // not inverted (for framebuffers)
+    // coord        // tex_coord
+    -0.5f, -0.5f,   0.0f, 1.0f,
+     0.5f, -0.5f,   1.0f, 1.0f,
+     0.5f,  0.5f,   1.0f, 0.0f,
+    -0.5f,  0.5f,   0.0f, 0.0f
+  };
+
+  float quad3d_vert[] = { // inverted in texture space (for stb_image textures)
+    // coord                // normal           // tex_coord
+    -0.5f, -0.5f,  0.0f,     0.0f,  0.0f,  1.0f,   0.0f,  0.0f,
+     0.5f, -0.5f,  0.0f,     0.0f,  0.0f,  1.0f,   1.0f,  0.0f,
+     0.5f,  0.5f,  0.0f,     0.0f,  0.0f,  1.0f,   1.0f,  1.0f,
+    -0.5f,  0.5f,  0.0f,     0.0f,  0.0f,  1.0f,   0.0f,  1.0f
+  };
+  float quad3d_vert_inv[] = { // not inverted (for framebuffers)
+    // coord                // normal           // tex_coord
+    -0.5f, -0.5f,  0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 1.0f,
+     0.5f, -0.5f,  0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 1.0f,
+     0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 0.0f,
+    -0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 0.0f
   };
   GLuint quad_ind[] = {
-    0, 1, 2,
-    0, 2, 3
+    0, 1, 2, // bottom right triangle
+    0, 2, 3  // top left triangle
   };
 
-  glGenVertexArrays(1, &vao);
-  glGenBuffers(1, &vbo);
-  glGenBuffers(1, &ebo);
+  float cube_vert[] = {
+    // coord                 // normal             // tex_coord
+    -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   1.0f,  1.0f,
+     0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   1.0f,  1.0f,
+    -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   0.0f,  1.0f,
+    -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   0.0f,  0.0f,
 
-  glBindVertexArray(vao);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vert), quad_vert, GL_STATIC_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_ind), quad_ind, GL_STATIC_DRAW);
+    -0.5f, -0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   0.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   1.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   1.0f,  1.0f,
+    -0.5f,  0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   0.0f,  1.0f,
+    -0.5f, -0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   0.0f,  0.0f,
 
-  // Sprite shader needs a vec4f with 2d coords and tex coords
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
-  glBindVertexArray(0);
+    -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,   1.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,   1.0f,  1.0f,
+    -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,   0.0f,  1.0f,
+    -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,   0.0f,  1.0f,
+    -0.5f, -0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,   0.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,   1.0f,  0.0f,
 
-  glGenVertexArrays(1, &vao_inv);
-  glGenBuffers(1, &vbo_inv);
-  glGenBuffers(1, &ebo_inv);
+     0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,   1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,   1.0f,  1.0f,
+     0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,   0.0f,  1.0f,
+     0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,   0.0f,  1.0f,
+     0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,   0.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,   1.0f,  0.0f,
 
-  glBindVertexArray(vao_inv);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_inv);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vert_inv), quad_vert_inv, GL_STATIC_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_inv);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_ind), quad_ind, GL_STATIC_DRAW);
+    -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,   0.0f,  1.0f,
+     0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,   1.0f,  1.0f,
+     0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,   1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,   1.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,   0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,   0.0f,  1.0f,
 
-  // Shader needs a vec4f with 2d coords and tex coords
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
-  glBindVertexArray(0);
-  Log::verbose("[gl::quad] Sprite quads created (id: {},{})", vao, vao_inv);
+    -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,   0.0f,  1.0f,
+     0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,   1.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,   1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,   1.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,   0.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,   0.0f,  1.0f
+  };
+
+  { // quad2d
+    glGenVertexArrays(1, &quad2d.vao);
+    glGenBuffers(1, &quad2d.vbo);
+    glGenBuffers(1, &quad2d.ebo);
+
+    glBindVertexArray(quad2d.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, quad2d.vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad2d_vert), quad2d_vert, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad2d.ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_ind), quad_ind, GL_STATIC_DRAW);
+
+    // Sprite shader needs a vec4f with 2d coords and tex coords
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
+    glBindVertexArray(0);
+  }
+
+  { // quad2d inverted
+    glGenVertexArrays(1, &quad2d_inv.vao);
+    glGenBuffers(1, &quad2d_inv.vbo);
+    glGenBuffers(1, &quad2d_inv.ebo);
+
+    glBindVertexArray(quad2d_inv.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, quad2d_inv.vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad2d_vert_inv), quad2d_vert_inv, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad2d_inv.ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_ind), quad_ind, GL_STATIC_DRAW);
+
+    // Sprite shader needs a vec4f with 2d coords and tex coords
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
+
+    glBindVertexArray(0);
+  }
+
+  { // quad3d
+    glGenVertexArrays(1, &quad3d.vao);
+    glGenBuffers(1, &quad3d.vbo);
+    glGenBuffers(1, &quad3d.ebo);
+
+    glBindVertexArray(quad3d.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, quad3d.vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad3d_vert), quad3d_vert, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad3d.ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_ind), quad_ind, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0); // coords
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
+
+    glEnableVertexAttribArray(1); // normals
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
+
+    glEnableVertexAttribArray(2); // tex_coords
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
+
+    glBindVertexArray(0);
+  }
+
+  { // quad3d inverted
+    glGenVertexArrays(1, &quad3d_inv.vao);
+    glGenBuffers(1, &quad3d_inv.vbo);
+    glGenBuffers(1, &quad3d_inv.ebo);
+
+    glBindVertexArray(quad3d_inv.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, quad3d_inv.vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad3d_vert_inv), quad3d_vert_inv, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad3d_inv.ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_ind), quad_ind, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0); // coords
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
+
+    glEnableVertexAttribArray(1); // normals
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
+
+    glEnableVertexAttribArray(2); // tex_coords
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
+
+    glBindVertexArray(0);
+  }
+
+  { // cube
+    glGenVertexArrays(1, &cube.vao);
+    glGenBuffers(1, &cube.vbo);
+    // glGenBuffers(1, &cube.ebo);
+
+    glBindVertexArray(cube.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, cube.vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vert), cube_vert, GL_STATIC_DRAW);
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube.ebo);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_ind), quad_ind, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0); // coords
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
+
+    glEnableVertexAttribArray(1); // normals
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
+
+    glEnableVertexAttribArray(2); // tex_coords
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
+
+    glBindVertexArray(0);
+  }
+
+
+  Log::verbose("[gl::common_vaos] VAOs initialized");
 }
 
-void gl_quad_2d::destroy(void) {
-  Log::verbose("[gl::quad] Sprite quads deleted (id: {},{})", vao, vao_inv);
-  glBindVertexArray(vao_inv);
-  glDisableVertexAttribArray(0);
-  glBindVertexArray(0);
-  glDeleteVertexArrays(1, &vao_inv);
-  glDeleteBuffers(1, &ebo_inv);
-  glDeleteBuffers(1, &vbo_inv);
+void common_vaos::destroy(void) {
 
-  glBindVertexArray(vao);
-  glDisableVertexAttribArray(0);
-  glBindVertexArray(0);
-  glDeleteVertexArrays(1, &vao);
-  glDeleteBuffers(1, &ebo);
-  glDeleteBuffers(1, &vbo);
+  { // cube
+    glBindVertexArray(cube.vao);
+    glDisableVertexAttribArray(2);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(0);
+    glBindVertexArray(0);
+    glDeleteVertexArrays(1, &cube.vao);
+    // glDeleteBuffers(1, &cube.ebo);
+    glDeleteBuffers(1, &cube.vbo);
+  }
+
+  { // quad3d inverted
+    glBindVertexArray(quad3d_inv.vao);
+    glDisableVertexAttribArray(2);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(0);
+    glBindVertexArray(0);
+    glDeleteVertexArrays(1, &quad3d_inv.vao);
+    glDeleteBuffers(1, &quad3d_inv.ebo);
+    glDeleteBuffers(1, &quad3d_inv.vbo);
+  }
+
+  { // quad3d
+    glBindVertexArray(quad3d_inv.vao);
+    glDisableVertexAttribArray(2);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(0);
+    glBindVertexArray(0);
+    glDeleteVertexArrays(1, &quad3d.vao);
+    glDeleteBuffers(1, &quad3d.ebo);
+    glDeleteBuffers(1, &quad3d.vbo);
+  }
+
+  { // quad2d inverted
+    glBindVertexArray(quad2d_inv.vao);
+    glDisableVertexAttribArray(0);
+    glBindVertexArray(0);
+    glDeleteVertexArrays(1, &quad2d_inv.vao);
+    glDeleteBuffers(1, &quad2d_inv.ebo);
+    glDeleteBuffers(1, &quad2d_inv.vbo);
+  }
+
+  { // quad2d
+    glBindVertexArray(quad2d.vao);
+    glDisableVertexAttribArray(0);
+    glBindVertexArray(0);
+    glDeleteVertexArrays(1, &quad2d.vao);
+    glDeleteBuffers(1, &quad2d.ebo);
+    glDeleteBuffers(1, &quad2d.vbo);
+  }
+
+  Log::verbose("[gl::common_vaos] VAOs deleted");
 }
 
 
