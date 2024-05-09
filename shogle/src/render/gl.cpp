@@ -29,20 +29,19 @@ void gl::destroy(void) {
 void gl::set_tex_filter(texture& texture, res::texture_filter filter) {
   switch (filter) {
     case res::texture_filter::nearest: {
-      texture.glfilter = GL_NEAREST;
+      texture.filter = GL_NEAREST;
       break;
     };
     case res::texture_filter::linear: {
-      texture.glfilter = GL_LINEAR;
+      texture.filter = GL_LINEAR;
       break;
     }
   };
-  texture.filter = filter;
-  glBindTexture(texture.gltype, texture.id);
-  glTexParameteri(texture.gltype, GL_TEXTURE_MIN_FILTER, texture.glfilter);
-  glTexParameteri(texture.gltype, GL_TEXTURE_MAG_FILTER, texture.glfilter);
-  glBindTexture(texture.gltype, 0);
-  Log::verbose("[gl::texture] Texture filter modified (id: {}, filter: {})", texture.id, texture.glfilter);
+  glBindTexture(texture.type, texture.id);
+  glTexParameteri(texture.type, GL_TEXTURE_MIN_FILTER, texture.filter);
+  glTexParameteri(texture.type, GL_TEXTURE_MAG_FILTER, texture.filter);
+  glBindTexture(texture.type, 0);
+  Log::verbose("[gl::texture] Texture filter modified (id: {}, filter: {})", texture.id, texture.filter);
 }
 
 void gl::draw_mesh(const mesh& mesh) {
@@ -53,7 +52,7 @@ void gl::draw_mesh(const mesh& mesh) {
 
 void gl::draw_quad(const texture& texture, bool inverted) {
   auto& quad {gl_quad_2d::instance()};
-  glBindTexture(texture.gltype, texture.id);
+  glBindTexture(texture.type, texture.id);
   glActiveTexture(GL_TEXTURE0);
 
   glBindVertexArray(inverted ? quad.vao_inv : quad.vao);
@@ -61,125 +60,117 @@ void gl::draw_quad(const texture& texture, bool inverted) {
 }
 
 // texture
-gl::texture::texture(size_t w, size_t h, res::texture_format format, res::texture_filter filter) {
-  gltype = GL_TEXTURE_2D;
-  type = res::texture_type::tex2d;
-  switch (format) {
+gl::texture::texture(size_t w, size_t h, res::texture_format tex_format, res::texture_filter tex_filter) {
+  width = w;
+  height = h;
+
+  type = GL_TEXTURE_2D;
+
+  switch (tex_format) {
     case res::texture_format::mono: {
-      glformat = GL_RED;
+      format = GL_RED;
       break;
     }
     case res::texture_format::rgba: {
-      glformat = GL_RGBA;
+      format = GL_RGBA;
       break;
     }
     case res::texture_format::rgb: {
-      glformat = GL_RGB;
+      format = GL_RGB;
       break;
     }
   }
   
-  switch (filter) {
+  switch (tex_filter) {
     case res::texture_filter::nearest: {
-      glfilter = GL_NEAREST;
+      filter = GL_NEAREST;
       break;
     }
     case res::texture_filter::linear: {
-      glfilter = GL_LINEAR;
+      filter = GL_LINEAR;
       break;
     }
   }
 
   glGenTextures(1, &id);
-  glBindTexture(gltype, id);
-  glTexImage2D(gltype, 0, glformat, w, h, 0, glformat, GL_UNSIGNED_BYTE, nullptr);
-  glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glfilter);
-  glTexParameteri(gltype, GL_TEXTURE_MAG_FILTER, glfilter);
-  glBindTexture(gltype, 0);
-  Log::verbose("[gl::texture] Empty texture created (id: {}, type: {})", id, gltype);
+  glBindTexture(type, id);
+  glTexImage2D(type, 0, format, w, h, 0, format, GL_UNSIGNED_BYTE, nullptr);
+  glTexParameteri(type, GL_TEXTURE_MIN_FILTER, filter);
+  glTexParameteri(type, GL_TEXTURE_MAG_FILTER, filter);
+  glBindTexture(type, 0);
+  Log::verbose("[gl::texture] Empty texture created (id: {}, type: {})", id, type);
 }
 
-gl::texture::texture(res::texture_loader loader) :
-  width(loader.width), height(loader.height) {
+gl::texture::texture(loader_t loader) {
+  width = loader.width;
+  height = loader.height;
+
   switch (loader.type) {
     case res::texture_type::tex2d: {
-      gltype = GL_TEXTURE_2D;
+      type = GL_TEXTURE_2D;
       break;
     }
     case res::texture_type::cubemap: {
-      gltype = GL_TEXTURE_CUBE_MAP;
+      type = GL_TEXTURE_CUBE_MAP;
       break;
     }
   }
 
   switch (loader.format) {
     case res::texture_format::mono: {
-      glformat = GL_RED;
+      format = GL_RED;
       break;
     }
     case res::texture_format::rgba: {
-      glformat = GL_RGBA;
+      format = GL_RGBA;
       break;
     }
     case res::texture_format::rgb: {
-      glformat = GL_RGB;
+      format = GL_RGB;
       break;
     }
   }
   
   switch (loader.filter) {
     case res::texture_filter::nearest: {
-      glfilter = GL_NEAREST;
+      filter = GL_NEAREST;
       break;
     }
     case res::texture_filter::linear: {
-      glfilter = GL_LINEAR;
+      filter = GL_LINEAR;
       break;
     }
   }
 
   glGenTextures(1, &id);
-  glBindTexture(gltype, id);
-  glTexImage2D(gltype, 0, glformat, loader.width, loader.height, 0, glformat, GL_UNSIGNED_BYTE, loader.pixels);
-  glGenerateMipmap(gltype);
-  glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glfilter);
-  glTexParameteri(gltype, GL_TEXTURE_MAG_FILTER, glfilter);
-  glTexParameteri(gltype, GL_TEXTURE_WRAP_T, DEFAULT_WRAP);
-  glTexParameteri(gltype, GL_TEXTURE_WRAP_S, DEFAULT_WRAP);
-  glBindTexture(gltype, 0);
-  Log::verbose("[gl::texture] Texture created (id: {}, type: {})", id, gltype);
+  glBindTexture(type, id);
+  glTexImage2D(type, 0, format, loader.width, loader.height, 0, format, GL_UNSIGNED_BYTE, loader.pixels);
+  glGenerateMipmap(type);
+  glTexParameteri(type, GL_TEXTURE_MIN_FILTER, filter);
+  glTexParameteri(type, GL_TEXTURE_MAG_FILTER, filter);
+  glTexParameteri(type, GL_TEXTURE_WRAP_T, DEFAULT_WRAP);
+  glTexParameteri(type, GL_TEXTURE_WRAP_S, DEFAULT_WRAP);
+  glBindTexture(type, 0);
+  Log::verbose("[gl::texture] Texture created (id: {}, type: {})", id, type);
 }
 
-gl::texture::~texture() {
-  if (!id) return;
-  Log::verbose("[gl::texture] Texture deleted (id: {}, type: {})", id, gltype);
-  glDeleteTextures(1, &id);
-}
+void gl::destroy_texture(texture& tex) {
+  if (!tex.id) return;
 
-gl::texture::texture(texture&& t) noexcept :
-  id(std::move(t.id)), glformat(t.glformat), gltype(t.gltype), glfilter(t.glfilter),
-  format(t.format), type(t.type), filter(t.filter),
-  width(t.width), height(t.height) { t.id = 0; }
+  Log::verbose("[gl::texture] Texture deleted (id: {}, type: {})", tex.id, tex.type);
+  glDeleteTextures(1, &tex.id);
 
-gl::texture& gl::texture::operator=(texture&& t) noexcept {
-  id = std::move(t.id); glformat = t.glformat; gltype = t.gltype; glfilter = t.glfilter;
-  format = t.format; type = t.type; filter = t.filter;
-  width = t.width; height = t.height;
-
-  t.id = 0;
-
-  return *this;
+  tex.id = 0;
 }
 
 // framebuffer
 gl::framebuffer::framebuffer(size_t w, size_t h) :
   tex(w, h, res::texture_format::rgb, res::texture_filter::nearest) {
-  auto dim = tex.gltype;
 
   glGenFramebuffers(1, &fbo);
   glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, dim, tex.id, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, tex.type, tex.id, 0);
 
   glGenRenderbuffers(1, &rbo);
   glBindRenderbuffer(GL_RENDERBUFFER, rbo);
@@ -196,22 +187,14 @@ gl::framebuffer::framebuffer(size_t w, size_t h) :
   Log::verbose("[gl::framebuffer] Framebuffer created (id: {})", fbo);
 }
 
-gl::framebuffer::~framebuffer() {
-  if (!fbo) return;
-  Log::verbose("[gl::framebuffer] Framebuffer deleted (id: {})", fbo);
-  glDeleteFramebuffers(1, &fbo);
-  glDeleteBuffers(1, &rbo); // ?
-}
+void gl::destroy_framebuffer(framebuffer& fbo) {
+  if (!fbo.fbo) return;
 
-gl::framebuffer::framebuffer(framebuffer&& f) noexcept :
-  fbo(f.fbo), rbo(f.rbo), tex(std::move(f.tex)) { f.fbo = 0; f.rbo = 0; }
+  Log::verbose("[gl::framebuffer] Framebuffer deleted (id: {})", fbo.fbo);
+  glDeleteFramebuffers(1, &fbo.fbo);
+  glDeleteBuffers(1, &fbo.rbo); // ?
 
-gl::framebuffer& gl::framebuffer::operator=(framebuffer&& f) noexcept {
-  fbo = f.fbo; rbo = f.rbo; tex = std::move(f.tex);
-
-  f.fbo = 0; f.rbo = 0;
-
-  return *this;
+  fbo.fbo = 0;
 }
 
 // mesh
@@ -250,34 +233,29 @@ gl::mesh::mesh(loader_t loader) {
   Log::verbose("[gl::mesh] Mesh created (id: {}, material_count: {})", vao, materials.size());
 }
 
-gl::mesh::~mesh() {
-  if (!vao) return;
-  Log::verbose("[gl::mesh] Mesh deleted (id: {})", vao);
-  glBindVertexArray(vao);
+void gl::destroy_mesh(mesh& mesh) {
+  if (!mesh.vao) return;
+
+  for (auto& mat : mesh.materials) {
+    gl::destroy_texture(mat.tex);
+  }
+  mesh.materials.clear();
+
+  Log::verbose("[gl::mesh] Mesh deleted (id: {})", mesh.vao);
+  glBindVertexArray(mesh.vao);
   glDisableVertexAttribArray(0);
   glDisableVertexAttribArray(1);
   glDisableVertexAttribArray(2);
   glBindVertexArray(0);
-  glDeleteVertexArrays(1, &vao);
-  glDeleteBuffers(1, &ebo);
-  glDeleteBuffers(1, &vbo);
-}
+  glDeleteVertexArrays(1, &mesh.vao);
+  glDeleteBuffers(1, &mesh.ebo);
+  glDeleteBuffers(1, &mesh.vbo);
 
-gl::mesh::mesh(mesh&& m) noexcept :
-  vao(m.vao), vbo(m.vbo), ebo(m.ebo),
-  indices(m.indices), materials(std::move(m.materials)) { m.vao = 0; m.vbo = 0; m.ebo = 0; }
-
-gl::mesh& gl::mesh::operator=(mesh&& m) noexcept {
-  vao = m.vao; vbo = m.vbo; ebo = m.ebo;
-  indices = m.indices; materials = std::move(m.materials);
-
-  m.vao = 0; m.vbo = 0; m.ebo = 0;
-
-  return *this;
+  mesh.vao = 0;
 }
 
 // shader
-gl::shader::shader(res::shader_loader loader) {
+gl::shader::shader(loader_t loader) {
   int succ;
   char log[512];
 
@@ -322,21 +300,13 @@ gl::shader::shader(res::shader_loader loader) {
   Log::verbose("[gl::shader] Shader created (id: {})", prog);
 }
 
-gl::shader::~shader() {
-  if (!prog) return;
-  Log::verbose("[gl::shader] Shader deleted (id: {})", prog);
-  glDeleteProgram(prog);
-}
+void gl::destroy_shader(shader& shad) {
+  if (!shad.prog) return;
 
-gl::shader::shader(shader&& s) noexcept :
-  prog(s.prog) { s.prog = 0; }
+  Log::verbose("[gl::shader] Shader deleted (id: {})", shad.prog);
+  glDeleteProgram(shad.prog);
 
-gl::shader& gl::shader::operator=(shader&& s) noexcept {
-  prog = s.prog;
-
-  s.prog = 0;
-
-  return *this;
+  shad.prog = 0;
 }
 
 gl_quad_2d::gl_quad_2d() {

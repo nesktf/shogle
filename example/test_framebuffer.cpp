@@ -3,34 +3,27 @@
 using namespace ntf;
 
 struct test_framebuffer : public scene {
-  res::pool<render::shader, render::spritesheet, render::model> pool;
 
   uptr<dynamic_sprite> rin;
   uptr<model> cirno_fumo;
   uptr<sprite> fbo_sprite;
-  render::framebuffer fbo {800, 600};
 
   bool cirno_anim {false};
+  float fbo_time {0.0f};
 
-  float fbo_t {0.0f};
+  render::shader generic_2d {"res/shaders/generic_2d"};
+  render::shader generic_3d {"res/shaders/generic_3d"};
 
-  test_framebuffer() {
-    pool.direct_request<render::shader>({
-      {.id="generic_2d", .path="res/shaders/generic_2d"},
-      {.id="generic_3d", .path="res/shaders/generic_3d"}
-    });
-    pool.direct_request<render::spritesheet>({
-      {.id="2hus", .path="_temp/2hus.json"}
-    });
-    pool.direct_request<render::model>({
-      {.id="cino", .path="_temp/models/cirno_fumo/cirno_fumo.obj"}
-    });
-  }
+  render::spritesheet toohus {"_temp/2hus.json"};
+
+  render::model cino {"_temp/models/cirno_fumo/cirno_fumo.obj"};
+
+  render::framebuffer fbo {800, 600};
 
   void on_create(shogle_state& state) override {
     rin = make_uptr<dynamic_sprite>(
-      pool.get<render::spritesheet>("2hus")->get_sprite("rin_dance"),
-      pool.get<render::shader>("generic_2d"),
+      toohus["rin_dance"],
+      &generic_2d,
       &state.cam_2d
     );
     rin->toggle_screen_space(true);
@@ -50,8 +43,8 @@ struct test_framebuffer : public scene {
     });
 
     cirno_fumo = make_uptr<model>(
-      pool.get<render::model>("cino"),
-      pool.get<render::shader>("generic_3d"),
+      &cino,
+      &generic_3d,
       &state.cam_3d
     );
     cirno_fumo->toggle_screen_space(true);
@@ -60,7 +53,7 @@ struct test_framebuffer : public scene {
 
     fbo_sprite = make_uptr<sprite>(
       fbo.get_sprite(),
-      pool.get<render::shader>("generic_2d"),
+      &generic_2d,
       &state.cam_2d
     );
     fbo_sprite->toggle_inverted_draw(true);
@@ -126,27 +119,27 @@ struct test_framebuffer : public scene {
     update_cameras(state, dt);
 
     if (cirno_anim) {
-      cirno_truco(fbo_t);
+      cirno_truco(fbo_time);
     } else {
-      cirno_vueltitas(fbo_t);
+      cirno_vueltitas(fbo_time);
     }
     cirno_fumo->update(dt);
 
-    fbo_t = periodic_add(fbo_t, dt, 0.0f, 2.0f);
-    rin_vueltitas(fbo_t);
+    fbo_time = periodic_add(fbo_time, dt, 0.0f, 2.0f);
+    rin_vueltitas(fbo_time);
 
     rin->update(dt);
     fbo_sprite->update(dt);
   }
 
   void draw(shogle_state&) override {
-    gl::depth_test(true);
+    render::gl::depth_test(true);
     cirno_fumo->draw();
 
-    gl::depth_test(false);
+    render::gl::depth_test(false);
     {
       auto bind = fbo.bind_scoped();
-      gl::clear_viewport(vec4{vec3{glm::abs(glm::sin(PI*fbo_t))}, 1.0f});
+      render::gl::clear_viewport(vec4{vec3{glm::abs(glm::sin(PI*fbo_time))}, 1.0f});
       rin->draw();
     }
     fbo_sprite->draw();

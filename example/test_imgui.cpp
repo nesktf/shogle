@@ -3,39 +3,31 @@
 using namespace ntf;
 
 struct test_imgui : public scene {
-  res::pool<render::shader, render::spritesheet, render::model> pool;
-
   uptr<dynamic_sprite> rin;
   uptr<dynamic_sprite> cirno;
   uptr<dynamic_model> cirno_fumo;
 
   uptr<sprite> sheet;
 
-  test_imgui() {
-    pool.direct_request<render::shader>({
-      {.id="generic_2d", .path="res/shaders/generic_2d"},
-      {.id="generic_3d", .path="res/shaders/generic_3d"}
-    });
-    pool.direct_request<render::spritesheet>({
-      {.id="2hus", .path="_temp/2hus.json"}
-    });
-    pool.direct_request<render::model>({
-      {.id="cirno_fumo", .path="_temp/models/cirno_fumo/cirno_fumo.obj"}
-    });
-  }
+  render::shader generic_2d {"res/shaders/generic_2d"};
+  render::shader generic_3d {"res/shaders/generic_3d"};
+
+  render::spritesheet toohus {"_temp/2hus.json"};
+
+  render::model cino {"_temp/models/cirno_fumo/cirno_fumo.obj"};
 
   void on_create(shogle_state& state) override {
     sheet = make_uptr<dynamic_sprite>(
-      pool.get<render::spritesheet>("2hus")->get_sprite("__sheet"),
-      pool.get<render::shader>("generic_2d"),
+      toohus["__sheet"],
+      &generic_2d,
       &state.cam_2d
     );
     set_pos(*sheet, vec2{0.0f, 0.0f});
     scale(*sheet, 200.0f);
 
     rin = make_uptr<dynamic_sprite>(
-      pool.get<render::spritesheet>("2hus")->get_sprite("rin_dance"),
-      pool.get<render::shader>("generic_2d"),
+      toohus["rin_dance"],
+      &generic_2d,
       &state.cam_2d
     );
     rin->toggle_screen_space(true);
@@ -43,8 +35,8 @@ struct test_imgui : public scene {
     scale(*rin, 200.0f);
 
     cirno = make_uptr<dynamic_sprite>(
-      pool.get<render::spritesheet>("2hus")->get_sprite("cirno_fall"),
-      pool.get<render::shader>("generic_2d"),
+      toohus["cirno_fall"],
+      &generic_2d,
       &state.cam_2d
     );
     cirno->toggle_screen_space(true);
@@ -52,8 +44,8 @@ struct test_imgui : public scene {
     scale(*cirno, 200.0f);
 
     cirno_fumo = make_uptr<dynamic_model>(
-      pool.get<render::model>("cirno_fumo"),
-      pool.get<render::shader>("generic_3d"),
+      &cino,
+      &generic_3d,
       &state.cam_3d
     );
     set_pos(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f});
@@ -163,10 +155,10 @@ struct test_imgui : public scene {
   };
 
   void draw(shogle_state& state) override {
-    gl::depth_test(true);
+    render::gl::depth_test(true);
     cirno_fumo->draw();
 
-    gl::depth_test(false);
+    render::gl::depth_test(false);
     sheet->draw();
     rin->draw();
     cirno->draw();

@@ -9,7 +9,7 @@ model::model(render::model* model, render::shader* shader, camera3D* cam) :
 
 void model::draw(void) {
   update_shader();
-  _model->draw(*_shader);
+  render::draw_model(*_model, *_shader);
 }
 
 void model::update_shader() {

@@ -4,24 +4,31 @@
 
 namespace ntf::render {
 
-class shader {
+struct shader {
 public:
-  using renderer = gl;
   using loader_t = res::shader_loader;
 
 public:
+  shader(std::string path);
   shader(loader_t loader);
 
 public:
-  inline void use(void) { renderer::shader_enable(_shader); }
+  inline void use(void) { gl::shader_enable(_shader); }
 
   template<typename T>
   inline void set_uniform(const char* name, T val) {
-    renderer::shader_unif(_shader, name, val);
+    gl::shader_unif(_shader, name, val);
   }
 
-private:
-  renderer::shader _shader;
+public:
+  gl::shader _shader;
+
+public:
+  ~shader();
+  shader(shader&&) = default;
+  shader(const shader&) = delete;
+  shader& operator=(shader&&) = default;
+  shader& operator=(const shader&) = delete;
 };
 
 } // namespace ntf::render

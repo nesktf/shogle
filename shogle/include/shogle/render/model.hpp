@@ -4,25 +4,25 @@
 
 namespace ntf::render {
 
-class model {
+struct model {
 public:
-  using renderer = gl;
   using loader_t = res::model_loader;
 
 public:
+  model(std::string path);
   model(loader_t loader);
 
-  ~model() = default;
-  model(model&&) = default;
-  model(const model&) = delete;
-  model& operator=(model&&) = default;
-  model& operator=(const model&) = delete;
+public:
+  std::vector<gl::mesh> _meshes;
 
 public:
-  void draw(shader& shader) const;
-
-private:
-  std::vector<renderer::mesh> _meshes;
+  ~model();
+  model(model&&) = default;
+  model(const model&) = delete;
+  model& operator=(model&&) noexcept;
+  model& operator=(const model&) = delete;
 };
+
+void draw_model(model& model, shader& shader);
 
 } // namespace ntf::render

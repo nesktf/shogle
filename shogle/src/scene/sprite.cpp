@@ -12,7 +12,7 @@ sprite::sprite(render::sprite* sprite, render::shader* shader, camera2D* cam) :
 
 void sprite::draw(void) { 
   update_shader();
-  _sprite->draw(*_shader, _index, _inverted_draw); 
+  render::draw_sprite(*_sprite, *_shader, _index, _inverted_draw);
 }
 
 void sprite::update_shader() {

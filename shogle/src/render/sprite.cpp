@@ -1,51 +1,40 @@
 #include <shogle/render/sprite.hpp>
 
-#include <shogle/render/shader.hpp>
-
 namespace ntf::render {
-
-spritesheet::spritesheet(loader_t loader) {
-  _tex = make_uptr<gl::texture>(std::move(loader.tex));
-  for (const auto& sprite_entry : loader.sprites) {
-    auto& name = sprite_entry.first;
-    auto& spr_data = sprite_entry.second;
-
-    _sprites.emplace(std::make_pair(name, sprite{_tex.get(), spr_data}));
-  }
-}
 
 sprite::sprite(std::string path) :
   sprite(loader_t{path}) {}
 
 sprite::sprite(loader_t loader) :
-  _uniform_offset_const(1) {
+  _tex(std::move(loader)),
+  _unique(true),
+  _linear_off(vec2{1.0f}),
+  _const_off{vec2{0.0f}} {
 
-  _unique = true;
-  _tex = new gl::texture(std::move(loader));
-  _aspect = static_cast<float>(_tex->width)/static_cast<float>(_tex->height);
-
-  _uniform_offset_linear = vec2{1.0f};
-  _uniform_offset_const[0] = vec2{0.0f};
+  _aspect = static_cast<float>(_tex.width)/static_cast<float>(_tex.height);
 }
 
-sprite::sprite(gl::texture* tex, size_t w, size_t h) :
-  _tex(tex), _uniform_offset_const(1) {
+sprite::sprite(gl::texture tex, size_t w, size_t h) :
+  _tex(tex), 
+  _unique(false),
+  _linear_off(vec2{1.0f}),
+  _const_off{vec2{0.0f}} {
 
   _aspect = static_cast<float>(w)/static_cast<float>(h);
-  _uniform_offset_linear = vec2{1.0f};
-  _uniform_offset_const[0] = vec2{0.0f};
 }
 
-sprite::sprite(gl::texture* tex, data_t data) :
-  _tex(tex), _uniform_offset_const(data.count) {
+sprite::sprite(gl::texture tex, spritedata_t data) :
+  _tex(tex),
+  _unique(false),
+  _const_off(data.count) {
 
   _aspect =
     static_cast<float>(data.dx*data.rows) / static_cast<float>(data.dy*data.cols);
 
   // sprite texture offset pre-calculations
-  _uniform_offset_linear.x = 
+  _linear_off.x = 
     static_cast<float>(data.dx)/static_cast<float>(data.x*data.cols);
-  _uniform_offset_linear.y = 
+  _linear_off.y = 
     static_cast<float>(data.dy)/static_cast<float>(data.y*data.rows);
 
   for (size_t i = 0; i < data.count; ++i) {
@@ -53,60 +42,77 @@ sprite::sprite(gl::texture* tex, data_t data) :
     size_t col = i % data.cols;
 
     vec2 frac_a {
-      static_cast<float>(data.x0 + (col*data.dx)),
-      static_cast<float>(data.y0 + (row*data.dy))
+      data.x0 + (col*data.dx),
+      data.y0 + (row*data.dy)
     };
 
     vec2 frac_b {
-      static_cast<float>(data.x*data.cols),
-      static_cast<float>(data.y*data.rows)
+      data.x*data.cols,
+      data.y*data.rows
     };
 
-    _uniform_offset_const[i].x = frac_a.x / frac_b.x;
-    _uniform_offset_const[i].y = frac_a.y / frac_b.y;
+    _const_off[i].x = frac_a.x / frac_b.x;
+    _const_off[i].y = frac_a.y / frac_b.y;
   }
-
-}
-
-sprite::~sprite() {
-  if (_unique) {
-    delete _tex;
-  }
-}
-
-sprite::sprite(sprite&& s) noexcept :
-  _unique(std::move(s._unique)),
-  _tex(std::move(s._tex)),
-  _aspect(std::move(s._aspect)),
-  _uniform_offset_linear(std::move(s._uniform_offset_linear)),
-  _uniform_offset_const(std::move(s._uniform_offset_const)) {
-    if (_unique) {
-      s._tex = nullptr;
-    }
 }
 
 sprite& sprite::operator=(sprite&& s) noexcept {
-  _unique = std::move(s._unique);
-  _tex = std::move(s._tex);
-  _aspect = std::move(s._aspect);
-  _uniform_offset_linear = std::move(s._uniform_offset_linear);
-  _uniform_offset_const = std::move(s._uniform_offset_const);
-
   if (_unique) {
-    s._tex = nullptr;
+    gl::destroy_texture(_tex);
   }
+
+  _tex = std::move(s._tex);
+  _unique = std::move(s._unique);
+  _linear_off = std::move(s._linear_off);
+  _const_off = std::move(s._const_off);
+  _aspect = std::move(s._aspect);
+
+  s._tex.id = 0; // avoid destroying moved gl handle
 
   return *this;
 }
 
-void sprite::draw(shader& shader, size_t index, bool inverted_draw) const {
-  vec4 _offset {_uniform_offset_linear, _uniform_offset_const[index % count()]};
+sprite::~sprite() {
+  if (_unique) {
+    gl::destroy_texture(_tex);
+  }
+}
 
+
+spritesheet::spritesheet(std::string path) :
+  spritesheet(loader_t{std::move(path)}) {}
+
+spritesheet::spritesheet(loader_t loader) :
+  _tex(std::move(loader.tex)) {
+  for (const auto& sprite_entry : loader.sprites) {
+    auto& name = sprite_entry.first;
+    auto& spr_data = sprite_entry.second;
+
+    _sprites.emplace(std::make_pair(name, sprite{_tex, spr_data}));
+  }
+}
+
+spritesheet& spritesheet::operator=(spritesheet&& s) noexcept {
+  gl::destroy_texture(_tex);
+
+  _tex = std::move(s._tex);
+  _sprites = std::move(s._sprites);
+
+  s._tex.id = 0; // avoid destroying moved gl handle
+
+  return *this;
+}
+
+spritesheet::~spritesheet() {
+  gl::destroy_texture(_tex);
+}
+
+
+void draw_sprite(sprite& sprite, shader& shader, size_t index, bool inverted) {
   shader.use();
-  shader.set_uniform("sprite_offset", _offset);
+  shader.set_uniform("sprite_offset", sprite.uniform_offset(index));
   shader.set_uniform("sprite_sampler", 0);
-
-  gl::draw_quad(*_tex, inverted_draw);
+  gl::draw_quad(sprite._tex, inverted);
 }
 
 } // namespace ntf::render
