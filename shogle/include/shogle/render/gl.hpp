@@ -3,7 +3,7 @@
 #include <shogle/core/types.hpp>
 #include <shogle/core/singleton.hpp>
 
-#include <shogle/res/assets.hpp>
+#include <shogle/res/asset_loaders.hpp>
 
 #include <glad/glad.h>
 
@@ -19,6 +19,7 @@ public:
     using loader_t = res::shader_loader;
 
     shader(loader_t loader);
+    shader(const char* vert_src, const char* frag_src);
 
     GLuint prog;
   };

@@ -4,6 +4,7 @@
 #include <shogle/core/log.hpp>
 
 #include <shogle/res/pool.hpp>
+#include "shogle/res/global.hpp"
 
 #include <shogle/scene/sprite.hpp>
 #include <shogle/scene/model.hpp>

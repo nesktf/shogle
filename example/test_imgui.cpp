@@ -9,45 +9,26 @@ struct test_imgui : public scene {
 
   uptr<sprite> sheet;
 
-  render::shader generic_2d {"res/shaders/generic_2d"};
-  render::shader generic_3d {"res/shaders/generic_3d"};
-
   render::spritesheet toohus {"_temp/2hus.json"};
 
   render::model cino {"_temp/models/cirno_fumo/cirno_fumo.obj"};
 
   void on_create(shogle_state& state) override {
-    sheet = make_uptr<dynamic_sprite>(
-      toohus["__sheet"],
-      &generic_2d,
-      &state.cam_2d
-    );
+    sheet = make_uptr<dynamic_sprite>(toohus["__sheet"]);
     set_pos(*sheet, vec2{0.0f, 0.0f});
     scale(*sheet, 200.0f);
 
-    rin = make_uptr<dynamic_sprite>(
-      toohus["rin_dance"],
-      &generic_2d,
-      &state.cam_2d
-    );
+    rin = make_uptr<dynamic_sprite>(toohus["rin_dance"]);
     rin->toggle_screen_space(true);
     set_pos(*rin, vec2{700.0f, 100.0f});
     scale(*rin, 200.0f);
 
-    cirno = make_uptr<dynamic_sprite>(
-      toohus["cirno_fall"],
-      &generic_2d,
-      &state.cam_2d
-    );
+    cirno = make_uptr<dynamic_sprite>(toohus["cirno_fall"]);
     cirno->toggle_screen_space(true);
     set_pos(*cirno, vec2{100.0f, 100.0f});
     scale(*cirno, 200.0f);
 
-    cirno_fumo = make_uptr<dynamic_model>(
-      &cino,
-      &generic_3d,
-      &state.cam_3d
-    );
+    cirno_fumo = make_uptr<dynamic_model>(&cino);
     set_pos(*cirno_fumo, vec3{0.0f, -0.25f, -1.0f});
     set_rotation(*cirno_fumo, PI*0.5f, {0.0f, 1.0f, 0.0f});
     set_scale(*cirno_fumo, vec3{0.015f});
@@ -87,8 +68,8 @@ struct test_imgui : public scene {
 
   void update_cameras(shogle_state& state, float dt) {
     auto& in {state.input};
-    auto& cam3d {state.cam_3d};
-    auto& cam2d {state.cam_2d};
+    auto& cam2d {res::global::instance().default_cam2d};
+    auto& cam3d {res::global::instance().default_cam3d};
     
     float speed3d = 1.0f;
     auto pos3d = cam3d.pos();
@@ -154,7 +135,7 @@ struct test_imgui : public scene {
     cirno->update(dt);
   };
 
-  void draw(shogle_state& state) override {
+  void draw(shogle_state&) override {
     gl::depth_test(true);
     cirno_fumo->draw();
 
@@ -163,15 +144,18 @@ struct test_imgui : public scene {
     rin->draw();
     cirno->draw();
 
-    ui_draw(state);
+    ui_draw();
   }
 
-  void ui_draw(shogle_state& state) {
-    auto center = state.cam_2d.center();
-    auto zoom = state.cam_2d.zoom();
-    auto rot = state.cam_2d.rot();
+  void ui_draw() {
+    auto& cam2d {res::global::instance().default_cam2d};
+    auto& cam3d {res::global::instance().default_cam3d};
 
-    auto pos = state.cam_3d.pos();
+    auto center = cam2d.center();
+    auto zoom = cam2d.zoom();
+    auto rot = cam2d.rot();
+
+    auto pos = cam3d.pos();
 
     static float vals[90];
     static int vals_offset = 0;

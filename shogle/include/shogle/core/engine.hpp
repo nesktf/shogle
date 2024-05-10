@@ -32,9 +32,6 @@ struct shogle_state {
 
   input_event input;
   viewport_event viewport;
-
-  camera2D cam_2d;
-  camera3D cam_3d;
   bool update_camera_viewport {false};
 };
 

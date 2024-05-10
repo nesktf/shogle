@@ -11,9 +11,6 @@ struct test_framebuffer : public scene {
   bool cirno_anim {false};
   float fbo_time {0.0f};
 
-  render::shader generic_2d {"res/shaders/generic_2d"};
-  render::shader generic_3d {"res/shaders/generic_3d"};
-
   render::spritesheet toohus {"_temp/2hus.json"};
 
   render::model cino {"_temp/models/cirno_fumo/cirno_fumo.obj"};
@@ -21,11 +18,7 @@ struct test_framebuffer : public scene {
   render::framebuffer fbo {800, 600};
 
   void on_create(shogle_state& state) override {
-    rin = make_uptr<dynamic_sprite>(
-      toohus["rin_dance"],
-      &generic_2d,
-      &state.cam_2d
-    );
+    rin = make_uptr<dynamic_sprite>(toohus["rin_dance"]);
     rin->toggle_screen_space(true);
     set_pos(*rin, {400.0f, 300.0f});
     scale(*rin, 200.0f);
@@ -42,20 +35,12 @@ struct test_framebuffer : public scene {
       return false;
     });
 
-    cirno_fumo = make_uptr<model>(
-      &cino,
-      &generic_3d,
-      &state.cam_3d
-    );
+    cirno_fumo = make_uptr<model>(&cino);
     cirno_fumo->toggle_screen_space(true);
     set_pos(*cirno_fumo, {0.0f, -0.25f, -1.0f});
     set_scale(*cirno_fumo, vec3{0.015f});
 
-    fbo_sprite = make_uptr<sprite>(
-      fbo.get_sprite(),
-      &generic_2d,
-      &state.cam_2d
-    );
+    fbo_sprite = make_uptr<sprite>(fbo.get_sprite());
     fbo_sprite->toggle_inverted_draw(true);
     set_pos(*fbo_sprite, {0.0f, 0.0f});
     scale(*fbo_sprite, 200.0f);
@@ -90,7 +75,8 @@ struct test_framebuffer : public scene {
   void update_cameras(shogle_state& state, float dt) {
     auto& in {state.input};
 
-    auto center {state.cam_2d.center()};
+    auto& cam {res::global::instance().default_cam2d};
+    auto center {cam.center()};
     if (in.is_key_pressed(key::S)) {
       center.y += 200.0f*dt;
     } else if (in.is_key_pressed(key::W)) {
@@ -102,17 +88,16 @@ struct test_framebuffer : public scene {
       center.x -= 200.0f*dt;
     }
 
-    auto zoom {state.cam_2d.zoom()};
+    auto zoom {cam.zoom()};
     if (in.is_key_pressed(key::J)) {
       zoom += vec2{1.0f*dt};
     } else if (in.is_key_pressed(key::K)){
       zoom -= vec2{1.0f*dt};
     }
  
-    state.cam_2d.set_center(center);
-    state.cam_2d.set_zoom(zoom);
-
-    state.cam_2d.update(dt);
+    cam.set_center(center);
+    cam.set_zoom(zoom);
+    cam.update(dt);
   }
 
   void update(shogle_state& state, float dt) override {

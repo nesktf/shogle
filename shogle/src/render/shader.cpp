@@ -2,6 +2,9 @@
 
 namespace ntf::render {
 
+shader::shader(const char* vert_src, const char* frag_src) :
+  _shader(vert_src, frag_src) {}
+
 shader::shader(std::string path) :
   shader(loader_t{std::move(path)}) {}
 

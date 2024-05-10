@@ -1,4 +1,4 @@
-#include <shogle/res/assets.hpp>
+#include <shogle/res/asset_loaders.hpp>
 #include <shogle/res/util.hpp>
 
 #include <shogle/core/error.hpp>

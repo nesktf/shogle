@@ -5,7 +5,7 @@
 
 #include <shogle/render/imgui.hpp>
 
-#include <shogle/res/loader.hpp>
+#include <shogle/res/global.hpp>
 
 namespace ntf {
 
@@ -16,12 +16,16 @@ static void update_cameras(camera2D& cam_2d, camera3D& cam_3d, size_t w, size_t 
 
 shogle_state::shogle_state(glfw::window window, size_t w, size_t h) :
   win(window), input(win) { 
-    update_cameras(cam_2d, cam_3d, w, h); 
-    Log::debug("[shogle] State initialized");
-    Log::info("[shogle] Initialized"); 
+
+  auto& global {res::global::instance()};
+  res::global::instance().init();
+  update_cameras(global.default_cam2d, global.default_cam3d, w, h); 
+  Log::debug("[shogle] State initialized");
+  Log::info("[shogle] Initialized"); 
 }
 
 shogle_state::~shogle_state() {
+  res::global::instance().destroy();
   glfw::destroy_window(win);
   Log::info("[shogle] Terminated");
 }
@@ -49,7 +53,8 @@ void shogle_main_loop(shogle_state& state, scene_creator_t creator) {
     auto* state = static_cast<shogle_state*>(glfw::get_user_ptr(win));
     render::gl::set_viewport(w, h);
     if (state->update_camera_viewport) {
-      update_cameras(state->cam_2d, state->cam_3d, w, h);
+      auto& global {res::global::instance()};
+      update_cameras(global.default_cam2d, global.default_cam3d, w, h); 
     }
     state->viewport.fire(w, h);
   });

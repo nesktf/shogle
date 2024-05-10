@@ -74,7 +74,7 @@ struct fumo_jump : public dynamic_model::task_t {
 };
 
 struct test_async : public scene {
-  res::pool<render::shader, render::sprite, render::model> pool;
+  res::pool<render::sprite, render::model> pool;
   res::async_loader loader;
 
   uptr<dynamic_sprite> cino;
@@ -87,17 +87,17 @@ struct test_async : public scene {
   bool loaded {false};
 
   test_async() {
-    pool.direct_request<render::shader>({
-      {.id="generic_2d", .path="res/shaders/generic_2d"}, 
-      {.id="generic_3d", .path="res/shaders/generic_3d"}
-    });
+    // pool.direct_request<render::shader>({
+    //   {.id="generic_2d", .path="res/shaders/generic_2d"}, 
+    //   {.id="generic_3d", .path="res/shaders/generic_3d"}
+    // });
     pool.direct_request<render::sprite>({
       {.id="chiruno", .path="res/textures/cirno.png"}
     });
   }
 
   void on_create(shogle_state& state) override {
-    pool.async_request<render::model>(loader, [this, &state] { on_load(state); }, {
+    pool.async_request<render::model>(loader, [this] { on_load(); }, {
       {.id="chiruno_fumo", .path="_temp/models/cirno_fumo/cirno_fumo.obj"}, 
       {.id="reimu_fumo", .path="_temp/models/reimu_fumo/reimu_fumo.obj"},
       {.id="marisa_fumo", .path="_temp/models/marisa_fumo/marisa_fumo.obj"},
@@ -105,11 +105,8 @@ struct test_async : public scene {
     });
 
     float t = 0.0f;
-    cino = make_uptr<dynamic_sprite>(
-      pool.get<render::sprite>("chiruno"),
-      pool.get<render::shader>("generic_2d"),
-      &state.cam_2d
-    );
+    Log::info("A");
+    cino = make_uptr<dynamic_sprite>(pool.get<render::sprite>("chiruno"));
     cino->toggle_screen_space(true);
     set_pos(*cino, {400.0f, 300.0f});
     set_scale(*cino, vec2{100.0f});
@@ -130,33 +127,21 @@ struct test_async : public scene {
     });
   }
 
-  void on_load(shogle_state& state) {
+  void on_load() {
     float t = 0.0f;
-    cino_fumo = make_uptr<dynamic_model>(
-      pool.get<render::model>("chiruno_fumo"),
-      pool.get<render::shader>("generic_3d"),
-      &state.cam_3d
-    );
+    cino_fumo = make_uptr<dynamic_model>(pool.get<render::model>("chiruno_fumo"));
     cino_fumo->toggle_screen_space(true);
     set_pos(*cino_fumo, {-0.35f, -0.25f, -1.0f});
     set_scale(*cino_fumo, vec3{0.015f});
     cino_fumo->add_task(make_uptr<fumo_jump>(PI*2.0f, 12.0f, 0.015f*0.5f));
 
-    remu_fumo = make_uptr<dynamic_model>(
-      pool.get<render::model>("reimu_fumo"),
-      pool.get<render::shader>("generic_3d"),
-      &state.cam_3d
-    );
+    remu_fumo = make_uptr<dynamic_model>(pool.get<render::model>("reimu_fumo"));
     remu_fumo->toggle_screen_space(true);
     set_pos(*remu_fumo, {0.35f, -0.25f, -1.0f});
     set_scale(*remu_fumo, vec3{0.015f});
     remu_fumo->add_task(make_uptr<fumo_jump>(-PI*2.0f, 12.0f, 0.015f*0.5f));
 
-    mari_fumo = make_uptr<dynamic_model>(
-      pool.get<render::model>("marisa_fumo"),
-      pool.get<render::shader>("generic_3d"),
-      &state.cam_3d
-    );
+    mari_fumo = make_uptr<dynamic_model>(pool.get<render::model>("marisa_fumo"));
     mari_fumo->toggle_screen_space(true);
     set_pos(*mari_fumo, {0.0f, -0.25f, -2.0f});
     set_scale(*mari_fumo, vec3{0.02f});
@@ -175,11 +160,7 @@ struct test_async : public scene {
       return false;
     });
 
-    car = make_uptr<dynamic_model>(
-      pool.get<render::model>("car"),
-      pool.get<render::shader>("generic_3d"),
-      &state.cam_3d
-    );
+    car = make_uptr<dynamic_model>(pool.get<render::model>("car"));
     car->toggle_screen_space(true);
     set_pos(*car, {0.0f, -0.25f, -2.0f});
     set_scale(*car, vec3{0.3f});

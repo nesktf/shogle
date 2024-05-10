@@ -10,6 +10,9 @@ namespace ntf {
 
 class sprite : public entity2d {
 public:
+  sprite(render::sprite* sprite);
+  sprite(render::sprite* sprite, render::shader* shader);
+  sprite(render::sprite* sprite, camera2D* cam);
   sprite(render::sprite* sprite, render::shader* shader, camera2D* cam);
 
 public:

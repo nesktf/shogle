@@ -9,6 +9,7 @@ public:
   using loader_t = res::shader_loader;
 
 public:
+  shader(const char* vert_src, const char* frag_src);
   shader(std::string path);
   shader(loader_t loader);
 

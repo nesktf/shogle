@@ -10,6 +10,9 @@ namespace ntf {
 
 class model : public entity3d {
 public:
+  model(render::model* model);
+  model(render::model* model, render::shader* shader);
+  model(render::model* model, camera3D* cam);
   model(render::model* model, render::shader* shader, camera3D* cam);
 
 public:

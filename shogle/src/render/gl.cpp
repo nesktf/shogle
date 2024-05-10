@@ -276,12 +276,12 @@ void gl::destroy_mesh(mesh& mesh) {
 }
 
 // shader
-gl::shader::shader(loader_t loader) {
+gl::shader::shader(loader_t loader) :
+  shader(loader.vert_src.c_str(), loader.frag_src.c_str()) {}
+
+gl::shader::shader(const char* vert_src, const char* frag_src) {
   int succ;
   char log[512];
-
-  const char* vert_src = loader.vert_src.c_str();
-  const char* frag_src = loader.frag_src.c_str();
 
   auto vert = glCreateShader(GL_VERTEX_SHADER);
   glShaderSource(vert, 1, &vert_src, nullptr);
