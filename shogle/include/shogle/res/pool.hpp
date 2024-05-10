@@ -33,8 +33,22 @@ public:
 public:
   template<typename T>
   requires(same_as_defined<T, pool_types...>)
-  inline T* get(id_t id) {
+  inline wptr<T> get(id_t id) {
     return &std::get<map_t<T>>(_pool).at(id);
+  }
+
+  template<typename T, typename... Args>
+  requires(same_as_defined<T, pool_types...>)
+  inline void emplace(id_t id, Args&&... args) {
+    std::get<map_t<T>>(_pool).emplace(
+      std::make_pair(id, T{std::forward<Args>(args)...})
+    );
+  }
+
+  template<typename T>
+  requires(same_as_defined<T, pool_types...>)
+  inline void clear_pool(void) {
+    std::get<map_t<T>>(_pool).clear();
   }
 
 public:

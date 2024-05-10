@@ -74,8 +74,8 @@ struct test_framebuffer : public scene {
 
   void update_cameras(shogle_state& state, float dt) {
     auto& in {state.input};
+    auto& cam {res::def_cam2d};
 
-    auto& cam {res::global::instance().default_cam2d};
     auto center {cam.center()};
     if (in.is_key_pressed(key::S)) {
       center.y += 200.0f*dt;

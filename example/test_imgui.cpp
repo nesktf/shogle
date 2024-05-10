@@ -68,8 +68,8 @@ struct test_imgui : public scene {
 
   void update_cameras(shogle_state& state, float dt) {
     auto& in {state.input};
-    auto& cam2d {res::global::instance().default_cam2d};
-    auto& cam3d {res::global::instance().default_cam3d};
+    auto& cam2d {res::def_cam2d};
+    auto& cam3d {res::def_cam3d};
     
     float speed3d = 1.0f;
     auto pos3d = cam3d.pos();
@@ -148,8 +148,8 @@ struct test_imgui : public scene {
   }
 
   void ui_draw() {
-    auto& cam2d {res::global::instance().default_cam2d};
-    auto& cam3d {res::global::instance().default_cam3d};
+    auto& cam2d {res::def_cam2d};
+    auto& cam3d {res::def_cam3d};
 
     auto center = cam2d.center();
     auto zoom = cam2d.zoom();

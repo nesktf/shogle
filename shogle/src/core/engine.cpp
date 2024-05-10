@@ -12,20 +12,20 @@ namespace ntf {
 using imgui = render::imgui;
 using glfw = render::glfw;
 
-static void update_cameras(camera2D& cam_2d, camera3D& cam_3d, size_t w, size_t h);
+static void update_cameras(size_t w, size_t h);
 
 shogle_state::shogle_state(glfw::window window, size_t w, size_t h) :
   win(window), input(win) { 
 
-  auto& global {res::global::instance()};
-  res::global::instance().init();
-  update_cameras(global.default_cam2d, global.default_cam3d, w, h); 
+  res::init_def();
+
+  update_cameras(w, h);
   Log::debug("[shogle] State initialized");
   Log::info("[shogle] Initialized"); 
 }
 
 shogle_state::~shogle_state() {
-  res::global::instance().destroy();
+  res::destroy_def();
   glfw::destroy_window(win);
   Log::info("[shogle] Terminated");
 }
@@ -53,8 +53,7 @@ void shogle_main_loop(shogle_state& state, scene_creator_t creator) {
     auto* state = static_cast<shogle_state*>(glfw::get_user_ptr(win));
     render::gl::set_viewport(w, h);
     if (state->update_camera_viewport) {
-      auto& global {res::global::instance()};
-      update_cameras(global.default_cam2d, global.default_cam3d, w, h); 
+      update_cameras(w, h);
     }
     state->viewport.fire(w, h);
   });
@@ -110,13 +109,16 @@ void shogle_close_window(shogle_state& state) {
   Log::debug("[shogle] Window closed");
 }
 
-static void update_cameras(camera2D& cam_2d, camera3D& cam_3d, size_t w, size_t h) {
-  cam_2d.set_viewport({static_cast<float>(w), static_cast<float>(h)});
-  cam_2d.update({});
+static void update_cameras(size_t w, size_t h) {
+  auto& cam2d {res::def_cam2d};
+  auto& cam3d {res::def_cam3d};
+
+  cam2d.set_viewport({static_cast<float>(w), static_cast<float>(h)});
+  cam2d.update({});
   Log::verbose("[shogle] default 2d camera updated");
 
-  cam_3d.set_viewport({static_cast<float>(w), static_cast<float>(h)});
-  cam_3d.update({});
+  cam3d.set_viewport({static_cast<float>(w), static_cast<float>(h)});
+  cam3d.update({});
   Log::verbose("[shogle] default 3d camera updated");
 }
 

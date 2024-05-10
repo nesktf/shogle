@@ -5,33 +5,25 @@
 
 namespace ntf {
 
-sprite::sprite(render::sprite* sprite) :
+sprite::sprite(wptr<render::sprite> sprite) :
   _sprite(sprite) {
   assert(sprite);
-  auto& global {res::global::instance()};
-  _shader = global.default_sprite_shader;
-  _cam = &global.default_cam2d;
-
   scale = corrected_scale();
 }
 
-sprite::sprite(render::sprite* sprite, render::shader* shader) :
+sprite::sprite(wptr<render::sprite> sprite, wptr<render::shader> shader) :
   _sprite(sprite), _shader(shader) {
   assert(sprite && shader);
-  auto& global {res::global::instance()};
-  _cam = &global.default_cam2d;
   scale = corrected_scale();
 }
 
-sprite::sprite(render::sprite* sprite, camera2D* cam) :
+sprite::sprite(wptr<render::sprite> sprite, wptr<camera2d> cam) :
   _sprite(sprite), _cam(cam) {
   assert(sprite && cam);
-  auto& global {res::global::instance()};
-  _shader = global.default_sprite_shader;
   scale = corrected_scale();
 }
 
-sprite::sprite(render::sprite* sprite, render::shader* shader, camera2D* cam) :
+sprite::sprite(wptr<render::sprite> sprite, wptr<camera2d> cam, wptr<render::shader> shader) :
   _sprite(sprite), _shader(shader), _cam(cam) {
   assert(sprite && shader && cam);
   scale = corrected_scale();

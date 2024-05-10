@@ -2,7 +2,7 @@
 
 namespace ntf {
 
-void camera2D::update(float) {
+void camera2d::update(float) {
   _proj = glm::ortho(
     0.0f, _viewport.x,
     _viewport.y, 0.0f,
@@ -20,7 +20,7 @@ void camera2D::update(float) {
 }
 
 
-void camera3D::update(float) {
+void camera3d::update(float) {
   if (_use_ortho) {
     _proj = glm::ortho(
       0.0f, _viewport.x,

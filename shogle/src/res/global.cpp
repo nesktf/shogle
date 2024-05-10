@@ -5,7 +5,7 @@
 namespace ntf::res {
 
 // default shader sources
-const char* default_sprite_vert = R"glsl(
+const char* def_sprite_vert = R"glsl(
 #version 330 core
 
 layout (location = 0) in vec4 coords_att; // xy vert, zw tex
@@ -24,7 +24,7 @@ void main() {
 }
 )glsl";
 
-const char* default_sprite_frag = R"glsl(
+const char* def_sprite_frag = R"glsl(
 #version 330 core
 
 in vec2 tex_coord;
@@ -44,7 +44,7 @@ void main() {
 }
 )glsl";
 
-const char* default_mesh_vert = R"glsl(
+const char* def_model_vert = R"glsl(
 #version 330 core
 
 layout (location = 0) in vec3 vert_coord_att;
@@ -66,7 +66,7 @@ void main() {
 }
 )glsl";
 
-const char* default_mesh_frag = R"glsl(
+const char* def_model_frag = R"glsl(
 #version 330 core
 
 in vec3 vert_normal;
@@ -90,14 +90,20 @@ void main() {
 }
 )glsl";
 
-void global::init(void) {
-  default_sprite_shader = new render::shader{default_sprite_vert, default_sprite_frag};
-  default_mesh_shader = new render::shader{default_mesh_vert, default_mesh_frag};
+uptr<render::shader> def_sprite_sh {};
+uptr<render::shader> def_model_sh {};
+
+camera2d def_cam2d{};
+camera3d def_cam3d{};
+
+void init_def() {
+  def_sprite_sh = make_uptr<render::shader>(def_sprite_vert, def_sprite_frag);
+  def_model_sh = make_uptr<render::shader>(def_model_vert, def_model_frag);
 }
 
-void global::destroy() {
-  delete default_mesh_shader;
-  delete default_sprite_shader;
+void destroy_def() {
+  def_model_sh.reset();
+  def_sprite_sh.reset();
 }
 
 } // namespace ntf::res

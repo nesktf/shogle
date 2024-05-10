@@ -5,41 +5,41 @@
 
 namespace ntf {
 
-class camera2D : public scene::object {
+class camera2d : public scene::object {
 public:
-  camera2D() = default;
+  camera2d() = default;
 
 public:
   void update(float dt = 0.0f) final;
 
 public:
-  inline camera2D& set_viewport(vec2 viewport) {
+  inline camera2d& set_viewport(vec2 viewport) {
     _viewport = viewport;
     _origin = viewport*0.5f;
     return *this;
   }
 
-  inline camera2D& set_layer_count(size_t layer_count) {
+  inline camera2d& set_layer_count(size_t layer_count) {
     _layer_count = layer_count;
     return *this;
   }
 
-  inline camera2D& set_center(vec2 center) {
+  inline camera2d& set_center(vec2 center) {
     _center = center;
     return *this;
   }
 
-  inline camera2D& set_zoom(vec2 zoom) {
+  inline camera2d& set_zoom(vec2 zoom) {
     _zoom = zoom;
     return *this;
   }
 
-  inline camera2D& set_zoom(float zoom) {
+  inline camera2d& set_zoom(float zoom) {
     _zoom = vec2{zoom};
     return *this;
   }
 
-  inline camera2D& set_rot(float rot) {
+  inline camera2d& set_rot(float rot) {
     _rot = rot;
     return *this;
   }
@@ -67,40 +67,40 @@ private:
   float _rot {0.0f};
 };
 
-class camera3D : public scene::object {
+class camera3d : public scene::object {
 public:
-  camera3D() = default;
+  camera3d() = default;
 
 public:
   void update(float dt = 0.0f) final;
 
 public:
-  inline camera3D& use_ortho(bool flag) {
+  inline camera3d& use_ortho(bool flag) {
     _use_ortho = flag;
     return *this;
   }
   
-  inline camera3D& set_viewport(vec2 viewport) {
+  inline camera3d& set_viewport(vec2 viewport) {
     _viewport = viewport;
     return *this;
   }
 
-  inline camera3D& set_draw_dist(float zfar, float znear = 0.1f) {
+  inline camera3d& set_draw_dist(float zfar, float znear = 0.1f) {
     _draw_dist = vec2{znear, zfar};
     return *this;
   }
 
-  inline camera3D& set_fov(float fov) {
+  inline camera3d& set_fov(float fov) {
     _fov = fov;
     return *this;
   }
 
-  inline camera3D& set_pos(vec3 pos) {
+  inline camera3d& set_pos(vec3 pos) {
     _pos = pos;
     return *this;
   }
 
-  inline camera3D& set_dir(vec3 dir) {
+  inline camera3d& set_dir(vec3 dir) {
     _dir = dir;
     return *this;
   }
