@@ -105,7 +105,6 @@ struct test_async : public scene {
     });
 
     float t = 0.0f;
-    Log::info("A");
     cino = make_uptr<dynamic_sprite>(pool.get<render::sprite>("chiruno"));
     cino->toggle_screen_space(true);
     set_pos(*cino, {400.0f, 300.0f});
