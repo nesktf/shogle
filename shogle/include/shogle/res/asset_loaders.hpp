@@ -45,7 +45,7 @@ public:
   texture_type type {texture_type::tex2d};
   texture_format format {texture_format::rgb};
   texture_filter filter {texture_filter::nearest};
-  unsigned char* pixels {nullptr};
+  unsigned char* pixels[6] {nullptr};
 };
 
 // shader

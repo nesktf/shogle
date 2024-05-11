@@ -1,7 +1,5 @@
 #include <shogle/scene/model.hpp>
 
-#include <shogle/res/global.hpp>
-
 namespace ntf {
 
 model::model(wptr<render::model> model) :

@@ -7,6 +7,7 @@ struct test_framebuffer : public scene {
   uptr<dynamic_sprite> rin;
   uptr<model> cirno_fumo;
   uptr<sprite> fbo_sprite;
+  uptr<skybox> sky;
 
   bool cirno_anim {false};
   float fbo_time {0.0f};
@@ -14,6 +15,8 @@ struct test_framebuffer : public scene {
   render::spritesheet toohus {"_temp/2hus.json"};
 
   render::model cino {"_temp/models/cirno_fumo/cirno_fumo.obj"};
+
+  render::cubemap cmap {"_temp/skybox/skybox.json"};
 
   render::framebuffer fbo {800, 600};
 
@@ -45,6 +48,8 @@ struct test_framebuffer : public scene {
     set_pos(*fbo_sprite, {0.0f, 0.0f});
     scale(*fbo_sprite, 200.0f);
 
+    sky = make_uptr<skybox>(&cmap);
+
     state.input.subscribe(key::ESCAPE, key::PRESS, [&state]() {
       shogle_close_window(state);
     });
@@ -75,6 +80,7 @@ struct test_framebuffer : public scene {
   void update_cameras(shogle_state& state, float dt) {
     auto& in {state.input};
     auto& cam {res::def_cam2d};
+    auto& cam3d {res::def_cam3d};
 
     auto center {cam.center()};
     if (in.is_key_pressed(key::S)) {
@@ -98,6 +104,14 @@ struct test_framebuffer : public scene {
     cam.set_center(center);
     cam.set_zoom(zoom);
     cam.update(dt);
+
+    vec3 cdir {cam3d.dir()};
+    quat dir_quat {0.0f, cdir};
+    dir_quat *= quat{glm::cos(PI*0.5f*0.5f*dt), vec3{0.0f, glm::sin(PI*0.5f*0.5f*dt), 0.0f}};
+    cdir = vec3{dir_quat.x, dir_quat.y, dir_quat.z};
+
+    cam3d.set_dir(cdir);
+    cam3d.update();
   }
 
   void update(shogle_state& state, float dt) override {
@@ -120,6 +134,7 @@ struct test_framebuffer : public scene {
   void draw(shogle_state&) override {
     gl::depth_test(true);
     cirno_fumo->draw();
+    sky->draw();
 
     gl::depth_test(false);
     {

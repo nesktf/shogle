@@ -2,6 +2,7 @@
 #include <shogle/res/util.hpp>
 
 #include <shogle/core/error.hpp>
+#include <shogle/core/log.hpp>
 
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
@@ -14,16 +15,45 @@
 #include <stb/stb_image.h>
 
 #include <fstream>
+#include <filesystem>
 
 namespace ntf::res {
 
 // texture
 texture_loader::texture_loader(std::string _path) :
   path(_path) {
-  pixels = stbi_load(path.c_str(), &width, &height, &channels, 0);
+  std::filesystem::path fp{path};
+  if (fp.extension() == ".json") {
+    // assume is a cubemap
+    type = texture_type::cubemap;
 
-  if (!pixels) {
-    throw ntf::error{"Error loading texture: {}", path};
+    filter = texture_filter::linear; // ?
+
+    using json = nlohmann::json;
+    std::ifstream f{path};
+    json data = json::parse(f);
+    auto content = data["content"];
+    size_t i = 0;
+    for (auto& curr : content) {
+      std::string curr_path = file_dir(path)+"/"+curr["path"].template get<std::string>();
+
+      // assumes all 6 faces have the same size
+      pixels[i] = stbi_load(curr_path.c_str(), &width, &height, &channels, 0);
+      if (!pixels[i]) {
+        throw ntf::error{"Error loading cubemap texture: {}, n° {}", path, i};
+      }
+
+      ++i;
+    }
+  } else {
+    // assume is a regular texture
+    type = texture_type::tex2d;
+
+    pixels[0] = stbi_load(path.c_str(), &width, &height, &channels, 0);
+
+    if (!pixels[0]) {
+      throw ntf::error{"Error loading texture: {}", path};
+    }
   }
 
   switch (channels) {
@@ -43,8 +73,14 @@ texture_loader::texture_loader(std::string _path) :
 }
 
 texture_loader::~texture_loader() {
-  if (pixels) {
-    stbi_image_free(pixels);
+  if (pixels[0]) {
+    if (type == texture_type::tex2d) {
+      stbi_image_free(pixels[0]);
+    } else {
+      for (size_t i = 0; i < 6; ++i) {
+        stbi_image_free(pixels[i]);
+      }
+    }
   }
 }
 
@@ -55,10 +91,25 @@ texture_loader::texture_loader(texture_loader&& t) noexcept :
   channels(std::move(t.channels)),
   type(std::move(t.type)),
   format(std::move(t.format)),
-  filter(std::move(t.filter)),
-  pixels(std::move(t.pixels)) { t.pixels = nullptr; }
+  filter(std::move(t.filter)) {
+
+  for (size_t i = 0; i < 6; ++i) {
+    pixels[i] = std::move(t.pixels[i]);
+    t.pixels[i] = nullptr;
+  }
+}
 
 texture_loader& texture_loader::operator=(texture_loader&& t) noexcept {
+  if (pixels[0]) {
+    if (type == texture_type::tex2d) {
+      stbi_image_free(pixels[0]);
+    } else if (pixels[0]) {
+      for (size_t i = 0; i < 6; ++i) {
+        stbi_image_free(pixels[i]);
+      }
+    }
+  }
+
   path = std::move(t.path);
   width = std::move(t.width);
   height = std::move(t.height);
@@ -66,9 +117,11 @@ texture_loader& texture_loader::operator=(texture_loader&& t) noexcept {
   type = std::move(t.type);
   format = std::move(t.format);
   filter = std::move(t.filter);
-  pixels = std::move(t.pixels);
 
-  t.pixels = nullptr;
+  for (size_t i = 0; i < 6; ++i) {
+    pixels[i] = std::move(t.pixels[i]);
+    t.pixels[i] = nullptr;
+  }
 
   return *this;
 }

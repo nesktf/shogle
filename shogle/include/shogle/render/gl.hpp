@@ -80,6 +80,7 @@ public:
   static void draw_quad_2d(bool inverted = false);
   static void draw_quad_3d(bool inverted = false);
   static void draw_cube(void);
+  static void draw_cubemap(void);
 
 public:
   static inline void framebuffer_bind(const framebuffer* fbo) {

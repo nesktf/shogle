@@ -12,6 +12,7 @@ namespace ntf::res {
 
 extern uptr<render::shader> def_sprite_sh;
 extern uptr<render::shader> def_model_sh;
+extern uptr<render::shader> def_skybox_sh;
 extern camera2d def_cam2d;
 extern camera3d def_cam3d;
 

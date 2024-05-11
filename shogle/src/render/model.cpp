@@ -42,4 +42,33 @@ void draw_model(model& model, shader& shader) {
   }
 }
 
+
+cubemap::cubemap(std::string path) :
+  cubemap(loader_t{std::move(path)}) {}
+
+cubemap::cubemap(loader_t loader) :
+  _tex(std::move(loader)) {}
+
+cubemap& cubemap::operator=(cubemap&& c) noexcept {
+  gl::destroy_texture(_tex);
+
+  _tex = std::move(c._tex);
+
+  c._tex.id = 0;
+
+  return *this;
+}
+
+cubemap::~cubemap() {
+  gl::destroy_texture(_tex);
+}
+
+void draw_cubemap(cubemap& cube, shader& shader) {
+  shader.use();
+  shader.set_uniform("skybox", 0);
+
+  gl::texture_bind(cube._tex);
+  gl::draw_cubemap();
+}
+
 } // namespace ntf::render

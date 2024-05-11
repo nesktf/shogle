@@ -19,7 +19,7 @@ struct common_vaos : public Singleton<common_vaos> {
 
   vao quad2d, quad2d_inv;
   vao quad3d, quad3d_inv;
-  vao cube;
+  vao cube_tex2d, cube_cmap;
 };
 
 void gl::init(GLADloadproc proc) {
@@ -75,9 +75,18 @@ void gl::draw_quad_3d(bool inverted) {
 
 void gl::draw_cube(void) {
   auto& vaos {common_vaos::instance()};
-  glBindVertexArray(vaos.cube.vao);
+  glBindVertexArray(vaos.cube_tex2d.vao);
   glDrawArrays(GL_TRIANGLES, 0, 36);
   glBindVertexArray(0);
+}
+
+void gl::draw_cubemap(void) {
+  auto& vaos {common_vaos::instance()};
+  glDepthFunc(GL_LEQUAL);
+  glBindVertexArray(vaos.cube_cmap.vao);
+  glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+  glBindVertexArray(0);
+  glDepthFunc(GL_LESS);
 }
 
 // texture
@@ -165,12 +174,24 @@ gl::texture::texture(loader_t loader) {
 
   glGenTextures(1, &id);
   glBindTexture(type, id);
-  glTexImage2D(type, 0, format, loader.width, loader.height, 0, format, GL_UNSIGNED_BYTE, loader.pixels);
-  glGenerateMipmap(type);
-  glTexParameteri(type, GL_TEXTURE_MIN_FILTER, filter);
-  glTexParameteri(type, GL_TEXTURE_MAG_FILTER, filter);
-  glTexParameteri(type, GL_TEXTURE_WRAP_T, DEFAULT_WRAP);
-  glTexParameteri(type, GL_TEXTURE_WRAP_S, DEFAULT_WRAP);
+  if (loader.type == res::texture_type::cubemap) {
+    for (size_t i = 0; i < 6; ++i) {
+      // right, left, top, bottom, back, front
+      glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, loader.pixels[i]);
+    }
+    glTexParameteri(type, GL_TEXTURE_MIN_FILTER, filter);
+    glTexParameteri(type, GL_TEXTURE_MAG_FILTER, filter);
+    glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(type, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+  } else {
+    glTexImage2D(type, 0, format, loader.width, loader.height, 0, format, GL_UNSIGNED_BYTE, loader.pixels[0]);
+    glGenerateMipmap(type);
+    glTexParameteri(type, GL_TEXTURE_MIN_FILTER, filter);
+    glTexParameteri(type, GL_TEXTURE_MAG_FILTER, filter);
+    glTexParameteri(type, GL_TEXTURE_WRAP_T, DEFAULT_WRAP);
+    glTexParameteri(type, GL_TEXTURE_WRAP_S, DEFAULT_WRAP);
+  }
   glBindTexture(type, 0);
   Log::verbose("[gl::texture] Texture created (id: {}, type: {})", id, type);
 }
@@ -366,7 +387,7 @@ void common_vaos::init() {
     0, 2, 3  // top left triangle
   };
 
-  float cube_vert[] = {
+  float cube_tex2d_vert[] = {
     // coord                 // normal             // tex_coord
     -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   0.0f,  0.0f,
      0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   1.0f,  0.0f,
@@ -409,6 +430,38 @@ void common_vaos::init() {
      0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,   1.0f,  0.0f,
     -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,   0.0f,  0.0f,
     -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,   0.0f,  1.0f
+  };
+
+  float cube_cmap_vert[] = {
+    // just tex_coords
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f,
+    -1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f
+  };
+  GLuint cube_cmap_ind[] = {
+    // Right
+    1, 2, 6,
+    6, 5, 1,
+    // Left
+    0, 4, 7,
+    7, 3, 0,
+    // Top
+    4, 5, 6,
+    6, 7, 4,
+    // Bottom
+    0, 3, 2,
+    2, 1, 0,
+    // Back
+    0, 1, 5,
+    5, 4, 0,
+    // Front
+    3, 7, 6,
+    6, 2, 3
   };
 
   { // quad2d
@@ -492,14 +545,14 @@ void common_vaos::init() {
     glBindVertexArray(0);
   }
 
-  { // cube
-    glGenVertexArrays(1, &cube.vao);
-    glGenBuffers(1, &cube.vbo);
+  { // cube tex2d
+    glGenVertexArrays(1, &cube_tex2d.vao);
+    glGenBuffers(1, &cube_tex2d.vbo);
     // glGenBuffers(1, &cube.ebo);
 
-    glBindVertexArray(cube.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, cube.vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vert), cube_vert, GL_STATIC_DRAW);
+    glBindVertexArray(cube_tex2d.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, cube_tex2d.vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_tex2d_vert), cube_tex2d_vert, GL_STATIC_DRAW);
     // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube.ebo);
     // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_ind), quad_ind, GL_STATIC_DRAW);
 
@@ -515,21 +568,44 @@ void common_vaos::init() {
     glBindVertexArray(0);
   }
 
+  { // cube cubemap
+    glGenVertexArrays(1, &cube_cmap.vao);
+    glGenBuffers(1, &cube_cmap.vbo);
+    glGenBuffers(1, &cube_cmap.ebo);
+
+    glBindVertexArray(cube_cmap.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, cube_cmap.vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_cmap_vert), cube_cmap_vert, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_cmap.ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_cmap_ind), cube_cmap_ind, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0); // coords
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
+
+    glBindVertexArray(0);
+  }
 
   Log::verbose("[gl::common_vaos] VAOs initialized");
 }
 
 void common_vaos::destroy(void) {
+  { // cube cubemap
+    glBindVertexArray(cube_cmap.vao);
+    glDisableVertexAttribArray(0);
+    glBindVertexArray(0);
+    glDeleteVertexArrays(1, &cube_cmap.vao);
+    glDeleteBuffers(1, &cube_cmap.ebo);
+    glDeleteBuffers(1, &cube_cmap.vbo);
+  }
 
-  { // cube
-    glBindVertexArray(cube.vao);
+  { // cube tex2d
+    glBindVertexArray(cube_tex2d.vao);
     glDisableVertexAttribArray(2);
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(0);
     glBindVertexArray(0);
-    glDeleteVertexArrays(1, &cube.vao);
-    // glDeleteBuffers(1, &cube.ebo);
-    glDeleteBuffers(1, &cube.vbo);
+    glDeleteVertexArrays(1, &cube_tex2d.vao);
+    glDeleteBuffers(1, &cube_tex2d.vbo);
   }
 
   { // quad3d inverted

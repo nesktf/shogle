@@ -8,6 +8,7 @@
 
 #include <shogle/scene/sprite.hpp>
 #include <shogle/scene/model.hpp>
+#include <shogle/scene/skybox.hpp>
 #include <shogle/scene/util.hpp>
 
 #include <shogle/render/framebuffer.hpp>
