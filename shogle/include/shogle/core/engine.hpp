@@ -33,6 +33,7 @@ struct shogle_state {
   input_event input;
   viewport_event viewport;
   bool update_camera_viewport {false};
+  size_t win_w, win_h;
 };
 
 shogle_state shogle_create(size_t window_width, size_t window_height, std::string window_title);

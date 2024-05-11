@@ -15,7 +15,7 @@ using glfw = render::glfw;
 static void update_cameras(size_t w, size_t h);
 
 shogle_state::shogle_state(glfw::window window, size_t w, size_t h) :
-  win(window), input(win) { 
+  win(window), input(win), win_w(w), win_h(h) { 
 
   res::init_def();
 
@@ -52,6 +52,8 @@ void shogle_main_loop(shogle_state& state, scene_creator_t creator) {
     Log::debug("[shogle] Viewport event: {} {}", w, h);
     auto* state = static_cast<shogle_state*>(glfw::get_user_ptr(win));
     render::gl::set_viewport(w, h);
+    state->win_w = w;
+    state->win_h = h;
     if (state->update_camera_viewport) {
       update_cameras(w, h);
     }

@@ -2,10 +2,10 @@
 
 namespace ntf::render {
 
-framebuffer::fbo_raii::fbo_raii(framebuffer* fbo) :
-  _fbo(fbo) { _fbo->bind(); }
+framebuffer::fbo_raii::fbo_raii(framebuffer* fbo, size_t win_w, size_t win_h) :
+  _fbo(fbo), w(win_w), h(win_h) { _fbo->bind(); }
 
-framebuffer::fbo_raii::~fbo_raii() { _fbo->unbind(); }
+framebuffer::fbo_raii::~fbo_raii() { _fbo->unbind(w, h); }
 
 framebuffer::framebuffer(size_t w, size_t h) :
   _fbo(w, h),
