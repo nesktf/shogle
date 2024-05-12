@@ -3,8 +3,9 @@ cmake_minimum_required(VERSION 3.10)
 message(STATUS "ShOGLE: Configuring version ${SHOGLE_VERSION}")
 
 ## Vars ##
-set(SHOGLE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
-set(EXTERN_PATH ${SHOGLE_PATH}/extern)
+set(SOURCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
+set(EXTERN_PATH "${SOURCE_PATH}/extern")
+set(SHOGLE_PATH "${SOURCE_PATH}/shogle")
 
 set(SHOGLE_SOURCE)
 set(SHOGLE_INCLUDE)
@@ -59,8 +60,8 @@ list(APPEND SHOGLE_LIB_LINK lua5.3)
 
 
 ## Lib files ##
-file(GLOB_RECURSE SHOGLE_SOURCE "${SHOGLE_PATH}/src/*.cpp")
-set(SHOGLE_INCLUDE "${SHOGLE_PATH}/include")
+file(GLOB_RECURSE SHOGLE_SOURCE "${SHOGLE_PATH}/*.cpp")
+set(SHOGLE_INCLUDE, "${SHOGLE_PATH}")
 
 add_library(shogle STATIC ${SHOGLE_SOURCE} ${SHOGLE_LIB_SOURCE})
 set_target_properties(shogle PROPERTIES CXX_STANDARD 20)
