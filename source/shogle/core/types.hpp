@@ -29,6 +29,22 @@ using color3 = vec3;
 
 using path_t = std::string;
 
+struct vec2i {
+  int x{};
+  int y{};
+};
+
+struct vec2sz {
+  union {
+    size_t x;
+    size_t w;
+  };
+  union {
+    size_t y;
+    size_t h;
+  };
+};
+
 template<typename T>
 using wptr = T*; // non owning pointer
 

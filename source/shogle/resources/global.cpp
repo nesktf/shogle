@@ -145,4 +145,116 @@ void destroy_def() {
   def_sprite_sh.reset();
 }
 
+  // inverted texture quads are considered "normal" for convenience
+  float quad2d_vert[] = { // inverted in texture space (for stb_image textures)
+    // coord        // tex_coord
+    -0.5f, -0.5f,   0.0f, 0.0f,
+     0.5f, -0.5f,   1.0f, 0.0f,
+     0.5f,  0.5f,   1.0f, 1.0f,
+    -0.5f,  0.5f,   0.0f, 1.0f
+  };
+  float quad2d_vert_inv[] = { // not inverted (for framebuffers)
+    // coord        // tex_coord
+    -0.5f, -0.5f,   0.0f, 1.0f,
+     0.5f, -0.5f,   1.0f, 1.0f,
+     0.5f,  0.5f,   1.0f, 0.0f,
+    -0.5f,  0.5f,   0.0f, 0.0f
+  };
+
+  float quad3d_vert[] = { // inverted in texture space (for stb_image textures)
+    // coord                // normal           // tex_coord
+    -0.5f, -0.5f,  0.0f,     0.0f,  0.0f,  1.0f,   0.0f,  0.0f,
+     0.5f, -0.5f,  0.0f,     0.0f,  0.0f,  1.0f,   1.0f,  0.0f,
+     0.5f,  0.5f,  0.0f,     0.0f,  0.0f,  1.0f,   1.0f,  1.0f,
+    -0.5f,  0.5f,  0.0f,     0.0f,  0.0f,  1.0f,   0.0f,  1.0f
+  };
+  float quad3d_vert_inv[] = { // not inverted (for framebuffers)
+    // coord                // normal           // tex_coord
+    -0.5f, -0.5f,  0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 1.0f,
+     0.5f, -0.5f,  0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 1.0f,
+     0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,   1.0f, 0.0f,
+    -0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,   0.0f, 0.0f
+  };
+  GLuint quad_ind[] = {
+    0, 1, 2, // bottom right triangle
+    0, 2, 3  // top left triangle
+  };
+
+  float cube_tex2d_vert[] = {
+    // coord                 // normal             // tex_coord
+    -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   1.0f,  1.0f,
+     0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   1.0f,  1.0f,
+    -0.5f,  0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   0.0f,  1.0f,
+    -0.5f, -0.5f, -0.5f,     0.0f,  0.0f, -1.0f,   0.0f,  0.0f,
+
+    -0.5f, -0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   0.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   1.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   1.0f,  1.0f,
+    -0.5f,  0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   0.0f,  1.0f,
+    -0.5f, -0.5f,  0.5f,     0.0f,  0.0f,  1.0f,   0.0f,  0.0f,
+
+    -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,   1.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,   1.0f,  1.0f,
+    -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,   0.0f,  1.0f,
+    -0.5f, -0.5f, -0.5f,    -1.0f,  0.0f,  0.0f,   0.0f,  1.0f,
+    -0.5f, -0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,   0.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,    -1.0f,  0.0f,  0.0f,   1.0f,  0.0f,
+
+     0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,   1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,     1.0f,  0.0f,  0.0f,   1.0f,  1.0f,
+     0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,   0.0f,  1.0f,
+     0.5f, -0.5f, -0.5f,     1.0f,  0.0f,  0.0f,   0.0f,  1.0f,
+     0.5f, -0.5f,  0.5f,     1.0f,  0.0f,  0.0f,   0.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,     1.0f,  0.0f,  0.0f,   1.0f,  0.0f,
+
+    -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,   0.0f,  1.0f,
+     0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,   1.0f,  1.0f,
+     0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,   1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,   1.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,     0.0f, -1.0f,  0.0f,   0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,     0.0f, -1.0f,  0.0f,   0.0f,  1.0f,
+
+    -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,   0.0f,  1.0f,
+     0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,   1.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,   1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,   1.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,     0.0f,  1.0f,  0.0f,   0.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,     0.0f,  1.0f,  0.0f,   0.0f,  1.0f
+  };
+
+  float cube_cmap_vert[] = {
+    // just tex_coords
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f,
+    -1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f
+  };
+  GLuint cube_cmap_ind[] = {
+    // Right
+    1, 2, 6,
+    6, 5, 1,
+    // Left
+    0, 4, 7,
+    7, 3, 0,
+    // Top
+    4, 5, 6,
+    6, 7, 4,
+    // Bottom
+    0, 3, 2,
+    2, 1, 0,
+    // Back
+    0, 1, 5,
+    5, 4, 0,
+    // Front
+    3, 7, 6,
+    6, 2, 3
+  };
+
 } // namespace ntf::res

@@ -8,7 +8,6 @@ set(EXTERN_PATH "${SOURCE_PATH}/extern")
 set(SHOGLE_PATH "${SOURCE_PATH}/shogle")
 
 set(SHOGLE_SOURCE)
-set(SHOGLE_INCLUDE)
 set(SHOGLE_LIB_LINK)
 set(SHOGLE_LIB_SOURCE)
 set(SHOGLE_LIB_INCLUDE)
@@ -61,11 +60,10 @@ list(APPEND SHOGLE_LIB_LINK lua5.3)
 
 ## Lib files ##
 file(GLOB_RECURSE SHOGLE_SOURCE "${SHOGLE_PATH}/*.cpp")
-set(SHOGLE_INCLUDE, "${SHOGLE_PATH}")
 
 add_library(shogle STATIC ${SHOGLE_SOURCE} ${SHOGLE_LIB_SOURCE})
 set_target_properties(shogle PROPERTIES CXX_STANDARD 20)
-target_include_directories(shogle PUBLIC ${SHOGLE_INCLUDE} ${SHOGLE_LIB_INCLUDE})
+target_include_directories(shogle PUBLIC ${SOURCE_PATH} ${SHOGLE_LIB_INCLUDE})
 target_link_libraries(shogle ${SHOGLE_LIB_LINK})
 target_compile_options(shogle PUBLIC
   -DSHOGLE_RESOURCES="${SHOGLE_RESOURCES_PATH}"
