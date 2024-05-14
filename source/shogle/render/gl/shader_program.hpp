@@ -4,7 +4,14 @@
 
 namespace ntf::shogle::gl {
 
+template<typename T, typename... TRes>
+concept same_as_any = (... or std::same_as<T, TRes>);
+
+template<typename T>
+concept vertex_type = (same_as_any<T, vec2, vec3, vec4>);
+
 template<unsigned int _index, typename T>
+requires(vertex_type<T>)
 struct shader_attribute {
   using type = T;
   static constexpr unsigned int index = _index;
