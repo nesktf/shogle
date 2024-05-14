@@ -54,6 +54,7 @@ private:
 
 template<typename T, typename... attrib_t>
 mesh& mesh::add_vertex_buffer(T* vertices, size_t vert_sz, attrib_t... attrib) {
+  static_assert(sizeof...(attrib) > 0 && stride_sum<attrib_t...>::value == sizeof(T));
   _draw_count = vert_sz/sizeof(T);
   _attrib_count = sizeof...(attrib_t);
 
@@ -87,8 +88,8 @@ mesh& mesh::add_vertex_buffer(std::vector<T> vertices, attrib_t... attrib) {
   return *this;
 }
 
-template<size_t total_size, size_t next_stride = 0, typename T, typename... U>
-void setup_vertex_attrib(T t, U... u) {
+template<size_t total_size, size_t next_stride, typename T, typename... U>
+void mesh::setup_vertex_attrib(T t, U... u) {
   constexpr auto curr_stride = next_stride;
   constexpr auto float_count = T::stride / sizeof(float);
 

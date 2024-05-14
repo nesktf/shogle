@@ -13,9 +13,8 @@ concept vertex_type = (same_as_any<T, vec2, vec3, vec4>);
 template<unsigned int _index, typename T>
 requires(vertex_type<T>)
 struct shader_attribute {
-  using type = T;
   static constexpr unsigned int index = _index;
-  static constexpr size_t type_size = sizeof(T);
+  static constexpr size_t stride = sizeof(T);
 };
 
 class mesh;
