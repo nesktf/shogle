@@ -5,7 +5,10 @@
 
 namespace ntf::shogle::gl {
 
-mesh::mesh() { glGenVertexArrays(1, &_vao); }
+mesh::mesh() { 
+  glGenVertexArrays(1, &_vao); 
+  Log::verbose("[gl::mesh] Mesh created (id: {})", _vao);
+}
 
 mesh::mesh(mesh&& m) noexcept :
   _vao(m._vao), _vbo(m._vbo), _ebo(m._ebo),

@@ -6,11 +6,10 @@
 #define DEFAULT_FILTER GL_NEAREST
 #define DEFAULT_WRAP_2D GL_REPEAT
 #define DEFAULT_WRAP_CUBEMAP GL_CLAMP_TO_EDGE
-#define CUBEMAP_FACES 6
 
 namespace ntf::shogle::gl {
 
-gl::texture::texture(vec2sz sz, enum type type, format format, char** pixels) :
+gl::texture::texture(vec2sz sz, enum type type, format format, unsigned char** pixels) :
   _size(sz) {
   switch (type) {
     case type::tex2d: {

@@ -23,7 +23,7 @@ public:
     return *this;
   }
 
-  inline generic_skybox& bind_cubemap(gl::texture& tex) {
+  inline generic_skybox& bind_cubemap(const gl::texture& tex) {
     tex.bind(_cubemap_sampler);
     set_uniform(_cubemap_unif, _cubemap_sampler);
     return *this;

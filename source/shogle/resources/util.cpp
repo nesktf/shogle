@@ -1,11 +1,11 @@
-#include <shogle/res/util.hpp>
+#include <shogle/resources/util.hpp>
 
 #include <shogle/core/error.hpp>
 
 #include <fstream>
 #include <sstream>
 
-namespace ntf::res {
+namespace ntf::shogle::resources {
 
 std::string file_contents(std::string path) {
   std::string out {};
@@ -27,4 +27,4 @@ std::string file_dir(std::string path) {
   return path.substr(0, path.find_last_of('/'));
 }
 
-} // namespace ntf::res
+} // namespace ntf::shogle::resources

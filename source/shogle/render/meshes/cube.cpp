@@ -1,7 +1,5 @@
 #include <shogle/render/meshes/cube.hpp>
 
-#include <shogle/render/gl/shader_program.hpp>
-
 namespace {
 
 float cube_tex2d_vert[] = {

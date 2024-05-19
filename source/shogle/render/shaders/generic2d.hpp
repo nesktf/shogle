@@ -29,7 +29,7 @@ public:
     return *this;
   }
 
-  inline generic2d& bind_texture(gl::texture& tex) {
+  inline generic2d& bind_texture(const gl::texture& tex) {
     tex.bind(_sprite_sampler);
     set_uniform(_texture_unif, _sprite_sampler);
     return *this;

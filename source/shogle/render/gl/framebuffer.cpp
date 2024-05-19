@@ -61,19 +61,21 @@ framebuffer::~framebuffer() {
 
 framebuffer& framebuffer::bind() {
   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
+  gl::set_viewport_size(_size);
   return *this;
 }
 
-framebuffer& framebuffer::unbind() {
+framebuffer& framebuffer::unbind(vec2sz viewport) {
   glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+  gl::set_viewport_size(viewport);
   return *this;
 }
 
-framebuffer::raii_bind framebuffer::scoped_bind() { return raii_bind{*this}; }
+framebuffer::raii_bind framebuffer::scoped_bind(vec2sz viewport) { return raii_bind{*this, viewport}; }
 
-framebuffer::raii_bind::raii_bind(framebuffer& fb) :
-  _fb(fb) { fb.bind(); }
+framebuffer::raii_bind::raii_bind(framebuffer& fb, vec2sz viewport) :
+  _fb(fb), _viewport(viewport) { fb.bind(); }
 
-framebuffer::raii_bind::~raii_bind() { _fb.unbind(); }
+framebuffer::raii_bind::~raii_bind() { _fb.unbind(_viewport); }
 
 } // namespace ntf::shogle::gl

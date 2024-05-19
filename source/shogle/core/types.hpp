@@ -11,7 +11,10 @@
 
 #include <sys/types.h>
 
-namespace ntf {
+#define PI M_PIf
+#define I cmplx{0.0f, 1.0f}
+
+namespace ntf::shogle {
 
 // Might replace glm at some point (?)
 using vec2 = glm::vec2;
@@ -64,4 +67,4 @@ inline uptr<T> make_uptr(Args&&... args) {
   return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
-} // namespace ntf
+} // namespace ntf::shogle

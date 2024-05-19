@@ -1,11 +1,14 @@
 #pragma once
 
-#include <shogle/core/types.hpp>
 #include <shogle/core/threadpool.hpp>
+#include <shogle/core/types.hpp>
 
 #include <tuple>
 
-namespace ntf::res {
+namespace ntf::shogle::resources {
+
+std::string file_contents(std::string path);
+std::string file_dir(std::string path);
 
 class async_loader {
 public:
@@ -116,10 +119,10 @@ public:
   template<typename T>
   requires(same_as_defined<T, pool_types...>)
   void direct_request(std::initializer_list<path_info> list) {
-    using loader_t = T::loader_t;
+    using data_t = T::data_t;
     for (const auto& info : list) {
       std::get<map_t<T>>(_pool).emplace(
-        std::make_pair(info.id, loader_t{info.path})
+        std::make_pair(info.id, data_t{info.path})
       );
     }
   }
@@ -127,14 +130,14 @@ public:
   template<typename T>
   requires(same_as_defined<T, pool_types...>)
   void async_request(async_loader& loader, load_callback on_load, std::initializer_list<path_info> list) {
-    using loader_t = T::loader_t;
+    using data_t = T::data_t;
 
     _load_counters.push_back(std::make_pair(list.size(), 0));
     auto* c_it = &_load_counters.back();
 
     for (const auto& info : list) {
       auto id = info.id;
-      loader.add_request<loader_t>([this, c_it, id=std::move(id), on_load](loader_t data) {
+      loader.add_request<data_t>([this, c_it, id=std::move(id), on_load](data_t data) {
         size_t res_total = c_it->first;
         size_t& res_c = c_it->second;
 
@@ -151,4 +154,4 @@ private:
   std::vector<std::pair<size_t, size_t>> _load_counters;
 };
 
-} // namespace ntf::res
+} // namespace ntf::shogle::resources

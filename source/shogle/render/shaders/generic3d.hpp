@@ -30,13 +30,13 @@ public:
     return *this;
   }
 
-  inline generic3d& bind_diffuse(gl::texture& tex) {
+  inline generic3d& bind_diffuse(const gl::texture& tex) {
     tex.bind(_diffuse_sampler);
     set_uniform(_diffuse_unif, _diffuse_sampler);
     return *this;
   }
 
-  inline generic3d& bind_specular(gl::texture& tex) {
+  inline generic3d& bind_specular(const gl::texture& tex) {
     tex.bind(_specular_sampler);
     set_uniform(_specular_unif, _specular_sampler);
     return *this;

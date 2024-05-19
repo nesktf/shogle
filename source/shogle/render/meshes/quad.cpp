@@ -1,35 +1,33 @@
 #include <shogle/render/meshes/quad.hpp>
 
-#include <shogle/render/gl/shader_program.hpp>
-
 namespace {
 
-struct quad2d_vert {
-  ntf::vec2 coord;
-  ntf::vec2 texcoord;
-};
-
-struct quad3d_vert {
-  ntf::vec3 coord;
-  ntf::vec3 normal;
-  ntf::vec2 texcoord;
-};
-
-quad2d_vert vert2d[] = {
-  {{-0.5f, -0.5f}, {0.0f, 0.0f}},
-  {{0.5f, -0.5f}, {1.0f, 0.0f}},
-  {{0.5f, 0.5f}, {1.0f, 1.0f}},
-  {{-0.5f, 0.5f}, {0.0f, 1.0f}}
-};
+// struct quad2d_vert {
+//   ntf::vec2 coord;
+//   ntf::vec2 texcoord;
+// };
+//
+// struct quad3d_vert {
+//   ntf::vec3 coord;
+//   ntf::vec3 normal;
+//   ntf::vec2 texcoord;
+// };
+//
+// quad2d_vert vert2d[] = {
+//   {{-0.5f, -0.5f}, {0.0f, 0.0f}},
+//   {{0.5f, -0.5f}, {1.0f, 0.0f}},
+//   {{0.5f, 0.5f}, {1.0f, 1.0f}},
+//   {{-0.5f, 0.5f}, {0.0f, 1.0f}}
+// };
 
 // inverted texture quads are considered "normal" for convenience
-// float vert2d[] = { // inverted in texture space (for stb_image textures)
-//   // coord        // texcoord
-//   -0.5f, -0.5f,   0.0f, 0.0f,
-//    0.5f, -0.5f,   1.0f, 0.0f,
-//    0.5f,  0.5f,   1.0f, 1.0f,
-//   -0.5f,  0.5f,   0.0f, 1.0f
-// };
+float vert2d[] = { // inverted in texture space (for stb_image textures)
+  // coord        // texcoord
+  -0.5f, -0.5f,   0.0f, 0.0f,
+   0.5f, -0.5f,   1.0f, 0.0f,
+   0.5f,  0.5f,   1.0f, 1.0f,
+  -0.5f,  0.5f,   0.0f, 1.0f
+};
 float vert2d_inv[] = { // not inverted (for framebuffers)
   // coord        // texcoord
   -0.5f, -0.5f,   0.0f, 1.0f,

@@ -2,7 +2,10 @@
 
 #include <shogle/render/gl/render.hpp>
 
+#define CUBEMAP_FACES 6
+
 namespace ntf::shogle::gl {
+
 class texture {
 public:
   enum class type {
@@ -22,7 +25,7 @@ public:
   };
 
 public:
-  texture(vec2sz sz, type type, format format, char** pixels = NULL);
+  texture(vec2sz sz, type type, format format, unsigned char** pixels = NULL);
 
 public:
   texture& set_filter(filter filter);

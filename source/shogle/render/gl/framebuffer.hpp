@@ -7,9 +7,10 @@ namespace ntf::shogle::gl {
 class framebuffer {
 public:
   struct raii_bind {
-    raii_bind(framebuffer& fb);
+    raii_bind(framebuffer& fb, vec2sz viewport);
     ~raii_bind();
     framebuffer& _fb;
+    vec2sz _viewport;
   };
 
 public:
@@ -17,8 +18,8 @@ public:
 
 public:
   framebuffer& bind();
-  framebuffer& unbind();
-  raii_bind scoped_bind();
+  framebuffer& unbind(vec2sz viewport);
+  raii_bind scoped_bind(vec2sz viewport);
 
 public:
   GLuint id() const { return _fbo; }

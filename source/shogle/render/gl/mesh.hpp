@@ -2,7 +2,6 @@
 
 #include <shogle/render/gl/shader_program.hpp>
 
-#include <vector>
 #include <concepts>
 
 namespace ntf::shogle::gl {
@@ -24,7 +23,7 @@ public:
 
 public:
   template<typename T, typename... attribs>
-  requires(is_attribute<attribs> && ...)
+  requires(sizeof...(attribs) > 0 && (... && is_attribute<attribs>))
   mesh& add_vertex_buffer(T* vertices, size_t vert_sz, attribs... attrib);
 
   mesh& add_index_buffer(uint* indices, size_t ind_sz);
@@ -56,9 +55,8 @@ private:
 };
 
 template<typename T, typename... attribs>
-requires(is_attribute<attribs> && ...)
+requires(sizeof...(attribs) > 0 && (... && is_attribute<attribs>))
 mesh& mesh::add_vertex_buffer(T* vertices, size_t vert_sz, attribs... attrib) {
-  static_assert(sizeof...(attribs) > 0);
   constexpr auto stride = stride_sum<attribs...>::value;
 
   _draw_count = vert_sz / stride;
