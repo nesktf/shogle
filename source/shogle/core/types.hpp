@@ -38,6 +38,10 @@ struct vec2i {
 };
 
 struct vec2sz {
+  vec2sz(int w, int h) :
+    x((size_t)w), y((size_t)h) {}
+  vec2sz(size_t w, size_t h) :
+    x(w), y(h) {}
   union {
     size_t x;
     size_t w;

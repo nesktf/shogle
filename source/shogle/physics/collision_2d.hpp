@@ -2,7 +2,7 @@
 
 #include <shogle/core/types.hpp>
 
-namespace ntf::physics {
+namespace ntf::shogle::physics {
 
 bool collision2d(vec2 pos1, vec2 size1, vec2 pos2, vec2 size2);
 bool collision2d(vec2 pos1, vec2 size1, vec2 pos2, float rad2);

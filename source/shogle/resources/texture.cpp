@@ -148,7 +148,7 @@ template<>
 texture<texture2d_data>::texture(data_t data) :
   _path(std::move(data.path)),
   _texture(
-    vec2sz{.w=(size_t)data.width, .h=(size_t)data.height},
+    vec2sz{data.width, data.height},
     gl::texture::type::tex2d,
     data.format,
     &data.pixels
@@ -158,7 +158,7 @@ template<>
 texture<cubemap_data>::texture(data_t data) :
   _path(std::move(data.path)),
   _texture(
-    vec2sz{.w=(size_t)data.width, .h=(size_t)data.height},
+    vec2sz{data.width, data.height},
     gl::texture::type::cubemap,
     data.format,
     data.pixels

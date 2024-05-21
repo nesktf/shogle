@@ -1,5 +1,5 @@
-#include <shogle/render/gl/gl.hpp>
-#include <shogle/render/imgui.hpp>
+#include <shogle/render/gl/render.hpp>
+#include <shogle/render/api/imgui.hpp>
 #include <shogle/engine/application.hpp>
 
 namespace ntf::shogle {
@@ -27,7 +27,7 @@ void application::main_loop() {
 
   glfw::set_viewport_callback(_window, [](auto* win, int w, int h) {
     auto* _this = static_cast<application*>(glfw::get_user_ptr(win));
-    gl::set_viewport(vec2sz{(size_t)w, (size_t)h});
+    gl::set_viewport_size(vec2sz{w, h});
     _this->viewport_event();
   });
 

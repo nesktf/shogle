@@ -2,7 +2,7 @@
 
 namespace ntf::shogle::scene {
 
-mat4 gen_transform(vec3 pos, vec3 scale, quat rot) {
+mat4 obj_transform(vec3 pos, vec3 scale, quat rot) {
   mat4 model{1.0f};
 
   model = glm::translate(model, pos);
@@ -12,7 +12,7 @@ mat4 gen_transform(vec3 pos, vec3 scale, quat rot) {
   return model;
 }
 
-mat4 gen_transform(vec2 pos, vec2 scale, float rot) {
+mat4 obj_transform(vec2 pos, vec2 scale, float rot) {
   mat4 model{1.0f};
 
   model = glm::translate(model, vec3{pos, 0.0f});

@@ -31,7 +31,7 @@ public:
   framebuffer(framebuffer&&) noexcept;
   framebuffer(const framebuffer&) = delete;
   framebuffer& operator=(framebuffer&&) noexcept;
-  framebuffer& operator=(const framebuffer&) noexcept;
+  framebuffer& operator=(const framebuffer&) = delete;
 
 private:
   texture _texture;

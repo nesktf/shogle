@@ -7,9 +7,11 @@
 
 namespace ntf::shogle::resources {
 
-std::string file_contents(std::string path);
-std::string file_dir(std::string path);
+template<typename T, typename... U>
+concept same_as = (... or std::same_as<T, U>);
 
+
+// Types
 class async_loader {
 public:
   using reqfun_t = std::function<void()>;
@@ -30,7 +32,6 @@ private:
 
     void operator()(void) {
       _on_load(std::move(*_data));
-
       // when the callback fires we no longer need the memory
       delete _data;
     }
@@ -42,13 +43,7 @@ public:
     _thpool(n_threads) {}
 
 public:
-  inline void do_requests(void) {
-    while (!_req.empty()) {
-      auto req_callback = std::move(_req.front());
-      _req.pop();
-      req_callback();
-    }
-  }
+  void do_requests();
 
 public:
   template<typename T, typename... Args>
@@ -59,20 +54,6 @@ private:
   std::queue<reqfun_t> _req;
   thread_pool _thpool;
 };
-
-
-template<typename T, typename... Args>
-void async_loader::add_request(loadfun_t<T> on_load, Args&&... load_args) {
-  // thank you based c++20
-  _thpool.enqueue([this, on_load=std::move(on_load), ...args=std::forward<Args>(load_args)]() {
-    load_wrapper<T> loader { std::move(on_load), std::forward<Args>(args)...};
-    std::unique_lock lock{_req_mtx};
-    _req.emplace(std::move(loader));
-  });
-}
-
-template<typename T, typename... TRes>
-concept same_as_defined = (... or std::same_as<T, TRes>);
 
 template<typename... pool_types>
 class pool {
@@ -95,63 +76,83 @@ public:
   pool() = default;
 
 public:
-  template<typename T>
-  requires(same_as_defined<T, pool_types...>)
-  inline wptr<T> get(id_t id) {
-    return &std::get<map_t<T>>(_pool).at(id);
-  }
+  template<same_as<pool_types...> T>
+  wptr<T> get(id_t id);
 
-  template<typename T, typename... Args>
-  requires(same_as_defined<T, pool_types...>)
-  inline void emplace(id_t id, Args&&... args) {
-    std::get<map_t<T>>(_pool).emplace(
-      std::make_pair(id, T{std::forward<Args>(args)...})
-    );
-  }
+  template<same_as<pool_types...> T>
+  void clear();
 
-  template<typename T>
-  requires(same_as_defined<T, pool_types...>)
-  inline void clear_pool(void) {
-    std::get<map_t<T>>(_pool).clear();
-  }
+  template<same_as<pool_types...> T>
+  void direct_request(std::initializer_list<path_info> list);
 
-public:
-  template<typename T>
-  requires(same_as_defined<T, pool_types...>)
-  void direct_request(std::initializer_list<path_info> list) {
-    using data_t = T::data_t;
-    for (const auto& info : list) {
-      std::get<map_t<T>>(_pool).emplace(
-        std::make_pair(info.id, data_t{info.path})
-      );
-    }
-  }
-
-  template<typename T>
-  requires(same_as_defined<T, pool_types...>)
-  void async_request(async_loader& loader, load_callback on_load, std::initializer_list<path_info> list) {
-    using data_t = T::data_t;
-
-    _load_counters.push_back(std::make_pair(list.size(), 0));
-    auto* c_it = &_load_counters.back();
-
-    for (const auto& info : list) {
-      auto id = info.id;
-      loader.add_request<data_t>([this, c_it, id=std::move(id), on_load](data_t data) {
-        size_t res_total = c_it->first;
-        size_t& res_c = c_it->second;
-
-        std::get<map_t<T>>(_pool).emplace(
-          std::make_pair(std::move(id), std::move(data))
-        );
-        if (++res_c == res_total) { on_load(); }
-      }, info.path);
-    }
-  }
+  template<same_as<pool_types...> T>
+  void async_request(async_loader& loader, load_callback on_load, std::initializer_list<path_info> list);
 
 private:
   pool_t _pool;
   std::vector<std::pair<size_t, size_t>> _load_counters;
 };
+
+
+// Functions
+std::string file_contents(std::string path);
+std::string file_dir(std::string path);
+
+
+// Inline definitions
+template<typename T, typename... Args>
+void async_loader::add_request(loadfun_t<T> on_load, Args&&... load_args) {
+  // thank you based c++20
+  _thpool.enqueue([this, on_load=std::move(on_load), ...args=std::forward<Args>(load_args)]() {
+    load_wrapper<T> loader { std::move(on_load), std::forward<Args>(args)...};
+    std::unique_lock lock{_req_mtx};
+    _req.emplace(std::move(loader));
+  });
+}
+
+template<typename... pool_types>
+template<same_as<pool_types...> T>
+wptr<T> pool<pool_types...>::get(id_t id) {
+  return &std::get<map_t<T>>(_pool).at(id);
+}
+
+template<typename... pool_types>
+template<same_as<pool_types...> T>
+void pool<pool_types...>::clear() {
+  std::get<map_t<T>>(_pool).clear();
+}
+
+template<typename... pool_types>
+template<same_as<pool_types...> T>
+void pool<pool_types...>::direct_request(std::initializer_list<path_info> list) {
+  using data_t = T::data_t;
+  for (const auto& info : list) {
+    std::get<map_t<T>>(_pool).emplace(
+      std::make_pair(info.id, data_t{info.path})
+    );
+  }
+}
+
+template<typename... pool_types>
+template<same_as<pool_types...> T>
+void pool<pool_types...>::async_request(async_loader& loader, load_callback on_load, std::initializer_list<path_info> list) {
+  using data_t = T::data_t;
+
+  _load_counters.push_back(std::make_pair(list.size(), 0));
+  auto* c_it = &_load_counters.back();
+
+  for (const auto& info : list) {
+    auto id = info.id;
+    loader.add_request<data_t>([this, c_it, id=std::move(id), on_load](data_t data) {
+      size_t res_total = c_it->first;
+      size_t& res_c = c_it->second;
+
+      std::get<map_t<T>>(_pool).emplace(
+        std::make_pair(std::move(id), std::move(data))
+      );
+      if (++res_c == res_total) { on_load(); }
+    }, info.path);
+  }
+}
 
 } // namespace ntf::shogle::resources

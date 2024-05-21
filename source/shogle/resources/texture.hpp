@@ -53,7 +53,7 @@ public:
 
 public:
   texture(std::string path) :
-    texture(std::move(path)) {}
+    texture(data_t{std::move(path)}) {}
 
   texture(data_t data);
 

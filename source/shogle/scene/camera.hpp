@@ -1,36 +1,25 @@
 #pragma once
 
 #include <shogle/core/types.hpp>
-#include <shogle/scene/object.hpp>
 
 namespace ntf::shogle::scene {
 
-class cam_base {
-protected:
-  cam_base() = default;
-
-public:
-  mat4 proj() { return _proj; }
-  mat4 view() { return _view; }
-
-protected:
-  mat4 _proj{1.0f}, _view{1.0f};
-
-  vec2 _viewport{800.0f, 600.0f};
-  float _znear{0.1f};
-  float _zfar{100.0f};
+struct cam_common {
+  mat4 proj{1.0f}, view{1.0f};
+  vec2 viewport{800.0f, 600.0f};
+  float znear{0.1f}, zfar{100.0f};
 };
 
-class camera2d : public cam_base {
+class camera2d {
 public:
-  camera2d() { _zfar = 1.0f, _znear = -10.0f; }
+  camera2d() { _ccom.zfar = 1.0f, _ccom.znear = -10.0f; update_transform(); }
 
 public:
-  void update();
+  void update_transform();
   
 public:
   camera2d& set_viewport(vec2 viewport) {
-    _viewport = viewport;
+    _ccom.viewport = viewport;
     _origin = viewport*0.5f;
     return *this;
   }
@@ -51,27 +40,31 @@ public:
   }
 
 public:
+  mat4 proj() const { return _ccom.proj; }
+  mat4 view() const { return _ccom.view; }
+
   vec2 center() const { return _center; }
   float zoom() const { return _zoom.x; }
   float rotation() const { return _rot; }
 
 private:
+  cam_common _ccom{};
   vec2 _origin{400.0f, 300.0f};
   vec2 _center{0.0f};
   vec2 _zoom{1.0f};
   float _rot{0.0f};
 };
 
-class camera3d : public cam_base {
+class camera3d {
 public:
-  camera3d() = default;
+  camera3d() { update_transform(); }
 
 public:
-  void update();
+  void update_transform();
 
 public:
   camera3d& set_viewport(vec2 viewport) {
-    _viewport = viewport;
+    _ccom.viewport = viewport;
     return *this;
   }
 
@@ -86,7 +79,7 @@ public:
   }
 
   camera3d& set_zfar(float zfar) {
-    _zfar = zfar;
+    _ccom.zfar = zfar;
     return *this;
   }
   
@@ -101,13 +94,17 @@ public:
   }
 
 public:
+  mat4 proj() const { return _ccom.proj; }
+  mat4 view() const { return _ccom.view; }
+
   vec3 pos() const { return _pos; }
   vec3 dir() const { return _dir; }
   bool ortho_flag() const { return _use_ortho; }
   float fov() const { return _fov; }
-  float zfar() const { return _zfar; }
+  float zfar() const { return _ccom.zfar; }
 
 private:
+  cam_common _ccom{};
   bool _use_ortho{false};
   vec3 _pos{0.0f};
   vec3 _dir{0.0f, 0.0f, -1.0f};

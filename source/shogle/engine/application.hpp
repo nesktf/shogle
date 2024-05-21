@@ -1,17 +1,17 @@
 #pragma once
 
-#include <shogle/render/glfw.hpp>
+#include <shogle/render/api/glfw.hpp>
 
 namespace ntf::shogle {
 
 class application {
 public:
   application(size_t w, size_t h, std::string title);
-  ~application();
+  virtual ~application();
 
 public:
   virtual void render() = 0;
-  virtual void update(float dt) {}
+  virtual void update(float) {}
   virtual void viewport_event() {}
   virtual void input_event() {}
   virtual void cursor_event() {}
