@@ -10,8 +10,8 @@ public:
   virtual ~application();
 
 public:
-  virtual void render() = 0;
-  virtual void update(float) {}
+  virtual void draw_event() = 0;
+  virtual void update_event(float) {}
   virtual void viewport_event() {}
   virtual void input_event() {}
   virtual void cursor_event() {}
@@ -19,6 +19,9 @@ public:
 public:
   void main_loop();
   void terminate();
+
+public:
+  vec2sz win_size() const { return glfw::window_size(_window); }
 
 private:
   glfw::window _window;

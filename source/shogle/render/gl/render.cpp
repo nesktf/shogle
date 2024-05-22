@@ -17,12 +17,12 @@ void set_viewport_size(vec2sz sz) {
   glViewport(0, 0, sz.w, sz.h);
 }
 
-void clear_viewport(vec4 color, bool depth, bool stencil) {
+void clear_viewport(vec4 color, clear flag) {
   GLbitfield mask = GL_COLOR_BUFFER_BIT;
-  if (depth) {
+  if ((flag & clear::depth) != clear::none) {
     mask |= GL_DEPTH_BUFFER_BIT;
   }
-  if (stencil) {
+  if ((flag & clear::stencil) != clear::none) {
     mask |= GL_STENCIL_BUFFER_BIT;
   }
   glClearColor(color.r, color.g, color.b, color.a);

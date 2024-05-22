@@ -143,7 +143,7 @@ inline auto object<dim_size>::set_pos(cmplx pos) -> object& {
 template<size_t dim_size> requires(valid_dimension<dim_size>)
 template<size_t _dim> requires(_dim == 3)
 inline auto object<dim_size>::set_rot(float ang, vec3 axis) -> object& {
-  _rot = math::axis_quat(ang, axis);
+  _rot = math::axisquat(ang, axis);
   _dirty_flag = true;
   return *this;
 }
@@ -151,7 +151,7 @@ inline auto object<dim_size>::set_rot(float ang, vec3 axis) -> object& {
 template<size_t dim_size> requires(valid_dimension<dim_size>)
 template<size_t _dim> requires(_dim == 3)
 inline auto object<dim_size>::set_rot(vec3 euler_ang) -> object& {
-  _rot = math::euler2quat(euler_ang);
+  _rot = math::eulerquat(euler_ang);
   _dirty_flag = true;
   return *this;
 }

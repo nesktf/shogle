@@ -50,6 +50,8 @@ struct vec2sz {
     size_t y;
     size_t h;
   };
+  operator vec2() { return vec2{(float)w, (float)h}; }
+  operator cmplx() { return cmplx{(float)w, (float) h}; }
 };
 
 template<typename T>

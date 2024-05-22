@@ -14,7 +14,7 @@ public:
   };
 
 public:
-  quad(type type);
+  quad(type type = type::normal2d);
 
 private:
   type _type;

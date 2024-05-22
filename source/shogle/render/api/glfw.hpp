@@ -29,7 +29,7 @@ void set_user_ptr(window& win, void* ptr);
 void* get_user_ptr(GLFWwindow* handle);
 
 void set_title(window& win, std::string title);
-vec2sz window_size(window& win);
+vec2sz window_size(const window& win);
 
 inline void poll_events(window&) {
   glfwPollEvents();
@@ -38,11 +38,11 @@ inline void swap_buffers(window& win) {
   glfwSwapBuffers(win.handle);
 }
 
-inline bool is_window_open(window& win) {
+inline bool is_window_open(const window& win) {
   return !glfwWindowShouldClose(win.handle);
 }
 
-inline double elapsed_time(window&) {
+inline double elapsed_time(const window&) {
   return glfwGetTime();
 }
 

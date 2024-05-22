@@ -14,7 +14,7 @@ public:
   generic2d();
 
 public:
-  inline generic2d& set_model(mat4 model) {
+  inline generic2d& set_transform(mat4 model) {
     set_uniform(_model_unif, model);
     return *this;
   }

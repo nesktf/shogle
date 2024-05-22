@@ -66,6 +66,7 @@ void shader::compile() {
     glDeleteShader(_shad_id);
     throw ntf::error{"[gl::shader] Shader compilation falied: {}", log};
   }
+  Log::verbose("[gl::shader] Shader compiled (id: {})", _shad_id);
 }
 
 } // namespace ntf::shogle::gl

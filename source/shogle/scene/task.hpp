@@ -1,6 +1,7 @@
 #pragma once
 
 #include <shogle/core/types.hpp>
+#include <shogle/scene/object.hpp>
 
 #include <vector>
 #include <functional>
@@ -10,18 +11,28 @@ namespace ntf::shogle::scene {
 
 // Types
 template<typename T>
-struct task {
-  task() = default;
+class task {
+public:
+  task(T* obj) :
+    _obj(obj) { assert(obj && "Task object can't be null"); }
 
+public:
   virtual ~task() = default;
   task(task&&) = default;
   task(const task&) = default;
   task& operator=(task&&) = default;
   task& operator=(const task&) = default;
 
-  virtual void update(T& obj, float dt) = 0;
+public:
+  virtual void update(float dt) = 0;
 
-  bool is_finished {false};
+public:
+  T& obj() { return *_obj; }
+  bool finished() const { return _is_finished; }
+
+protected:
+  T* _obj;
+  bool _is_finished {false};
 };
 
 template<typename T>
@@ -31,17 +42,17 @@ public:
   using taskid = uint;
   struct task_data {
     taskid id;
-    T* obj;
     uptr<task_t> task;
   };
 
   using taskfun = std::function<bool(T&, float)>;
   struct taskfun_wrapper : public task_t {
-    taskfun_wrapper(taskfun fun) :
+    taskfun_wrapper(T* obj, taskfun fun) :
+      task_t(obj),
       _fun(std::move(fun)) {}
 
-    void update(T& obj, float dt) override {
-      this->is_finished = _fun(obj, dt);
+    void update(float dt) override {
+      this->_is_finished = _fun(this->obj(), dt);
     }
 
     taskfun _fun;
@@ -53,8 +64,11 @@ public:
 public:
   void update(float dt);
 
-  taskid add(T* obj, uptr<task_t> task);
+  taskid add(uptr<task_t> task);
   taskid add(T* obj, taskfun fun);
+
+  template<typename task, typename... Args>
+  taskid emplace(Args&&... args);
 
   bool end(taskid id);
 
@@ -65,6 +79,9 @@ private:
   std::vector<task_data> _tasks;
   std::vector<task_data> _new_tasks;
 };
+
+using tasker2d = tasker<object2d>;
+using tasker3d = tasker<object3d>;
 
 
 // Inline definitions
@@ -78,27 +95,35 @@ void tasker<T>::update(float dt) {
 
   // Do tasks and clear finished tasks
   for (auto& curr : _tasks) {
-    curr.task->update(*curr.obj, dt);
+    curr.task->update(dt);
   }
-  std::erase_if(_tasks, [](const auto& curr){ return curr.task->is_finished; });
+  std::erase_if(_tasks, [](const auto& curr){ return curr.task->finished(); });
 }
 
 template<typename T>
-auto tasker<T>::add(T* obj, uptr<task_t> task) -> taskid {
-  _new_tasks.push_back(task_data{
+auto tasker<T>::add(uptr<task_t> task) -> taskid {
+  _new_tasks.emplace_back(task_data{
     .id = ++_task_counter,
-    .obj = obj,
     .task = std::move(task)
   });
   return _task_counter;
 }
 
 template<typename T>
-auto tasker<T>::add(wptr<T> obj, taskfun fun) -> taskid {
-  _new_tasks.push_back(task_data{
+auto tasker<T>::add(T* obj, taskfun fun) -> taskid {
+  _new_tasks.emplace_back(task_data{
     .id = ++_task_counter,
-    .obj = obj,
-    .task = make_uptr<taskfun_wrapper>(std::move(fun))
+    .task = make_uptr<taskfun_wrapper>(obj, std::move(fun))
+  });
+  return _task_counter;
+}
+
+template<typename T>
+template<typename task, typename... Args>
+auto tasker<T>::emplace(Args&&... args) -> taskid {
+  _new_tasks.emplace_back(task_data{
+    .id = ++_task_counter,
+    .task = make_uptr<task>(std::forward<Args>(args)...)
   });
   return _task_counter;
 }
@@ -123,6 +148,6 @@ bool tasker<T>::end(taskid id) {
 }
 
 template<typename T>
-void tasker<T>::clear() { _tasks.clear(); }
+void tasker<T>::clear() { _new_tasks.clear(); _tasks.clear(); }
 
 } // namespace ntf::shogle::scene

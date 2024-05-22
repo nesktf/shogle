@@ -44,8 +44,8 @@ void application::main_loop() {
     double dt = _curr_frame - _last_frame;
     _last_frame = _curr_frame;
 
-    render();
-    update(dt);
+    draw_event();
+    update_event(dt);
 
     imgui::render();
     glfw::swap_buffers(_window);

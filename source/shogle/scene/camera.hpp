@@ -12,7 +12,14 @@ struct cam_common {
 
 class camera2d {
 public:
-  camera2d() { _ccom.zfar = 1.0f, _ccom.znear = -10.0f; update_transform(); }
+  camera2d(vec2sz sz) :
+    camera2d((float)sz.w, (float)sz.h) {}
+  camera2d(float w, float h) {
+    _ccom.viewport = {w, h};
+    _ccom.zfar = 1.0f;
+    _ccom.znear = -10.0f;
+    update_transform();
+  }
 
 public:
   void update_transform();
@@ -57,7 +64,12 @@ private:
 
 class camera3d {
 public:
-  camera3d() { update_transform(); }
+  camera3d(vec2sz sz) :
+    camera3d((float)sz.w, (float)sz.h) {}
+  camera3d(float w, float h) {
+    _ccom.viewport = {w, h};
+    update_transform();
+  }
 
 public:
   void update_transform();

@@ -73,7 +73,7 @@ void set_title(window& win, std::string title) {
   glfwSetWindowTitle(win.handle, win.title.c_str());
 }
 
-vec2sz window_size(window& win) {
+vec2sz window_size(const window& win) {
   int w, h;
   glfwGetWindowSize(win.handle, &w, &h);
   return vec2sz{(size_t)w, (size_t)h};
