@@ -3,7 +3,7 @@
 #include <shogle/core/types.hpp>
 
 #include <shogle/scene/camera.hpp>
-#include <shogle/scene/object.hpp>
+#include <shogle/scene/transform.hpp>
 
 #include <functional>
 #include <vector>

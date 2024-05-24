@@ -1,7 +1,7 @@
 #pragma once
 
 #include <shogle/core/types.hpp>
-#include <shogle/scene/object.hpp>
+#include <shogle/scene/transform.hpp>
 
 #include <vector>
 #include <functional>
@@ -80,8 +80,8 @@ private:
   std::vector<task_data> _new_tasks;
 };
 
-using tasker2d = tasker<object2d>;
-using tasker3d = tasker<object3d>;
+using tasker2d = tasker<transform2d>;
+using tasker3d = tasker<transform3d>;
 
 
 // Inline definitions

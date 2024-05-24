@@ -18,11 +18,11 @@ public:
     _ccom.viewport = {w, h};
     _ccom.zfar = 1.0f;
     _ccom.znear = -10.0f;
-    update_transform();
+    update();
   }
 
 public:
-  void update_transform();
+  void update();
   
 public:
   camera2d& set_viewport(vec2 viewport) {
@@ -68,11 +68,11 @@ public:
     camera3d((float)sz.w, (float)sz.h) {}
   camera3d(float w, float h) {
     _ccom.viewport = {w, h};
-    update_transform();
+    update();
   }
 
 public:
-  void update_transform();
+  void update();
 
 public:
   camera3d& set_viewport(vec2 viewport) {

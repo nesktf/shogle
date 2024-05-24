@@ -10,24 +10,27 @@ using namespace ntf::shogle;
 
 class cirno_renderer : public render::drawable2d {
 public:
-  cirno_renderer(scene::object2d& cirno) : _cirno(cirno) {
+  cirno_renderer(std::initializer_list<scene::transform2d*> cirnos) :
+    _cirnos{cirnos} {
     _cirno_tex.set_filter(gl::texture::filter::linear);
   }
 
 public:
   void draw(const scene::camera2d& cam) override {
-    _shader.set_proj(cam.proj())
-      .set_view(mat4{1.0f}) // use screen space
-      .set_transform(_cirno.transform())
-      .set_linear_offset(vec2{1.0f})
-      .set_const_offset(vec2{0.0f})
-      .set_color(color4{1.0f})
-      .bind_texture(_cirno_tex.tex())
-      .draw(_quad);
+    for (auto* cirno : _cirnos) {
+      _shader.set_proj(cam.proj())
+        .set_view(mat4{1.0f}) // use screen space
+        .set_transform(cirno->transf())
+        .set_linear_offset(vec2{1.0f})
+        .set_const_offset(vec2{0.0f})
+        .set_color(color4{1.0f})
+        .bind_texture(_cirno_tex.tex())
+        .draw(_quad);
+    }
   }
 
 private:
-  scene::object2d& _cirno;
+  std::vector<scene::transform2d*> _cirnos;
   shaders::generic2d _shader{};
   meshes::quad _quad{};
   resources::texture2d _cirno_tex{"_temp/cirno.png"};
@@ -42,36 +45,66 @@ public:
 
 private:
   scene::camera2d cam {800.0f, 600.0f};
-  scene::object2d cirno;
+  scene::transform2d cirno1;
+  scene::transform2d cirno2;
+  scene::transform2d cirno3;
 
   scene::tasker2d tasks;
   render::renderer2d renderer;
 };
 
 test::test() : application(800, 600, "test") {
-  renderer.emplace<cirno_renderer>(cirno);
+  renderer.emplace<cirno_renderer>(std::initializer_list<scene::transform2d*>{&cirno1, &cirno2, &cirno3});
+  cam.set_viewport(win_size()).update();
 
+  float scale {150.0f};
   cmplx center = (cmplx)win_size()*0.5f;
-  cirno.set_pos(center)
+
+  cirno1.set_pos(center)
     .set_rot(0.0f)
-    .set_scale(200.0f)
-    .update_transform();
+    .set_scale(scale)
+    .update();
+
+  cirno2.set_pos(0.0f, -1.0f)
+    .set_rot(0.0f)
+    .set_scale(0.5f)
+    .update();
+
+  cirno3.set_pos(0.0f, 0.0f)
+    .set_rot(0.0f)
+    .set_scale(0.5f)
+    .update();
+
+  cirno1.add_child(&cirno2);
+  cirno1.add_child(&cirno3);
 
   float t {0.0f};
-  tasks.add(&cirno, [center, t](auto& cino, float dt) mutable -> bool {
+  tasks.add(&cirno1, [center, scale, t](auto& cino, float dt) mutable -> bool {
     t += dt;
-
-    cmplx pos = center + 200.0f*math::expic(PI*t);
+    cmplx pos = center + scale*math::expic(PI*t);
     cino.set_rot(cino.rot() + PI*dt)
       .set_pos(pos);
-
+    return false;
+  });
+  tasks.add(&cirno2, [t](auto& cino, float dt) mutable -> bool {
+    t += dt;
+    cmplx pos = math::expic(-2*PI*t);
+    cino.set_rot(cino.rot() - 3*PI*dt)
+      .set_pos(pos);
+    return false;
+  });
+  tasks.add(&cirno3, [t](auto& cino, float dt) mutable -> bool {
+    t += dt;
+    cmplx pos = -math::expic(-2*PI*t);
+    cino.set_rot(cino.rot() + PI*dt)
+      .set_pos(pos);
     return false;
   });
 }
 
 void test::update_event(float dt) {
   tasks.update(dt);
-  cirno.update_transform();
+  cirno1.update();
 }
 
 void test::draw_event() {

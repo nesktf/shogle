@@ -37,12 +37,12 @@ static inline mat4 cam_view3d(vec3 pos, vec3 dir, vec3 up) {
   );
 }
 
-void camera2d::update_transform() {
+void camera2d::update() {
   _ccom.proj = cam_proj_ortho(_ccom.viewport, _ccom.znear, _ccom.zfar);
   _ccom.view = cam_view2d(_origin, _center, _zoom, _rot);
 }
 
-void camera3d::update_transform() {
+void camera3d::update() {
   if (_use_ortho) {
     _ccom.proj = cam_proj_ortho(_ccom.viewport, _ccom.znear, _ccom.zfar);
   } else {
