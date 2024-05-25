@@ -9,10 +9,19 @@
 
 namespace ntf::shogle::scene {
 
-// Types
+/**
+ * @class tas
+ * @brief Object task interface
+ * @tparam T Object type
+ */
 template<typename T>
 class task {
 public:
+  /**
+   * @brief Build with object pointer
+   *
+   * @param obj Object pointer
+   */
   task(T* obj) :
     _obj(obj) { assert(obj && "Task object can't be null"); }
 
@@ -24,10 +33,26 @@ public:
   task& operator=(const task&) = default;
 
 public:
+  /**
+   * @brief Update object. Called each frame.
+   *
+   * @param dt Delta time (elapsed time)
+   */
   virtual void update(float dt) = 0;
 
 public:
+  /**
+   * @brief Obj reference getter
+   *
+   * @return Obj reference
+   */
   T& obj() { return *_obj; }
+
+  /**
+   * @brief Check if task is finished
+   *
+   * @return Finished flag
+   */
   bool finished() const { return _is_finished; }
 
 protected:
@@ -35,17 +60,35 @@ protected:
   bool _is_finished {false};
 };
 
+/**
+ * @class tasker
+ * @brief Task manager
+ *
+ * @tparam T Object type
+ */
 template<typename T>
 class tasker {
 public:
   using task_t = task<T>;
   using taskid = uint;
+
+  /**
+   * @class task_data
+   * @brief Task data
+   *
+   */
   struct task_data {
     taskid id;
     uptr<task_t> task;
   };
 
   using taskfun = std::function<bool(T&, float)>;
+
+  /**
+   * @class taskfun_wrapper
+   * @brief Task wrapper for lambdas
+   *
+   */
   struct taskfun_wrapper : public task_t {
     taskfun_wrapper(T* obj, taskfun fun) :
       task_t(obj),
@@ -62,16 +105,51 @@ public:
   tasker() = default;
 
 public:
+  /**
+   * @brief Update all tasks
+   *
+   * @param dt Delta time (elapsed time)
+   */
   void update(float dt);
 
+  /**
+   * @brief Add task object
+   *
+   * @param task Task unique pointer
+   * @return Task id
+   */
   taskid add(uptr<task_t> task);
+
+  /**
+   * @brief Add task lambda
+   *
+   * @param obj Object pointer associated to lambda
+   * @param fun Task lambda
+   * @return Task id
+   */
   taskid add(T* obj, taskfun fun);
 
+  /**
+   * @brief Emplace task object
+   *
+   * @tparam task Task object type
+   * @param args Task object args
+   * @return Task id
+   */
   template<typename task, typename... Args>
   taskid emplace(Args&&... args);
 
+  /**
+   * @brief Force a task to end
+   *
+   * @param id Task id
+   * @return True if task was found and removed. False otherwise.
+   */
   bool end(taskid id);
 
+  /**
+   * @brief End all tasks
+   */
   void clear();
 
 private:
@@ -80,74 +158,18 @@ private:
   std::vector<task_data> _new_tasks;
 };
 
+/**
+  * @brief Task manager for 2d transforms
+  */
 using tasker2d = tasker<transform2d>;
+
+/**
+  * @brief Task manager for 3d transforms
+  */
 using tasker3d = tasker<transform3d>;
 
-
-// Inline definitions
-template<typename T>
-void tasker<T>::update(float dt) {
-  // Move new tasks
-  for (auto& task : _new_tasks) {
-    _tasks.push_back(std::move(task));
-  }
-  _new_tasks.clear();
-
-  // Do tasks and clear finished tasks
-  for (auto& curr : _tasks) {
-    curr.task->update(dt);
-  }
-  std::erase_if(_tasks, [](const auto& curr){ return curr.task->finished(); });
-}
-
-template<typename T>
-auto tasker<T>::add(uptr<task_t> task) -> taskid {
-  _new_tasks.emplace_back(task_data{
-    .id = ++_task_counter,
-    .task = std::move(task)
-  });
-  return _task_counter;
-}
-
-template<typename T>
-auto tasker<T>::add(T* obj, taskfun fun) -> taskid {
-  _new_tasks.emplace_back(task_data{
-    .id = ++_task_counter,
-    .task = make_uptr<taskfun_wrapper>(obj, std::move(fun))
-  });
-  return _task_counter;
-}
-
-template<typename T>
-template<typename task, typename... Args>
-auto tasker<T>::emplace(Args&&... args) -> taskid {
-  _new_tasks.emplace_back(task_data{
-    .id = ++_task_counter,
-    .task = make_uptr<task>(std::forward<Args>(args)...)
-  });
-  return _task_counter;
-}
-
-template<typename T>
-bool tasker<T>::end(taskid id) {
-  auto match = [id](auto& task) { return task.id == id; };
-
-  auto it_new = std::find_if(_new_tasks.begin(), _new_tasks.end(), match);
-  if (it_new != _new_tasks.end()) {
-    _new_tasks.erase(it_new);
-    return true;
-  }
-
-  auto it = std::find_if(_tasks.begin(), _tasks.end(), match);
-  if (it != _tasks.end()) {
-    _tasks.erase(it);
-    return true;
-  }
-
-  return false;
-}
-
-template<typename T>
-void tasker<T>::clear() { _new_tasks.clear(); _tasks.clear(); }
-
 } // namespace ntf::shogle::scene
+
+#ifndef TASK_INL_HPP
+#include <shogle/scene/task.inl.hpp>
+#endif

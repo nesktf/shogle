@@ -5,7 +5,6 @@
 
 #include <shogle/resources/texture.hpp>
 
-
 using namespace ntf::shogle;
 
 class cirno_renderer : public render::drawable2d {
@@ -60,18 +59,18 @@ test::test() : application(800, 600, "test") {
   float scale {150.0f};
   cmplx center = (cmplx)win_size()*0.5f;
 
-  cirno1.set_pos(center)
-    .set_rot(0.0f)
+  cirno1.set_position(center)
+    .set_rotation(0.0f)
     .set_scale(scale)
     .update();
 
-  cirno2.set_pos(0.0f, -1.0f)
-    .set_rot(0.0f)
+  cirno2.set_position(0.0f, -1.0f)
+    .set_rotation(0.0f)
     .set_scale(0.5f)
     .update();
 
-  cirno3.set_pos(0.0f, 0.0f)
-    .set_rot(0.0f)
+  cirno3.set_position(0.0f, 0.0f)
+    .set_rotation(0.0f)
     .set_scale(0.5f)
     .update();
 
@@ -82,22 +81,22 @@ test::test() : application(800, 600, "test") {
   tasks.add(&cirno1, [center, scale, t](auto& cino, float dt) mutable -> bool {
     t += dt;
     cmplx pos = center + scale*math::expic(PI*t);
-    cino.set_rot(cino.rot() + PI*dt)
-      .set_pos(pos);
+    cino.set_rotation(cino.rot() + PI*dt)
+      .set_position(pos);
     return false;
   });
   tasks.add(&cirno2, [t](auto& cino, float dt) mutable -> bool {
     t += dt;
     cmplx pos = math::expic(-2*PI*t);
-    cino.set_rot(cino.rot() - 3*PI*dt)
-      .set_pos(pos);
+    cino.set_rotation(cino.rot() - 3*PI*dt)
+      .set_position(pos);
     return false;
   });
   tasks.add(&cirno3, [t](auto& cino, float dt) mutable -> bool {
     t += dt;
     cmplx pos = -math::expic(-2*PI*t);
-    cino.set_rot(cino.rot() + PI*dt)
-      .set_pos(pos);
+    cino.set_rotation(cino.rot() + PI*dt)
+      .set_position(pos);
     return false;
   });
 }

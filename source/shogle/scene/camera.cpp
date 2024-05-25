@@ -2,6 +2,24 @@
 
 namespace ntf::shogle::scene {
 
+camera2d::camera2d(vec2sz sz) :
+  camera2d((float)sz.w, (float)sz.h) {}
+
+camera2d::camera2d(float w, float h) {
+  _ccom.viewport = {w, h};
+  _ccom.zfar = 1.0f;
+  _ccom.znear = -10.0f;
+  update();
+}
+
+camera3d::camera3d(vec2sz sz) :
+  camera3d((float)sz.w, (float)sz.h) {}
+
+camera3d::camera3d(float w, float h) {
+  _ccom.viewport = {w, h};
+  update();
+}
+
 static inline mat4 cam_proj_ortho(vec2 viewport, float znear, float zfar) {
   return glm::ortho(
     0.0f, viewport.x,
@@ -50,6 +68,5 @@ void camera3d::update() {
   }
   _ccom.view = cam_view3d(_pos, _dir, _up);
 }
-
 
 } // namespace ntf::shogle::scene
