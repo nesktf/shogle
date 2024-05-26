@@ -6,17 +6,25 @@
 
 namespace ntf::shogle::scene {
 
+template<typename T>
+concept transf_dim = std::same_as<T, vec3> || std::same_as<T, vec2>;
+
 /**
- * @brief Object transform with hierarchy
+ * @brief Transform hierarchy implementation
+ *
+ * @tparam dim_t Dimension type
+ * @tparam T Actual transform hierarchy type (for method chaining)
+ */
+template<transf_dim dim_t, typename T>
+class transf_impl;
+
+/**
+ * @brief Transform hierarchy
  *
  * @tparam dim_t dimension type (vec2/vec3)
- * @tparam rot_t rotation type (float/quat)
  */
-template<typename dim_t, typename rot_t>
-class transform {
-public:
-  static constexpr size_t dim_size = std::same_as<dim_t, vec3> ? 3 : 2;
-
+template<transf_dim dim_t>
+class transform : public transf_impl<dim_t, transform<dim_t>> {
 public:
   transform();
 
@@ -24,7 +32,7 @@ public:
   /**
    * @brief Update transformation matrix if dirty (self or parent). Recursively updates children.
    *
-   * @param parent Parent transform. If NULL treat as parent of the hierarchy.
+   * @param parent Parent transform. If NULL treat this as root of the hierarchy.
    */
   void update(const transform* parent = nullptr);
 
@@ -37,133 +45,208 @@ public:
 
 public:
   /**
-   * @brief Position setter
-   *
-   * @param pos Position vector
-   * @return this
-   */
-  inline transform& set_position(dim_t pos);
-
-  /**
-   * @brief Set position with complex number
-   *
-   * @param pos Complex position
-   * @return this
-   */
-  inline transform& set_position(cmplx pos) requires(dim_size == 2);
-
-  /**
-   * @brief Set position with coordinates
-   *
-   * @param x Position x coord
-   * @param y Position y coord
-   * @return this
-   */
-  inline transform& set_position(float x, float y) requires(dim_size == 2);
-
-  /**
-   * @brief Set position with coordinates
-   *
-   * @param x Position x coord
-   * @param y Position y coord
-   * @param z Position z coord
-   * @return this
-   */
-  inline transform& set_position(float x, float y, float z) requires(dim_size == 3);
-
-  /**
-   * @brief Scale setter
-   *
-   * @param scale Scale vector
-   * @return this
-   */
-  inline transform& set_scale(dim_t scale);
-
-  /**
-   * @brief Set scale on all coordinates. Same as set_scale(vec{scale})
-   *
-   * @param scale Scale scalar
-   * @return this
-   */
-  inline transform& set_scale(float scale);
-
-  /**
-   * @brief Set rotation directly
-   *
-   * @param rot Rotation
-   * @return this
-   */
-  inline transform& set_rotation(rot_t rot);
-
-  /**
-   * @brief Set rotation quaternion from axis + angle
-   *
-   * @param ang Angle
-   * @param axis Axis (normalized)
-   * @return this
-   */
-  inline transform& set_rotation(float ang, vec3 axis) requires(dim_size == 3);
-
-  /**
-   * @brief Set rotation quaternion from euler angles
-   *
-   * @param euler_ang Angles
-   * @return this
-   */
-  inline transform& set_rotation(vec3 euler_ang) requires(dim_size == 3);
-
-public:
-  /**
    * @brief Transformation matrix getter
    *
    * @return Transformation matrix 
    */
   mat4 transf() const { return _mat; }
 
+private:
+  mat4 _mat {1.0f};
+
+  std::vector<transform*> _children;
+};
+
+template<typename T>
+class transf_impl<vec3, T> {
+protected:
+  transf_impl() = default;
+
+public:
+  /**
+   * @brief Set position using vec3
+   *
+   * @param pos vec3 with coordinates
+   * @return this
+   */
+  inline T& set_position(vec3 pos);
+
+  /**
+   * @brief Set position using scalars
+   *
+   * @param x X Coordinate
+   * @param y Y Coordinate
+   * @param z Z Coordinate
+   * @return this
+   */
+  inline T& set_position(float x, float y, float z);
+
+  /**
+   * @brief Set scale using vec3
+   *
+   * @param scale Scale
+   * @return this
+   */
+  inline T& set_scale(vec3 scale);
+
+  /**
+   * @brief Set scale using scalar. Same as set_scale(vec3{scale})
+   *
+   * @param scale Scale
+   * @return this
+   */
+  inline T& set_scale(float scale);
+
+  /**
+   * @brief Set rotation using quaternion
+   *
+   * @param rot Rotation quaternion
+   * @return this
+   */
+  inline T& set_rotation(quat rot);
+
+  /**
+   * @brief Set rotation using angle + vec3 axis
+   *
+   * @param ang Angle (in radians)
+   * @param axis Rotation axis (normalized)
+   * @return this
+   */
+  inline T& set_rotation(float ang, vec3 axis);
+
+  /**
+   * @brief Set rotation using vec3 with XYZ euler angles
+   *
+   * @param euler_ang XYZ euler angles (in radians)
+   * @return this
+   */
+  inline T& set_rotation(vec3 euler_ang);
+
+public:
   /**
    * @brief Position getter
    *
-   * @return Position vector
+   * @return Position vec3
    */
-  dim_t pos() const { return _pos; }
+  inline vec3 pos() const { return _pos; }
 
   /**
    * @brief Scale getter
    *
-   * @return Scale vector
+   * @return Scale vec3
    */
-  dim_t scale() const { return _scale; }
+  inline vec3 scale() const { return _scale; }
 
   /**
    * @brief Rotation getter
    *
-   * @return Rotation
+   * @return Rotation quaternion
    */
-  rot_t rot() const { return _rot; }
+  inline quat rot() const { return _rot; }
 
   /**
-   * @brief Complex position getter
+   * @brief Rotation getter in euler angles
+   *
+   * @return Euler angles vec3 (in radians)
+   */
+  inline vec3 erot() const { return glm::eulerAngles(_rot); }
+
+protected:
+  bool _dirty {false};
+  vec3 _pos {0.0f};
+  vec3 _scale {1.0f};
+  quat _rot {1.0f, vec3{0.0f}};
+};
+
+template<typename T>
+class transf_impl<vec2, T> {
+protected:
+  transf_impl() = default;
+  
+public:
+  /**
+   * @brief Set position using vec2
+   *
+   * @param pos vec2 with coordinates
+   * @return this
+   */
+  inline T& set_position(vec2 pos);
+
+  /**
+   * @brief Set position using scalars
+   *
+   * @param x X Coordinate
+   * @param y Y Coordinate
+   * @return this
+   */
+  inline T& set_position(float x, float y);
+
+  /**
+   * @brief Set position using complex value
+   *
+   * @param pos Complex coordinates
+   * @return this
+   */
+  inline T& set_position(cmplx pos);
+
+  /**
+   * @brief Set scale using vec2
+   *
+   * @param scale Scale
+   * @return this
+   */
+  inline T& set_scale(vec2 scale);
+
+  /**
+   * @brief Set scale using scalar. Same as set_scale(vec2{scale})
+   *
+   * @param scale Scale
+   * @return this
+   */
+  inline T& set_scale(float scale);
+
+  /**
+   * @brief Set rotation angle
+   *
+   * @param rot Rotation angle (in radians)
+   * @return this
+   */
+  inline T& set_rotation(float rot);
+
+public:
+  /**
+   * @brief Position geter
+   *
+   * @return Position vec2
+   */
+  inline vec2 pos() const { return _pos; }
+
+  /**
+   * @brief Position getter in complex form
    *
    * @return Complex position
    */
-  cmplx cpos() const requires(dim_size == 2) { return cmplx{_pos.x, _pos.y}; }
+  inline cmplx cpos() const { return cmplx{_pos.x, _pos.y}; }
 
   /**
-   * @brief Euler angles getter
+   * @brief Scale getter
    *
-   * @return Euler angles vec3
+   * @return Scale vec2
    */
-  vec3 erot() const requires(dim_size == 3) { return glm::eulerAngles(_rot); }
+  inline vec2 scale() const { return _scale; }
 
-private:
-  mat4 _mat {1.0f};
+  /**
+   * @brief Rotation angle getter
+   *
+   * @return Rotation angle (in radians)
+   */
+  inline float rot() const { return _rot; }
+
+protected:
   bool _dirty {false};
-
-  dim_t _pos {0.0f};
-  dim_t _scale {1.0f};
-  rot_t _rot {};
-
-  std::vector<transform*> _children;
+  vec2 _pos {0.0f};
+  vec2 _scale {1.0f};
+  float _rot {0.0f};
 };
 
 
@@ -189,14 +272,14 @@ mat4 transf_mat(vec2 pos, vec2 scale, float rot);
 
 
 /**
-  * @brief 2D Object transform with hierarchy
+  * @brief 2D transform hierarchy
   */
-using transform2d = transform<vec2, float>;
+using transform2d = transform<vec2>;
 
 /**
-  * @brief 3D Object transform with hierarchy
+  * @brief 3D transform hierarchy
   */
-using transform3d = transform<vec3, quat>;
+using transform3d = transform<vec3>;
 
 } // namespace ntf::shogle::scene
 

@@ -73,7 +73,7 @@ mesh& mesh::add_index_buffer(uint* indices, size_t ind_sz) {
   glBindVertexArray(_vao);
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, ind_sz*sizeof(uint), indices, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, ind_sz, indices, GL_STATIC_DRAW);
 
   glBindVertexArray(0);
   return *this;
