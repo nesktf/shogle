@@ -117,7 +117,10 @@ model::model(data_t data) :
 
     _mesh.name = std::move(mesh_data.name);
     for (auto& material : mesh_data.materials) {
-      _mesh.materials.emplace_back(std::move(material));
+      _mesh.materials.emplace_back(std::make_pair(
+        texture2d{std::move(material.first)},
+        std::move(material.second)
+      ));
     }
     _mesh.mesh
       .add_vertex_buffer(&mesh_data.vertices[0], mesh_data.vertices.size()*sizeof(vertex3d),

@@ -43,7 +43,7 @@ public:
   std::string path;
   int width {1}, height {1}, channels {0};
   gl::texture::format format;
-  unsigned char* pixels[CUBEMAP_FACES] {nullptr};
+  gl::cubemap_pixels pixels;
 };
 
 template<typename T>
@@ -55,7 +55,13 @@ public:
   texture(std::string path) :
     texture(data_t{std::move(path)}) {}
 
-  texture(data_t data);
+  texture(data_t data) :
+    _path(data.path),
+    _texture(
+      vec2sz{data.width, data.height},
+      data.format,
+      data.pixels
+    ) {}
 
 public:
   GLuint tex_id() const { return _texture.id(); }
@@ -70,13 +76,6 @@ private:
   std::string _path;
   gl::texture _texture;
 };
-
-template<>
-texture<texture2d_data>::texture(data_t data);
-
-template<>
-texture<cubemap_data>::texture(data_t data);
-
 
 using texture2d = texture<texture2d_data>;
 using cubemap = texture<cubemap_data>;

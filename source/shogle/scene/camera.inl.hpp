@@ -23,7 +23,7 @@ template<typename dim_t>
 void camera<dim_t>::update() {
   if constexpr (std::same_as<dim_t, vec2>) {
     _proj = proj_ortho(_viewport, _znear, _zfar);
-    _view = view2d(this->_origin, this->_center, this->_zoom, this->_rot);
+    _view = view2d(this->_origin, this->_pos, this->_zoom, this->_rot);
   } else {
     _proj = this->_use_persp ?
       proj_persp(_viewport, _znear, _zfar, this->_fov) : proj_ortho(_viewport, _znear, _zfar);

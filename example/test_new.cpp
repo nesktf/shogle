@@ -45,13 +45,13 @@ public:
 
 public:
   void draw(const scene::camera3d& cam) override {
-    for (auto& mesh : _cirno_fumo) {
-      // auto& diff = mesh.materials.begin()->first.tex();
+    for (auto& cirno_mesh : _cirno_fumo) {
+      auto& diff = cirno_mesh.materials.begin()->first.tex();
       _shader.set_proj(cam.proj())
         .set_view(mat4{1.0f})
         .set_model(_obj->transf())
-        .bind_diffuse(_cirno_tex.tex())
-        .draw(mesh.mesh);
+        .bind_diffuse(diff)
+        .draw(cirno_mesh.mesh);
     }
   }
 
@@ -59,7 +59,6 @@ private:
   scene::transform3d* _obj;
   shaders::generic3d _shader{};
   resources::model _cirno_fumo{"_temp/models/cirno_fumo/cirno_fumo.obj"};
-  resources::texture2d _cirno_tex{"_temp/models/cirno_fumo/cirno_diffuse.jpg"};
 };
 
 class test : public ntf::shogle::application {

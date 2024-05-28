@@ -2,9 +2,16 @@
 
 #include <shogle/render/gl/render.hpp>
 
+#include <array>
+
+#define DEFAULT_FILTER GL_NEAREST
+#define DEFAULT_WRAP_2D GL_REPEAT
+#define DEFAULT_WRAP_CUBEMAP GL_CLAMP_TO_EDGE
 #define CUBEMAP_FACES 6
 
 namespace ntf::shogle::gl {
+
+using cubemap_pixels = std::array<unsigned char*, CUBEMAP_FACES>;
 
 class texture {
 public:
@@ -25,7 +32,12 @@ public:
   };
 
 public:
-  texture(vec2sz sz, type type, format format, unsigned char** pixels = NULL);
+  // tex2d
+  texture(vec2sz sz, format format, unsigned char* pixels);
+  // cubemap
+  texture(vec2sz sz, format format, cubemap_pixels pixels);
+  // empty texture
+  texture(vec2sz sz, type type, format format);
 
 public:
   texture& set_filter(filter filter);
@@ -48,7 +60,7 @@ private:
   GLuint _id;
   GLenum _format;
   GLenum _type;
-  GLint _filter;
+  GLint _filter {DEFAULT_FILTER};
   vec2sz _size;
 };
 

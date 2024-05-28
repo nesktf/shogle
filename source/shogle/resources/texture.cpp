@@ -13,53 +13,54 @@
 
 namespace ntf::shogle::resources {
 
+static gl::texture::format to_enum(int channels) {
+  switch (channels) {
+    case 1:
+      return gl::texture::format::mono;
+    case 4:
+      return gl::texture::format::rgba;
+    default:
+      return gl::texture::format::rgb;
+  }
+}
+
 texture2d_data::texture2d_data(std::string _path) :
   path(std::move(_path)) {
   pixels = stbi_load(path.c_str(), &width, &height, &channels, 0);
   if (!pixels) {
     throw ntf::error{"[resources::texture_data] Error loading texture: {}", path};
   }
-  switch (channels) {
-    case 1: {
-      format = gl::texture::format::mono;
-      break;
-    }
-    case 4: {
-      format = gl::texture::format::rgba;
-      break;
-    };
-    default: {
-      format = gl::texture::format::rgb;
-      break;
-    }
-  }
+  format = to_enum(channels);
   Log::verbose("[resources::texture_data] Texture data loaded (path: {})", path);
 }
 
 texture2d_data::~texture2d_data() {
   if (pixels) {
     stbi_image_free(pixels);
+    Log::verbose("[resources::texture_data] Texture data unloaded (path: {})", path);
   }
-  Log::verbose("[resources::texture_data] Texture data unloaded (path: {})", path);
 }
 
 texture2d_data::texture2d_data(texture2d_data&& t) noexcept :
-  width(t.width), height(t.height), channels(t.channels),
-  pixels(t.pixels) { t.pixels = nullptr; }
+  path(std::move(t.path)),
+  width(std::move(t.width)), height(std::move(t.height)), channels(std::move(t.channels)),
+  format(std::move(t.format)),
+  pixels(std::move(t.pixels)) { t.pixels = nullptr; }
 
 texture2d_data& texture2d_data::operator=(texture2d_data&& t) noexcept {
   if (pixels) {
-    Log::verbose("[resources::texture_data] Texture data overwritten (path: {} -> {})", path, t.path);
     stbi_image_free(pixels);
+    Log::verbose("[resources::texture_data] Texture data overwritten (path: {} -> {})", path, t.path);
   }
 
   path = std::move(t.path);
-  width = t.width;
-  height = t.height;
-  channels = t.channels;
-  pixels = t.pixels;
+  width = std::move(t.width);
+  height = std::move(t.height);
+  channels = std::move(t.channels);
+  format = std::move(t.format);
+  pixels = std::move(t.pixels);
 
-  t.pixels = 0;
+  t.pixels = nullptr;
 
   return *this;
 }
@@ -87,21 +88,7 @@ cubemap_data::cubemap_data(std::string _path) :
     ++i;
   }
 
-  switch (channels) {
-    case 1: {
-      format = gl::texture::format::mono;
-      break;
-    }
-    case 4: {
-      format = gl::texture::format::rgba;
-      break;
-    };
-    default: {
-      format = gl::texture::format::rgb;
-      break;
-    }
-  }
-
+  format = to_enum(channels);
   Log::verbose("[resources::cubemap_data] Cubemap data loaded (path: {})", path);
 }
 
@@ -143,25 +130,5 @@ cubemap_data& cubemap_data::operator=(cubemap_data&& c) noexcept {
 
   return *this;
 }
-
-template<>
-texture<texture2d_data>::texture(data_t data) :
-  _path(std::move(data.path)),
-  _texture(
-    vec2sz{data.width, data.height},
-    gl::texture::type::tex2d,
-    data.format,
-    &data.pixels
-  ) {}
-
-template<>
-texture<cubemap_data>::texture(data_t data) :
-  _path(std::move(data.path)),
-  _texture(
-    vec2sz{data.width, data.height},
-    gl::texture::type::cubemap,
-    data.format,
-    data.pixels
-  ) {}
 
 } // namespace ntf::shogle::resources
