@@ -63,14 +63,14 @@ camera_view<vec2, T>::camera_view(vec2 viewport) :
   _origin(viewport*0.5f) {}
 
 template<typename T>
-inline auto camera_view<vec2, T>::set_center(vec2 center) -> T& {
-  _center = center;
+inline auto camera_view<vec2, T>::set_position(vec2 center) -> T& {
+  _pos = center;
   return static_cast<T&>(*this);
 }
 
 template<typename T>
-inline auto camera_view<vec2, T>::set_center(float x, float y) -> T& {
-  return set_center(vec2{x, y});
+inline auto camera_view<vec2, T>::set_position(float x, float y) -> T& {
+  return set_position(vec2{x, y});
 }
 
 template<typename T>

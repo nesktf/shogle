@@ -18,13 +18,13 @@ mat4 proj_persp(vec2 viewport, float znear, float zfar, float fov) {
   );
 }
 
-mat4 view2d(vec2 origin, vec2 center, vec2 zoom, float rot) {
+mat4 view2d(vec2 origin, vec2 pos, vec2 zoom, float rot) {
   mat4 view {1.0f};
 
   view = glm::translate(view, vec3{origin, 0.0f});
   view = glm::rotate(view, rot, vec3{0.0f, 0.0f, 1.0f});
   view = glm::scale(view, vec3{zoom, 1.0f});
-  view = glm::translate(view, vec3{-center, 0.0f});
+  view = glm::translate(view, vec3{-pos, 0.0f});
 
   return view;
 }
