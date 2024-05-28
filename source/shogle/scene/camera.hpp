@@ -4,252 +4,103 @@
 
 namespace ntf::shogle::scene {
 
-/**
- * @class cam_common
- * @brief Common camera struct
- *
- */
-struct cam_common {
-  mat4 proj{1.0f}, view{1.0f};
-  vec2 viewport{800.0f, 600.0f};
-  float znear{0.1f}, zfar{100.0f};
+template<typename dim_t, typename T>
+class camera_view;
+
+template<typename dim_t>
+class camera : public camera_view<dim_t, camera<dim_t>> {
+public:
+  camera(vec2 viewport);
+  camera(float w, float h);
+
+public:
+  void update();
+
+public:
+  inline camera& set_viewport(vec2 viewport);
+  inline camera& set_viewport(float w, float h);
+  inline camera& set_znear(float znear);
+  inline camera& set_zfar(float zfar);
+
+public:
+  mat4 proj() const { return _proj; }
+  mat4 view() const { return _view; }
+  float znear() const { return _znear; }
+  float zfar() const { return _zfar; }
+  vec2 vport() const { return _viewport; }
+
+private:
+  mat4 _proj {1.0f};
+  mat4 _view {1.0f};
+  float _znear {0.1f};
+  float _zfar {100.0f};
+  vec2 _viewport;
 };
 
-/**
- * @class camera2d
- * @brief 2D Camera
- *
- */
-class camera2d {
-public:
-  /**
-   * @brief Build using vector for viewport
-   *
-   * @param sz Size vector for viewport
-   */
-  camera2d(vec2sz sz);
-
-  /**
-   * @brief Build using scalars for viewport
-   *
-   * @param w Viewport width
-   * @param h Viewport height
-   */
-  camera2d(float w, float h);
-  
-public:
-  /**
-   * @brief Update view and projection matrices
-   */
-  void update();
-  
-public:
-  /**
-   * @brief Set camera viewport
-   *
-   * @param viewport Viewport size vector
-   * @return this
-   */
-  inline camera2d& set_viewport(vec2 viewport);
-
-  /**
-   * @brief Set camera center
-   *
-   * @param center Camera center coordinates
-   * @return this
-   */
-  inline camera2d& set_center(vec2 center);
-
-  /**
-   * @brief Set camera zoom
-   *
-   * @param zoom Zoom scalar
-   * @return this
-   */
-  inline camera2d& set_zoom(float zoom);
-
-  /**
-   * @brief Set camera rotation (in radians)
-   *
-   * @param rot Rotation scalar
-   * @return this
-   */
-  inline camera2d& set_rotation(float rot);
+template<typename T>
+class camera_view<vec2, T> {
+protected:
+  camera_view(vec2 viewport);
 
 public:
-  /**
-   * @brief Projection matrix getter
-   *
-   * @return Projection matrix
-   */
-  mat4 proj() const { return _ccom.proj; }
+  inline T& set_center(vec2 center);
+  inline T& set_center(float x, float y);
+  inline T& set_zoom(vec2 zoom);
+  inline T& set_zoom(float x, float y);
+  inline T& set_zoom(float zoom);
+  inline T& set_rotation(float rot);
 
-  /**
-   * @brief View matrix getter
-   *
-   * @return View matrix
-   */
-  mat4 view() const { return _ccom.view; }
-
-  /**
-   * @brief Center coordinates getter
-   *
-   * @return Center coordinates vec2
-   */
+public:
   vec2 center() const { return _center; }
-
-  /**
-   * @brief Zoom scalar getter
-   *
-   * @return Zoom scalar
-   */
-  float zoom() const { return _zoom.x; }
-
-  /**
-   * @brief Rotation getter
-   *
-   * @return Rotation scalar (in radians)
-   */
+  vec2 zoom() const { return _zoom; }
   float rot() const { return _rot; }
 
-private:
-  cam_common _ccom{};
-  vec2 _origin{400.0f, 300.0f};
-  vec2 _center{0.0f};
-  vec2 _zoom{1.0f};
-  float _rot{0.0f};
+protected:
+  vec2 _center {0.0f};
+  vec2 _zoom {1.0f};
+  float _rot {0.0f};
+  vec2 _origin;
 };
 
-class camera3d {
-public:
-  /**
-   * @brief Build using vector for viewport
-   *
-   * @param sz Size vector for viewport
-   */
-  camera3d(vec2sz sz);
-
-  /**
-   * @brief Build using scalars por viewport
-   *
-   * @param w Viewport width
-   * @param h Viewport height
-   */
-  camera3d(float w, float h);
+template<typename T>
+class camera_view<vec3, T> {
+protected:
+  camera_view(vec2 viewport);
 
 public:
-  /**
-   * @brief Update view and projection matrices
-   */
-  void update();
+  inline T& set_position(vec3 pos);
+  inline T& set_position(float x, float y, float z);
+  inline T& set_direction(vec3 dir);
+  inline T& set_direction(float x, float y, float z);
+  inline T& set_fov(float fov);
+  inline T& use_perspective();
+  inline T& use_orthographic();
 
 public:
-  /**
-   * @brief Set camera viewport
-   *
-   * @param viewport Viewport size vector
-   * @return this
-   */
-  camera3d& set_viewport(vec2 viewport);
-
-  /**
-   * @brief Set camera position in world space
-   *
-   * @param pos World position vec3
-   * @return this
-   */
-  camera3d& set_pos(vec3 pos);
-
-  /**
-   * @brief Set camera view direction
-   *
-   * @param dir View direction vec3 (normalized)
-   * @return this
-   */
-  camera3d& set_dir(vec3 dir);
-
-  /**
-   * @brief Set zfar (draw distance)
-   *
-   * @param zfar Draw distance scalar
-   * @return this
-   */
-  camera3d& set_zfar(float zfar);
-  
-  /**
-   * @brief Set FOV
-   *
-   * @param fov FOV scalar
-   * @return this
-   */
-  camera3d& set_fov(float fov);
-
-  /**
-   * @brief Use orthographic projection instead of perspective
-   *
-   * @param flag Enable boolean
-   * @return this
-   */
-  camera3d& toggle_ortho(bool flag);
-
-public:
-  /**
-   * @brief Projection matrix getter
-   *
-   * @return Projection matrix
-   */
-  mat4 proj() const { return _ccom.proj; }
-
-  /**
-   * @brief View matrix getter
-   *
-   * @return View matrix
-   */
-  mat4 view() const { return _ccom.view; }
-
-  /**
-   * @brief Position coordinates getter
-   *
-   * @return Position vec3
-   */
+  bool is_persp() const { return _use_persp; }
+  bool is_ortho() const { return !_use_persp; }
   vec3 pos() const { return _pos; }
-
-  /**
-   * @brief View direction getter
-   *
-   * @return Direction vec3 (normalized)
-   */
   vec3 dir() const { return _dir; }
-
-  /**
-   * @brief Check if camera is using orthographic projection
-   *
-   * @return Ortho flag boolean
-   */
-  bool ortho_flag() const { return _use_ortho; }
-
-  /**
-   * @brief FOV getter
-   *
-   * @return FOV scalar
-   */
   float fov() const { return _fov; }
 
-  /**
-   * @brief zfar getter (draw distance)
-   *
-   * @return zfar scalar
-   */
-  float zfar() const { return _ccom.zfar; }
-
-private:
-  cam_common _ccom{};
-  bool _use_ortho{false};
-  vec3 _pos{0.0f};
-  vec3 _dir{0.0f, 0.0f, -1.0f};
-  vec3 _up{0.0f, 1.0f, 0.0f};
-  float _fov{M_PIf*0.25f};
+protected:
+  bool _use_persp {true};
+  vec3 _pos {0.0f};
+  vec3 _dir {0.0f, 0.0f, -1.0f};
+  vec3 _up {0.0f, 1.0f, 0.0f};
+  float _fov {M_PIf*0.25f};
 };
+
+mat4 proj_ortho(vec2 viewport, float znear, float zfar);
+
+mat4 proj_persp(vec2 viewport, float znear, float zfar, float fov);
+
+mat4 view2d(vec2 origin, vec2 center, vec2 zoom, float rot);
+
+mat4 view3d(vec3 pos, vec3 dir, vec3 up);
+
+using camera2d = camera<vec2>;
+using camera3d = camera<vec3>;
 
 } // namespace ntf::shogle::scene
 
