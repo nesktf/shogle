@@ -22,18 +22,23 @@ void application::main_loop() {
 
   glfw::set_key_callback(_window, [](auto* win, int key, int, int action, int) {
     auto* _this = static_cast<application*>(glfw::get_user_ptr(win));
-    _this->input_event();
+    _this->input_event(key, action);
   });
 
   glfw::set_viewport_callback(_window, [](auto* win, int w, int h) {
     auto* _this = static_cast<application*>(glfw::get_user_ptr(win));
     gl::set_viewport_size(vec2sz{w, h});
-    _this->viewport_event();
+    _this->viewport_event((size_t)w, (size_t)h);
   });
 
   glfw::set_cursor_callback(_window, [](auto* win, double xpos, double ypos) {
     auto* _this = static_cast<application*>(glfw::get_user_ptr(win));
-    _this->cursor_event();
+    _this->cursor_event(xpos, ypos);
+  });
+
+  glfw::set_scroll_callback(_window, [](auto* win, double xoff, double yoff) {
+    auto * _this = static_cast<application*>(glfw::get_user_ptr(win));
+    _this->scroll_event(xoff, yoff);
   });
 
   while (glfw::is_window_open(_window)) {

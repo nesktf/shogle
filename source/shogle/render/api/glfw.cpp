@@ -60,6 +60,10 @@ void set_cursor_callback(window& win, cursorfun fun) {
   glfwSetCursorPosCallback(win.handle, fun);
 }
 
+void set_scroll_callback(window& win, scrollfun fun) {
+  glfwSetScrollCallback(win.handle, fun);
+}
+
 void set_user_ptr(window& win, void* ptr) {
   glfwSetWindowUserPointer(win.handle, ptr);
 }
@@ -77,6 +81,10 @@ vec2sz window_size(const window& win) {
   int w, h;
   glfwGetWindowSize(win.handle, &w, &h);
   return vec2sz{(size_t)w, (size_t)h};
+}
+
+void set_input_mode(window& win, bool enable) {
+  glfwSetInputMode(win.handle, GLFW_CURSOR, enable ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
 }
 
 } // namespace ntf::glfw

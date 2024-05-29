@@ -11,6 +11,7 @@ namespace ntf::shogle::glfw {
 using viewportfun = GLFWframebuffersizefun;
 using keyfun = GLFWkeyfun;
 using cursorfun = GLFWcursorposfun;
+using scrollfun = GLFWscrollfun;
 
 struct window {
   GLFWwindow* handle {nullptr};
@@ -24,12 +25,15 @@ void close_window(window& win);
 void set_viewport_callback(window& win, viewportfun fun);
 void set_key_callback(window& win, keyfun fun);
 void set_cursor_callback(window& win, cursorfun fun);
+void set_scroll_callback(window& win, scrollfun fun);
 
 void set_user_ptr(window& win, void* ptr);
 void* get_user_ptr(GLFWwindow* handle);
 
 void set_title(window& win, std::string title);
 vec2sz window_size(const window& win);
+
+void set_input_mode(window& win, bool enable);
 
 inline void poll_events(window&) {
   glfwPollEvents();
@@ -46,7 +50,7 @@ inline double elapsed_time(const window&) {
   return glfwGetTime();
 }
 
-inline bool is_key_pressed(window& win, int key) {
+inline bool is_key_pressed(const window& win, int key) {
   return glfwGetKey(win.handle, key) == GLFW_PRESS;
 }
 

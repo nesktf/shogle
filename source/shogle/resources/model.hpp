@@ -47,6 +47,7 @@ public:
     std::string name;
     gl::mesh mesh;
     std::vector<std::pair<texture2d, material_type>> materials;
+    texture2d& find_material(material_type type);
   };
 
 public:
@@ -54,7 +55,7 @@ public:
   model(data_t data);
 
 public:
-  mesh& find(std::string name);
+  mesh& find_mesh(std::string name);
 
   mesh& operator[](size_t index) { return _meshes[index]; }
 

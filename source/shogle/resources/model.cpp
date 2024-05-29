@@ -129,13 +129,22 @@ model::model(data_t data) :
   }
 }
 
-model::mesh& model::find(std::string name) {
+model::mesh& model::find_mesh(std::string name) {
   auto pred = [name](const auto& mesh) { return mesh.name == name; };
   auto it = std::find_if(_meshes.begin(), _meshes.end(), pred);
   if (it != _meshes.end()) {
     return *it;
   }
   throw ntf::error{"[resources::model] Mesh not found: {}", name};
+}
+
+texture2d& model::mesh::find_material(material_type type) {
+  auto pred = [type](const auto& tex_pair) { return tex_pair.second == type; };
+  auto it = std::find_if(materials.begin(), materials.end(), pred);
+  if (it != materials.end()) {
+    return it->first;
+  }
+  throw ntf::error{"[resoures::model::mesh] Mesh doesn't have provided material"};
 }
 
 } // namespace ntf::shogle::resources

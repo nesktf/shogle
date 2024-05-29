@@ -287,6 +287,13 @@ public:
   vec3 dir() const { return _dir; }
 
   /**
+   * @brief Up direction getter
+   *
+   * @return Up vec3
+   */
+  vec3 up() const { return _up; }
+
+  /**
    * @brief Fov getter
    *
    * @return Fov angle (in radians)
