@@ -37,6 +37,6 @@ endif()
 
 add_subdirectory(source)
 
-if (SHOGLE_BUILD_EXAMPLES)
-  add_subdirectory(example)
-endif()
+# if (SHOGLE_BUILD_EXAMPLES)
+  # add_subdirectory(example)
+# endif()
