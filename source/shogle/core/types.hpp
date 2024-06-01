@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <complex>
+#include <functional>
 
 #include <sys/types.h>
 

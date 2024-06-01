@@ -48,7 +48,7 @@ generic_skybox::generic_skybox() {
 
     attach_shaders(std::move(vert), std::move(frag));
   } catch(...) {
-    Log::error("[shaders::generic_skybox] Failed to build shader");
+    log::error("[shaders::generic_skybox] Failed to build shader");
     throw;
   }
 

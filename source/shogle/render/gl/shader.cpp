@@ -25,7 +25,7 @@ shader& shader::operator=(shader&& s) noexcept {
 
   s._shad_id = 0;
 
-  Log::verbose("[gl::shader] Shader overwritten (id: {})", id);
+  log::verbose("[gl::shader] Shader overwritten (id: {})", id);
   return *this;
 }
 
@@ -33,7 +33,7 @@ shader::~shader() {
   if (!_shad_id) return;
   auto id = _shad_id;
   glDeleteShader(_shad_id);
-  Log::verbose("[gl::shader] Shader destroyed (id: {})", id);
+  log::verbose("[gl::shader] Shader destroyed (id: {})", id);
 }
 
 void shader::compile() {
@@ -66,7 +66,7 @@ void shader::compile() {
     glDeleteShader(_shad_id);
     throw ntf::error{"[gl::shader] Shader compilation falied: {}", log};
   }
-  Log::verbose("[gl::shader] Shader compiled (id: {})", _shad_id);
+  log::verbose("[gl::shader] Shader compiled (id: {})", _shad_id);
 }
 
 } // namespace ntf::shogle::gl

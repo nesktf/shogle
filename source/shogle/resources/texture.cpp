@@ -31,13 +31,13 @@ texture2d_data::texture2d_data(std::string _path) :
     throw ntf::error{"[resources::texture_data] Error loading texture: {}", path};
   }
   format = to_enum(channels);
-  Log::verbose("[resources::texture_data] Texture data loaded (path: {})", path);
+  log::verbose("[resources::texture_data] Texture data loaded (path: {})", path);
 }
 
 texture2d_data::~texture2d_data() {
   if (pixels) {
     stbi_image_free(pixels);
-    Log::verbose("[resources::texture_data] Texture data unloaded (path: {})", path);
+    log::verbose("[resources::texture_data] Texture data unloaded (path: {})", path);
   }
 }
 
@@ -50,7 +50,7 @@ texture2d_data::texture2d_data(texture2d_data&& t) noexcept :
 texture2d_data& texture2d_data::operator=(texture2d_data&& t) noexcept {
   if (pixels) {
     stbi_image_free(pixels);
-    Log::verbose("[resources::texture_data] Texture data overwritten (path: {} -> {})", path, t.path);
+    log::verbose("[resources::texture_data] Texture data overwritten (path: {} -> {})", path, t.path);
   }
 
   path = std::move(t.path);
@@ -89,7 +89,7 @@ cubemap_data::cubemap_data(std::string _path) :
   }
 
   format = to_enum(channels);
-  Log::verbose("[resources::cubemap_data] Cubemap data loaded (path: {})", path);
+  log::verbose("[resources::cubemap_data] Cubemap data loaded (path: {})", path);
 }
 
 cubemap_data::~cubemap_data() {
@@ -101,7 +101,7 @@ cubemap_data::~cubemap_data() {
     }
   }
   if (skip_log) return;
-  Log::verbose("[resources::cubemap_data] Cubemap data unloaded (path: {})", path);
+  log::verbose("[resources::cubemap_data] Cubemap data unloaded (path: {})", path);
 }
 
 cubemap_data::cubemap_data(cubemap_data&& c) noexcept :
@@ -115,7 +115,7 @@ cubemap_data::cubemap_data(cubemap_data&& c) noexcept :
 }
 
 cubemap_data& cubemap_data::operator=(cubemap_data&& c) noexcept {
-  Log::verbose("[resources::cubemap_data] Cubemap data overwritten (path: {} -> {})", path, c.path);
+  log::verbose("[resources::cubemap_data] Cubemap data overwritten (path: {} -> {})", path, c.path);
 
   path = std::move(c.path);
   width = c.width;

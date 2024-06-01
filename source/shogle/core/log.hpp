@@ -32,7 +32,7 @@ namespace ntf {
 #define DEBUG_COLOR "[0;32m"
 #define VERBOSE_COLOR "[0;37m"
 
-enum class LogLevel {
+enum class loglevel {
   LOG_ERROR   = 0,
   LOG_WARNING = 1,
   LOG_INFO    = 2,
@@ -40,16 +40,16 @@ enum class LogLevel {
   LOG_VERBOSE = 4
 };
 
-class Log {
+class log {
   using TimePoint = std::chrono::system_clock::time_point;
 
 public:
-  inline static void set_level(LogLevel new_level) {
+  inline static void set_level(loglevel new_level) {
     log_level = new_level;
   }
 
   template<typename... Args>
-  inline static void log(LogLevel level, const std::string& prefix, const std::string& str_color, fmt::format_string<Args...> format, Args&&... args) {
+  inline static void _log(loglevel level, const std::string& prefix, const std::string& str_color, fmt::format_string<Args...> format, Args&&... args) {
     if (log_level < level)
       return;
 
@@ -63,38 +63,32 @@ public:
   }
 
   template <typename... Args>
-  inline static void fatal(fmt::format_string<Args...> format, Args&&... args) {
-    log(LogLevel::LOG_INFO, "FATAL", ERROR_COLOR, format, std::forward<Args>(args)...);
-    std::exit(1);
-  }
-
-  template <typename... Args>
   inline static void error(fmt::format_string<Args...> format, Args&&... args) {
-    log(LogLevel::LOG_INFO, "ERROR", ERROR_COLOR, format, std::forward<Args>(args)...);
+    _log(loglevel::LOG_INFO, "ERROR", ERROR_COLOR, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   inline static void warning(fmt::format_string<Args...> format, Args&&... args) {
-    log(LogLevel::LOG_WARNING, "WARNING", WARNING_COLOR, format, std::forward<Args>(args)...);
+    _log(loglevel::LOG_WARNING, "WARNING", WARNING_COLOR, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   inline static void info(fmt::format_string<Args...> format, Args&&... args) {
-    log(LogLevel::LOG_INFO, "INFO", INFO_COLOR, format, std::forward<Args>(args)...);
+    _log(loglevel::LOG_INFO, "INFO", INFO_COLOR, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   inline static void debug(fmt::format_string<Args...> format, Args&&... args) {
-    log(LogLevel::LOG_DEBUG, "DEBUG", DEBUG_COLOR, format, std::forward<Args>(args)...);
+    _log(loglevel::LOG_DEBUG, "DEBUG", DEBUG_COLOR, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   inline static void verbose(fmt::format_string<Args...> format, Args&&... args) {
-    log(LogLevel::LOG_VERBOSE, "VERBOSE", VERBOSE_COLOR, format, std::forward<Args>(args)...);
+    _log(loglevel::LOG_VERBOSE, "VERBOSE", VERBOSE_COLOR, format, std::forward<Args>(args)...);
   }
 
 private:
-  inline static LogLevel log_level = LogLevel::LOG_INFO;
+  inline static loglevel log_level = loglevel::LOG_INFO;
 };
 
 } // namespace ntf

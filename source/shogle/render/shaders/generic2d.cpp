@@ -60,7 +60,7 @@ generic2d::generic2d() {
 
     attach_shaders(std::move(vert), std::move(frag));
   } catch(...) {
-    Log::error("[shaders::generic2d] Failed to build shader");
+    log::error("[shaders::generic2d] Failed to build shader");
     throw;
   }
 

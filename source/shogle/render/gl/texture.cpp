@@ -62,7 +62,7 @@ gl::texture::texture(vec2sz sz, format format, unsigned char* pixels) :
 
   setup_param(_type);
   glBindTexture(_type, 0);
-  Log::verbose("[gl::texture] Texture created (id: {}, type: tex2d, empty: false)", _id);
+  log::verbose("[gl::texture] Texture created (id: {}, type: tex2d, empty: false)", _id);
 }
 
 gl::texture::texture(vec2sz sz, format format, cubemap_pixels pixels) :
@@ -79,7 +79,7 @@ gl::texture::texture(vec2sz sz, format format, cubemap_pixels pixels) :
 
   setup_param(_type);
   glBindTexture(_type, 0);
-  Log::verbose("[gl::texture] Texture created (id: {}, type: cubemap, empty: false)", _id);
+  log::verbose("[gl::texture] Texture created (id: {}, type: cubemap, empty: false)", _id);
 }
 
 gl::texture::texture(vec2sz sz, enum type type, format format) :
@@ -94,7 +94,7 @@ gl::texture::texture(vec2sz sz, enum type type, format format) :
 
   setup_param(_type);
   glBindTexture(_type, 0);
-  Log::verbose("[gl::texture] Texture created (id: {}, type: {}, empty: true)", _id, type==type::cubemap ? "cubemap" : "tex2d");
+  log::verbose("[gl::texture] Texture created (id: {}, type: {}, empty: true)", _id, type==type::cubemap ? "cubemap" : "tex2d");
 }
 
 texture::texture(texture&& t) noexcept :
@@ -114,7 +114,7 @@ texture& texture::operator=(texture&& t) noexcept {
 
   t._id = 0;
 
-  Log::verbose("[gl::texture] Texture overwritten (id: {}, type: {})", tex_id, tex_type == GL_TEXTURE_2D ? "tex2d" : "cubemap");
+  log::verbose("[gl::texture] Texture overwritten (id: {}, type: {})", tex_id, tex_type == GL_TEXTURE_2D ? "tex2d" : "cubemap");
   return *this;
 }
 
@@ -123,7 +123,7 @@ texture::~texture() {
   auto tex_id = _id;
   auto tex_type = _type;
   glDeleteTextures(1, &_id);
-  Log::verbose("[gl::texture] Texture destroyed (id: {}, type: {})", tex_id, tex_type == GL_TEXTURE_2D ? "tex2d" : "cubemap");
+  log::verbose("[gl::texture] Texture destroyed (id: {}, type: {})", tex_id, tex_type == GL_TEXTURE_2D ? "tex2d" : "cubemap");
 }
 
 texture& texture::set_filter(filter filter) {

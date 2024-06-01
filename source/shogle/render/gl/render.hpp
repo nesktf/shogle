@@ -32,6 +32,7 @@ void init(GLADloadproc proc);
 void terminate();
 
 void set_viewport_size(vec2sz sz);
+void set_viewport_size(size_t w, size_t h);
 
 void clear_viewport(color4 color, clear flag = clear::none);
 inline void clear_viewport(color3 color, clear flag = clear::none) {

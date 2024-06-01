@@ -25,7 +25,7 @@ void shader_program::attach_shaders(shader vertex, shader fragment) {
     throw ntf::error{"[gl::shader_program::attach_shaders] Shader linking failed: {}", log};
   }
 
-  Log::verbose("[gl::shader_program::attach_shaders] Shader program created (id: {})", _prog_id);
+  log::verbose("[gl::shader_program::attach_shaders] Shader program created (id: {})", _prog_id);
 }
 
 void shader_program::attach_shaders(shader vertex, shader fragment, shader geometry) {
@@ -45,7 +45,7 @@ void shader_program::attach_shaders(shader vertex, shader fragment, shader geome
     throw ntf::error{"[gl::shader_program::attach_shaders] Shader linking failed: {}", log};
   }
 
-  Log::verbose("[gl::shader_program::attach_shaders] Shader program created (id: {})", _prog_id);
+  log::verbose("[gl::shader_program::attach_shaders] Shader program created (id: {})", _prog_id);
 }
 
 shader_program::shader_program(shader_program&& sh) noexcept :
@@ -59,7 +59,7 @@ shader_program& shader_program::operator=(shader_program&& sh) noexcept {
 
   sh._prog_id = 0;
 
-  Log::verbose("[gl::shader_program] Shader program overwritten (id: {})", id);
+  log::verbose("[gl::shader_program] Shader program overwritten (id: {})", id);
   return *this;
 }
 
@@ -67,7 +67,7 @@ shader_program::~shader_program() {
   if (!_prog_id) return;
   auto id = _prog_id;
   glDeleteProgram(_prog_id);
-  Log::verbose("[gl::shader_program] Shader program destroyed (id: {})", id);
+  log::verbose("[gl::shader_program] Shader program destroyed (id: {})", id);
 }
 
 shader_program::uniform_id shader_program::uniform_location(const char* name) {

@@ -30,7 +30,7 @@ framebuffer::framebuffer(vec2sz sz) :
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-  Log::verbose("[gl::framebuffer] Framebuffer created (id: {}, tex-id: {})", _fbo, _texture.id());
+  log::verbose("[gl::framebuffer] Framebuffer created (id: {}, tex-id: {})", _fbo, _texture.id());
 }
 
 framebuffer::framebuffer(framebuffer&& f) noexcept :
@@ -38,7 +38,7 @@ framebuffer::framebuffer(framebuffer&& f) noexcept :
   _fbo(f._fbo), _rbo(f._rbo), _size(f._size) { f._fbo = 0; }
 
 framebuffer& framebuffer::operator=(framebuffer&& f) noexcept {
-  Log::verbose("[gl::framebuffer] Framebuffer overwritten (id: {}, tex-id: {})", _fbo, _texture.id());
+  log::verbose("[gl::framebuffer] Framebuffer overwritten (id: {}, tex-id: {})", _fbo, _texture.id());
   glDeleteFramebuffers(1, &_fbo);
   glDeleteBuffers(1, &_rbo);
   
@@ -54,7 +54,7 @@ framebuffer& framebuffer::operator=(framebuffer&& f) noexcept {
 
 framebuffer::~framebuffer() {
   if (!_fbo) return;
-  Log::verbose("[gl::framebuffer] Framebuffer destroyed (id: {}, tex-id: {})", _fbo, _texture.id());
+  log::verbose("[gl::framebuffer] Framebuffer destroyed (id: {}, tex-id: {})", _fbo, _texture.id());
   glDeleteFramebuffers(1, &_fbo);
   glDeleteBuffers(1, &_rbo);
 }

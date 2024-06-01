@@ -17,6 +17,10 @@ void set_viewport_size(vec2sz sz) {
   glViewport(0, 0, sz.w, sz.h);
 }
 
+void set_viewport_size(size_t w, size_t h) {
+  glViewport(0, 0, w, h);
+}
+
 void clear_viewport(vec4 color, clear flag) {
   GLbitfield mask = GL_COLOR_BUFFER_BIT;
   if ((flag & clear::depth) != clear::none) {

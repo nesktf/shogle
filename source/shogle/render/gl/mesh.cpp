@@ -7,7 +7,7 @@ namespace ntf::shogle::gl {
 
 mesh::mesh() { 
   glGenVertexArrays(1, &_vao); 
-  Log::verbose("[gl::mesh] Mesh created (id: {})", _vao);
+  log::verbose("[gl::mesh] Mesh created (id: {})", _vao);
 }
 
 mesh::mesh(mesh&& m) noexcept :
@@ -41,7 +41,7 @@ mesh& mesh::operator=(mesh&& m) noexcept {
 
   m._vao = 0;
 
-  Log::verbose("[gl::mesh] Mesh overwritten (id: {})", id);
+  log::verbose("[gl::mesh] Mesh overwritten (id: {})", id);
   return *this;
 }
 
@@ -63,7 +63,7 @@ mesh::~mesh() {
     glDeleteBuffers(1, &_vbo);
   }
 
-  Log::verbose("[gl::mesh] Mesh Destroyed (id: {})", id);
+  log::verbose("[gl::mesh] Mesh Destroyed (id: {})", id);
 }
 
 mesh& mesh::add_index_buffer(uint* indices, size_t ind_sz) {

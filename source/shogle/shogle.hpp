@@ -2,7 +2,7 @@
 
 #include <shogle/render/gl/render.hpp>
 
-#include <shogle/engine/application.hpp>
+#include <shogle/engine/engine.hpp>
 #include <shogle/core/log.hpp>
 
 #include <shogle/scene/camera.hpp>
