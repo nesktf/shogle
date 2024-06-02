@@ -35,7 +35,7 @@ if (NOT DEFINED SHOGLE_RESOURCES_PATH)
   message(STATUS "ShOGLE: Using default resource directory: ${SHOGLE_RESOURCES_PATH}")
 endif()
 
-add_subdirectory(source)
+add_subdirectory(src)
 
 # if (SHOGLE_BUILD_EXAMPLES)
   # add_subdirectory(example)

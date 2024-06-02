@@ -59,7 +59,7 @@ public:
     std::tm time_tm = fmt::localtime(std::chrono::system_clock::to_time_t(now));
 
     std::string log = fmt::format(format, std::forward<Args>(args)...);
-    fmt::print("{:%H:%M:%S}.{:03d}\033{}[{}]\033[0m {}\n", time_tm, (int)ms, str_color, prefix, log);
+    fmt::print("[{:%H:%M:%S}.{:03d}]\033{}[{}]\033[0m{}\n", time_tm, (int)ms, str_color, prefix, log);
   }
 
   template <typename... Args>

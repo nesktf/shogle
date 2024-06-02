@@ -9,12 +9,15 @@ namespace ntf::shogle {
 
 engine::engine(size_t w, size_t h, std::string title) :
   _window(w, h, std::move(title)),
-  _imgui(_window) {}
+  _imgui(_window) { 
+  log::debug("[shogle::engine] Engine created (w: {}, h: {})", w, h);
+}
 
 void engine::start() {
   if (!_draw_event || !_update_event) {
     throw ntf::error {"[shogle::engine::start] Draw and update events not properly set"};
   }
+  log::debug("[shogle::engine] Main loop started");
 
   double _last_frame = 0.0;
   while (_window.is_open()) {
@@ -32,6 +35,7 @@ void engine::start() {
     _window.swap_buffers();
   }
 
+  log::debug("[shogle::engine] Main loop exited");
 }
 
 } // namespace ntf::shogle

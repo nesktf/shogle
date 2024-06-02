@@ -2,6 +2,7 @@
 #include <shogle/render/glfw/window.hpp>
 
 #include <shogle/core/error.hpp>
+#include <shogle/core/log.hpp>
 
 #define GL_MAJOR 3
 #define GL_MINOR 3
@@ -49,6 +50,15 @@ window::window(size_t w, size_t h, std::string title) :
   }
 
   glfwMakeContextCurrent(win);
+  _handle = win;
+  log::verbose("[glfw::window] Window created (w: {}, h: {}, title: {})", w, h, _title);
+
+  glfwSetWindowUserPointer(_handle, this);
+  glfwSetFramebufferSizeCallback(_handle, _framebuffer_size_cb);
+  glfwSetKeyCallback(_handle, _key_event_cb);
+  glfwSetCursorPosCallback(_handle, _cursor_event_cb);
+  glfwSetScrollCallback(_handle, _scroll_event_cb);
+  log::verbose("[glfw::window] Event callbacks set");
 
   try {
     gl::init((GLADloadproc)glfwGetProcAddress);
@@ -58,20 +68,13 @@ window::window(size_t w, size_t h, std::string title) :
     glfwTerminate();
     throw;
   }
-
-  _handle = win;
-
-  glfwSetWindowUserPointer(_handle, this);
-  glfwSetFramebufferSizeCallback(_handle, _framebuffer_size_cb);
-  glfwSetKeyCallback(_handle, _key_event_cb);
-  glfwSetCursorPosCallback(_handle, _cursor_event_cb);
-  glfwSetScrollCallback(_handle, _scroll_event_cb);
 }
 
 window::~window() {
   gl::terminate();
   glfwDestroyWindow(_handle);
   glfwTerminate();
+  log::verbose("[glfw::window] Window destroyed");
 }
 
 void window::close() {

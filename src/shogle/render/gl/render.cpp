@@ -9,9 +9,12 @@ void init(GLADloadproc proc) {
   if (!gladLoadGLLoader(proc)) {
     throw ntf::error{"[gl::init] Failed to load GLAD"};
   }
+  log::verbose("[gl::init] OpenGL initialized");
 }
 
-void terminate() {}
+void terminate() { 
+  log::verbose("[gl::terminate] OpenGL terminated");
+}
 
 void set_viewport_size(vec2sz sz) {
   glViewport(0, 0, sz.w, sz.h);
