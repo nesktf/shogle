@@ -1,4 +1,4 @@
-#include <shogle/res/shaders/sprite.hpp>
+#include <shogle/res/shader/sprite.hpp>
 
 #include <shogle/core/log.hpp>
 

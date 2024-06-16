@@ -1,4 +1,4 @@
-#include <shogle/res/shaders/model.hpp>
+#include <shogle/res/shader/model.hpp>
 
 #include <shogle/core/log.hpp>
 

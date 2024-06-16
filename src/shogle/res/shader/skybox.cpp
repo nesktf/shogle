@@ -1,4 +1,4 @@
-#include <shogle/res/shaders/skybox.hpp>
+#include <shogle/res/shader/skybox.hpp>
 
 #include <shogle/core/log.hpp>
 

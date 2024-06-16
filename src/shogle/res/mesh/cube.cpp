@@ -1,4 +1,4 @@
-#include <shogle/res/meshes/cube.hpp>
+#include <shogle/res/mesh/cube.hpp>
 
 namespace {
 

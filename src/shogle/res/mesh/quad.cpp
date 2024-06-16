@@ -1,4 +1,4 @@
-#include <shogle/res/meshes/quad.hpp>
+#include <shogle/res/mesh/quad.hpp>
 
 namespace {
 
