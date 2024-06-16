@@ -1,12 +1,12 @@
-#include <shogle/resources/spritesheet.hpp>
+#include <shogle/res/spritesheet.hpp>
 
-#include <shogle/resources/util.hpp>
+#include <shogle/res/util.hpp>
 
 #include <nlohmann/json.hpp>
 
 #include <fstream>
 
-namespace ntf::shogle::resources {
+namespace ntf::shogle::res {
 
 spritesheet_data::spritesheet_data(std::string _path) :
   path(std::move(_path)) {
@@ -86,4 +86,4 @@ spritesheet::spritesheet(data_t data) :
   _sprites.emplace(std::make_pair(std::string{"__sheet"}, std::move(__sheet)));
 }
 
-} // namespace ntf::shogle::resources
+} // namespace ntf::shogle::res

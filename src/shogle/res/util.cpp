@@ -1,11 +1,11 @@
-#include <shogle/resources/util.hpp>
+#include <shogle/res/util.hpp>
 
 #include <shogle/core/error.hpp>
 
 #include <fstream>
 #include <sstream>
 
-namespace ntf::shogle::resources {
+namespace ntf::shogle::res {
 
 std::string file_contents(std::string path) {
   std::string out {};
@@ -27,12 +27,4 @@ std::string file_dir(std::string path) {
   return path.substr(0, path.find_last_of('/'));
 }
 
-void async_loader::do_requests() {
-  while (!_req.empty()) {
-    auto req_callback = std::move(_req.front());
-    _req.pop();
-    req_callback();
-  }
-}
-
-} // namespace ntf::shogle::resources
+} // namespace ntf::shogle::res

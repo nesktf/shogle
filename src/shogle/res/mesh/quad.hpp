@@ -2,9 +2,9 @@
 
 #include <shogle/render/gl/mesh.hpp>
 
-namespace ntf::shogle::meshes {
+namespace ntf::shogle::res {
 
-class quad : public gl::mesh {
+class quad_mesh : public gl::mesh {
 public:
   enum class type {
     normal2d,
@@ -14,10 +14,10 @@ public:
   };
 
 public:
-  quad(type type = type::normal2d);
+  quad_mesh(type type = type::normal2d);
 
 private:
   type _type;
 };
 
-} // namespace ntf::shogle::meshes
+} // namespace ntf::shogle::res

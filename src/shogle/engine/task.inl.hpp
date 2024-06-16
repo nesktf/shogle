@@ -1,8 +1,8 @@
 #define TASK_INL_HPP
-#include <shogle/scene/task.hpp>
+#include <shogle/engine/task.hpp>
 #undef TASK_INL_HPP
 
-namespace ntf::shogle::scene {
+namespace ntf::shogle {
 
 template<typename T>
 void tasker<T>::update(float dt) {

@@ -1,4 +1,4 @@
-#include <shogle/render/gl/render.hpp>
+#include <shogle/render/gl/gl.hpp>
 
 #include <shogle/core/log.hpp>
 #include <shogle/core/error.hpp>

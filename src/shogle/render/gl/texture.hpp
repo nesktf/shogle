@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/render/gl/render.hpp>
+#include <shogle/render/gl/gl.hpp>
 
 #include <array>
 

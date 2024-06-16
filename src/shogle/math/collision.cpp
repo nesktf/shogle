@@ -1,6 +1,6 @@
-#include <shogle/physics/collision_2d.hpp>
+#include <shogle/math/collision.hpp>
 
-namespace ntf::shogle::physics {
+namespace ntf::shogle::math {
 
 bool collision2d(vec2 pos1, vec2 size1, vec2 pos2, vec2 size2) {
   // AABB assumes pos is the lower left corner
@@ -46,4 +46,4 @@ bool collision2d(vec2 pos1, float rad1, vec2 pos2, float rad2) {
   return sq_len < sq_sum;
 }
 
-} // namespace ntf
+} // namespace ntf::shogel::math

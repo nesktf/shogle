@@ -1,4 +1,4 @@
-#include <shogle/render/shaders/generic2d.hpp>
+#include <shogle/res/shaders/sprite.hpp>
 
 #include <shogle/core/log.hpp>
 
@@ -48,9 +48,9 @@ const char* frag_src = R"glsl(
 
 }
 
-namespace ntf::shogle::shaders {
+namespace ntf::shogle::res {
 
-generic2d::generic2d() {
+sprite_shader::sprite_shader() {
   try {
     gl::shader vert {std::string{vert_src}, gl::shader::type::vertex};
     vert.compile();
@@ -75,4 +75,4 @@ generic2d::generic2d() {
   _offset_const_unif = uniform_location("offset_const");
 }
 
-} // namespace ntf::shogle::shaders
+} // namespace ntf::shogle::res

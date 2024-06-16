@@ -1,5 +1,6 @@
 #pragma once
 
+#include <shogle/render/gl/gl.hpp>
 #include <shogle/render/glfw/window.hpp>
 #include <shogle/render/imgui/imgui.hpp>
 
@@ -9,11 +10,6 @@
 
 namespace ntf::shogle {
 
-/**
- * @class engine
- * @brief Simple main loop wrapper. Handles a GLFW window and an imgui context.
- *        You should call your gl functions only after this is created.
- */
 class engine {
 private:
   struct destructor_logger {
@@ -21,19 +17,9 @@ private:
   };
 
 public:
-  /**
-   * @brief Create a window with sizes w*h and a title
-   *
-   * @param w Window width
-   * @param h Window height
-   * @param title Window title
-   */
   engine(size_t w, size_t h, std::string title);
 
 public:
-  /**
-   * @brief Start the render loop. draw_event and update_event must be set before calling this
-   */
   void start();
 
 public:
@@ -92,11 +78,6 @@ public:
   engine& set_scroll_event(T&& fun);
 
 public:
-  /**
-   * @brief GLFW window getter
-   *
-   * @return GLFW window ref
-   */
   glfw::window& window() { return _window; }
 
 public:

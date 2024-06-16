@@ -2,13 +2,13 @@
 
 #include <shogle/core/types.hpp>
 
-#include <shogle/resources/texture.hpp>
+#include <shogle/res/texture.hpp>
 
 #include <shogle/render/gl/mesh.hpp>
 
 #include <vector>
 
-namespace ntf::shogle::resources {
+namespace ntf::shogle::res {
 
 struct vertex3d {
   vec3 coord;
@@ -70,4 +70,4 @@ private:
   std::vector<mesh> _meshes;
 };
 
-} // namespace ntf::shogle::resources
+} // namespace ntf::shogle::res

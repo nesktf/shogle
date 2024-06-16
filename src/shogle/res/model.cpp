@@ -1,6 +1,6 @@
-#include <shogle/resources/model.hpp>
+#include <shogle/res/model.hpp>
 
-#include <shogle/resources/util.hpp>
+#include <shogle/res/util.hpp>
 
 #include <shogle/core/error.hpp>
 
@@ -8,7 +8,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 
-namespace ntf::shogle::resources {
+namespace ntf::shogle::res {
 
 model_data::model_data(std::string _path) :
   path(std::move(_path)) {
@@ -16,7 +16,7 @@ model_data::model_data(std::string _path) :
   const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
 
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-    throw ntf::error{"[resources::model_loader] ASSIMP error: {}", import.GetErrorString()};
+    throw ntf::error{"[res::model_loader] ASSIMP error: {}", import.GetErrorString()};
   }
 
   auto dir = file_dir(path);
@@ -135,7 +135,7 @@ model::mesh& model::find_mesh(std::string name) {
   if (it != _meshes.end()) {
     return *it;
   }
-  throw ntf::error{"[resources::model] Mesh not found: {}", name};
+  throw ntf::error{"[res::model] Mesh not found: {}", name};
 }
 
 texture2d& model::mesh::find_material(material_type type) {
@@ -147,4 +147,4 @@ texture2d& model::mesh::find_material(material_type type) {
   throw ntf::error{"[resoures::model::mesh] Mesh doesn't have provided material"};
 }
 
-} // namespace ntf::shogle::resources
+} // namespace ntf::shogle::res

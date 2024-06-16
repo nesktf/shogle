@@ -1,4 +1,4 @@
-#include <shogle/render/shaders/generic_skybox.hpp>
+#include <shogle/res/shaders/skybox.hpp>
 
 #include <shogle/core/log.hpp>
 
@@ -36,9 +36,9 @@ const char* frag_src = R"glsl(
 
 }
 
-namespace ntf::shogle::shaders {
+namespace ntf::shogle::res {
 
-generic_skybox::generic_skybox() {
+skybox_shader::skybox_shader() {
   try {
     gl::shader vert {std::string{vert_src}, gl::shader::type::vertex};
     vert.compile();
@@ -58,4 +58,4 @@ generic_skybox::generic_skybox() {
   _cubemap_unif = uniform_location("skybox");
 }
 
-} // namespace ntf::shogle::shaders
+} // namespace ntf::shogle::res

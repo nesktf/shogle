@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/render/gl/shader.hpp>
+#include <shogle/render/gl/gl.hpp>
 
 namespace ntf::shogle::gl {
 
@@ -15,6 +15,41 @@ requires(vertex_type<T>)
 struct shader_attribute {
   static constexpr unsigned int index = _index;
   static constexpr size_t stride = sizeof(T);
+};
+
+class shader_program;
+
+class shader {
+private:
+  friend shader_program;
+
+public:
+  enum class type {
+    vertex,
+    geometry,
+    fragment
+  };
+
+public:
+  shader(std::string src, type type);
+
+public:
+  void compile();
+
+public:
+  bool compiled() { return _shad_id != 0; }
+
+public:
+  ~shader();
+  shader(shader&&) noexcept;
+  shader(const shader&) = delete;
+  shader& operator=(shader&&) noexcept;
+  shader& operator=(const shader&) = delete;
+
+private:
+  std::string _src;
+  GLuint _shad_id {0};
+  type _type;
 };
 
 class mesh;

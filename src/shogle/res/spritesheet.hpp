@@ -1,10 +1,10 @@
 #pragma once
 
-#include <shogle/resources/texture.hpp>
+#include <shogle/res/texture.hpp>
 #include <unordered_map>
 #include <vector>
 
-namespace ntf::shogle::resources {
+namespace ntf::shogle::res {
 
 struct sprite {
 public:
@@ -51,6 +51,7 @@ public:
 
 public:
   GLuint tex_id() const { return _texture.tex_id(); }
+  gl::texture& gl_tex() { return _texture.tex(); }
   sprite& operator[](std::string name) { return _sprites.at(name); }
 
   void set_filter(gl::texture::filter filter) { _texture.set_filter(filter); }
@@ -63,4 +64,4 @@ private:
   std::unordered_map<std::string, sprite> _sprites;
 };
 
-} // namespace ntf::shogle::resources
+} // namespace ntf::shogle::res

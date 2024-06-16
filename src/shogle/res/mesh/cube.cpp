@@ -1,4 +1,4 @@
-#include <shogle/render/meshes/cube.hpp>
+#include <shogle/res/meshes/cube.hpp>
 
 namespace {
 
@@ -81,9 +81,9 @@ uint cube_cmap_ind[] = {
 
 }
 
-namespace ntf::shogle::meshes {
+namespace ntf::shogle::res {
 
-cube::cube(type type) : _type(type) {
+cube_mesh::cube_mesh(type type) : _type(type) {
   using att_coords = gl::shader_attribute<0, vec3>;
   using att_normals = gl::shader_attribute<1, vec3>;
   using att_texcoords = gl::shader_attribute<2, vec2>;
@@ -104,4 +104,4 @@ cube::cube(type type) : _type(type) {
 }
 
 
-} // namespace ntf::shogle::meshes
+} // namespace ntf::shogle::res

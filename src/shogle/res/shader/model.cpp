@@ -1,4 +1,4 @@
-#include <shogle/render/shaders/generic3d.hpp>
+#include <shogle/res/shaders/model.hpp>
 
 #include <shogle/core/log.hpp>
 
@@ -51,9 +51,9 @@ const char* frag_src = R"glsl(
 
 }
 
-namespace ntf::shogle::shaders {
+namespace ntf::shogle::res {
 
-generic3d::generic3d() {
+model_shader::model_shader() {
   try {
     gl::shader vert {std::string{vert_src}, gl::shader::type::vertex};
     vert.compile();
@@ -76,4 +76,4 @@ generic3d::generic3d() {
   _shiny_unif = uniform_location("material.shiny");
 }
 
-} // namespace ntf::shogle::shaders
+} // namespace ntf::shogle::res
