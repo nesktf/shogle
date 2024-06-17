@@ -3,7 +3,7 @@
 #include <shogle/render/gl/shader_program.hpp>
 #include <shogle/render/gl/texture.hpp>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 class sprite_shader : public gl::shader_program {
 public:
@@ -58,4 +58,4 @@ private:
   uniform_id _offset_linear_unif{}, _offset_const_unif{};
 };
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

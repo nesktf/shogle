@@ -75,7 +75,7 @@ private:
   std::vector<task_data> _new_tasks;
 };
 
-} // namespace ntf::shogle::scene
+} // namespace ntf::shogle
 
 #ifndef TASK_INL_HPP
 #include <shogle/engine/task.inl.hpp>

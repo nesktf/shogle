@@ -2,7 +2,7 @@
 
 #include <shogle/core/types.hpp>
 
-namespace ntf::shogle::scene {
+namespace ntf::shogle {
 
 template<size_t dim_size, typename T>
 class camera_view;
@@ -79,10 +79,10 @@ protected:
 public:
   inline T& set_pos(vec3 pos);
   inline T& set_pos(float x, float y, float z);
-  inline T& set_direction(vec3 dir);
-  inline T& set_direction(float x, float y, float z);
+  inline T& set_dir(vec3 dir);
+  inline T& set_dir(float x, float y, float z);
   inline T& set_fov(float fov);
-  inline T& set_projection(proj_type type);
+  inline T& set_proj(proj_type type);
 
 public:
   vec3 pos() const { return _pos; }
@@ -108,7 +108,7 @@ mat4 view3d(vec3 pos, vec3 dir, vec3 up);
 using camera2d = camera<2>;
 using camera3d = camera<3>;
 
-} // namespace ntf::shogle::scene
+} // namespace ntf::shogle
 
 #ifndef CAMERA_INL_HPP
 #include <shogle/scene/camera.inl.hpp>

@@ -1,6 +1,6 @@
 #include <shogle/scene/camera.hpp>
 
-namespace ntf::shogle::scene {
+namespace ntf::shogle {
 
 mat4 proj_ortho(vec2 viewport, float znear, float zfar) {
   return glm::ortho(
@@ -37,4 +37,4 @@ mat4 view3d(vec3 pos, vec3 dir, vec3 up) {
   );
 }
 
-} // namespace ntf::shogle::scene
+} // namespace ntf::shogle

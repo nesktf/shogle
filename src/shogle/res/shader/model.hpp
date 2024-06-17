@@ -3,7 +3,7 @@
 #include <shogle/render/gl/shader_program.hpp>
 #include <shogle/render/gl/texture.hpp>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 class model_shader : public gl::shader_program {
 public:
@@ -54,4 +54,4 @@ private:
   uniform_id _diffuse_unif{}, _specular_unif{}, _shiny_unif{};
 };
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

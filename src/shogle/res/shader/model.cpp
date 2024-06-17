@@ -51,7 +51,7 @@ const char* frag_src = R"glsl(
 
 }
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 model_shader::model_shader() {
   try {
@@ -76,4 +76,4 @@ model_shader::model_shader() {
   _shiny_unif = uniform_location("material.shiny");
 }
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

@@ -2,7 +2,7 @@
 
 #include <shogle/render/gl/texture.hpp>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 struct spritesheet_data;
 
@@ -80,4 +80,4 @@ private:
 using texture2d = texture<texture2d_data>;
 using cubemap = texture<cubemap_data>;
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

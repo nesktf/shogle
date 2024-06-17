@@ -2,7 +2,7 @@
 
 #include <shogle/core/types.hpp>
 
-namespace ntf::shogle::math {
+namespace ntf::math {
 
 inline vec3 ogl2car(vec3 v) { return {v.z, v.x, v.y}; }
 
@@ -43,4 +43,4 @@ inline float deg(float rad) {
   return glm::degrees(rad);
 }
 
-} // namespace ntf::shogle::math
+} // namespace ntf::math

@@ -8,7 +8,7 @@
 
 #include <vector>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 struct vertex3d {
   vec3 coord;
@@ -16,7 +16,7 @@ struct vertex3d {
   vec2 tex_coord;
 };
 
-enum class material_type {
+enum class material {
   diffuse = 0,
   specular
 };
@@ -27,7 +27,7 @@ public:
     std::string name;
     std::vector<vertex3d> vertices;
     std::vector<uint> indices;
-    std::vector<std::pair<texture2d::data_t, material_type>> materials;
+    std::vector<std::pair<texture2d::data_t, material>> materials;
   };
 
 public:
@@ -46,8 +46,8 @@ public:
   struct mesh {
     std::string name;
     gl::mesh mesh;
-    std::vector<std::pair<texture2d, material_type>> materials;
-    texture2d& find_material(material_type type);
+    std::vector<std::pair<texture2d, material>> materials;
+    texture2d& find_material(material type);
   };
 
 public:
@@ -70,4 +70,4 @@ private:
   std::vector<mesh> _meshes;
 };
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

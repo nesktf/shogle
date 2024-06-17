@@ -11,7 +11,7 @@
 
 #include <fstream>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 static gl::texture::format to_enum(int channels) {
   switch (channels) {
@@ -28,16 +28,16 @@ texture2d_data::texture2d_data(std::string _path) :
   path(std::move(_path)) {
   pixels = stbi_load(path.c_str(), &width, &height, &channels, 0);
   if (!pixels) {
-    throw ntf::error{"[res::texture_data] Error loading texture: {}", path};
+    throw ntf::error{"[texture_data] Error loading texture: {}", path};
   }
   format = to_enum(channels);
-  log::verbose("[res::texture_data] Texture data loaded (path: {})", path);
+  log::verbose("[texture_data] Texture data loaded (path: {})", path);
 }
 
 texture2d_data::~texture2d_data() {
   if (pixels) {
     stbi_image_free(pixels);
-    log::verbose("[res::texture_data] Texture data unloaded (path: {})", path);
+    log::verbose("[texture_data] Texture data unloaded (path: {})", path);
   }
 }
 
@@ -50,7 +50,7 @@ texture2d_data::texture2d_data(texture2d_data&& t) noexcept :
 texture2d_data& texture2d_data::operator=(texture2d_data&& t) noexcept {
   if (pixels) {
     stbi_image_free(pixels);
-    log::verbose("[res::texture_data] Texture data overwritten (path: {} -> {})", path, t.path);
+    log::verbose("[texture_data] Texture data overwritten (path: {} -> {})", path, t.path);
   }
 
   path = std::move(t.path);
@@ -82,14 +82,14 @@ cubemap_data::cubemap_data(std::string _path) :
     // assumes all 6 faces have the same size
     pixels[i] = stbi_load(curr_path.c_str(), &width, &height, &channels, 0);
     if (!pixels[i]) {
-      throw ntf::error{"[res::cubemap_data] Error loading cubemap texture: {}, n° {}", path, i};
+      throw ntf::error{"[cubemap_data] Error loading cubemap texture: {}, n° {}", path, i};
     }
 
     ++i;
   }
 
   format = to_enum(channels);
-  log::verbose("[res::cubemap_data] Cubemap data loaded (path: {})", path);
+  log::verbose("[cubemap_data] Cubemap data loaded (path: {})", path);
 }
 
 cubemap_data::~cubemap_data() {
@@ -101,7 +101,7 @@ cubemap_data::~cubemap_data() {
     }
   }
   if (skip_log) return;
-  log::verbose("[res::cubemap_data] Cubemap data unloaded (path: {})", path);
+  log::verbose("[cubemap_data] Cubemap data unloaded (path: {})", path);
 }
 
 cubemap_data::cubemap_data(cubemap_data&& c) noexcept :
@@ -115,7 +115,7 @@ cubemap_data::cubemap_data(cubemap_data&& c) noexcept :
 }
 
 cubemap_data& cubemap_data::operator=(cubemap_data&& c) noexcept {
-  log::verbose("[res::cubemap_data] Cubemap data overwritten (path: {} -> {})", path, c.path);
+  log::verbose("[cubemap_data] Cubemap data overwritten (path: {} -> {})", path, c.path);
 
   path = std::move(c.path);
   width = c.width;
@@ -131,4 +131,4 @@ cubemap_data& cubemap_data::operator=(cubemap_data&& c) noexcept {
   return *this;
 }
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

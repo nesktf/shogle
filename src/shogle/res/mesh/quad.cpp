@@ -58,7 +58,7 @@ uint indices[] = {
 
 }
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 quad_mesh::quad_mesh(type type) : _type(type) {
   using att_coords2d    = gl::shader_attribute<0, vec2>;
@@ -89,4 +89,4 @@ quad_mesh::quad_mesh(type type) : _type(type) {
   add_index_buffer(indices, sizeof(indices));
 }
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

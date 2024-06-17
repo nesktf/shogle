@@ -1,6 +1,6 @@
 #include <shogle/scene/transform.hpp>
 
-namespace ntf::shogle::scene {
+namespace ntf::shogle {
 
 mat4 transf_mat(vec3 pos, vec3 scale, quat rot) {
   mat4 model{1.0f};
@@ -22,4 +22,4 @@ mat4 transf_mat(vec2 pos, vec2 scale, float rot) {
   return model;
 }
 
-} // namespace ntf::shogle::scene
+} // namespace ntf::shogle

@@ -4,7 +4,7 @@
 
 #include <vector>
 
-namespace ntf::shogle::scene {
+namespace ntf::shogle {
 
 template<size_t dim_size, typename T>
 class transf_impl;
@@ -91,7 +91,7 @@ mat4 transf_mat(vec2 pos, vec2 scale, float rot);
 using transform2d = transform<2>;
 using transform3d = transform<3>;
 
-} // namespace ntf::shogle::scene
+} // namespace ntf::shogle
 
 #ifndef TRANSFORM_INL_HPP
 #include <shogle/scene/transform.inl.hpp>

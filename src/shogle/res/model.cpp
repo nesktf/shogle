@@ -8,7 +8,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 model_data::model_data(std::string _path) :
   path(std::move(_path)) {
@@ -16,26 +16,26 @@ model_data::model_data(std::string _path) :
   const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
 
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-    throw ntf::error{"[res::model_loader] ASSIMP error: {}", import.GetErrorString()};
+    throw ntf::error{"[model_loader] ASSIMP error: {}", import.GetErrorString()};
   }
 
   auto dir = file_dir(path);
-  auto _load_material = [dir](mesh_data& mesh, aiMaterial* material, aiTextureType type) {
-    material_type mat_type;
-    switch (type) {
+  auto _load_material = [dir](mesh_data& mesh, aiMaterial* aimat, aiTextureType aitype) {
+    material mat_type;
+    switch (aitype) {
       case aiTextureType_SPECULAR: {
-        mat_type = material_type::specular;
+        mat_type = material::specular;
         break;
       }
       default: {
-        mat_type = material_type::diffuse;
+        mat_type = material::diffuse;
         break;
       }
     }
 
-    for (size_t i = 0; i < material->GetTextureCount(type); ++i) {
+    for (size_t i = 0; i < aimat->GetTextureCount(aitype); ++i) {
       aiString filename;
-      material->GetTexture(type, i, &filename);
+      aimat->GetTexture(aitype, i, &filename);
       auto tex_path = dir + "/" + std::string{filename.C_Str()};
       bool skip {false};
 
@@ -135,16 +135,16 @@ model::mesh& model::find_mesh(std::string name) {
   if (it != _meshes.end()) {
     return *it;
   }
-  throw ntf::error{"[res::model] Mesh not found: {}", name};
+  throw ntf::error{"[model] Mesh not found: {}", name};
 }
 
-texture2d& model::mesh::find_material(material_type type) {
+texture2d& model::mesh::find_material(material type) {
   auto pred = [type](const auto& tex_pair) { return tex_pair.second == type; };
   auto it = std::find_if(materials.begin(), materials.end(), pred);
   if (it != materials.end()) {
     return it->first;
   }
-  throw ntf::error{"[resoures::model::mesh] Mesh doesn't have provided material"};
+  throw ntf::error{"[resoumodel::mesh] Mesh doesn't have provided material"};
 }
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

@@ -2,7 +2,7 @@
 
 #include <shogle/render/gl/mesh.hpp>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 class cube_mesh : public gl::mesh {
 public:
@@ -19,4 +19,4 @@ private:
 };
 
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 struct sprite {
 public:
@@ -64,4 +64,4 @@ private:
   std::unordered_map<std::string, sprite> _sprites;
 };
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

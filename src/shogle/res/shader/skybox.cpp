@@ -36,7 +36,7 @@ const char* frag_src = R"glsl(
 
 }
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 skybox_shader::skybox_shader() {
   try {
@@ -58,4 +58,4 @@ skybox_shader::skybox_shader() {
   _cubemap_unif = uniform_location("skybox");
 }
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

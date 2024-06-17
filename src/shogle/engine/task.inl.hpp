@@ -67,4 +67,4 @@ bool tasker<T>::end(taskid id) {
 template<typename T>
 void tasker<T>::clear() { _new_tasks.clear(); _tasks.clear(); }
 
-} // namespace ntf::shogle::scene
+} // namespace ntf::shogle

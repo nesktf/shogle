@@ -5,7 +5,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 std::string file_contents(std::string path) {
   std::string out {};
@@ -27,4 +27,4 @@ std::string file_dir(std::string path) {
   return path.substr(0, path.find_last_of('/'));
 }
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

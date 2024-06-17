@@ -2,7 +2,7 @@
 #include <shogle/scene/camera.hpp>
 #undef CAMERA_INL_HPP
 
-namespace ntf::shogle::scene {
+namespace ntf::shogle {
 
 template<size_t dim_size>
 camera<dim_size>::camera(vec2 viewport) : 
@@ -111,14 +111,14 @@ inline auto camera_view<3, T>::set_pos(float x, float y, float z) -> T& {
 }
 
 template<typename T>
-inline auto camera_view<3, T>::set_direction(vec3 dir) -> T& {
+inline auto camera_view<3, T>::set_dir(vec3 dir) -> T& {
   _dir = dir;
   return static_cast<T&>(*this);
 }
 
 template<typename T>
-inline auto camera_view<3, T>::set_direction(float x, float y, float z) -> T& {
-  return set_direction(vec3{x, y, z});
+inline auto camera_view<3, T>::set_dir(float x, float y, float z) -> T& {
+  return set_dir(vec3{x, y, z});
 }
 
 template<typename T>
@@ -128,9 +128,9 @@ inline auto camera_view<3, T>::set_fov(float fov) -> T& {
 }
 
 template<typename T>
-inline auto camera_view<3, T>::set_projection(proj_type type) -> T& {
+inline auto camera_view<3, T>::set_proj(proj_type type) -> T& {
   _use_persp = (type == proj_type::perspective);
   return static_cast<T&>(*this);
 }
 
-} // namespace ntf::shogle::scene
+} // namespace ntf::shogle

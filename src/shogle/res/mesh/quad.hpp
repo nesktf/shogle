@@ -2,7 +2,7 @@
 
 #include <shogle/render/gl/mesh.hpp>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 class quad_mesh : public gl::mesh {
 public:
@@ -20,4 +20,4 @@ private:
   type _type;
 };
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

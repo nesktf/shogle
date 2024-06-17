@@ -4,7 +4,7 @@
 
 #include <tuple>
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 class async_loader {
 public:
@@ -88,7 +88,7 @@ private:
   std::vector<std::pair<size_t, size_t>> _load_counters;
 };
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle
 
 #ifndef POOL_INL_HPP
 #include <shogle/res/pool.inl.hpp>

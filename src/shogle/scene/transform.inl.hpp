@@ -2,7 +2,7 @@
 #include <shogle/scene/transform.hpp>
 #undef TRANSFORM_INL_HPP
 
-namespace ntf::shogle::scene {
+namespace ntf::shogle {
 
 template<size_t dim_size>
 transform<dim_size>::transform() { 
@@ -125,4 +125,4 @@ inline auto transf_impl<2, T>::set_rot(float rot) -> T& {
   return static_cast<T&>(*this);
 }
 
-} // namespace ntf::shogle::scene
+} // namespace ntf::shogle

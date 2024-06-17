@@ -1,6 +1,6 @@
 #pragma once
 
-namespace ntf::shogle::math {
+namespace ntf::math {
 
 // misc
 template<typename TL, typename TR>
@@ -12,4 +12,4 @@ constexpr auto periodic_add(TL a, TR b, decltype(a+b) min, decltype(a+b) max) {
   return res;
 }
 
-} // namespace ntf::shogle::math
+} // namespace ntf::math

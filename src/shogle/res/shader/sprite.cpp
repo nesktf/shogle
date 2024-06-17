@@ -48,7 +48,7 @@ const char* frag_src = R"glsl(
 
 }
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 sprite_shader::sprite_shader() {
   try {
@@ -75,4 +75,4 @@ sprite_shader::sprite_shader() {
   _offset_const_unif = uniform_location("offset_const");
 }
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

@@ -2,7 +2,7 @@
 #include <shogle/res/pool.hpp>
 #undef POOL_INL_HPP
 
-namespace ntf::shogle::res {
+namespace ntf::shogle {
 
 inline void async_loader::do_requests() {
   while (!_req.empty()) {
@@ -67,4 +67,4 @@ void pool<pool_types...>::async_request(async_loader& loader, load_callback on_l
   }
 }
 
-} // namespace ntf::shogle::res
+} // namespace ntf::shogle

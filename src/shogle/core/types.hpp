@@ -15,7 +15,7 @@
 #define PI M_PIf
 #define I cmplx{0.0f, 1.0f}
 
-namespace ntf::shogle {
+namespace ntf {
 
 // Might replace glm at some point (?)
 using vec2 = glm::vec2;
