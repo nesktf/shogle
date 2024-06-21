@@ -83,21 +83,21 @@ uint cube_cmap_ind[] = {
 
 namespace ntf::shogle {
 
-cube_mesh::cube_mesh(type type) : _type(type) {
-  using att_coords = gl::shader_attribute<0, vec3>;
-  using att_normals = gl::shader_attribute<1, vec3>;
-  using att_texcoords = gl::shader_attribute<2, vec2>;
+cube::cube(type type) : _type(type) {
+  using att_coords = shader_attribute<0, vec3>;
+  using att_normals = shader_attribute<1, vec3>;
+  using att_texcoords = shader_attribute<2, vec2>;
 
-  using att_coordscmap = gl::shader_attribute<0, vec3>;
+  using att_coordscmap = shader_attribute<0, vec3>;
 
   switch (type) {
     case type::texture2d: {
-      add_vertex_buffer(cube_tex2d_vert, sizeof(cube_tex2d_vert), att_coords{}, att_normals{}, att_texcoords{});
+      _mesh.add_vertex_buffer(cube_tex2d_vert, sizeof(cube_tex2d_vert), att_coords{}, att_normals{}, att_texcoords{});
       break;
     }
     case type::cubemap: {
-      add_vertex_buffer(cube_cmap_vert, sizeof(cube_cmap_vert), att_coordscmap{});
-      add_index_buffer(cube_cmap_ind, sizeof(cube_cmap_ind));
+      _mesh.add_vertex_buffer(cube_cmap_vert, sizeof(cube_cmap_vert), att_coordscmap{});
+      _mesh.add_index_buffer(cube_cmap_ind, sizeof(cube_cmap_ind));
       break;
     }
   }

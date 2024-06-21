@@ -1,10 +1,10 @@
 #pragma once
 
-#include <shogle/render/gl/mesh.hpp>
+#include <shogle/render/mesh.hpp>
 
 namespace ntf::shogle {
 
-class cube_mesh : public gl::mesh {
+class cube {
 public:
   enum class type {
     texture2d,
@@ -12,9 +12,13 @@ public:
   };
 
 public:
-  cube_mesh(type type);
+  cube(type type);
+
+public:
+  class mesh& mesh() { return _mesh; }
 
 private:
+  class mesh _mesh{};
   type _type;
 };
 

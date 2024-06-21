@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/render/gl/gl.hpp>
+#include <shogle/render/render.hpp>
 #include <shogle/render/glfw/window.hpp>
 #include <shogle/render/imgui/imgui.hpp>
 
@@ -78,7 +78,7 @@ public:
   engine& set_scroll_event(T&& fun);
 
 public:
-  glfw::window& window() { return _window; }
+  class window& window() { return _window; }
 
 public:
   // Should live in main(), can't move or copy :p
@@ -89,8 +89,8 @@ public:
 
 private:
   destructor_logger _deslog;
-  glfw::window _window;
-  imgui::renderer _imgui;
+  class window _window;
+  imgui_handle _imgui;
 
   std::function<void()> _draw_event;
   std::function<void(float)> _update_event;

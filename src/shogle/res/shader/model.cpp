@@ -55,25 +55,25 @@ namespace ntf::shogle {
 
 model_shader::model_shader() {
   try {
-    gl::shader vert {std::string{vert_src}, gl::shader::type::vertex};
+    shader vert {vert_src, shader_type::vertex};
     vert.compile();
 
-    gl::shader frag {std::string{frag_src}, gl::shader::type::fragment};
+    shader frag {frag_src, shader_type::fragment};
     frag.compile();
 
-    attach_shaders(std::move(vert), std::move(frag));
+    _shader.link(vert, frag);
   } catch(...) {
-    log::error("[shaders::generic3d] Failed to build shader");
+    log::error("[shogle::model_shader] Failed to compile shader");
     throw;
   }
 
-  _model_unif = uniform_location("model");
-  _view_unif = uniform_location("view");
-  _proj_unif = uniform_location("proj");
+  _model_unif = _shader.uniform_location("model");
+  _view_unif = _shader.uniform_location("view");
+  _proj_unif = _shader.uniform_location("proj");
 
-  _diffuse_unif = uniform_location("material.diffuse");
-  _specular_unif = uniform_location("material.specular");
-  _shiny_unif = uniform_location("material.shiny");
+  _diffuse_unif = _shader.uniform_location("material.diffuse");
+  _specular_unif = _shader.uniform_location("material.specular");
+  _shiny_unif = _shader.uniform_location("material.shiny");
 }
 
 } // namespace ntf::shogle

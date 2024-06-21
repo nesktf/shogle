@@ -1,10 +1,10 @@
 #pragma once
 
-#include <shogle/render/gl/mesh.hpp>
+#include <shogle/render/mesh.hpp>
 
 namespace ntf::shogle {
 
-class quad_mesh : public gl::mesh {
+class quad {
 public:
   enum class type {
     normal2d,
@@ -14,9 +14,13 @@ public:
   };
 
 public:
-  quad_mesh(type type = type::normal2d);
+  quad(type type = type::normal2d);
+
+public:
+  class mesh& mesh() { return _mesh; }
 
 private:
+  class mesh _mesh{};
   type _type;
 };
 

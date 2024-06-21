@@ -1,21 +1,22 @@
-#include <shogle/render/gl/framebuffer.hpp>
+#include <shogle/render/framebuffer.hpp>
 
 #include <shogle/core/log.hpp>
 #include <shogle/core/error.hpp>
 
 #define DEFAULT_FRAMEBUFFER 0
 
-namespace ntf::shogle::gl {
+namespace ntf::shogle {
+
+framebuffer::framebuffer(size_t w, size_t h) :
+  framebuffer(vec2sz{w, h}) {}
 
 framebuffer::framebuffer(vec2sz sz) :
-  _texture(sz, texture::type::tex2d, texture::format::rgb),
+  _texture(sz, tex_format::rgb, tex_filter::nearest, tex_wrap::repeat),
   _size(sz) {
-  _texture.set_filter(texture::filter::nearest);
-
   glGenFramebuffers(1, &_fbo);
   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
 
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _texture.type(), _texture.id(), 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _texture.id(), 0);
 
   glGenRenderbuffers(1, &_rbo);
   glBindRenderbuffer(GL_RENDERBUFFER, _rbo);
@@ -25,49 +26,56 @@ framebuffer::framebuffer(vec2sz sz) :
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo);
 
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-    throw ntf::error{"[gl::framebuffer] Incomplete framebuffer"};
+    throw ntf::error{"[shogle::framebuffer] Incomplete framebuffer"};
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-  log::verbose("[gl::framebuffer] Framebuffer created (id: {}, tex-id: {})", _fbo, _texture.id());
+  log::verbose("[shogle::framebuffer] Framebuffer created (id: {}, tex: {})", _fbo, _texture.id());
 }
 
 framebuffer::framebuffer(framebuffer&& f) noexcept :
   _texture(std::move(f._texture)),
-  _fbo(f._fbo), _rbo(f._rbo), _size(f._size) { f._fbo = 0; }
+  _fbo(std::move(f._fbo)), _rbo(std::move(f._rbo)), 
+  _size(std::move(f._size)) { 
+  f._fbo = 0; 
+}
 
 framebuffer& framebuffer::operator=(framebuffer&& f) noexcept {
-  log::verbose("[gl::framebuffer] Framebuffer overwritten (id: {}, tex-id: {})", _fbo, _texture.id());
+  auto id = _fbo;
+
   glDeleteFramebuffers(1, &_fbo);
   glDeleteBuffers(1, &_rbo);
   
   _texture = std::move(f._texture);
-  _fbo = f._fbo;
-  _rbo = f._rbo;
-  _size = f._size;
+  _fbo = std::move(f._fbo);
+  _rbo = std::move(f._rbo);
+  _size = std::move(f._size);
 
   f._fbo = 0;
+
+  log::verbose("[shogle::framebuffer] Framebuffer overwritten (id: {}, tex: {})", id, _texture.id());
 
   return *this;
 }
 
 framebuffer::~framebuffer() {
+  auto id = _fbo;
   if (!_fbo) return;
-  log::verbose("[gl::framebuffer] Framebuffer destroyed (id: {}, tex-id: {})", _fbo, _texture.id());
   glDeleteFramebuffers(1, &_fbo);
   glDeleteBuffers(1, &_rbo);
+  log::verbose("[shogle::framebuffer] Framebuffer destroyed (id: {}, tex: {})", id, _texture.id());
 }
 
 framebuffer& framebuffer::bind() {
   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
-  gl::set_viewport_size(_size);
+  render_viewport(_size);
   return *this;
 }
 
 framebuffer& framebuffer::unbind(vec2sz viewport) {
   glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
-  gl::set_viewport_size(viewport);
+  render_viewport(viewport);
   return *this;
 }
 
@@ -78,4 +86,4 @@ framebuffer::raii_bind::raii_bind(framebuffer& fb, vec2sz viewport) :
 
 framebuffer::raii_bind::~raii_bind() { _fb.unbind(_viewport); }
 
-} // namespace ntf::shogle::gl
+} // namespace ntf::shogle

@@ -8,81 +8,54 @@
 
 namespace ntf::shogle {
 
-spritesheet_data::spritesheet_data(std::string _path) :
-  path(std::move(_path)) {
-  using json = nlohmann::json;
-
-  std::ifstream f{path};
-  json data = json::parse(f);
-
-  auto tex_path = file_dir(path)+"/"+data["file"].template get<std::string>();
-  texture = texture2d_data{std::move(tex_path)};
-
-  auto content = data["content"];
-  for (auto& curr_sprite : content) {
-    sprite_data sp_data{};
-
-    sp_data.name = curr_sprite["name"].template get<std::string>();
-    sp_data.count = curr_sprite["count"].template get<size_t>();
-    sp_data.x0 = curr_sprite["x0"].template get<size_t>();
-    sp_data.y0 = curr_sprite["y0"].template get<size_t>();
-    sp_data.dx = curr_sprite["dx"].template get<size_t>();
-    sp_data.dy = curr_sprite["dy"].template get<size_t>();
-    sp_data.x = static_cast<size_t>(texture.width);
-    sp_data.y = static_cast<size_t>(texture.height);
-    sp_data.cols = curr_sprite["cols"].template get<size_t>();
-    sp_data.rows = std::ceil((float)sp_data.count/(float)sp_data.cols);
-
-    sprites.emplace_back(std::move(sp_data));
-  }
-}
-
-spritesheet::spritesheet(std::string path) :
-  spritesheet(data_t{std::move(path)}) {}
-
-spritesheet::spritesheet(data_t data) :
-  _path(std::move(data.path)),
-  _texture(std::move(data.texture)) {
+spritesheet::spritesheet(spritesheet_loader loader) :
+  _texture(
+    vec2sz{loader.texture.width, loader.texture.height},
+    loader.texture.format,
+    tex_filter::nearest,
+    tex_wrap::repeat,
+    std::move(loader.texture.pixels)
+  ) {
   
-  for (auto& spr_data : data.sprites) {
-    sprite sprite{spr_data.count};
+  for (auto& sprite_data : loader.sprites) {
+    sprite sprite{_texture, sprite_data.count};
 
-    sprite.texture = &_texture;
-    sprite.corrected_scale.x =
-      (float)(spr_data.dx*spr_data.rows) / (float)(spr_data.dy*spr_data.cols);
-    sprite.corrected_scale.y = 1.0f;
+    sprite._corrected_scale.x =
+      (float)(sprite_data.dx*sprite_data.rows) / (float)(sprite_data.dy*sprite_data.cols);
+    sprite._corrected_scale.y = 1.0f;
 
-    sprite.linear_offset.x = 
-      (float)(spr_data.dx) / (float)(spr_data.x*spr_data.cols);
-    sprite.linear_offset.y =
-      (float)(spr_data.dy) / (float)(spr_data.y*spr_data.rows);
+    sprite._linear_offset.x = 
+      (float)(sprite_data.dx) / (float)(sprite_data.x*sprite_data.cols);
+    sprite._linear_offset.y =
+      (float)(sprite_data.dy) / (float)(sprite_data.y*sprite_data.rows);
 
-    for (size_t i = 0; i < spr_data.count; ++i) {
-      size_t row = i / spr_data.cols;
-      size_t col = i % spr_data.cols;
+    for (size_t i = 0; i < sprite_data.count; ++i) {
+      size_t row = i / sprite_data.cols;
+      size_t col = i % sprite_data.cols;
 
       vec2 frac_a{
-        spr_data.x0 + (col*spr_data.dx),
-        spr_data.y0 + (row*spr_data.dy)
+        sprite_data.x0 + (col*sprite_data.dx),
+        sprite_data.y0 + (row*sprite_data.dy)
       };
       vec2 frac_b{
-        spr_data.x*spr_data.cols,
-        spr_data.y*spr_data.rows
+        sprite_data.x*sprite_data.cols,
+        sprite_data.y*sprite_data.rows
       };
 
-      sprite.const_offset[i].x = frac_a.x / frac_b.x;
-      sprite.const_offset[i].y = frac_a.y / frac_b.y;
+      sprite._const_offset[i].x = frac_a.x / frac_b.x;
+      sprite._const_offset[i].y = frac_a.y / frac_b.y;
     }
 
-    _sprites.emplace(std::make_pair(std::move(spr_data.name), std::move(sprite)));
+    _sprites.emplace(std::make_pair(std::move(sprite_data.name), std::move(sprite)));
   }
 
   // "sprite" for the whole spritesheet
-  sprite __sheet{1};
-  __sheet.corrected_scale = vec2{1.0f};
-  __sheet.linear_offset = vec2{1.0f};
-  __sheet.const_offset[0] = vec2{0.0f};
-  __sheet.texture = &_texture;
+  sprite __sheet{_texture, 1};
+  __sheet._corrected_scale.x =
+    (float)(loader.texture.width) / (float)(loader.texture.height);
+  __sheet._corrected_scale.y = 1.0f;
+  __sheet._linear_offset = vec2{1.0f};
+  __sheet._const_offset[0] = vec2{0.0f};
   _sprites.emplace(std::make_pair(std::string{"__sheet"}, std::move(__sheet)));
 }
 

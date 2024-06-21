@@ -1,8 +1,8 @@
 #pragma once
 
-#include <shogle/render/gl/texture.hpp>
+#include <shogle/render/texture.hpp>
 
-namespace ntf::shogle::gl {
+namespace ntf::shogle {
 
 class framebuffer {
 public:
@@ -14,6 +14,7 @@ public:
   };
 
 public:
+  framebuffer(size_t w, size_t h);
   framebuffer(vec2sz sz);
 
 public:
@@ -21,10 +22,11 @@ public:
   framebuffer& unbind(vec2sz viewport);
   raii_bind scoped_bind(vec2sz viewport);
 
+  texture2d& tex() { return _texture; }
+
 public:
   GLuint id() const { return _fbo; }
   vec2sz size() const { return _size; }
-  const texture& tex() const { return _texture; }
 
 public:
   ~framebuffer();
@@ -34,10 +36,9 @@ public:
   framebuffer& operator=(const framebuffer&) = delete;
 
 private:
-  texture _texture;
-  GLuint _fbo;
-  GLuint _rbo;
+  texture2d _texture;
+  GLuint _fbo, _rbo;
   vec2sz _size;
 };
 
-} // namespace ntf::shogle::gl
+} // namespace ntf::shogle

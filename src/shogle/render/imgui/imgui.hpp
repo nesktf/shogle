@@ -6,12 +6,12 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_glfw.h>
 
-namespace ntf::shogle::imgui {
+namespace ntf::shogle {
 
-class renderer {
+class imgui_handle {
 public:
-  renderer(const glfw::window& win);
-  ~renderer();
+  imgui_handle(const window& win);
+  ~imgui_handle();
 
 public:
   inline void render() {

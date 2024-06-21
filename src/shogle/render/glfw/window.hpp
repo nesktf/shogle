@@ -3,16 +3,32 @@
 #include <shogle/core/types.hpp>
 
 #include <shogle/render/glfw/keys.hpp>
-#include <shogle/render/glfw/event.hpp>
 
 #include <string>
+#include <functional>
 
-namespace ntf::shogle::imgui { class renderer; }
+namespace ntf::shogle {
 
-namespace ntf::shogle::glfw {
-
+class imgui_handle;
 
 class window {
+public:
+  template<typename... Args>
+  class event {
+  public:
+    using callback_t = std::function<void(Args...)>;
+  public:
+    template<typename callback>
+    void set_callback(callback&& cb) {
+      _event = std::forward<callback>(cb);
+    }
+    void operator()(Args... args) {
+      if (_event) { _event(args...); }
+    }
+  private:
+    std::function<void(Args...)> _event;
+  };
+
 public:
   window(size_t w, size_t h, std::string title);
 
@@ -67,7 +83,8 @@ public:
 private:
   GLFWwindow* _handle;
   std::string _title;
-  friend class ntf::shogle::imgui::renderer;
+
+  friend class imgui_handle;
 };
 
-} // namespace ntf::shogle::glfw
+} // namespace ntf::shogle

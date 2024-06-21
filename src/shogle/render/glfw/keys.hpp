@@ -2,7 +2,7 @@
 
 #include <GLFW/glfw3.h>
 
-namespace ntf::shogle::glfw {
+namespace ntf::shogle {
 
 enum _keycodes : int {
   key_unknown = GLFW_KEY_UNKNOWN,
@@ -169,4 +169,4 @@ using mousebut = decltype(mouse_1);
 
 // TODO: Add gamepad things
 
-} // namespace ntf::shogle::glfw
+} // namespace ntf::shogle

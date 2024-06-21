@@ -29,7 +29,7 @@ engine& engine::set_viewport_event(T&& fun) {
 template<keyfun T>
 engine& engine::set_key_event(T&& fun) {
   _window.key_event.set_callback(
-    [fun=std::forward<T>(fun)](auto&, glfw::keycode key, glfw::scancode scan, glfw::keystate state, glfw::keymod mod) {
+    [fun=std::forward<T>(fun)](auto&, keycode key, scancode scan, keystate state, keymod mod) {
       fun(key, scan, state, mod);
     }
   );

@@ -16,7 +16,7 @@ template<typename F>
 concept viewportfun = std::invocable<F, size_t, size_t>;
 
 template<typename F>
-concept keyfun = std::invocable<F, glfw::keycode, glfw::scancode, glfw::keystate, glfw::keymod>;
+concept keyfun = std::invocable<F, keycode, scancode, keystate, keymod>;
 
 template<typename F>
 concept cursorfun = std::invocable<F, double, double>;

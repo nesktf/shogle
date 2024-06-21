@@ -6,6 +6,9 @@
 
 namespace ntf::shogle {
 
+// BROKEN for textures
+// TODO: don't use data_t?
+
 class async_loader {
 public:
   using reqfun_t = std::function<void()>;

@@ -40,22 +40,22 @@ namespace ntf::shogle {
 
 skybox_shader::skybox_shader() {
   try {
-    gl::shader vert {std::string{vert_src}, gl::shader::type::vertex};
+    shader vert {vert_src, shader_type::vertex};
     vert.compile();
 
-    gl::shader frag {std::string{frag_src}, gl::shader::type::fragment};
+    shader frag {frag_src, shader_type::fragment};
     frag.compile();
 
-    attach_shaders(std::move(vert), std::move(frag));
+    _shader.link(vert, frag);
   } catch(...) {
-    log::error("[shaders::generic_skybox] Failed to build shader");
+    log::error("[shogle::skybox_shader] Failed to compile shader");
     throw;
   }
 
-  _view_unif = uniform_location("view");
-  _proj_unif = uniform_location("proj");
+  _view_unif = _shader.uniform_location("view");
+  _proj_unif = _shader.uniform_location("proj");
 
-  _cubemap_unif = uniform_location("skybox");
+  _cubemap_unif = _shader.uniform_location("skybox");
 }
 
 } // namespace ntf::shogle

@@ -1,8 +1,8 @@
 #include <shogle/render/imgui/imgui.hpp>
 
-namespace ntf::shogle::imgui {
+namespace ntf::shogle {
 
-renderer::renderer(const glfw::window& win) {
+imgui_handle::imgui_handle(const window& win) {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -14,7 +14,7 @@ renderer::renderer(const glfw::window& win) {
   ImGui_ImplOpenGL3_Init("#version 130");
 }
 
-renderer::~renderer() {
+imgui_handle::~imgui_handle() {
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();

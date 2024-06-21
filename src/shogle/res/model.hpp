@@ -2,72 +2,46 @@
 
 #include <shogle/core/types.hpp>
 
-#include <shogle/res/texture.hpp>
+#include <shogle/res/loader_data.hpp>
 
-#include <shogle/render/gl/mesh.hpp>
+#include <shogle/render/mesh.hpp>
 
 #include <vector>
 
 namespace ntf::shogle {
 
-struct vertex3d {
-  vec3 coord;
-  vec3 normal;
-  vec2 tex_coord;
-};
-
-enum class material {
-  diffuse = 0,
-  specular
-};
-
-struct model_data {
+class model_mesh {
 public:
-  struct mesh_data {
-    std::string name;
-    std::vector<vertex3d> vertices;
-    std::vector<uint> indices;
-    std::vector<std::pair<texture2d::data_t, material>> materials;
-  };
+  texture2d& find_material(material_type type);
+  class mesh& mesh() { return _mesh; }
 
-public:
-  model_data(std::string _path);
-
-public:
-  std::string path;
-  std::vector<mesh_data> meshes;
+private:
+  class mesh _mesh {};
+  std::string _name;
+  std::vector<std::pair<material_type, texture2d>> _materials;
+  friend class model;
 };
-
 
 class model {
 public:
-  using data_t = model_data;
+  model(model_loader data);
 
-  struct mesh {
-    std::string name;
-    gl::mesh mesh;
-    std::vector<std::pair<texture2d, material>> materials;
-    texture2d& find_material(material type);
-  };
+  model(std::string_view path) :
+    model(model_loader{path}) {}
 
 public:
-  model(std::string path);
-  model(data_t data);
+  model_mesh& find_mesh(std::string_view name);
 
-public:
-  mesh& find_mesh(std::string name);
+  model_mesh& operator[](size_t index) { return _meshes[index]; }
+  model_mesh& at(size_t index) { return _meshes.at(index); }
 
-  mesh& operator[](size_t index) { return _meshes[index]; }
-
-  std::vector<mesh>::iterator begin() { return _meshes.begin(); }
-  std::vector<mesh>::iterator end() { return _meshes.end(); }
+  std::vector<model_mesh>::iterator begin() { return _meshes.begin(); }
+  std::vector<model_mesh>::iterator end() { return _meshes.end(); }
 
   size_t size() const { return _meshes.size(); }
-  std::string path() const { return _path; }
 
 private:
-  std::string _path;
-  std::vector<mesh> _meshes;
+  std::vector<model_mesh> _meshes;
 };
 
 } // namespace ntf::shogle

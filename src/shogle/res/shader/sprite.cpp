@@ -52,27 +52,27 @@ namespace ntf::shogle {
 
 sprite_shader::sprite_shader() {
   try {
-    gl::shader vert {std::string{vert_src}, gl::shader::type::vertex};
+    shader vert {vert_src, shader_type::vertex};
     vert.compile();
 
-    gl::shader frag {std::string{frag_src}, gl::shader::type::fragment};
+    shader frag {frag_src, shader_type::fragment};
     frag.compile();
 
-    attach_shaders(std::move(vert), std::move(frag));
+    _shader.link(vert, frag);
   } catch(...) {
-    log::error("[shaders::generic2d] Failed to build shader");
+    log::error("[shogle::sprite_shader] Failed to compile shader");
     throw;
   }
 
-  _model_unif = uniform_location("model");
-  _view_unif = uniform_location("view");
-  _proj_unif = uniform_location("proj");
+  _model_unif = _shader.uniform_location("model");
+  _view_unif = _shader.uniform_location("view");
+  _proj_unif = _shader.uniform_location("proj");
 
-  _texture_unif = uniform_location("sprite_sampler");
-  _color_unif = uniform_location("sprite_color");
+  _texture_unif = _shader.uniform_location("sprite_sampler");
+  _color_unif = _shader.uniform_location("sprite_color");
 
-  _offset_linear_unif = uniform_location("offset_linear");
-  _offset_const_unif = uniform_location("offset_const");
+  _offset_linear_unif = _shader.uniform_location("offset_linear");
+  _offset_const_unif = _shader.uniform_location("offset_const");
 }
 
 } // namespace ntf::shogle
