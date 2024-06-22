@@ -34,7 +34,7 @@ spritesheet::spritesheet(spritesheet_loader loader) :
       size_t col = i % sprite_data.cols;
 
       vec2 frac_a{
-        sprite_data.x0 + (col*sprite_data.dx),
+        (sprite_data.x0*sprite_data.cols) + (col*sprite_data.dx),
         sprite_data.y0 + (row*sprite_data.dy)
       };
       vec2 frac_b{

@@ -1,27 +1,27 @@
 #pragma once
 
-#include <shogle/render/glfw/keys.hpp>
+#include <shogle/render/glfw/window.hpp>
 
 #include <concepts>
 
 namespace ntf::shogle {
 
 template<typename F>
-concept updatefun = std::invocable<F, float>;
+concept renderfunc = std::invocable<F, shogle::window&, double, double>;
 
 template<typename F>
-concept drawfun = std::invocable<F>;
+concept updatefunc = std::invocable<F, shogle::window&, double>;
 
 template<typename F>
-concept viewportfun = std::invocable<F, size_t, size_t>;
+concept viewportfunc = std::invocable<F, size_t, size_t>;
 
 template<typename F>
-concept keyfun = std::invocable<F, keycode, scancode, keystate, keymod>;
+concept keyfunc = std::invocable<F, keycode, scancode, keystate, keymod>;
 
 template<typename F>
-concept cursorfun = std::invocable<F, double, double>;
+concept cursorfunc = std::invocable<F, double, double>;
 
 template<typename F>
-concept scrollfun = std::invocable<F, double, double>;
+concept scrollfunc = std::invocable<F, double, double>;
 
-}
+} // namespace ntf::shogle

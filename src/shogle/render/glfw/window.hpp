@@ -56,6 +56,11 @@ public:
     return glfwGetKey(_handle, key) == GLFW_PRESS;
   }
 
+  inline window& use_vsync(bool flag) {
+    glfwSwapInterval(flag);
+    return *this;
+  }
+
 public:
   vec2sz size() const;
   bool should_close() const { return glfwWindowShouldClose(_handle); }
