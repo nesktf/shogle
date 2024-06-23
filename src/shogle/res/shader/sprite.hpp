@@ -2,6 +2,7 @@
 
 #include <shogle/render/shader.hpp>
 #include <shogle/render/texture.hpp>
+#include <shogle/render/mesh.hpp>
 
 namespace ntf::shogle {
 
@@ -29,8 +30,8 @@ public:
     return *this;
   }
 
-  inline sprite_shader& bind_texture(texture2d& tex) {
-    tex.bind_sampler((size_t)_sprite_sampler);
+  inline sprite_shader& bind_texture(const texture2d& tex) {
+    render_bind_sampler(tex, (size_t)_sprite_sampler);
     _shader.set_uniform(_texture_unif, (int)_sprite_sampler);
     return *this;
   }
@@ -47,7 +48,7 @@ public:
   }
 
   inline void draw(const mesh& mesh) {
-    _shader.draw(mesh);
+    render_draw_mesh(mesh);
   }
 
 private:

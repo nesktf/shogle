@@ -11,7 +11,7 @@ framebuffer::framebuffer(size_t w, size_t h) :
   framebuffer(vec2sz{w, h}) {}
 
 framebuffer::framebuffer(vec2sz sz) :
-  _texture(sz, tex_format::rgb, tex_filter::nearest, tex_wrap::repeat),
+  _texture(nullptr, sz.w, sz.h, tex_format::rgb, tex_filter::nearest, tex_wrap::repeat),
   _size(sz) {
   glGenFramebuffers(1, &_fbo);
   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);

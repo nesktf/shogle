@@ -6,6 +6,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <vector>
 #include <memory>
 #include <complex>
 #include <functional>
@@ -54,6 +55,9 @@ struct vec2sz {
   operator vec2() { return vec2{(float)w, (float)h}; }
   operator cmplx() { return cmplx{(float)w, (float) h}; }
 };
+
+template<typename T, typename U>
+using pair_vector = std::vector<std::pair<T,U>>;
 
 template<typename T>
 using wptr = T*; // non owning pointer

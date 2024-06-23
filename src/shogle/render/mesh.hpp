@@ -16,8 +16,6 @@ public:
 
 public:
   GLuint id() const { return _vao; }
-  bool has_indices() const { return _ebo != 0; }
-  size_t draw_count() const { return _draw_count; }
 
 public:
   ~mesh();
@@ -37,7 +35,12 @@ private:
   GLuint _vao{0};
   GLuint _vbo{0}, _ebo{0};
   size_t _draw_count{0}, _attrib_count{0};
+
+private:
+  friend void render_draw_mesh(const mesh& mesh);
 };
+
+void render_draw_mesh(const mesh& mesh);
 
 } // namespace ntf::shogle
 

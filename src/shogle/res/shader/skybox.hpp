@@ -2,6 +2,7 @@
 
 #include <shogle/render/shader.hpp>
 #include <shogle/render/texture.hpp>
+#include <shogle/render/mesh.hpp>
 
 namespace ntf::shogle {
 
@@ -23,14 +24,14 @@ public:
     return *this;
   }
 
-  inline skybox_shader& bind_cubemap(texture2d& tex) {
-    tex.bind_sampler((size_t)_cubemap_sampler);
+  inline skybox_shader& bind_cubemap(const texture2d& tex) {
+    render_bind_sampler(tex, (size_t)_cubemap_sampler);
     _shader.set_uniform(_cubemap_unif, (int)_cubemap_sampler);
     return *this;
   }
 
   inline void draw(const mesh& mesh) {
-    _shader.draw(mesh);
+    render_draw_mesh(mesh);
   }
 
 private:

@@ -69,9 +69,6 @@ public:
   void set_uniform(uniform_id location, mat4 val);
 
 public:
-  void draw(const mesh& mesh);
-
-public:
   bool linked() const { return _prog_id != 0; }
 
 public:

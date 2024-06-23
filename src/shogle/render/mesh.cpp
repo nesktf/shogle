@@ -79,4 +79,16 @@ mesh& mesh::operator=(mesh&& m) noexcept {
   return *this;
 }
 
+void render_draw_mesh(const mesh& mesh) {
+  if (!mesh._vao) return;
+
+  glBindVertexArray(mesh._vao);
+  if (mesh._ebo != 0) {
+    glDrawElements(GL_TRIANGLES, mesh._draw_count, GL_UNSIGNED_INT, 0);
+  } else {
+    glDrawArrays(GL_TRIANGLES, 0, mesh._draw_count);
+  }
+  glBindVertexArray(0);
+}
+
 } // namespace ntf::shogle::gl

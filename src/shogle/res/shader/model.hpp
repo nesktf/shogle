@@ -2,6 +2,7 @@
 
 #include <shogle/render/shader.hpp>
 #include <shogle/render/texture.hpp>
+#include <shogle/render/mesh.hpp>
 
 namespace ntf::shogle {
 
@@ -30,14 +31,14 @@ public:
     return *this;
   }
 
-  inline model_shader& bind_diffuse(texture2d& tex) {
-    tex.bind_sampler((size_t)_diffuse_sampler);
+  inline model_shader& bind_diffuse(const texture2d& tex) {
+    render_bind_sampler(tex, (size_t)_diffuse_sampler);
     _shader.set_uniform(_diffuse_unif, (int)_diffuse_sampler);
     return *this;
   }
 
-  inline model_shader& bind_specular(texture2d& tex) {
-    tex.bind_sampler((size_t)_specular_sampler);
+  inline model_shader& bind_specular(const texture2d& tex) {
+    render_bind_sampler(tex, (size_t)_specular_sampler);
     _shader.set_uniform(_specular_unif, (int)_specular_sampler);
     return *this;
   }
@@ -48,7 +49,7 @@ public:
   }
 
   inline void draw(const mesh& mesh) {
-    _shader.draw(mesh);
+    render_draw_mesh(mesh);
   }
 
 private:

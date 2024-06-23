@@ -87,18 +87,6 @@ void shader_program::link() {
   log::verbose("[shogle::shader_program] Shader program linked (id: {})", _prog_id);
 }
 
-void shader_program::draw(const mesh& mesh) {
-  if (!mesh.id()) return;
-
-  glBindVertexArray(mesh.id());
-  if (mesh.has_indices()) {
-    glDrawElements(GL_TRIANGLES, mesh.draw_count(), GL_UNSIGNED_INT, 0);
-  } else {
-    glDrawArrays(GL_TRIANGLES, 0, mesh.draw_count());
-  }
-  glBindVertexArray(0);
-}
-
 auto shader_program::uniform_location(const char* name) -> uniform_id {
   return glGetUniformLocation(_prog_id, name);
 }
