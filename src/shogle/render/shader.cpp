@@ -91,37 +91,37 @@ auto shader_program::uniform_location(const char* name) -> uniform_id {
   return glGetUniformLocation(_prog_id, name);
 }
 
-void shader_program::set_uniform(uniform_id location, int val) {
+void shader_program::set_uniform(uniform_id location, const int val) {
   glUseProgram(_prog_id);
   glUniform1i(location, val);
 }
 
-void shader_program::set_uniform(uniform_id location, float val) {
+void shader_program::set_uniform(uniform_id location, const float val) {
   glUseProgram(_prog_id);
   glUniform1f(location, val);
 }
 
-void shader_program::set_uniform(uniform_id location, vec2 val) {
+void shader_program::set_uniform(uniform_id location, const vec2& val) {
   glUseProgram(_prog_id);
   glUniform2fv(location, 1, glm::value_ptr(val));
 }
 
-void shader_program::set_uniform(uniform_id location, vec3 val) {
+void shader_program::set_uniform(uniform_id location, const vec3& val) {
   glUseProgram(_prog_id);
   glUniform3fv(location, 1, glm::value_ptr(val));
 }
 
-void shader_program::set_uniform(uniform_id location, vec4 val) {
+void shader_program::set_uniform(uniform_id location, const vec4& val) {
   glUseProgram(_prog_id);
   glUniform4fv(location, 1, glm::value_ptr(val));
 }
 
-void shader_program::set_uniform(uniform_id location, mat3 val) {
+void shader_program::set_uniform(uniform_id location, const mat3& val) {
   glUseProgram(_prog_id);
   glUniformMatrix3fv(location, 1, GL_FALSE, glm::value_ptr(val));
 }
 
-void shader_program::set_uniform(uniform_id location, mat4 val) {
+void shader_program::set_uniform(uniform_id location, const mat4& val) {
   glUseProgram(_prog_id);
   glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(val));
 }

@@ -16,7 +16,7 @@ public:
   model_shader();
 
 public:
-  inline model_shader& set_model(mat4 model) {
+  inline model_shader& set_transform(mat4 model) {
     _shader.set_uniform(_model_unif, model);
     return *this;
   }

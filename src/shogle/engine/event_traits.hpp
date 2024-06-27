@@ -7,7 +7,7 @@
 namespace ntf::shogle {
 
 template<typename F>
-concept renderfunc = std::invocable<F, shogle::window&, double, double>;
+concept renderfunc = std::invocable<F, shogle::window&, double, double, double>;
 
 template<typename F>
 concept updatefunc = std::invocable<F, shogle::window&, double>;

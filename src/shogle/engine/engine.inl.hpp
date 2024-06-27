@@ -31,16 +31,17 @@ void engine::start(uint ups, RFunc&& render, FUFunc&& fixed_update, UFunc&& upda
     _imgui.new_frame();
     _window.poll_events();
 
+    double fixed_dt = std::chrono::duration<double>{fixed_elapsed_time}/1s;
+    double dt {std::chrono::duration<double>{elapsed_time}/1s};
+    double alpha {std::chrono::duration<double>{lag}/fixed_elapsed_time};
+
     while (lag >= fixed_elapsed_time) {
-      double dt = std::chrono::duration<double>{fixed_elapsed_time}/1s;
-      fixed_update(_window, dt);
+      fixed_update(_window, fixed_dt);
       lag -= fixed_elapsed_time;
     }
 
-    double dt {std::chrono::duration<double>{elapsed_time}/1s};
-    double alpha {std::chrono::duration<double>{lag}/fixed_elapsed_time};
     update(_window, dt);
-    render(_window, dt, alpha);
+    render(_window, dt, fixed_dt, alpha);
 
     _imgui.render();
     _window.swap_buffers();

@@ -15,17 +15,17 @@ public:
   sprite_shader();
 
 public:
-  inline sprite_shader& set_transform(mat4 model) {
+  inline sprite_shader& set_transform(const mat4& model) {
     _shader.set_uniform(_model_unif, model);
     return *this;
   }
 
-  inline sprite_shader& set_view(mat4 view) {
+  inline sprite_shader& set_view(const mat4& view) {
     _shader.set_uniform(_view_unif, view);
     return *this;
   }
 
-  inline sprite_shader& set_proj(mat4 proj) {
+  inline sprite_shader& set_proj(const mat4& proj) {
     _shader.set_uniform(_proj_unif, proj);
     return *this;
   }
@@ -36,13 +36,13 @@ public:
     return *this;
   }
 
-  inline sprite_shader& set_tex_offset(vec4 offset) {
+  inline sprite_shader& set_tex_offset(const vec4& offset) {
     _shader.set_uniform(_offset_linear_unif, vec2{offset.x, offset.y});
     _shader.set_uniform(_offset_const_unif, vec2{offset.z, offset.w});
     return *this;
   }
 
-  inline sprite_shader& set_color(color4 color) {
+  inline sprite_shader& set_color(const color4& color) {
     _shader.set_uniform(_color_unif, color);
     return *this;
   }

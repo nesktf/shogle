@@ -60,13 +60,13 @@ protected:
 public:
   uniform_id uniform_location(const char* name);
 
-  void set_uniform(uniform_id location, int val);
-  void set_uniform(uniform_id location, float val);
-  void set_uniform(uniform_id location, vec2 val);
-  void set_uniform(uniform_id location, vec3 val);
-  void set_uniform(uniform_id location, vec4 val);
-  void set_uniform(uniform_id location, mat3 val);
-  void set_uniform(uniform_id location, mat4 val);
+  void set_uniform(uniform_id location, const int val);
+  void set_uniform(uniform_id location, const float val);
+  void set_uniform(uniform_id location, const vec2& val);
+  void set_uniform(uniform_id location, const vec3& val);
+  void set_uniform(uniform_id location, const vec4& val);
+  void set_uniform(uniform_id location, const mat3& val);
+  void set_uniform(uniform_id location, const mat4& val);
 
 public:
   bool linked() const { return _prog_id != 0; }

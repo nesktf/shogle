@@ -16,15 +16,14 @@ public:
   transform();
 
 public:
-  void update(const transform* parent = nullptr);
   void add_child(transform* child);
-
-public:
-  mat4 transf() const { return _mat; }
+  void force_update();
+  const mat4& mat();
 
 private:
   mat4 _mat {1.0f};
 
+  transform* _parent {nullptr};
   std::vector<transform*> _children;
 };
 

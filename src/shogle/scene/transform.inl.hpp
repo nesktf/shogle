@@ -10,17 +10,22 @@ transform<dim_size>::transform() {
 }
 
 template<size_t dim_size>
-void transform<dim_size>::update(const transform* parent) {
+const mat4& transform<dim_size>::mat() {
   if (this->_dirty) {
-    if (parent) {
-      _mat = parent->_mat*transf_mat(this->_pos, this->_scale, this->_rot);
-    } else {
-      _mat = transf_mat(this->_pos, this->_scale, this->_rot);
-    }
+    force_update();
+  }
+  return _mat;
+}
+
+template<size_t dim_size>
+void transform<dim_size>::force_update() {
+  if (_parent) {
+    _mat = _parent->_mat*transf_mat(this->_pos, this->_scale, this->_rot);
+  } else {
+    _mat = transf_mat(this->_pos, this->_scale, this->_rot);
   }
   for (auto* child : _children) {
-    child->_dirty |= this->_dirty; // if dirty, force child to update
-    child->update(this);
+    child->force_update();
   }
   this->_dirty = false;
 }
@@ -28,8 +33,8 @@ void transform<dim_size>::update(const transform* parent) {
 template<size_t dim_size>
 void transform<dim_size>::add_child(transform* child) {
   _children.push_back(child);
+  child->_parent = this;
   child->_dirty = true; // force child to update
-  child->update(this);
 }
 
 
