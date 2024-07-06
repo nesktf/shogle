@@ -8,14 +8,14 @@ namespace ntf::shogle {
 
 class model_shader {
 public:
-  using att_coords    = shader_attribute<0, vec3>;
-  using att_normals   = shader_attribute<1, vec3>;
-  using att_texcoords = shader_attribute<2, vec2>;
-
-public:
   model_shader();
 
 public:
+  inline model_shader& enable() {
+    _shader.enable();
+    return *this;
+  }
+
   inline model_shader& set_transform(mat4 model) {
     _shader.set_uniform(_model_unif, model);
     return *this;
@@ -46,10 +46,6 @@ public:
   inline model_shader& set_shiny(float shiny) {
     _shader.set_uniform(_shiny_unif, shiny);
     return *this;
-  }
-
-  inline void draw(const mesh& mesh) {
-    render_draw_mesh(mesh);
   }
 
 private:

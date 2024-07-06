@@ -46,19 +46,7 @@ public:
   shader_program();
 
 public:
-  template<typename T, typename... S>
-  void link(const T& shader, const S&... shaders) {
-    assert(shader.compiled() && "Attached shader not compiled");
-    glAttachShader(_prog_id, shader.id());
-    _last_shader = shader.id();
-    link(shaders...);
-  } 
-
-protected:
-  void link();
-
-public:
-  uniform_id uniform_location(const char* name);
+  void enable();
 
   void set_uniform(uniform_id location, const int val);
   void set_uniform(uniform_id location, const float val);
@@ -69,6 +57,16 @@ public:
   void set_uniform(uniform_id location, const mat4& val);
 
 public:
+  template<typename T, typename... S>
+  void link(const T& shader, const S&... shaders) {
+    assert(shader.compiled() && "Attached shader not compiled");
+    glAttachShader(_prog_id, shader.id());
+    _last_shader = shader.id();
+    link(shaders...);
+  } 
+
+public:
+  uniform_id uniform_location(const char* name);
   bool linked() const { return _prog_id != 0; }
 
 public:
@@ -77,6 +75,9 @@ public:
   shader_program(const shader_program&) = delete;
   shader_program& operator=(shader_program&&) noexcept;
   shader_program& operator=(const shader_program&) = delete;
+
+protected:
+  void link();
 
 private:
   GLuint _prog_id {0};

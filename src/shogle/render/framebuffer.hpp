@@ -2,31 +2,29 @@
 
 #include <shogle/render/texture.hpp>
 
+#define SHOGLE_DEFAULT_FRAMEBUFFER 0
+
 namespace ntf::shogle {
 
 class framebuffer {
 public:
-  struct raii_bind {
-    raii_bind(framebuffer& fb, vec2sz viewport);
-    ~raii_bind();
-    framebuffer& _fb;
-    vec2sz _viewport;
-  };
-
-public:
   framebuffer(size_t w, size_t h);
-  framebuffer(vec2sz sz);
 
 public:
-  framebuffer& bind();
-  framebuffer& unbind(vec2sz viewport);
-  raii_bind scoped_bind(vec2sz viewport);
+  template<typename F>
+  void bind(size_t viewport_w, size_t viewport_h, F&& fun) {
+    glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
+    render_viewport(_w, _h);
+    fun();
+    glBindFramebuffer(GL_FRAMEBUFFER, SHOGLE_DEFAULT_FRAMEBUFFER);
+    render_viewport(viewport_w, viewport_h);
+  }
 
   texture2d& tex() { return _texture; }
 
 public:
   GLuint id() const { return _fbo; }
-  vec2sz size() const { return _size; }
+  vec2sz size() const { return vec2sz{_w, _h}; }
 
 public:
   ~framebuffer();
@@ -38,7 +36,7 @@ public:
 private:
   texture2d _texture;
   GLuint _fbo, _rbo;
-  vec2sz _size;
+  size_t _w, _h;
 };
 
 } // namespace ntf::shogle

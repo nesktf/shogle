@@ -1,7 +1,6 @@
 #pragma once
 
 #include <shogle/core/types.hpp>
-#include <shogle/scene/transform.hpp>
 
 #include <vector>
 #include <functional>

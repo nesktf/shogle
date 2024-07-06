@@ -25,6 +25,8 @@ using vec4 = glm::vec4;
 using mat4 = glm::mat4;
 using mat3 = glm::mat3;
 
+using ivec2 = glm::ivec2;
+
 using cmplx = std::complex<float>;
 using quat = glm::quat;
 
@@ -33,11 +35,6 @@ using color4 = vec4;
 using color3 = vec3;
 
 using path_t = std::string;
-
-struct vec2i {
-  int x{};
-  int y{};
-};
 
 struct vec2sz {
   vec2sz(int w, int h) :
@@ -56,11 +53,15 @@ struct vec2sz {
   operator cmplx() { return cmplx{(float)w, (float) h}; }
 };
 
+template<typename F>
+struct cleanup {
+  F _f;
+  cleanup(F f) : _f(f){}
+  ~cleanup() {_f();}
+};
+
 template<typename T, typename U>
 using pair_vector = std::vector<std::pair<T,U>>;
-
-template<typename T>
-using wptr = T*; // non owning pointer
 
 template<typename T>
 using uptr = std::unique_ptr<T>;
@@ -78,4 +79,7 @@ inline uptr<T> make_uptr(Args&&... args) {
   return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
-} // namespace ntf::shogle
+template<typename TL, typename... TR>
+concept same_as_any = (... or std::same_as<TL, TR>);
+
+} // namespace ntf

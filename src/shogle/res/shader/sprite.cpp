@@ -7,8 +7,9 @@ namespace {
 const char* vert_src = R"glsl(
   #version 330 core
 
-  layout (location = 0) in vec2 att_coords;
-  layout (location = 1) in vec2 att_texcoords;
+  layout (location = 0) in vec3 att_coords;
+  layout (location = 1) in vec3 att_normals;
+  layout (location = 2) in vec2 att_texcoords;
   out vec2 tex_coord;
 
   uniform mat4 model;
@@ -22,7 +23,7 @@ const char* vert_src = R"glsl(
     tex_coord.x = att_texcoords.x*offset_linear.x + offset_const.x;
     tex_coord.y = att_texcoords.y*offset_linear.y + offset_const.y;
 
-    gl_Position = proj * view * model * vec4(att_coords, 0.0f, 1.0f);
+    gl_Position = proj * view * model * vec4(att_coords, 1.0f);
   }
 )glsl";
 

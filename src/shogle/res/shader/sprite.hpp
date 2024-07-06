@@ -8,13 +8,14 @@ namespace ntf::shogle {
 
 class sprite_shader {
 public:
-  using att_coords    = shader_attribute<0, vec2>;
-  using att_texcoords = shader_attribute<1, vec2>;
-
-public:
   sprite_shader();
 
 public:
+  inline sprite_shader& enable() {
+    _shader.enable();
+    return *this;
+  }
+
   inline sprite_shader& set_transform(const mat4& model) {
     _shader.set_uniform(_model_unif, model);
     return *this;
@@ -45,10 +46,6 @@ public:
   inline sprite_shader& set_color(const color4& color) {
     _shader.set_uniform(_color_unif, color);
     return *this;
-  }
-
-  inline void draw(const mesh& mesh) {
-    render_draw_mesh(mesh);
   }
 
 private:

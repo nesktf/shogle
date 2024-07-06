@@ -3,16 +3,11 @@
 #include <shogle/core/log.hpp>
 #include <shogle/core/error.hpp>
 
-#define DEFAULT_FRAMEBUFFER 0
-
 namespace ntf::shogle {
 
 framebuffer::framebuffer(size_t w, size_t h) :
-  framebuffer(vec2sz{w, h}) {}
-
-framebuffer::framebuffer(vec2sz sz) :
-  _texture(nullptr, sz.w, sz.h, tex_format::rgb, tex_filter::nearest, tex_wrap::repeat),
-  _size(sz) {
+  _texture(nullptr, w, h, tex_format::rgb, tex_filter::nearest, tex_wrap::repeat),
+  _w(w), _h(h) {
   glGenFramebuffers(1, &_fbo);
   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
 
@@ -20,7 +15,7 @@ framebuffer::framebuffer(vec2sz sz) :
 
   glGenRenderbuffers(1, &_rbo);
   glBindRenderbuffer(GL_RENDERBUFFER, _rbo);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, sz.w, sz.h);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, _w, _h);
   glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo);
@@ -37,7 +32,7 @@ framebuffer::framebuffer(vec2sz sz) :
 framebuffer::framebuffer(framebuffer&& f) noexcept :
   _texture(std::move(f._texture)),
   _fbo(std::move(f._fbo)), _rbo(std::move(f._rbo)), 
-  _size(std::move(f._size)) { 
+  _w(std::move(f._w)), _h(std::move(f._h)) {
   f._fbo = 0; 
 }
 
@@ -50,7 +45,8 @@ framebuffer& framebuffer::operator=(framebuffer&& f) noexcept {
   _texture = std::move(f._texture);
   _fbo = std::move(f._fbo);
   _rbo = std::move(f._rbo);
-  _size = std::move(f._size);
+  _w = std::move(f._w);
+  _h = std::move(f._h);
 
   f._fbo = 0;
 
@@ -66,24 +62,5 @@ framebuffer::~framebuffer() {
   glDeleteBuffers(1, &_rbo);
   log::verbose("[shogle::framebuffer] Framebuffer destroyed (id: {}, tex: {})", id, _texture.id());
 }
-
-framebuffer& framebuffer::bind() {
-  glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
-  render_viewport(_size);
-  return *this;
-}
-
-framebuffer& framebuffer::unbind(vec2sz viewport) {
-  glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
-  render_viewport(viewport);
-  return *this;
-}
-
-framebuffer::raii_bind framebuffer::scoped_bind(vec2sz viewport) { return raii_bind{*this, viewport}; }
-
-framebuffer::raii_bind::raii_bind(framebuffer& fb, vec2sz viewport) :
-  _fb(fb), _viewport(viewport) { fb.bind(); }
-
-framebuffer::raii_bind::~raii_bind() { _fb.unbind(_viewport); }
 
 } // namespace ntf::shogle

@@ -14,6 +14,11 @@ public:
   skybox_shader();
 
 public:
+  inline skybox_shader& enable() {
+    _shader.enable();
+    return *this;
+  }
+
   inline skybox_shader& set_view(mat4 view) {
     _shader.set_uniform(_view_unif, view);
     return *this;
@@ -30,10 +35,6 @@ public:
     return *this;
   }
 
-  inline void draw(const mesh& mesh) {
-    render_draw_mesh(mesh);
-  }
-
 private:
   enum: int { _cubemap_sampler = 0 };
 
@@ -42,4 +43,4 @@ private:
   shader_program::uniform_id _cubemap_unif{};
 };
 
-} // namespace ntf::shogelources
+} // namespace ntf::shogle
