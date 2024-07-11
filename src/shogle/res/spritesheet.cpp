@@ -14,7 +14,7 @@ using json = nlohmann::json;
 namespace ntf::shogle {
 
 sprite::sprite(texture2d& tex, vec2 scale, vec2 lin_off, std::vector<vec2> con_off) :
-  _texture(tex), _corrected_scale(scale),
+  _texture(&tex), _corrected_scale(scale),
   _linear_offset(lin_off), _const_offset(std::move(con_off)) {};
 
 spritesheet_data::spritesheet_data(std::string_view path_, tex_filter filter, tex_wrap wrap) {
@@ -94,6 +94,13 @@ sprite& spritesheet::operator[](std::string_view name) {
     throw ntf::error{"[shogle::spritesheet] Sprite not found: {}", name};
   }
   return it->second;
+}
+
+spritesheet::spritesheet(spritesheet&& s) noexcept :
+  _texture(std::move(s._texture)), _sprites(std::move(s._sprites)) {
+    for (auto& [name, spr] : _sprites) {
+      spr._texture = &_texture;
+    }
 }
 
 spritesheet load_spritesheet(std::string_view path, tex_filter filter, tex_wrap wrap) {

@@ -35,18 +35,20 @@ public:
   size_t count() const { return _const_offset.size(); }
   vec4 tex_offset(size_t i) const { return vec4{_linear_offset, _const_offset[i%count()]}; }
   vec2 corrected_scale() const { return _corrected_scale; }
-  const texture2d& tex() const { return _texture; }
+  const texture2d& tex() const { return *_texture; }
 
 private:
-  texture2d& _texture;
+  texture2d* _texture;
   vec2 _corrected_scale;
   vec2 _linear_offset;
   std::vector<vec2> _const_offset;
+  friend class spritesheet;
 };
 
 class spritesheet {
 public:
   spritesheet(texture2d_data texture, std::vector<sprite_data> sprites);
+  spritesheet(spritesheet&&) noexcept;
 
 public:
   sprite& operator[](std::string_view name);

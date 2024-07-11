@@ -220,7 +220,7 @@ void render_draw_quad() {
   glBindVertexArray(0);
 }
 
-void render_draw_text(const font& font, std::string_view text, vec2 pos, float scale) {
+void render_draw_text(const font& font, vec2 pos, float scale, std::string_view text) {
   glBindVertexArray(meshes[TEXT].VAO);
 
   float x = pos.x, y = pos.y;
@@ -229,19 +229,19 @@ void render_draw_text(const font& font, std::string_view text, vec2 pos, float s
     auto [tex, ch] = font._chara.at(*c);
 
     float xpos = x + ch.bearing.x*scale;
-    float ypos = y - (ch.size.y - ch.bearing.y)*scale;
+    float ypos = y - ch.bearing.y*scale;
 
     float w = ch.size.x*scale;
     float h = ch.size.y*scale;
 
     float vert[6][4] {
-      { xpos,     ypos + h, 0.0f, 0.0f },
-      { xpos,     ypos,     0.0f, 1.0f },
-      { xpos + w, ypos,     1.0f, 1.0f },
+      { xpos,     ypos + h, 0.0f, 1.0f },
+      { xpos,     ypos,     0.0f, 0.0f },
+      { xpos + w, ypos,     1.0f, 0.0f },
 
-      { xpos,     ypos + h, 0.0f, 0.0f },
-      { xpos + w, ypos,     1.0f, 1.0f },
-      { xpos + w, ypos + h, 1.0f, 0.0f }
+      { xpos,     ypos + h, 0.0f, 1.0f },
+      { xpos + w, ypos,     1.0f, 0.0f },
+      { xpos + w, ypos + h, 1.0f, 1.0f }
     };
     glBindTexture(GL_TEXTURE_2D, tex);
 
