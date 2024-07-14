@@ -30,7 +30,9 @@ font::~font() {
     auto& [tex, ch] = pair;
     glDeleteTextures(1, &tex);
   }
-  log::verbose("[shogle::font] Font unloaded");
+  if (_chara.size() > 0) { // If it hasn't been moved
+    log::verbose("[shogle::font] Font unloaded");
+  }
 }
 
 // void render_draw_text(const font& font, std::string_view text, vec2 pos, float scale, color4 color);

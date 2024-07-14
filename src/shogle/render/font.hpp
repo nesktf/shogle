@@ -22,6 +22,11 @@ public:
   font(std::map<uint8_t, std::pair<uint8_t*, character>> chara);
   ~font();
 
+  font(font&&) = default;
+  font(const font&) = delete;
+  font& operator=(font&&) = default;
+  font& operator=(const font&) = delete;
+
 private:
   std::map<uint8_t, std::pair<tex_t, character>> _chara;
 
