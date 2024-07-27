@@ -26,7 +26,7 @@ struct mesh_data {
 
 struct model_data {
 public:
-  model_data(std::string_view path_, tex_filter mat_filter_, tex_wrap mat_wrap);
+  model_data(std::string_view path_);
 
 public:
   std::vector<mesh_data> meshes;
@@ -35,42 +35,47 @@ public:
 
 class textured_mesh {
 public:
-  textured_mesh(mesh mesh, pair_vector<material_type, texture2d> materials);
+  textured_mesh(mesh mesh, std::unordered_map<material_type, texture2d> materials);
 
 public:
   const mesh& get_mesh() const { return _mesh; }
+  const texture2d& operator[](material_type material) const { return _materials.at(material); }
 
-  const texture2d& operator[](material_type material) const;
-  const texture2d& operator[](size_t index) const { return _materials[index].second; }
-
-  pair_vector<material_type, texture2d>::const_iterator begin() const { return _materials.begin(); }
-  pair_vector<material_type, texture2d>::const_iterator end() const { return _materials.end(); }
+  auto cbegin() const { return _materials.cbegin(); }
+  auto cend() const { return _materials.cend(); }
+  auto begin() { return _materials.begin(); }
+  auto end() { return _materials.end(); }
 
   size_t size() const { return _materials.size(); }
 
 private:
   shogle::mesh _mesh;
-  pair_vector<material_type, texture2d> _materials;
+  std::unordered_map<material_type, texture2d> _materials;
 };
 
 class model {
 public:
-  model(std::vector<mesh_data> meshes);
+  model() = default;
+  model(std::vector<mesh_data> meshes, tex_filter mat_filter, tex_wrap mat_wrap);
 
 public:
-  const textured_mesh& operator[](std::string_view name) const;
-  const textured_mesh& operator[](size_t index) const { return _meshes[index].second; }
+  const textured_mesh& operator[](std::string_view name) const { return _meshes.at(name.data()); }
+  const textured_mesh& at(std::string_view name) const { return _meshes.at(name.data()); }
 
-  pair_vector<std::string, textured_mesh>::const_iterator begin() const { return _meshes.begin(); }
-  pair_vector<std::string, textured_mesh>::const_iterator end() const { return _meshes.end(); }
+  auto cbegin() const { return _meshes.cbegin(); }
+  auto cend() const { return _meshes.cend(); }
+  auto begin() { return _meshes.begin(); }
+  auto end() { return _meshes.end(); }
 
   size_t size() const { return _meshes.size(); }
 
 private:
-  pair_vector<std::string, textured_mesh> _meshes;
+  std::unordered_map<std::string, textured_mesh> _meshes;
 };
 
-model load_model(std::string_view path, tex_filter mat_filter, tex_wrap mat_wrap);
-model load_model(model_data data);
+inline model load_model(std::string_view path, tex_filter mat_filter, tex_wrap mat_wrap) {
+  auto data = model_data{path};
+  return model{std::move(data.meshes), mat_filter, mat_wrap};
+}
 
 } // namespace ntf::shogle

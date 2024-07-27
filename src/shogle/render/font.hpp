@@ -9,26 +9,29 @@
 
 namespace ntf::shogle {
 
+struct font_glyph {
+  ivec2 size;
+  ivec2 bearing;
+  unsigned long advance;
+};
+
 class font {
 public:
-  using tex_t = GLuint;
-  struct character {
-    ivec2 size;
-    ivec2 bearing;
-    unsigned long advance;
-  };
+  font() = default;
+  font(std::map<uint8_t, std::pair<uint8_t*, font_glyph>> chara);
 
 public:
-  font(std::map<uint8_t, std::pair<uint8_t*, character>> chara);
-  ~font();
+  size_t glyph_count() const { return _glyph_tex.size(); }
 
+public:
+  ~font();
   font(font&&) = default;
   font(const font&) = delete;
   font& operator=(font&&) = default;
   font& operator=(const font&) = delete;
 
 private:
-  std::map<uint8_t, std::pair<tex_t, character>> _chara;
+  std::map<uint8_t, std::pair<GLuint, font_glyph>> _glyph_tex;
 
 private:
   friend void render_draw_text(const font& font, vec2 pos, float scale, std::string_view text);

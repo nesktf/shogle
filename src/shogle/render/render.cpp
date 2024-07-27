@@ -226,7 +226,7 @@ void render_draw_text(const font& font, vec2 pos, float scale, std::string_view 
   float x = pos.x, y = pos.y;
   std::string_view::const_iterator c;
   for (c = text.begin(); c != text.end(); ++c) {
-    auto [tex, ch] = font._chara.at(*c);
+    auto [tex, ch] = font._glyph_tex.at(*c);
 
     float xpos = x + ch.bearing.x*scale;
     float ypos = y - ch.bearing.y*scale;

@@ -3,13 +3,13 @@
 namespace ntf {
 
 template <typename T>
-class Singleton {
+class singleton {
 protected:
-  Singleton() {}
+  singleton() {}
 
 public:
-  Singleton(const Singleton&) = delete;
-  Singleton& operator=(const Singleton&) = delete;
+  singleton(const singleton&) = delete;
+  singleton& operator=(const singleton&) = delete;
 
 public:
   static T& instance() {

@@ -17,12 +17,12 @@ sprite::sprite(texture2d& tex, vec2 scale, vec2 lin_off, std::vector<vec2> con_o
   _texture(&tex), _corrected_scale(scale),
   _linear_offset(lin_off), _const_offset(std::move(con_off)) {};
 
-spritesheet_data::spritesheet_data(std::string_view path_, tex_filter filter, tex_wrap wrap) {
+spritesheet_data::spritesheet_data(std::string_view path_) {
   std::ifstream f{path_.data()};
   json data = json::parse(f);
 
   auto texture_path = file_dir(path_.data())+"/"+data["file"].template get<std::string>();
-  texture = texture2d_data{texture_path, filter, wrap};
+  texture = texture2d_data{texture_path};
 
   auto sprite_content = data["content"];
   sprites.resize(sprite_content.size());
@@ -47,8 +47,9 @@ spritesheet_data::spritesheet_data(std::string_view path_, tex_filter filter, te
   }
 }
 
-spritesheet::spritesheet(texture2d_data texture, std::vector<sprite_data> sprites) :
-  _texture(load_texture2d(std::move(texture))) {
+spritesheet::spritesheet(texture2d_data tex_data, std::vector<sprite_data> sprites, 
+                         tex_filter filter, tex_wrap wrap) :
+  _texture(load_texture(tex_data.pixels, tex_data.width, tex_data.height, tex_data.format, filter, wrap)) {
   
   for (auto& sprite_data : sprites) {
     vec2 scale {
@@ -79,21 +80,11 @@ spritesheet::spritesheet(texture2d_data texture, std::vector<sprite_data> sprite
       const_offset[i].y = frac_a.y / frac_b.y;
     }
 
-    _sprites.emplace_back(std::make_pair(
+    _sprites.emplace(std::make_pair(
       std::move(sprite_data.name),
       sprite{_texture, scale, linear_offset, std::move(const_offset)}
     ));
   }
-}
-
-sprite& spritesheet::operator[](std::string_view name) {
-  auto it = std::find_if(_sprites.begin(), _sprites.end(), [name](const auto& sprite) {
-    return sprite.first == name;
-  });
-  if (it == _sprites.end()) {
-    throw ntf::error{"[shogle::spritesheet] Sprite not found: {}", name};
-  }
-  return it->second;
 }
 
 spritesheet::spritesheet(spritesheet&& s) noexcept :
@@ -103,12 +94,13 @@ spritesheet::spritesheet(spritesheet&& s) noexcept :
     }
 }
 
-spritesheet load_spritesheet(std::string_view path, tex_filter filter, tex_wrap wrap) {
-  return load_spritesheet(spritesheet_data{path, filter, wrap});
-}
-
-spritesheet load_spritesheet(spritesheet_data data) {
-  return spritesheet{std::move(data.texture), std::move(data.sprites)};
+spritesheet& spritesheet::operator=(spritesheet&& s) noexcept {
+  _texture = std::move(s._texture);
+  _sprites = std::move(s._sprites);
+  for (auto& [name, spr] : _sprites) {
+    spr._texture = &_texture;
+  }
+  return *this;
 }
 
 } // namespace ntf::shogle

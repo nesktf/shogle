@@ -5,9 +5,10 @@
 
 namespace ntf::shogle {
 
-framebuffer::framebuffer(size_t w, size_t h) :
-  _texture(nullptr, w, h, tex_format::rgb, tex_filter::nearest, tex_wrap::repeat),
-  _w(w), _h(h) {
+framebuffer::framebuffer(GLuint fbo, GLuint rbo, GLuint texture, size_t w, size_t h) : 
+  _fbo(fbo), _rbo(rbo), _texture(texture, w, h) {}
+
+framebuffer::framebuffer(size_t w, size_t h) : _texture(nullptr, w, h, tex_format::rgb), _dim(w, h) {
   glGenFramebuffers(1, &_fbo);
   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
 
@@ -15,7 +16,7 @@ framebuffer::framebuffer(size_t w, size_t h) :
 
   glGenRenderbuffers(1, &_rbo);
   glBindRenderbuffer(GL_RENDERBUFFER, _rbo);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, _w, _h);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
   glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo);
@@ -30,37 +31,43 @@ framebuffer::framebuffer(size_t w, size_t h) :
 }
 
 framebuffer::framebuffer(framebuffer&& f) noexcept :
-  _texture(std::move(f._texture)),
   _fbo(std::move(f._fbo)), _rbo(std::move(f._rbo)), 
-  _w(std::move(f._w)), _h(std::move(f._h)) {
-  f._fbo = 0; 
+  _texture(std::move(f._texture)), _dim(std::move(f._dim)) {
+  f._fbo = 0;
+  f._rbo = 0;
 }
 
 framebuffer& framebuffer::operator=(framebuffer&& f) noexcept {
-  auto id = _fbo;
-
-  glDeleteFramebuffers(1, &_fbo);
-  glDeleteBuffers(1, &_rbo);
+  if (_fbo && _rbo) {
+    unload_framebuffer();
+  }
   
   _texture = std::move(f._texture);
   _fbo = std::move(f._fbo);
   _rbo = std::move(f._rbo);
-  _w = std::move(f._w);
-  _h = std::move(f._h);
+  _dim = std::move(f._dim);
 
   f._fbo = 0;
-
-  log::verbose("[shogle::framebuffer] Framebuffer overwritten (id: {}, tex: {})", id, _texture.id());
+  f._rbo = 0;
 
   return *this;
 }
 
 framebuffer::~framebuffer() {
-  auto id = _fbo;
-  if (!_fbo) return;
+  if (_fbo && _rbo) {
+    unload_framebuffer();
+  }
+}
+
+void framebuffer::unload_framebuffer() {
+  log::verbose("[shogle::framebuffer] Framebuffer destroyed (id: {}, tex: {})", _fbo, _texture.id());
   glDeleteFramebuffers(1, &_fbo);
   glDeleteBuffers(1, &_rbo);
-  log::verbose("[shogle::framebuffer] Framebuffer destroyed (id: {}, tex: {})", id, _texture.id());
+}
+
+void render_bind_sampler(const framebuffer& fb, size_t sampler) {
+  glActiveTexture(GL_TEXTURE0+sampler);
+  glBindTexture(GL_TEXTURE_2D, fb._texture._id);
 }
 
 } // namespace ntf::shogle

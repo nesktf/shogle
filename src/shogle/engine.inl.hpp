@@ -9,8 +9,8 @@
 
 namespace ntf::shogle {
 
-template<fixrenderfunc RFunc, updatefunc FUFunc, updatefunc UFunc>
-void engine_main_loop(uint ups, RFunc&& render, FUFunc&& fixed_update, UFunc&& update) {
+template<fixrenderfunc RFunc, fupdatefunc FUFunc>
+void engine_main_loop(uint ups, RFunc&& render, FUFunc&& fixed_update) {
   auto handle = __engine_window_handle();
   auto fixed_elapsed_time = std::chrono::duration<double>{std::chrono::microseconds{1000000/ups}};
 
@@ -36,16 +36,15 @@ void engine_main_loop(uint ups, RFunc&& render, FUFunc&& fixed_update, UFunc&& u
     glfwPollEvents();
 
     while (lag >= fixed_elapsed_time) {
-      fixed_update(fixed_dt);
+      fixed_update();
       lag -= fixed_elapsed_time;
     }
-    update(dt);
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    render(dt, fixed_dt, alpha);
+    render(dt, alpha);
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

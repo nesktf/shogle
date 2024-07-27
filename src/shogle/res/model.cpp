@@ -9,7 +9,7 @@
 
 namespace ntf::shogle {
 
-model_data::model_data(std::string_view path_, tex_filter mat_filter, tex_wrap mat_wrap) {
+model_data::model_data(std::string_view path_) {
   Assimp::Importer import;
   const aiScene* scene = import.ReadFile(path_.data(), aiProcess_Triangulate | aiProcess_FlipUVs);
 
@@ -48,7 +48,7 @@ model_data::model_data(std::string_view path_, tex_filter mat_filter, tex_wrap m
 
       if (!skip) {
         mesh.materials.emplace_back(std::make_pair(
-          mat_type, texture2d_data{tex_path, mat_filter, mat_wrap}
+          mat_type, texture2d_data{tex_path}
         ));
         loaded_materials.emplace_back(std::move(tex_path));
       }
@@ -105,57 +105,32 @@ model_data::model_data(std::string_view path_, tex_filter mat_filter, tex_wrap m
   }
 }
 
-textured_mesh::textured_mesh(shogle::mesh mesh, pair_vector<material_type, texture2d> materials) :
+
+textured_mesh::textured_mesh(shogle::mesh mesh, std::unordered_map<material_type, texture2d> materials) :
   _mesh(std::move(mesh)), _materials(std::move(materials)) {}
 
-const texture2d& textured_mesh::operator[](material_type material) const {
-  auto it = std::find_if(_materials.begin(), _materials.end(), [material](const auto& mat) {
-    return mat.first == material;
-  });
-  if (it == _materials.end()) {
-    throw ntf::error{"[shogle::textured_mesh] Material not found"};
-  }
-  return it->second;
-}
 
-model::model(std::vector<mesh_data> meshes) {
+model::model(std::vector<mesh_data> meshes, tex_filter mat_filter, tex_wrap mat_wrap) {
   for (auto& data : meshes) {
-    pair_vector<material_type, texture2d> materials;
-    for (auto& material : data.materials) {
-      materials.emplace_back(std::make_pair(
-        material.first, load_texture2d(std::move(material.second))
+    std::unordered_map<material_type, texture2d> materials;
+    for (auto& [type, tex_data] : data.materials) {
+      materials.emplace(std::make_pair(type, 
+        load_texture(tex_data.pixels, tex_data.width, tex_data.height, tex_data.format, mat_filter, mat_wrap)
       ));
     }
 
-    mesh mesh{};
-    mesh.add_vertex_buffer(&data.vertices[0], data.vertices.size()*sizeof(vertex3d),
+    mesh mesh {
+      mesh_primitive::triangles,
+      &data.vertices[0], data.vertices.size()*sizeof(vertex3d), mesh_buffer_type::static_draw,
+      &data.indices[0], data.indices.size()*sizeof(uint), mesh_buffer_type::static_draw,
       shadatt_coords3d{}, shadatt_normals3d{}, shadatt_texcoords3d{}
-    );
-    mesh.add_index_buffer(&data.indices[0], data.indices.size()*sizeof(uint));
+    };
 
-    _meshes.emplace_back(std::make_pair(
+    _meshes.emplace(std::make_pair(
       std::move(data.name),
       textured_mesh{std::move(mesh), std::move(materials)}
     ));
   }
-}
-
-const textured_mesh& model::operator[](std::string_view name) const {
-  auto it = std::find_if(_meshes.begin(), _meshes.end(), [name](const auto& mesh) {
-    return mesh.first == name;
-  });
-  if (it == _meshes.end()) {
-    throw ntf::error{"[shogle::model] Mesh not found: {}", name};
-  }
-  return it->second;
-}
-
-model load_model(std::string_view path, tex_filter mat_filter, tex_wrap mat_wrap) {
-  return load_model(model_data{path, mat_filter, mat_wrap});
-}
-
-model load_model(model_data data) {
-  return model{std::move(data.meshes)};
 }
 
 } // namespace ntf::shogle

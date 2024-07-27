@@ -31,17 +31,22 @@ enum class tex_wrap {
 };
 
 
+class framebuffer;
+
 class texture2d {
 public:
-  texture2d(uint8_t* data, size_t w, size_t h, tex_format format, tex_filter filter, tex_wrap wrap);
+  texture2d() = default;
+  texture2d(GLuint id, size_t w, size_t h);
+  texture2d(uint8_t* data, size_t w, size_t h, tex_format format);
 
 public:
   texture2d& set_filter(tex_filter filter);
   texture2d& set_wrap(tex_wrap wrap);
 
 public:
-  vec2sz dim() const { return _dim; }
-  GLuint id() const { return _id; }
+  GLuint& id() { return _id; } // Not const
+  ivec2 dim() const { return _dim; }
+  bool valid() const { return _id != 0; }
 
 public:
   ~texture2d();
@@ -51,24 +56,35 @@ public:
   texture2d& operator=(const texture2d&) = delete;
 
 private:
-  vec2sz _dim;
-  GLint _format, _filter, _wrap;
-  GLuint _id;
+  void unload_texture();
 
 private:
-  friend void render_bind_sampler(const texture2d& texture, size_t sampler);
+  GLuint _id{};
+  ivec2 _dim{};
+
+private:
+  friend void render_bind_sampler(const texture2d& tex, size_t sampler);
+  friend void render_bind_sampler(const framebuffer& fb, size_t sampler);
 };
 
+texture2d load_texture(uint8_t* data, size_t w, size_t h, tex_format format, tex_filter filter, tex_wrap wrap);
+
+
+using cmappixels = std::array<uint8_t*, CUBEMAP_FACES>;
 class cubemap {
 public:
-  cubemap(std::array<uint8_t*, CUBEMAP_FACES> data, size_t dim, tex_format format, tex_filter filter, tex_wrap wrap);
+  cubemap() = default;
+  cubemap(GLuint id, size_t dim);
+  cubemap(cmappixels data, size_t dim, tex_format format);
 
 public:
   cubemap& set_filter(tex_filter filter);
   cubemap& set_wrap(tex_wrap wrap);
 
 public:
-  vec2sz dim() const { return _dim; }
+  GLuint& id() { return _id; } // Not const
+  ivec2 dim() const { return _dim; }
+  bool valid() const { return _id != 0; }
 
 public:
   ~cubemap();
@@ -78,13 +94,17 @@ public:
   cubemap& operator=(const cubemap&) = delete;
 
 private:
-  vec2sz _dim;
-  GLint _format, _filter, _wrap;
-  GLuint _id;
+  void unload_cubemap();
+
+private:
+  GLuint _id{};
+  ivec2 _dim{};
 
 private:
   friend void render_bind_sampler(const cubemap& cubemap, size_t sampler);
 };
+
+cubemap load_cubemap(cmappixels data, size_t dim, tex_format format, tex_filter filter, tex_wrap wrap);
 
 
 void render_bind_sampler(const texture2d& tex, size_t sampler);

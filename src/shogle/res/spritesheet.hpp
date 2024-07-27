@@ -19,7 +19,7 @@ struct sprite_data {
 
 struct spritesheet_data {
 public:
-  spritesheet_data(std::string_view path_, tex_filter filter, tex_wrap wrap);
+  spritesheet_data(std::string_view path_);
 
 public:
   texture2d_data texture;
@@ -42,25 +42,38 @@ private:
   vec2 _corrected_scale;
   vec2 _linear_offset;
   std::vector<vec2> _const_offset;
+
+private:
   friend class spritesheet;
 };
 
 class spritesheet {
 public:
-  spritesheet(texture2d_data texture, std::vector<sprite_data> sprites);
-  spritesheet(spritesheet&&) noexcept;
+  spritesheet() = default;
+  spritesheet(texture2d_data tex_data, std::vector<sprite_data> sprites, tex_filter filter, tex_wrap wrap);
 
 public:
-  sprite& operator[](std::string_view name);
+  const sprite& operator[](std::string_view name) const { return _sprites.at(name.data()); }
+  const sprite& at(std::string_view name) const { return _sprites.at(name.data()); }
   const texture2d& tex() const { return _texture; }
+  size_t size() const { return _sprites.size(); }
+
+public:
+  ~spritesheet() = default;
+  spritesheet(spritesheet&&) noexcept;
+  spritesheet(const spritesheet&) = delete;
+  spritesheet& operator=(spritesheet&&) noexcept;
+  spritesheet& operator=(const spritesheet&) = delete;
 
 private:
   texture2d _texture;
-  std::vector<std::pair<std::string, sprite>> _sprites;
+  std::unordered_map<std::string, sprite> _sprites;
 };
 
 
-spritesheet load_spritesheet(std::string_view path, tex_filter filter, tex_wrap wrap);
-spritesheet load_spritesheet(spritesheet_data data);
+inline spritesheet load_spritesheet(std::string_view path, tex_filter filter, tex_wrap wrap) {
+  auto data = spritesheet_data{path};
+  return spritesheet{std::move(data.texture), std::move(data.sprites), filter, wrap};
+}
 
 } // namespace ntf::shogle

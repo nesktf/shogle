@@ -6,14 +6,12 @@ namespace ntf::shogle {
 
 struct texture2d_data {
 public:
-  texture2d_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_);
+  texture2d_data(std::string_view path_);
 
 public:
   uint8_t* pixels{};
   size_t width{}, height{};
   tex_format format{};
-  tex_filter filter{};
-  tex_wrap wrap{};
 
 public:
   ~texture2d_data();
@@ -29,14 +27,12 @@ private:
 
 struct cubemap_data {
 public:
-  cubemap_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_);
+  cubemap_data(std::string_view path_);
 
 public:
-  std::array<uint8_t*, CUBEMAP_FACES> pixels{};
+  cmappixels pixels{};
   size_t dim{};
   tex_format format{};
-  tex_filter filter{};
-  tex_wrap wrap{};
 
 public:
   ~cubemap_data();
@@ -46,10 +42,14 @@ public:
   cubemap_data& operator=(const cubemap_data&) = delete;
 };
 
-texture2d load_texture2d(std::string_view path, tex_filter filter, tex_wrap wrap);
-texture2d load_texture2d(texture2d_data data);
+inline texture2d load_texture(std::string_view path, tex_filter filter, tex_wrap wrap) {
+  auto data = texture2d_data{path};
+  return load_texture(data.pixels, data.width, data.height, data.format, filter, wrap);
+}
 
-cubemap load_cubemap(std::string_view path, tex_filter filter, tex_wrap wrap);
-cubemap load_cubemap(cubemap_data data);
+inline cubemap load_cubemap(std::string_view path, tex_filter filter, tex_wrap wrap) {
+  auto data = cubemap_data{path};
+  return load_cubemap(data.pixels, data.dim, data.format, filter, wrap);
+}
 
 } // namespace ntf::shogle

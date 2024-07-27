@@ -4,6 +4,9 @@
 
 namespace ntf::shogle {
 
+static const constexpr GLint gltype2d = GL_TEXTURE_2D;
+static const constexpr GLint gltypecm = GL_TEXTURE_CUBE_MAP;
+
 static constexpr GLint __enumtogl(tex_format format) {
   switch (format) {
     case tex_format::rgb:
@@ -48,175 +51,167 @@ static constexpr GLint __enumtogl(tex_wrap wrap) {
   return 0; // shutup gcc
 }
 
-texture2d::texture2d(uint8_t* data, size_t w, size_t h, tex_format format, tex_filter filter, tex_wrap wrap) :
-  _dim(w, h),
-  _format(__enumtogl(format)), _filter(__enumtogl(filter)), _wrap(__enumtogl(wrap)) {
-  const constexpr GLint type = GL_TEXTURE_2D;
+
+texture2d::texture2d(GLuint id, size_t w, size_t h) : _id(id), _dim(w, h) {}
+
+texture2d::texture2d(uint8_t* data, size_t w, size_t h, tex_format format) : _dim(w, h) {
+  const auto glformat = __enumtogl(format);
 
   glGenTextures(1, &_id);
-  glBindTexture(type, _id);
+  glBindTexture(gltype2d, _id);
 
-  glTexParameteri(type, GL_TEXTURE_WRAP_T, _wrap);
-  glTexParameteri(type, GL_TEXTURE_WRAP_S, _wrap);
+  glTexImage2D(gltype2d, 0, glformat, w, h, 0, glformat, GL_UNSIGNED_BYTE, data);
+  glGenerateMipmap(gltype2d);
 
-  glTexParameteri(type, GL_TEXTURE_MIN_FILTER, _filter);
-  glTexParameteri(type, GL_TEXTURE_MAG_FILTER, _filter);
-
-  glTexImage2D(type, 0, _format, _dim.w, _dim.h, 0, _format, GL_UNSIGNED_BYTE, data);
-  glGenerateMipmap(type);
-
-  glBindTexture(type, 0);
+  glBindTexture(gltype2d, 0);
 
   log::verbose("[shogle::texture2d] Texture loaded (id: {})", _id);
 }
 
 texture2d& texture2d::set_filter(tex_filter filter) {
-  const constexpr GLint type = GL_TEXTURE_2D;
+  const auto glfilter = __enumtogl(filter);
 
-  _filter = __enumtogl(filter);
-
-  glBindTexture(type, _id);
-  glTexParameteri(type, GL_TEXTURE_MIN_FILTER, _filter);
-  glTexParameteri(type, GL_TEXTURE_MAG_FILTER, _filter);
-  glBindTexture(type, 0);
+  glBindTexture(gltype2d, _id);
+  glTexParameteri(gltype2d, GL_TEXTURE_MIN_FILTER, glfilter);
+  glTexParameteri(gltype2d, GL_TEXTURE_MAG_FILTER, glfilter);
+  glBindTexture(gltype2d, 0);
 
   return *this;
 }
 
 texture2d& texture2d::set_wrap(tex_wrap wrap) {
-  const constexpr GLint type = GL_TEXTURE_2D;
+  const auto glwrap = __enumtogl(wrap);
 
-  _wrap = __enumtogl(wrap);
-
-  glBindTexture(type, _id);
-  glTexParameteri(type, GL_TEXTURE_WRAP_T, _wrap);
-  glTexParameteri(type, GL_TEXTURE_WRAP_S, _wrap);
+  glBindTexture(gltype2d, _id);
+  glTexParameteri(gltype2d, GL_TEXTURE_WRAP_T, glwrap);
+  glTexParameteri(gltype2d, GL_TEXTURE_WRAP_S, glwrap);
+  glBindTexture(gltype2d, 0);
 
   return *this;
 }
 
-texture2d::~texture2d() {
-  if (!_id) return;
-
+void texture2d::unload_texture() {
   log::verbose("[shogle::texture2d] Texture unloaded (id: {})", _id);
   glDeleteTextures(1, &_id);
 }
 
-texture2d::texture2d(texture2d&& t) noexcept :
-  _dim(std::move(t._dim)),
-  _format(std::move(t._format)), _filter(std::move(t._filter)), _wrap(std::move(t._wrap)),
-  _id(std::move(t._id)) {
+texture2d::~texture2d() {
+  if (_id) {
+    unload_texture();
+  }
+}
+
+texture2d::texture2d(texture2d&& t) noexcept : _id(std::move(t._id)), _dim(std::move(t._dim)) {
   t._id = 0;
 }
 
 texture2d& texture2d::operator=(texture2d&& t) noexcept {
   if (_id) {
-    glDeleteTextures(1, &_id);
-    log::verbose("[shogle::texture2d] Texture unloaded (id: {})", _id);
+    unload_texture();
   }
 
-  _dim = std::move(t._dim);
-  _format = std::move(t._format);
-  _filter = std::move(t._filter);
-  _wrap = std::move(t._wrap);
   _id = std::move(t._id);
+  _dim = std::move(t._dim);
 
   t._id = 0;
 
   return *this;
 }
 
-cubemap::cubemap(std::array<uint8_t*, CUBEMAP_FACES> data, size_t dim, tex_format format, tex_filter filter, tex_wrap wrap) :
-  _dim(dim, dim),
-  _format(__enumtogl(format)), _filter(__enumtogl(filter)), _wrap(__enumtogl(wrap)) {
-  const constexpr GLint type = GL_TEXTURE_CUBE_MAP;
+texture2d load_texture(uint8_t* data, size_t w, size_t h, tex_format format, tex_filter filter, tex_wrap wrap) {
+  texture2d tex{data, w, h, format};
+  tex.set_wrap(wrap);
+  tex.set_filter(filter);
+  return tex;
+}
+
+
+cubemap::cubemap(GLuint id, size_t dim) : _id(id), _dim(dim) {}
+
+cubemap::cubemap(std::array<uint8_t*, CUBEMAP_FACES> data, size_t dim, tex_format format) : _dim(dim, dim) {
+  const auto glformat = __enumtogl(format);
 
   glGenTextures(1, &_id);
-  glBindTexture(type, _id);
+  glBindTexture(gltypecm, _id);
 
-  glTexParameteri(type, GL_TEXTURE_WRAP_T, _wrap);
-  glTexParameteri(type, GL_TEXTURE_WRAP_S, _wrap);
-  glTexParameteri(type, GL_TEXTURE_WRAP_R, _wrap);
-
-  glTexParameteri(type, GL_TEXTURE_MIN_FILTER, _filter);
-  glTexParameteri(type, GL_TEXTURE_MAG_FILTER, _filter);
-
+  auto cmap_face = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
   for (auto& curr : data) {
-    glTexImage2D(type, 0, _format, _dim.w, _dim.h, 0, _format, GL_UNSIGNED_BYTE, curr);
+    glTexImage2D(cmap_face++, 0, glformat, dim, dim, 0, glformat, GL_UNSIGNED_BYTE, curr);
   }
-  glGenerateMipmap(type);
+  glGenerateMipmap(gltypecm);
 
-  glBindTexture(type, 0);
+  glBindTexture(gltypecm, 0);
 
   log::verbose("[shogle::cubemap] Cubemap loaded (id: {})", _id);
 }
 
 cubemap& cubemap::set_filter(tex_filter filter) {
-  const constexpr GLint type = GL_TEXTURE_CUBE_MAP;
+  const auto glfilter = __enumtogl(filter);
 
-  _filter = __enumtogl(filter);
-
-  glBindTexture(type, _id);
-  glTexParameteri(type, GL_TEXTURE_MIN_FILTER, _filter);
-  glTexParameteri(type, GL_TEXTURE_MAG_FILTER, _filter);
-  glBindTexture(type, 0);
+  glBindTexture(gltypecm, _id);
+  glTexParameteri(gltypecm, GL_TEXTURE_MIN_FILTER, glfilter);
+  glTexParameteri(gltypecm, GL_TEXTURE_MAG_FILTER, glfilter);
+  glBindTexture(gltypecm, 0);
 
   return *this;
 }
 
 cubemap& cubemap::set_wrap(tex_wrap wrap) {
-  const constexpr GLint type = GL_TEXTURE_CUBE_MAP;
+  const auto glwrap = __enumtogl(wrap);
 
-  _wrap = __enumtogl(wrap);
-
-  glBindTexture(type, _id);
-  glTexParameteri(type, GL_TEXTURE_WRAP_T, _wrap);
-  glTexParameteri(type, GL_TEXTURE_WRAP_S, _wrap);
-  glTexParameteri(type, GL_TEXTURE_WRAP_R, _wrap);
-  glBindTexture(type, 0);
+  glBindTexture(gltypecm, _id);
+  glTexParameteri(gltypecm, GL_TEXTURE_WRAP_T, glwrap);
+  glTexParameteri(gltypecm, GL_TEXTURE_WRAP_S, glwrap);
+  glTexParameteri(gltypecm, GL_TEXTURE_WRAP_R, glwrap);
+  glBindTexture(gltypecm, 0);
 
   return *this;
 }
 
-cubemap::~cubemap() {
-  if (!_id) return;
-
+void cubemap::unload_cubemap() {
   log::verbose("[shogle::cubemap] Cubemap unloaded (id: {})", _id);
   glDeleteTextures(1, &_id);
 }
 
-cubemap::cubemap(cubemap&& c) noexcept :
-  _dim(std::move(c._dim)),
-  _format(std::move(c._format)), _filter(std::move(c._filter)), _wrap(std::move(c._wrap)),
-  _id(std::move(c._id)) {
+cubemap::~cubemap() {
+  if (_id) {
+    unload_cubemap();
+  }
+}
+
+cubemap::cubemap(cubemap&& c) noexcept : _id(std::move(c._id)), _dim(std::move(c._id)) {
   c._id = 0;
 }
 
 cubemap& cubemap::operator=(cubemap&& c) noexcept {
   if (_id) {
-    log::verbose("[shogle::cubemap] Cubemap unloaded (id: {})", _id);
-    glDeleteTextures(1, &_id);
+    unload_cubemap();
   }
 
+  _id = std::move(c._id);
   _dim = std::move(c._dim);
-  _format = std::move(c._format);
-  _filter = std::move(c._filter);
-  _wrap = std::move(c._wrap);
-  _id = std::move(c._wrap);
 
   c._id = 0;
 
   return *this;
 }
 
+cubemap load_cubemap(cmappixels data, size_t dim, tex_format format, tex_filter filter, tex_wrap wrap) {
+  cubemap cmap{std::move(data), dim, format};
+  cmap.set_filter(filter);
+  cmap.set_wrap(wrap);
+  return cmap;
+}
+
+
 void render_bind_sampler(const texture2d& texture, size_t sampler) {
   glActiveTexture(GL_TEXTURE0+sampler);
-  glBindTexture(GL_TEXTURE_2D, texture._id);
+  glBindTexture(gltype2d, texture._id);
 }
 
 void render_bind_sampler(const cubemap& cubemap, size_t sampler) {
   glActiveTexture(GL_TEXTURE0+sampler);
-  glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap._id);
+  glBindTexture(gltypecm, cubemap._id);
 }
 
 } // namespace ntf::shogle

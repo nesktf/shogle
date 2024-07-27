@@ -22,10 +22,11 @@ font_data::font_data(std::string_view path) {
       continue;
     }
     size_t sz = _ft_face->glyph->bitmap.width*_ft_face->glyph->bitmap.rows;
-    uint8_t* data = new uint8_t[sz];
+    _temp_glyphs.emplace_back(uptr<uint8_t[]>(new uint8_t[sz]));
+    uint8_t* data = _temp_glyphs.back().get();
     memcpy(data, _ft_face->glyph->bitmap.buffer, sz);
-    chars.insert(std::make_pair(c, std::make_pair(data,
-      font::character{
+    glyphs.insert(std::make_pair(c, std::make_pair(data,
+      font_glyph{
         .size = ivec2{
           _ft_face->glyph->bitmap.width,
           _ft_face->glyph->bitmap.rows
@@ -40,18 +41,6 @@ font_data::font_data(std::string_view path) {
   }
   FT_Done_Face(_ft_face);
   FT_Done_FreeType(_ft_lib);
-}
-
-font_data::~font_data() {
-
-}
-
-font load_font(std::string_view path) {
-  return load_font(font_data{path});
-}
-
-font load_font(font_data data) {
-  return font{std::move(data.chars)};
 }
 
 } // namespace ntf::shogle

@@ -1,94 +1,96 @@
 #include <shogle/render/mesh.hpp>
 
 #include <shogle/core/error.hpp>
-#include <shogle/core/log.hpp>
 
 namespace ntf::shogle {
 
-mesh::mesh() { 
-  glGenVertexArrays(1, &_vao); 
-  log::verbose("[shogle::mesh] Mesh created (id: {})", _vao);
+constexpr GLint __enumtogl(mesh_primitive primitive) {
+  switch (primitive) {
+    case mesh_primitive::triangles:
+      return GL_TRIANGLES;
+    case mesh_primitive::triangle_strip:
+      return GL_TRIANGLE_STRIP;
+    case mesh_primitive::triangle_fan:
+      return GL_TRIANGLE_FAN;
+    case mesh_primitive::lines:
+      return GL_LINES;
+    case mesh_primitive::line_strip:
+      return GL_LINE_STRIP;
+    case mesh_primitive::line_loop:
+      return GL_LINE_LOOP;
+    case mesh_primitive::points:
+      return GL_POINTS;
+  }
+  return 0; // shutup gcc
 }
 
-mesh& mesh::add_index_buffer(uint* indices, size_t ind_sz) {
-  _draw_count = ind_sz; 
+mesh::mesh(mesh_primitive primitive, GLuint vao, GLuint vbo, GLuint ebo, size_t draw_count, size_t att_count) :
+  _vao(vao), _vbo(vbo), _ebo(ebo),
+  _draw_count(draw_count), _attrib_count(att_count), _primitive(primitive) {}
 
-  glGenBuffers(1, &_ebo);
-  glBindVertexArray(_vao);
+mesh::mesh(mesh_primitive primitive, GLuint vao, GLuint vbo, size_t draw_count, size_t att_count) :
+  _vao(vao) , _vbo(vbo),
+  _draw_count(draw_count), _attrib_count(att_count), _primitive(primitive) {}
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, ind_sz, indices, GL_STATIC_DRAW);
-
-  glBindVertexArray(0);
-  return *this;
-}
-
-mesh::~mesh() {
-  if (!_vao) return;
-  auto id = _vao;
-
+void mesh::unload_mesh() {
+  log::verbose("[shogle::mesh] Mesh Destroyed (id: {})", _vao);
   glBindVertexArray(_vao);
   for (size_t i = 0; i < _attrib_count; ++i) {
     glDisableVertexAttribArray(i);
   }
   glBindVertexArray(0);
-  glDeleteVertexArrays(1, &_vao);
 
+  glDeleteVertexArrays(1, &_vao);
+  glDeleteBuffers(1, &_vbo);
   if (_ebo) {
     glDeleteBuffers(1, &_ebo);
   }
-  if (_vbo) {
-    glDeleteBuffers(1, &_vbo);
-  }
+}
 
-  log::verbose("[shogle::mesh] Mesh Destroyed (id: {})", id);
+mesh::~mesh() {
+  if (_vao) {
+    unload_mesh();
+  }
 }
 
 mesh::mesh(mesh&& m) noexcept :
   _vao(std::move(m._vao)), _vbo(std::move(m._vbo)), _ebo(std::move(m._ebo)),
   _draw_count(std::move(m._draw_count)), _attrib_count(std::move(m._attrib_count)) { 
   m._vao = 0;
+  m._vbo = 0;
+  m._ebo = 0;
 }
 
 mesh& mesh::operator=(mesh&& m) noexcept {
-  auto id = _vao;
-
-  glBindVertexArray(_vao);
-  for (size_t i = 0; i < _attrib_count; ++i) {
-    glDisableVertexAttribArray(i);
-  }
-  glBindVertexArray(0);
-  glDeleteVertexArrays(1, &_vao);
-
-  if (_ebo) {
-    glDeleteBuffers(1, &_ebo);
-  }
-  if (_vbo) {
-    glDeleteBuffers(1, &_vbo);
+  if (_vao) {
+    unload_mesh();
   }
 
-  _vao = m._vao;
-  _vbo = m._vbo;
-  _ebo = m._ebo;
-  _draw_count = m._draw_count;
-  _attrib_count = m._attrib_count;
+  _vao = std::move(m._vao);
+  _vbo = std::move(m._vbo);
+  _ebo = std::move(m._ebo);
+  _draw_count = std::move(m._draw_count);
+  _attrib_count = std::move(m._attrib_count);
 
   m._vao = 0;
+  m._vbo = 0;
+  m._ebo = 0;
 
-  log::verbose("[shogle::mesh] Mesh overwritten (id: {})", id);
   return *this;
 }
 
+
 void render_draw_mesh(const mesh& mesh) {
-  if (!mesh._vao) return;
+  assert(mesh.valid() && "Mesh has no data");
 
   glBindVertexArray(mesh._vao);
-  if (mesh._ebo != 0) {
-    glDrawElements(GL_TRIANGLES, mesh._draw_count, GL_UNSIGNED_INT, 0);
+  const auto prim = __enumtogl(mesh.primitive());
+  if (mesh.has_indices()) {
+    glDrawElements(prim, mesh.draw_count(), GL_UNSIGNED_INT, 0);
   } else {
-    glDrawArrays(GL_TRIANGLES, 0, mesh._draw_count);
+    glDrawArrays(prim, 0, mesh.draw_count());
   }
   glBindVertexArray(0);
 }
 
-} // namespace ntf::shogle::gl
+} // namespace ntf::shogle

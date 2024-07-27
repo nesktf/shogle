@@ -125,10 +125,10 @@ bool engine_poll_key(keycode key) {
   return glfwGetKey(window_state.handle, key) == keystate::press;
 }
 
-vec2sz engine_window_size() {
+ivec2 engine_window_size() {
   int w, h;
   glfwGetWindowSize(window_state.handle, &w, &h);
-  return vec2sz{w, h};
+  return {w, h};
 }
 
 void engine_use_vsync(bool flag) {

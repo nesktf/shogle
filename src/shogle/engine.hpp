@@ -21,7 +21,7 @@ void engine_cursor_event(std::function<void(double,double)> fun);
 void engine_scroll_event(std::function<void(double,double)> fun);
 
 bool engine_poll_key(keycode key);
-vec2sz engine_window_size();
+ivec2 engine_window_size();
 void engine_use_vsync(bool flag);
 void engine_set_title(std::string_view title);
 void engine_close_window();
@@ -29,21 +29,19 @@ void engine_close_window();
 GLFWwindow* __engine_window_handle();
 
 template<typename F>
-concept fixrenderfunc = std::invocable<F, double, double, double>;
+concept fixrenderfunc = std::invocable<F, double, double>;
 
 template<typename F>
-concept renderfunc = std::invocable<F, double>;
+concept renderfunc = std::invocable<F>;
 
 template<typename F>
 concept updatefunc = std::invocable<F, double>;
 
-struct __deffun {
-  template<typename... Args>
-  void operator()(Args... args) {}
-};
+template<typename F>
+concept fupdatefunc = std::invocable<F>;
 
-template<fixrenderfunc RFunc, updatefunc FUFunc, updatefunc UFunc = __deffun>
-void engine_main_loop(uint ups, RFunc&& render, FUFunc&& fixed_update, UFunc&& update = {});
+template<fixrenderfunc RFunc, fupdatefunc FUFunc>
+void engine_main_loop(uint ups, RFunc&& render, FUFunc&& fixed_update);
 
 template<renderfunc RFunc, updatefunc UFunc>
 void engine_main_loop(RFunc&& render, UFunc&& update);

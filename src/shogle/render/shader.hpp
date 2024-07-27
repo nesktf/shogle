@@ -4,25 +4,26 @@
 
 namespace ntf::shogle {
 
-class mesh;
+using shader_uniform = GLint;
 
 enum class shader_type {
   vertex = 0,
   fragment,
-  geometry,
+  geometry
 };
-
 
 class shader {
 public:
+
+public:
+  shader() = default;
+  shader(GLuint id, shader_type type);
   shader(std::string_view src, shader_type type);
 
 public:
-  void compile();
-
-public:
-  bool compiled() const { return _shad_id != 0; }
-  GLuint id() const { return _shad_id; }
+  shader_type type() const { return _type; }
+  bool compiled() const { return _id != 0; }
+  GLuint& id() { return _id; } // Not const;
 
 public:
   ~shader();
@@ -32,42 +33,25 @@ public:
   shader& operator=(const shader&) = delete;
 
 private:
-  std::string_view _src;
-  GLint _type;
-  GLuint _shad_id {0};
+  void unload_shader();
+
+private:
+  GLuint _id{};
+  shader_type _type;
 };
 
 
 class shader_program {
 public:
-  using uniform_id = GLint;
+  shader_program() = default;
+  shader_program(GLuint id);
+  shader_program(shader vert, shader frag);
+  shader_program(shader vert, shader frag, shader geom);
 
 public:
-  shader_program();
-
-public:
-  void enable();
-
-  void set_uniform(uniform_id location, const int val);
-  void set_uniform(uniform_id location, const float val);
-  void set_uniform(uniform_id location, const vec2& val);
-  void set_uniform(uniform_id location, const vec3& val);
-  void set_uniform(uniform_id location, const vec4& val);
-  void set_uniform(uniform_id location, const mat3& val);
-  void set_uniform(uniform_id location, const mat4& val);
-
-public:
-  template<typename T, typename... S>
-  void link(const T& shader, const S&... shaders) {
-    assert(shader.compiled() && "Attached shader not compiled");
-    glAttachShader(_prog_id, shader.id());
-    _last_shader = shader.id();
-    link(shaders...);
-  } 
-
-public:
-  uniform_id uniform_location(const char* name);
-  bool linked() const { return _prog_id != 0; }
+  shader_uniform uniform_location(std::string_view name) const;
+  bool linked() const { return _id != 0; }
+  GLuint& id() { return _id; } // Not const
 
 public:
   ~shader_program();
@@ -76,12 +60,45 @@ public:
   shader_program& operator=(shader_program&&) noexcept;
   shader_program& operator=(const shader_program&) = delete;
 
-protected:
-  void link();
+private:
+  void unload_program();
 
 private:
-  GLuint _prog_id {0};
-  GLint _last_shader {0};
+  GLuint _id{};
+
+private:
+  friend void render_use_shader(const shader_program& shader);
 };
+
+void render_use_shader(const shader_program& shader);
+
+void render_set_uniform(shader_uniform location, const int val);
+void render_set_uniform(shader_uniform location, const float val);
+void render_set_uniform(shader_uniform location, const vec2& val);
+void render_set_uniform(shader_uniform location, const vec3& val);
+void render_set_uniform(shader_uniform location, const vec4& val);
+void render_set_uniform(shader_uniform location, const mat3& val);
+void render_set_uniform(shader_uniform location, const mat4& val);
+
+template<typename T>
+void render_set_uniform(const shader_program& shader, std::string_view name, const T& val) {
+  const auto location = shader.uniform_location(name);
+  render_set_uniform(shader, location, val);
+}
+
+inline shader_program load_shader_program(std::string_view vert, std::string_view frag) {
+  return shader_program{
+    shader{vert, shader_type::vertex},
+    shader{frag, shader_type::fragment},
+  };
+}
+
+inline shader_program load_shader_program(std::string_view vert, std::string_view frag, std::string_view geom) {
+  return shader_program{
+    shader{vert, shader_type::vertex},
+    shader{frag, shader_type::fragment},
+    shader{geom, shader_type::geometry}
+  };
+}
 
 } // namespace ntf::shogle

@@ -24,8 +24,7 @@ static tex_format __toenum(int channels) {
   }
 }
 
-texture2d_data::texture2d_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_) :
-  filter(filter_), wrap(wrap_) {
+texture2d_data::texture2d_data(std::string_view path_) {
   int w, h, ch;
   pixels = stbi_load(path_.data(), &w, &h, &ch, 0);
   if (!pixels) {
@@ -46,7 +45,7 @@ texture2d_data::~texture2d_data() {
 texture2d_data::texture2d_data(texture2d_data&& t) noexcept :
   pixels(std::move(t.pixels)),
   width(std::move(t.width)), height(std::move(t.height)),
-  format(std::move(t.format)), filter(std::move(t.filter)), wrap(std::move(t.wrap)) {
+  format(std::move(t.format)) {
   t.pixels = nullptr;
 }
 
@@ -59,16 +58,13 @@ texture2d_data& texture2d_data::operator=(texture2d_data&& t) noexcept {
   width = std::move(t.width);
   height = std::move(t.height);
   format = std::move(t.format);
-  filter = std::move(t.filter);
-  wrap = std::move(t.wrap);
 
   t.pixels = nullptr;
 
   return *this;
 }
 
-cubemap_data::cubemap_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_) :
-  filter(filter_), wrap(wrap_) {
+cubemap_data::cubemap_data(std::string_view path_) {
   std::ifstream f{path_.data()};
   json data = json::parse(f);
 
@@ -104,7 +100,7 @@ cubemap_data::~cubemap_data() {
 cubemap_data::cubemap_data(cubemap_data&& c) noexcept :
   pixels(std::move(c.pixels)),
   dim(std::move(c.dim)),
-  format(std::move(c.format)), filter(std::move(c.filter)), wrap(std::move(c.wrap)) {
+  format(std::move(c.format)) {
   for (auto& curr : c.pixels) {
     curr = nullptr;
   }
@@ -120,30 +116,12 @@ cubemap_data& cubemap_data::operator=(cubemap_data&& c) noexcept {
   pixels = std::move(c.pixels);
   dim = std::move(c.dim);
   format = std::move(c.format);
-  filter = std::move(c.filter);
-  wrap = std::move(c.wrap);
 
   for (auto& curr : c.pixels) {
     curr = nullptr;
   }
 
   return *this;
-}
-
-texture2d load_texture2d(std::string_view path, tex_filter filter, tex_wrap wrap) {
-  return load_texture2d(texture2d_data{path, filter, wrap});
-}
-
-texture2d load_texture2d(texture2d_data data) {
-  return texture2d{data.pixels, data.width, data.height, data.format, data.filter, data.wrap};
-}
-
-cubemap load_cubemap(std::string_view path, tex_filter filter, tex_wrap wrap) {
-  return load_cubemap(cubemap_data{path, filter, wrap});
-}
-
-cubemap load_cubemap(cubemap_data data) {
-  return cubemap{std::move(data.pixels), data.dim, data.format, data.filter, data.wrap};
 }
 
 } // namespace ntf::shogle

@@ -8,21 +8,28 @@
 namespace ntf::shogle {
 
 struct font_data {
+public:
   font_data(std::string_view path);
-  ~font_data();
 
-  std::map<uint8_t, std::pair<uint8_t*, font::character>> chars;
+public:
+  std::map<uint8_t, std::pair<uint8_t*, font_glyph>> glyphs;
 
+public:
+  ~font_data() = default;
+  font_data(font_data&&) = default;
+  font_data(const font_data&) = delete;
+  font_data& operator=(font_data&&) = default;
+  font_data& operator=(const font_data&) = delete;
+
+private:
+  std::vector<uptr<uint8_t[]>> _temp_glyphs;
   FT_Face _ft_face;
   FT_Library _ft_lib;
-
-  // font_data(font_data&&) noexcept;
-  font_data(const font_data&) = delete;
-  // font_data& operator=(font_data&&) noexcept;
-  font_data& operator=(const font_data&) = delete;
 };
 
-font load_font(std::string_view path);
-font load_font(font_data data);
+inline font load_font(std::string_view path) {
+  auto data = font_data{path};
+  return font{std::move(data.glyphs)};
+}
 
 } // namespace ntf::shogle
