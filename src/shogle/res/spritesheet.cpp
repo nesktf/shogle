@@ -13,10 +13,6 @@ using json = nlohmann::json;
 
 namespace ntf::shogle {
 
-sprite::sprite(texture2d& tex, vec2 scale, vec2 lin_off, std::vector<vec2> con_off) :
-  _texture(&tex), _corrected_scale(scale),
-  _linear_offset(lin_off), _const_offset(std::move(con_off)) {};
-
 spritesheet_data::spritesheet_data(std::string_view path_) {
   std::ifstream f{path_.data()};
   json data = json::parse(f);
@@ -25,82 +21,86 @@ spritesheet_data::spritesheet_data(std::string_view path_) {
   texture = texture2d_data{texture_path};
 
   auto sprite_content = data["content"];
-  sprites.resize(sprite_content.size());
   for (size_t i = 0; i < sprite_content.size(); ++i) {
     auto& sprite = sprite_content[i];
 
-    size_t count = sprite["count"].template get<size_t>();
-    size_t cols = sprite["cols"].template get<size_t>();
+    std::string name = sprite["name"].get<std::string>();
+
+    size_t x = static_cast<size_t>(texture.width);
+    size_t y = static_cast<size_t>(texture.height);
+
+    size_t x0 = sprite["x0"].get<size_t>();
+    size_t y0 = sprite["y0"].get<size_t>();
+    size_t dx = sprite["dx"].get<size_t>();
+    size_t dy = sprite["dy"].get<size_t>();
+
+    uint delay = sprite["delay"].get<uint>();
+
+    size_t count = sprite["count"].get<size_t>();
+    size_t cols = sprite["cols"].get<size_t>();
     float row_ratio = static_cast<float>(count)/static_cast<float>(cols);
-    sprites[i] = sprite_data{
-      .name = sprite["name"].template get<std::string>(),
-      .count = count,
-      .x = static_cast<size_t>(texture.width),
-      .y = static_cast<size_t>(texture.height),
-      .x0 = sprite["x0"].template get<size_t>(),
-      .y0 = sprite["y0"].template get<size_t>(),
-      .dx = sprite["dx"].template get<size_t>(),
-      .dy = sprite["dy"].template get<size_t>(),
-      .cols = cols,
-      .rows = static_cast<size_t>(std::ceil(row_ratio))
-    };
-  }
-}
+    size_t rows = static_cast<size_t>(std::ceil(row_ratio));
 
-spritesheet::spritesheet(texture2d_data tex_data, std::vector<sprite_data> sprites, 
-                         tex_filter filter, tex_wrap wrap) :
-  _texture(load_texture(tex_data.pixels, tex_data.width, tex_data.height, tex_data.format, filter, wrap)) {
-  
-  for (auto& sprite_data : sprites) {
-    vec2 scale {
-      (float)(sprite_data.dx*sprite_data.rows) / (float)(sprite_data.dy*sprite_data.cols),
-      1.0f
-    };
+    vec2 scale { (float)(dx*rows) / (float)(dy*cols), 1.0f };
 
-    vec2 linear_offset {
-      (float)(sprite_data.dx) / (float)(sprite_data.x*sprite_data.cols),
-      (float)(sprite_data.dy) / (float)(sprite_data.y*sprite_data.rows)
-    };
+    vec2 linear_offset = { (float)dx / (float)(x*cols), (float)dy / (float)(y*rows) };
 
-    std::vector<vec2> const_offset(sprite_data.count);
-    for (size_t i = 0; i < sprite_data.count; ++i) {
-      size_t row = i / sprite_data.cols;
-      size_t col = i % sprite_data.cols;
+    std::vector<vec2> const_offset(count);
+    for (size_t j = 0; j < count; ++j) {
+      size_t row = j / cols;
+      size_t col = j % cols;
 
-      vec2 frac_a{
-        (sprite_data.x0*sprite_data.cols) + (col*sprite_data.dx),
-        sprite_data.y0 + (row*sprite_data.dy)
-      };
-      vec2 frac_b{
-        sprite_data.x*sprite_data.cols,
-        sprite_data.y*sprite_data.rows
-      };
-
-      const_offset[i].x = frac_a.x / frac_b.x;
-      const_offset[i].y = frac_a.y / frac_b.y;
+      vec2 frac_a{ (x0*cols) + (col*dx), y0 + (row*dy) };
+      vec2 frac_b{ x*cols, y*rows };
+      const_offset[j].x = frac_a.x/frac_b.x;
+      const_offset[j].y = frac_a.y/frac_b.y;
     }
 
-    _sprites.emplace(std::make_pair(
-      std::move(sprite_data.name),
-      sprite{_texture, scale, linear_offset, std::move(const_offset)}
-    ));
+    sprites.emplace(std::make_pair(std::move(name), sprite_data{
+      .delay = delay,
+      .scale = scale,
+      .linear_offset = linear_offset,
+      .const_offset = std::move(const_offset)
+    }));
   }
 }
 
-spritesheet::spritesheet(spritesheet&& s) noexcept :
-  _texture(std::move(s._texture)), _sprites(std::move(s._sprites)) {
-    for (auto& [name, spr] : _sprites) {
-      spr._texture = &_texture;
+sprite::sprite(const texture2d* tex, const std::vector<vec2>* coff, vec2 loff, vec2 scale, uint delay) :
+  _tex(tex), _const_offset(coff), _linear_offset(loff), _offset(offset_at(0)), _scale(scale), _delay(delay) {}
+
+sprite spritesheet::at(std::string_view name) const {
+  const auto& data = _sprites.at(name.data());
+  return sprite{&_texture, &data.const_offset, data.linear_offset, data.scale, data.delay};
+}
+
+sprite_animator::sprite_animator(uint delay_, sprite_animation animation_) :
+  delay(delay_), animation(animation_) {}
+
+void sprite_animator::tick(sprite& sprite) {
+  if (++_index_time >= delay) {
+    size_t c = sprite.count();
+    bool animate_forwards = (animation & sprite_animation::forward_anim) != sprite_animation::none;
+    
+    // Do nothing if the animation can't repeat and the index wraps around
+    bool repeat = (animation & sprite_animation::repeat) != sprite_animation::none;
+    if (!repeat && (animate_forwards ? _index == c-1 : _index == 0)) {
+      return;
     }
+
+    if (animate_forwards) {
+      sprite.set_index(++_index % c);
+    } else {
+      _index = _index-1 < 0 ? c-1 : _index-1;
+      sprite.set_index(_index);
+    }
+
+    _index_time = 0;
+  }
 }
 
-spritesheet& spritesheet::operator=(spritesheet&& s) noexcept {
-  _texture = std::move(s._texture);
-  _sprites = std::move(s._sprites);
-  for (auto& [name, spr] : _sprites) {
-    spr._texture = &_texture;
-  }
-  return *this;
+void sprite_animator::set_index(sprite& sprite, uint index) {
+  _index = index % sprite.count();
+  sprite.set_index(_index);
 }
 
 } // namespace ntf::shogle

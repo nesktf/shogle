@@ -10,6 +10,7 @@
 #include <memory>
 #include <complex>
 #include <functional>
+#include <unordered_map>
 
 #include <sys/types.h>
 
@@ -62,6 +63,9 @@ struct cleanup {
 
 template<typename T, typename U>
 using pair_vector = std::vector<std::pair<T,U>>;
+
+template<typename T>
+using strmap = std::unordered_map<std::string, T>;
 
 template<typename T>
 using uptr = std::unique_ptr<T>;

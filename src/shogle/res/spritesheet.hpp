@@ -9,13 +9,12 @@
 namespace ntf::shogle {
 
 struct sprite_data {
-  std::string name;
-  size_t count;
-  size_t x, y;
-  size_t x0, y0;
-  size_t dx, dy;
-  size_t cols, rows;
+  uint delay;
+  vec2 scale;
+  vec2 linear_offset;
+  std::vector<vec2> const_offset;
 };
+
 
 struct spritesheet_data {
 public:
@@ -23,51 +22,89 @@ public:
 
 public:
   texture2d_data texture;
-  std::vector<sprite_data> sprites;
+  strmap<sprite_data> sprites;
 };
 
 
 class sprite {
 public:
-  sprite(texture2d& tex, vec2 scale, vec2 lin_off, std::vector<vec2> con_off);
+  sprite() = default;
+  sprite(const texture2d* tex, const std::vector<vec2>* coff, vec2 loff, vec2 scale, uint delay);
 
 public:
-  size_t count() const { return _const_offset.size(); }
-  vec4 tex_offset(size_t i) const { return vec4{_linear_offset, _const_offset[i%count()]}; }
-  vec2 corrected_scale() const { return _corrected_scale; }
-  const texture2d& tex() const { return *_texture; }
+  const texture2d& tex() const { return *_tex; }
+  const vec2& scale() const { return _scale; }
+  size_t count() const { return _const_offset->size(); }
+  uint delay() const { return _delay; }
+
+  const vec4& offset() const { return _offset; }
+  vec4 offset_at(size_t i) const { return vec4{_linear_offset, *(_const_offset->begin()+i)}; }
+
+public:
+  void set_index(size_t i) { _offset = offset_at(i); }
 
 private:
-  texture2d* _texture;
-  vec2 _corrected_scale;
+  const texture2d* _tex;
+  const std::vector<vec2>* _const_offset;
   vec2 _linear_offset;
-  std::vector<vec2> _const_offset;
+  vec4 _offset;
+  vec2 _scale;
+  uint _delay;
+};
+
+
+enum class sprite_animation : uint8_t {
+  none = 0,
+  repeat = 1 << 0,
+  forward_anim = 1 << 1,
+};
+
+constexpr sprite_animation operator|(sprite_animation a, sprite_animation b) {
+  return static_cast<sprite_animation>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+}
+
+constexpr sprite_animation operator&(sprite_animation a, sprite_animation b) {
+  return static_cast<sprite_animation>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+}
+
+constexpr sprite_animation& operator|=(sprite_animation& a, sprite_animation b) {
+  return a = static_cast<sprite_animation>(a | b);
+}
+
+
+class sprite_animator {
+public:
+  sprite_animator() = default;
+  sprite_animator(uint delay_, sprite_animation animation_);
+
+public:
+  void tick(sprite& sprite);
+  void set_index(sprite& sprite, uint index);
+
+public:
+  uint delay{1};
+  sprite_animation animation{sprite_animation::forward_anim | sprite_animation::repeat};
 
 private:
-  friend class spritesheet;
+  uint _index_time{0}, _index{0};
 };
+
 
 class spritesheet {
 public:
   spritesheet() = default;
-  spritesheet(texture2d_data tex_data, std::vector<sprite_data> sprites, tex_filter filter, tex_wrap wrap);
+  spritesheet(texture2d_data tex_data, strmap<sprite_data> sprites, tex_filter filter, tex_wrap wrap);
 
 public:
-  const sprite& operator[](std::string_view name) const { return _sprites.at(name.data()); }
-  const sprite& at(std::string_view name) const { return _sprites.at(name.data()); }
+  sprite at(std::string_view name) const;
+  sprite operator[](std::string_view name) const { return at(name); };
+
   const texture2d& tex() const { return _texture; }
   size_t size() const { return _sprites.size(); }
 
-public:
-  ~spritesheet() = default;
-  spritesheet(spritesheet&&) noexcept;
-  spritesheet(const spritesheet&) = delete;
-  spritesheet& operator=(spritesheet&&) noexcept;
-  spritesheet& operator=(const spritesheet&) = delete;
-
 private:
   texture2d _texture;
-  std::unordered_map<std::string, sprite> _sprites;
+  strmap<sprite_data> _sprites;
 };
 
 
