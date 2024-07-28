@@ -13,94 +13,144 @@ using json = nlohmann::json;
 
 namespace ntf::shogle {
 
-spritesheet_data::spritesheet_data(std::string_view path_) {
-  std::ifstream f{path_.data()};
-  json data = json::parse(f);
+sprite_group::sprite_group(const texture2d* tex, strmap<sprite_sequence> seq, std::vector<vec4> off, vec2 sz) :
+  _texture(tex), _sequences(std::move(seq)), _offsets(std::move(off)), _sprite_size(sz) {}
 
-  auto texture_path = file_dir(path_.data())+"/"+data["file"].template get<std::string>();
+
+spritesheet::spritesheet(texture2d_data tex, strmap<sprite_group> sprites, tex_filter filter, tex_wrap wrap) :
+  _texture(load_texture(tex.pixels, tex.width, tex.height, tex.format, filter, wrap)),
+  _sprite_groups(std::move(sprites)) { update_groups_texture(); }
+
+void spritesheet::update_groups_texture() {
+  for (auto& [name, group] : _sprite_groups) {
+    group._texture = &_texture;
+  }
+}
+
+spritesheet::spritesheet(spritesheet&& s) noexcept :
+  _texture(std::move(s._texture)), _sprite_groups(std::move(s._sprite_groups)) { update_groups_texture(); }
+
+spritesheet& spritesheet::operator=(spritesheet&& s) noexcept {
+  _texture = std::move(s._texture);
+  _sprite_groups = std::move(s._sprite_groups);
+
+  update_groups_texture();
+
+  return *this;
+}
+
+
+sprite_animator::sprite_animator(const sprite_group& sprite_group, std::string_view first_sequence) :
+  _sprite_group(&sprite_group) { enqueue_sequence(first_sequence, 0); }
+
+void sprite_animator::reset_queue(bool hard) {
+  if (_sequences.size() == 0) {
+    return;
+  }
+
+  auto front = std::move(_sequences.front());
+  _sequences = std::queue<entry>{};
+  if (!hard) {
+    _sequences.push(std::move(front));
+  }
+}
+
+void sprite_animator::enqueue_sequence(std::string_view sequence, uint loops) {
+  assert(loops >= 0);
+  const auto& seq = _sprite_group->sequence_at(sequence);
+  _sequences.push(entry{ .sequence = seq, .duration = loops*static_cast<uint>(seq.size()) });
+}
+
+void sprite_animator::enqueue_sequence_frames(std::string_view sequence, uint frames) {
+  enqueue_sequence(sequence, 0);
+  auto& enqueued = _sequences.back();
+  enqueued.duration = frames;
+}
+
+void sprite_animator::soft_switch(std::string_view sequence, uint loops) {
+  reset_queue(false);
+  enqueue_sequence(sequence, loops);
+}
+
+void sprite_animator::hard_switch(std::string_view sequence, uint loops) {
+  reset_queue(true);
+  enqueue_sequence(sequence, loops);
+}
+
+
+static std::vector<vec4> parse_offsets(ivec2 tex_sz, vec2& sprite_sz, const json& offset_entry) {
+  size_t count = offset_entry["count"].get<size_t>();
+  std::vector<vec4> offsets(count);
+
+  size_t x = static_cast<size_t>(tex_sz.x);
+  size_t y = static_cast<size_t>(tex_sz.y);
+
+  size_t x0 = offset_entry["x0"].get<size_t>();
+  size_t y0 = offset_entry["y0"].get<size_t>();
+  size_t dx = offset_entry["dx"].get<size_t>();
+  size_t dy = offset_entry["dy"].get<size_t>();
+
+  size_t cols = offset_entry["cols"].get<size_t>();
+  float row_ratio = static_cast<float>(count)/static_cast<float>(cols);
+  size_t rows = static_cast<size_t>(std::ceil(row_ratio));
+
+  sprite_sz = vec2{(float)(dx*rows) / (float)(dy*cols), 1.0f};
+
+  vec2 linear_offset {(float)dx / (float)(x*cols), (float)dy / (float)(y*rows)};
+
+  for (size_t j = 0; j < count; ++j) {
+    size_t row = j / cols;
+    size_t col = j % cols;
+
+    vec2 frac_a {(x0*cols) + (col*dx), y0 + (row*dy)};
+    vec2 frac_b {x*cols, y*rows};
+    offsets[j] = vec4{linear_offset, vec2{frac_a.x/frac_b.x, frac_a.y/frac_b.y}};
+  }
+
+  return offsets;
+}
+
+static sprite_sequence parse_sequence(uint delay, const json& json_sequence) {
+  uint total_frames = json_sequence.size()*delay;
+  sprite_sequence sequence(total_frames);
+
+  uint curr_frame{0};
+  for (uint i = 0; i < total_frames; ++i) {
+    uint index = json_sequence[curr_frame];
+    sequence[curr_frame] = index;
+    if ((i+1) % delay == 0) {
+      curr_frame++;
+    }
+  }
+
+  return sequence;
+}
+
+spritesheet_data::spritesheet_data(std::string_view path) {
+  std::ifstream f{path.data()};
+  json json_data = json::parse(f);
+
+  auto texture_path = file_dir(path.data())+"/"+json_data["file"].get<std::string>();
   texture = texture2d_data{texture_path};
 
-  auto sprite_content = data["content"];
-  for (size_t i = 0; i < sprite_content.size(); ++i) {
-    auto& sprite = sprite_content[i];
+  ivec2 tex_size { texture.width, texture.height };
+  for (const auto& content : json_data["content"]) {
+    vec2 sprite_size;
+    auto group_name = content["name"].get<std::string>();
+    auto group_offsets = parse_offsets(tex_size, sprite_size, content["offset"]);
 
-    std::string name = sprite["name"].get<std::string>();
+    strmap<sprite_sequence> group_sequences;
+    for (const auto& anim : content["anim"]) {
+      auto seq_name = anim["name"].get<std::string>();
+      uint delay = anim["delay"].get<uint>();
 
-    size_t x = static_cast<size_t>(texture.width);
-    size_t y = static_cast<size_t>(texture.height);
-
-    size_t x0 = sprite["x0"].get<size_t>();
-    size_t y0 = sprite["y0"].get<size_t>();
-    size_t dx = sprite["dx"].get<size_t>();
-    size_t dy = sprite["dy"].get<size_t>();
-
-    uint delay = sprite["delay"].get<uint>();
-
-    size_t count = sprite["count"].get<size_t>();
-    size_t cols = sprite["cols"].get<size_t>();
-    float row_ratio = static_cast<float>(count)/static_cast<float>(cols);
-    size_t rows = static_cast<size_t>(std::ceil(row_ratio));
-
-    vec2 scale { (float)(dx*rows) / (float)(dy*cols), 1.0f };
-
-    vec2 linear_offset = { (float)dx / (float)(x*cols), (float)dy / (float)(y*rows) };
-
-    std::vector<vec2> const_offset(count);
-    for (size_t j = 0; j < count; ++j) {
-      size_t row = j / cols;
-      size_t col = j % cols;
-
-      vec2 frac_a{ (x0*cols) + (col*dx), y0 + (row*dy) };
-      vec2 frac_b{ x*cols, y*rows };
-      const_offset[j].x = frac_a.x/frac_b.x;
-      const_offset[j].y = frac_a.y/frac_b.y;
+      const auto& sequence = anim["sequence"];
+      group_sequences.emplace(std::make_pair(std::move(seq_name), parse_sequence(delay, sequence)));
     }
 
-    sprites.emplace(std::make_pair(std::move(name), sprite_data{
-      .delay = delay,
-      .scale = scale,
-      .linear_offset = linear_offset,
-      .const_offset = std::move(const_offset)
-    }));
+    sprite_groups.emplace(std::make_pair(std::move(group_name),
+      sprite_group{nullptr, std::move(group_sequences), std::move(group_offsets), sprite_size}));
   }
-}
-
-sprite::sprite(const texture2d* tex, const std::vector<vec2>* coff, vec2 loff, vec2 scale, uint delay) :
-  _tex(tex), _const_offset(coff), _linear_offset(loff), _offset(offset_at(0)), _scale(scale), _delay(delay) {}
-
-sprite spritesheet::at(std::string_view name) const {
-  const auto& data = _sprites.at(name.data());
-  return sprite{&_texture, &data.const_offset, data.linear_offset, data.scale, data.delay};
-}
-
-sprite_animator::sprite_animator(uint delay_, sprite_animation animation_) :
-  delay(delay_), animation(animation_) {}
-
-void sprite_animator::tick(sprite& sprite) {
-  if (++_index_time >= delay) {
-    size_t c = sprite.count();
-    bool animate_forwards = (animation & sprite_animation::forward_anim) != sprite_animation::none;
-    
-    // Do nothing if the animation can't repeat and the index wraps around
-    bool repeat = (animation & sprite_animation::repeat) != sprite_animation::none;
-    if (!repeat && (animate_forwards ? _index == c-1 : _index == 0)) {
-      return;
-    }
-
-    if (animate_forwards) {
-      sprite.set_index(++_index % c);
-    } else {
-      _index = _index-1 < 0 ? c-1 : _index-1;
-      sprite.set_index(_index);
-    }
-
-    _index_time = 0;
-  }
-}
-
-void sprite_animator::set_index(sprite& sprite, uint index) {
-  _index = index % sprite.count();
-  sprite.set_index(_index);
 }
 
 } // namespace ntf::shogle

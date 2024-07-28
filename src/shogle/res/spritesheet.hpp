@@ -5,112 +5,139 @@
 
 #include <unordered_map>
 #include <vector>
+#include <queue>
 
 namespace ntf::shogle {
 
-struct sprite_data {
-  uint delay;
-  vec2 scale;
-  vec2 linear_offset;
-  std::vector<vec2> const_offset;
+struct sprite {
+  const texture2d* texture;
+  vec4 texture_offset;
+  vec2 sprite_size;
 };
+using sprite_sequence = std::vector<uint>;
 
 
-struct spritesheet_data {
+class sprite_group {
 public:
-  spritesheet_data(std::string_view path_);
-
-public:
-  texture2d_data texture;
-  strmap<sprite_data> sprites;
-};
-
-
-class sprite {
-public:
-  sprite() = default;
-  sprite(const texture2d* tex, const std::vector<vec2>* coff, vec2 loff, vec2 scale, uint delay);
+  sprite_group(const texture2d* tex, strmap<sprite_sequence> seq, std::vector<vec4> off, vec2 sz);
 
 public:
-  const texture2d& tex() const { return *_tex; }
-  const vec2& scale() const { return _scale; }
-  size_t count() const { return _const_offset->size(); }
-  uint delay() const { return _delay; }
+  sprite sprite_at(uint frame) const { return sprite {
+    .texture = _texture,
+    .texture_offset = _offsets[frame%_offsets.size()],
+    .sprite_size = _sprite_size
+  };}
 
-  const vec4& offset() const { return _offset; }
-  vec4 offset_at(size_t i) const { return vec4{_linear_offset, *(_const_offset->begin()+i)}; }
+  const sprite_sequence& sequence_at(std::string_view name) const { return _sequences.at(name.data()); }
 
-public:
-  void set_index(size_t i) { _offset = offset_at(i); }
+  const texture2d& tex() const { return *_texture; }
 
 private:
-  const texture2d* _tex;
-  const std::vector<vec2>* _const_offset;
-  vec2 _linear_offset;
-  vec4 _offset;
-  vec2 _scale;
-  uint _delay;
-};
-
-
-enum class sprite_animation : uint8_t {
-  none = 0,
-  repeat = 1 << 0,
-  forward_anim = 1 << 1,
-};
-
-constexpr sprite_animation operator|(sprite_animation a, sprite_animation b) {
-  return static_cast<sprite_animation>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
-}
-
-constexpr sprite_animation operator&(sprite_animation a, sprite_animation b) {
-  return static_cast<sprite_animation>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
-}
-
-constexpr sprite_animation& operator|=(sprite_animation& a, sprite_animation b) {
-  return a = static_cast<sprite_animation>(a | b);
-}
-
-
-class sprite_animator {
-public:
-  sprite_animator() = default;
-  sprite_animator(uint delay_, sprite_animation animation_);
-
-public:
-  void tick(sprite& sprite);
-  void set_index(sprite& sprite, uint index);
-
-public:
-  uint delay{1};
-  sprite_animation animation{sprite_animation::forward_anim | sprite_animation::repeat};
+  const texture2d* _texture;
+  strmap<sprite_sequence> _sequences;
+  std::vector<vec4> _offsets;
+  vec2 _sprite_size;
 
 private:
-  uint _index_time{0}, _index{0};
+  friend class spritesheet;
 };
 
 
 class spritesheet {
 public:
   spritesheet() = default;
-  spritesheet(texture2d_data tex_data, strmap<sprite_data> sprites, tex_filter filter, tex_wrap wrap);
+  spritesheet(texture2d_data tex, strmap<sprite_group> sprites, tex_filter filter, tex_wrap wrap);
 
 public:
-  sprite at(std::string_view name) const;
-  sprite operator[](std::string_view name) const { return at(name); };
+  sprite sprite_at(std::string_view group_name, uint frame) const {
+    const auto& group = _sprite_groups.at(group_name.data());
+    return group.sprite_at(frame);
+  }
+
+  const sprite_sequence& sequence_at(std::string_view group_name, std::string_view sequence_name) const {
+    const auto& group = _sprite_groups.at(group_name.data());
+    return group.sequence_at(sequence_name);
+  }
+
+  const sprite_group& group_at(std::string_view name) const {
+    return _sprite_groups.at(name.data());
+  }
 
   const texture2d& tex() const { return _texture; }
-  size_t size() const { return _sprites.size(); }
+  size_t size() const { return _sprite_groups.size(); }
+
+public:
+  ~spritesheet() = default;
+  spritesheet(spritesheet&&) noexcept;
+  spritesheet(const spritesheet&) = delete;
+  spritesheet& operator=(spritesheet&&) noexcept;
+  spritesheet& operator=(const spritesheet&) = delete;
+
+private:
+  void update_groups_texture();
 
 private:
   texture2d _texture;
-  strmap<sprite_data> _sprites;
+  strmap<sprite_group> _sprite_groups;
+};
+
+
+class sprite_animator {
+public:
+  sprite_animator() = default;
+  sprite_animator(const sprite_group& sprite_group, std::string_view first_sequence);
+
+public:
+  void enqueue_sequence(std::string_view sequence, uint loops);
+  void enqueue_sequence_frames(std::string_view sequence, uint frames);
+  void soft_switch(std::string_view sequence, uint loops);
+  void hard_switch(std::string_view sequence, uint loops);
+
+public:
+  void tick() {
+    auto& next = _sequences.front();
+    const auto& seq = next.sequence;
+    uint& clock = next.clock;
+    clock++;
+    if (clock >= next.duration && _sequences.size() > 1 && clock%seq.size() == 0) {
+      _sequences.pop();
+    }
+  }
+
+  sprite frame() const { 
+    const auto& next = _sequences.front();
+    const uint frame = next.sequence[next.clock];
+    return _sprite_group->sprite_at(frame);
+  }
+
+private:
+  struct entry {
+    const sprite_sequence& sequence;
+    uint duration, clock{0};
+  };
+
+private:
+  void reset_queue(bool hard);
+  
+private:
+  const sprite_group* _sprite_group;
+  std::queue<entry> _sequences;
+};
+
+
+struct spritesheet_data {
+public:
+  spritesheet_data(std::string_view path);
+
+public:
+  texture2d_data texture;
+  strmap<sprite_group> sprite_groups;
 };
 
 
 inline spritesheet load_spritesheet(std::string_view path, tex_filter filter, tex_wrap wrap) {
   auto data = spritesheet_data{path};
-  return spritesheet{std::move(data.texture), std::move(data.sprites), filter, wrap};
+  return spritesheet{std::move(data.texture), std::move(data.sprite_groups), filter, wrap};
 }
 
 } // namespace ntf::shogle
