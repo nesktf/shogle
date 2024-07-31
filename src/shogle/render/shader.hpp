@@ -83,7 +83,7 @@ void render_set_uniform(shader_uniform location, const mat4& val);
 template<typename T>
 void render_set_uniform(const shader_program& shader, std::string_view name, const T& val) {
   const auto location = shader.uniform_location(name);
-  render_set_uniform(shader, location, val);
+  render_set_uniform(location, val);
 }
 
 inline shader_program load_shader_program(std::string_view vert, std::string_view frag) {

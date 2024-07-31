@@ -56,7 +56,6 @@ void sprite_animator::reset_queue(bool hard) {
 }
 
 void sprite_animator::enqueue_sequence(std::string_view sequence, uint loops) {
-  assert(loops >= 0);
   const auto& seq = _sprite_group->sequence_at(sequence);
   _sequences.push(entry{ .sequence = seq, .duration = loops*static_cast<uint>(seq.size()) });
 }
@@ -114,13 +113,12 @@ static sprite_sequence parse_sequence(uint delay, const json& json_sequence) {
   uint total_frames = json_sequence.size()*delay;
   sprite_sequence sequence(total_frames);
 
-  uint curr_frame{0};
-  for (uint i = 0; i < total_frames; ++i) {
+  for (uint i = 0, curr_frame = 0; i < total_frames; i += delay) {
     uint index = json_sequence[curr_frame];
-    sequence[curr_frame] = index;
-    if ((i+1) % delay == 0) {
-      curr_frame++;
+    for (uint j = 0; j < delay; ++j) {
+      sequence[j+i] = index;
     }
+    curr_frame++;
   }
 
   return sequence;

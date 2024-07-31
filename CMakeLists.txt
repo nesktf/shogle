@@ -23,17 +23,10 @@ set(SHOGLE_VERSION "${SHOGLE_PROJECT_VERSION}-${VERSION_BUILD}-${GIT_TAG_SHORT} 
 
 project(shogle VERSION ${SHOGLE_PROJECT_VERSION} LANGUAGES CXX C)
 
-if (NOT DEFINED SHOGLE_USE_DEFAULT_CONFIG OR SHOGLE_USE_DEFAULT_FLAGS)
-  message(STATUS "ShOGLE: Using default build config")
-  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-  set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -Wall -Wextra -Wpedantic -O0 -g2 -ggdb")
-  set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -Wall -Wextra -Wpedantic -O3")
-endif()
-
-if (NOT DEFINED SHOGLE_RESOURCES_PATH)
-  set(SHOGLE_RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/res")
-  message(STATUS "ShOGLE: Using default resource directory: ${SHOGLE_RESOURCES_PATH}")
-endif()
+# if (NOT DEFINED SHOGLE_RESOURCES_PATH)
+#   set(SHOGLE_RESOURCES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/res")
+#   message(STATUS "ShOGLE: Using default resource directory: ${SHOGLE_RESOURCES_PATH}")
+# endif()
 
 add_subdirectory(src)
 

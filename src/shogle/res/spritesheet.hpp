@@ -22,11 +22,16 @@ public:
   sprite_group(const texture2d* tex, strmap<sprite_sequence> seq, std::vector<vec4> off, vec2 sz);
 
 public:
-  sprite sprite_at(uint frame) const { return sprite {
+  sprite sprite_at(uint index) const { return sprite {
     .texture = _texture,
-    .texture_offset = _offsets[frame%_offsets.size()],
+    .texture_offset = _offsets[index%_offsets.size()],
     .sprite_size = _sprite_size
   };}
+
+  sprite sprite_at(std::string_view sequence, uint frame) const {
+    const auto& seq = sequence_at(sequence);
+    return sprite_at(seq[frame%seq.size()]);
+  }
 
   const sprite_sequence& sequence_at(std::string_view name) const { return _sequences.at(name.data()); }
 
@@ -49,9 +54,14 @@ public:
   spritesheet(texture2d_data tex, strmap<sprite_group> sprites, tex_filter filter, tex_wrap wrap);
 
 public:
-  sprite sprite_at(std::string_view group_name, uint frame) const {
+  sprite sprite_at(std::string_view group_name, uint index) const {
     const auto& group = _sprite_groups.at(group_name.data());
-    return group.sprite_at(frame);
+    return group.sprite_at(index);
+  }
+
+  sprite sprite_at(std::string_view group_name, std::string_view sequence_name, uint frame) const {
+    const auto& seq = sequence_at(group_name, sequence_name);
+    return sprite_at(group_name, seq[frame%seq.size()]);
   }
 
   const sprite_sequence& sequence_at(std::string_view group_name, std::string_view sequence_name) const {
