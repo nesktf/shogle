@@ -4,10 +4,14 @@
 
 #include <glad/glad.h>
 
-namespace ntf::shogle {
+namespace ntf {
 
-bool __render_init(GLADloadproc proc);
-void __render_destroy();
+namespace impl {
+
+bool render_init(GLADloadproc proc);
+void render_destroy();
+
+} // namespace impl
 
 void render_viewport(size_t w, size_t h);
 void render_viewport(size_t w0, size_t h0, size_t w, size_t h);
@@ -46,6 +50,8 @@ enum class depth_fun {
 
 void render_depth_fun(depth_fun fun);
 
+void render_draw_quad();
+void render_draw_cube();
 
 template<typename T>
 concept vertex_type = (ntf::same_as_any<T, vec2, vec3, vec4>);
@@ -73,7 +79,4 @@ using shadatt_coords3d    = shader_attribute<0, vec3>;
 using shadatt_normals3d   = shader_attribute<1, vec3>;
 using shadatt_texcoords3d = shader_attribute<2, vec2>;
 
-void render_draw_quad();
-void render_draw_cube();
-
-} // namespace ntf::shogle
+} // namespace ntf
