@@ -3,7 +3,7 @@
 #include <shogle/core/types.hpp>
 #include <shogle/core/sparse_set.hpp>
 
-namespace ntf::shogle {
+namespace ntf {
 
 template<size_t max_entities>
 class registry {
@@ -93,4 +93,4 @@ private:
   std::vector<entity> _entities;
 };
 
-} // namespace ntf::shogle
+} // namespace ntf
