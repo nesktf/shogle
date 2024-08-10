@@ -60,4 +60,9 @@ inline bool equal(T f1, T f2) {
   return (std::fabs(f1 - f2) <= std::numeric_limits<T>::epsilon() * std::fmax(std::fabs(f1), std::fabs(f2)));
 }
 
+template<typename T>
+T epserr(const T& a, const T& b) {
+  return std::abs((b-a)/b);
+}
+
 } // namespace ntf
