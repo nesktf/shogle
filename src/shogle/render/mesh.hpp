@@ -1,12 +1,12 @@
 #pragma once
 
-#include <shogle/render/render.hpp>
-
 #include <shogle/core/log.hpp>
+
+#include <shogle/render/render.hpp>
 
 namespace ntf {
 
-enum class mesh_buffer_type {
+enum class mesh_buffer {
   static_draw = 0,
   dynamic_draw,
   stream_draw,
@@ -22,15 +22,16 @@ enum class mesh_primitive {
   points,
 };
 
+
 namespace impl {
 
-constexpr GLint enumtogl(mesh_buffer_type type) {
+constexpr GLint enumtogl(mesh_buffer type) {
   switch (type) {
-    case mesh_buffer_type::static_draw:
+    case mesh_buffer::static_draw:
       return GL_STATIC_DRAW;
-    case mesh_buffer_type::dynamic_draw:
+    case mesh_buffer::dynamic_draw:
       return GL_DYNAMIC_DRAW;
-    case mesh_buffer_type::stream_draw:
+    case mesh_buffer::stream_draw:
       return GL_STREAM_DRAW;
   }
   return 0; // shutup gcc
@@ -58,20 +59,23 @@ constexpr GLint enumtogl(mesh_primitive primitive) {
 
 } // namespace impl
 
+
 class mesh {
 public:
   mesh() = default;
-  inline mesh(mesh_primitive primitive, GLuint vao, GLuint vbo, GLuint ebo, 
-              size_t draw_count, size_t att_count);
-  inline mesh(mesh_primitive primitive, GLuint vao, GLuint vbo, 
-              size_t draw_count, size_t att_count);
+  mesh(mesh_primitive primitive, GLuint vao, GLuint vbo, GLuint ebo, size_t draw_count, size_t att_count) :
+    _vao(vao), _vbo(vbo), _ebo(ebo),
+    _draw_count(draw_count), _attrib_count(att_count), _primitive(primitive) {}
+  mesh(mesh_primitive primitive, GLuint vao, GLuint vbo, size_t draw_count, size_t att_count) :
+    _vao(vao) , _vbo(vbo),
+    _draw_count(draw_count), _attrib_count(att_count), _primitive(primitive) {}
 
   template<typename T, is_shader_attribute... attribs>
-  mesh(mesh_primitive primitive, T* vertices, size_t vert_sz, mesh_buffer_type vert_buff, attribs... attrib);
+  mesh(mesh_primitive primitive, T* vertices, size_t vert_sz, mesh_buffer vert_buff, attribs... attrib);
 
   template<typename T, is_shader_attribute... attribs>
-  mesh(mesh_primitive primitive, T* vertices, size_t vert_sz, mesh_buffer_type vert_buff,
-       uint* indices, size_t ind_sz, mesh_buffer_type ind_buff, attribs... attrib);
+  mesh(mesh_primitive primitive, T* vertices, size_t vert_sz, mesh_buffer vert_buff,
+       uint* indices, size_t ind_sz, mesh_buffer ind_buff, attribs... attrib);
 
 public:
   GLuint& vao() { return _vao; } // Not const
@@ -82,13 +86,6 @@ public:
   bool has_indices() const { return _ebo != 0; }
   bool valid() const { return _vao != 0; }
 
-public:
-  inline ~mesh();
-  inline mesh(mesh&&) noexcept;
-  mesh(const mesh&) = delete;
-  inline mesh& operator=(mesh&&) noexcept;
-  mesh& operator=(const mesh&) = delete;
-
 private:
   template<size_t total_size, size_t next_stride = 0, typename curr_attrib, typename... attribs>
   void setup_vertex_attrib(curr_attrib, attribs... attrib);
@@ -96,7 +93,8 @@ private:
   template<size_t, size_t>
   void setup_vertex_attrib() {}
 
-  inline void unload_mesh();
+  void unload_mesh();
+  void invalidate();
 
 private: 
   GLuint _vao{}, _vbo{}, _ebo{};
@@ -105,66 +103,19 @@ private:
 
 private:
   friend void render_draw_mesh(const mesh& mesh);
+
+public:
+  ~mesh() { unload_mesh(); }
+  mesh(mesh&&) noexcept;
+  mesh(const mesh&) = delete;
+  mesh& operator=(mesh&&) noexcept;
+  mesh& operator=(const mesh&) = delete;
 };
 
-mesh::mesh(mesh_primitive primitive, GLuint vao, GLuint vbo, GLuint ebo, size_t draw_count, size_t att_count) :
-  _vao(vao), _vbo(vbo), _ebo(ebo),
-  _draw_count(draw_count), _attrib_count(att_count), _primitive(primitive) {}
-
-mesh::mesh(mesh_primitive primitive, GLuint vao, GLuint vbo, size_t draw_count, size_t att_count) :
-  _vao(vao) , _vbo(vbo),
-  _draw_count(draw_count), _attrib_count(att_count), _primitive(primitive) {}
-
-void mesh::unload_mesh() {
-  log::verbose("[shogle::mesh] Mesh Destroyed (id: {})", _vao);
-  glBindVertexArray(_vao);
-  for (size_t i = 0; i < _attrib_count; ++i) {
-    glDisableVertexAttribArray(i);
-  }
-  glBindVertexArray(0);
-
-  glDeleteVertexArrays(1, &_vao);
-  glDeleteBuffers(1, &_vbo);
-  if (_ebo) {
-    glDeleteBuffers(1, &_ebo);
-  }
-}
-
-mesh::~mesh() {
-  if (_vao) {
-    unload_mesh();
-  }
-}
-
-mesh::mesh(mesh&& m) noexcept :
-  _vao(std::move(m._vao)), _vbo(std::move(m._vbo)), _ebo(std::move(m._ebo)),
-  _draw_count(std::move(m._draw_count)), _attrib_count(std::move(m._attrib_count)) { 
-  m._vao = 0;
-  m._vbo = 0;
-  m._ebo = 0;
-}
-
-mesh& mesh::operator=(mesh&& m) noexcept {
-  if (_vao) {
-    unload_mesh();
-  }
-
-  _vao = std::move(m._vao);
-  _vbo = std::move(m._vbo);
-  _ebo = std::move(m._ebo);
-  _draw_count = std::move(m._draw_count);
-  _attrib_count = std::move(m._attrib_count);
-
-  m._vao = 0;
-  m._vbo = 0;
-  m._ebo = 0;
-
-  return *this;
-}
 
 template<typename T, is_shader_attribute... attribs>
 mesh::mesh(mesh_primitive primitive, T* vertices, size_t vert_sz, 
-           mesh_buffer_type vert_buff, attribs... attrib) : _primitive(primitive) {
+           mesh_buffer vert_buff, attribs... attrib) : _primitive(primitive) {
   static_assert(sizeof...(attribs) > 0, "Invalid attributes");
   glGenVertexArrays(1, &_vao);
   glGenBuffers(1, &_vbo);
@@ -180,12 +131,12 @@ mesh::mesh(mesh_primitive primitive, T* vertices, size_t vert_sz,
 
   glBindVertexArray(0);
 
-  log::verbose("[shogle::mesh] Mesh created (id: {})", _vao);
+  log::verbose("[ntf::mesh] Mesh created (id: {})", _vao);
 }
 
 template<typename T, is_shader_attribute... attribs>
-mesh::mesh(mesh_primitive primitive, T* vertices, size_t vert_sz, mesh_buffer_type vert_buff,
-           uint* indices, size_t ind_sz, mesh_buffer_type ind_buff, attribs... attrib) : _primitive(primitive) {
+mesh::mesh(mesh_primitive primitive, T* vertices, size_t vert_sz, mesh_buffer vert_buff,
+           uint* indices, size_t ind_sz, mesh_buffer ind_buff, attribs... attrib) : _primitive(primitive) {
   static_assert(sizeof...(attribs) > 0, "Invalid attributes");
   glGenVertexArrays(1, &_vao);
   glGenBuffers(1, &_vbo);
@@ -204,7 +155,7 @@ mesh::mesh(mesh_primitive primitive, T* vertices, size_t vert_sz, mesh_buffer_ty
   setup_vertex_attrib<stride>(attrib...);
 
   glBindVertexArray(0);
-  log::verbose("[shogle::mesh] Mesh created (id: {})", _vao);
+  log::verbose("[ntf::mesh] Mesh created (id: {})", _vao);
 }
 
 template<size_t total_size, size_t next_stride, typename curr_attrib, typename... attribs>
@@ -217,6 +168,50 @@ void mesh::setup_vertex_attrib(curr_attrib, attribs... attrib) {
 
   setup_vertex_attrib<total_size,curr_stride+curr_attrib::stride>(attrib...);
 }
+
+inline void mesh::unload_mesh() {
+  if (_vao) {
+    log::verbose("[ntf::mesh] Mesh Destroyed (id: {})", _vao);
+    glBindVertexArray(_vao);
+    for (size_t i = 0; i < _attrib_count; ++i) {
+      glDisableVertexAttribArray(i); // ???
+    }
+    glBindVertexArray(0);
+
+    glDeleteVertexArrays(1, &_vao);
+    glDeleteBuffers(1, &_vbo);
+    if (_ebo) {
+      glDeleteBuffers(1, &_ebo);
+    }
+  }
+}
+
+inline void mesh::invalidate() {
+  _vao = 0;
+  _vbo = 0;
+  _ebo = 0;
+}
+
+inline mesh::mesh(mesh&& m) noexcept :
+  _vao(std::move(m._vao)), _vbo(std::move(m._vbo)), _ebo(std::move(m._ebo)),
+  _draw_count(std::move(m._draw_count)), _attrib_count(std::move(m._attrib_count)),
+  _primitive(std::move(m._primitive)) { m.invalidate(); }
+
+inline mesh& mesh::operator=(mesh&& m) noexcept {
+  unload_mesh();
+
+  _vao = std::move(m._vao);
+  _vbo = std::move(m._vbo);
+  _ebo = std::move(m._ebo);
+  _draw_count = std::move(m._draw_count);
+  _attrib_count = std::move(m._attrib_count);
+  _primitive = std::move(m._primitive);
+
+  m.invalidate();
+
+  return *this;
+}
+
 
 inline void render_draw_mesh(const mesh& mesh) {
   assert(mesh.valid() && "Mesh has no data");

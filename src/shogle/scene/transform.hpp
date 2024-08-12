@@ -233,5 +233,5 @@ inline auto transf_impl<2, T>::set_rot(float rot) -> T& {
   return static_cast<T&>(*this);
 }
 
-} // namespace ntf::shogle
+} // namespace ntf
 

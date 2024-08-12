@@ -1,9 +1,8 @@
 #pragma once
 
-#include <shogle/render/texture.hpp>
-
-#include <shogle/core/log.hpp>
 #include <shogle/core/error.hpp>
+
+#include <shogle/render/texture.hpp>
 
 #define SHOGLE_DEFAULT_FRAMEBUFFER 0
 
@@ -12,8 +11,9 @@ namespace ntf {
 class framebuffer {
 public:
   framebuffer() = default;
-  inline framebuffer(GLuint fbo, GLuint rbo, GLuint texture, size_t w, size_t h);
-  inline framebuffer(size_t w, size_t h);
+  framebuffer(GLuint fbo, GLuint rbo, GLuint texture, size_t w, size_t h) :
+    _fbo(fbo), _rbo(rbo), _texture(texture, ivec2{w, h}) {};
+  framebuffer(size_t w, size_t h);
 
 public:
   template<typename F>
@@ -34,14 +34,14 @@ public:
   bool valid() const { return _fbo != 0 && _fbo != 0 && _texture.valid(); }
 
 public:
-  inline ~framebuffer();
-  inline framebuffer(framebuffer&&) noexcept;
+  ~framebuffer();
+  framebuffer(framebuffer&&) noexcept;
   framebuffer(const framebuffer&) = delete;
-  inline framebuffer& operator=(framebuffer&&) noexcept;
+  framebuffer& operator=(framebuffer&&) noexcept;
   framebuffer& operator=(const framebuffer&) = delete;
 
 private:
-  inline void unload_framebuffer();
+  void unload_framebuffer();
 
 private:
   GLuint _fbo{}, _rbo{};
@@ -52,10 +52,9 @@ private:
   friend void render_bind_sampler(const framebuffer& fb, size_t sampler);
 };
 
-framebuffer::framebuffer(GLuint fbo, GLuint rbo, GLuint texture, size_t w, size_t h) : 
-  _fbo(fbo), _rbo(rbo), _texture(texture, w, h) {}
 
-framebuffer::framebuffer(size_t w, size_t h) : _texture(nullptr, w, h, tex_format::rgb), _dim(w, h) {
+inline framebuffer::framebuffer(size_t w, size_t h) : 
+  _texture(nullptr, ivec2{w, h}, tex_format::rgb), _dim(w, h) {
   glGenFramebuffers(1, &_fbo);
   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
 
@@ -69,22 +68,22 @@ framebuffer::framebuffer(size_t w, size_t h) : _texture(nullptr, w, h, tex_forma
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo);
 
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-    throw ntf::error{"[shogle::framebuffer] Incomplete framebuffer"};
+    throw ntf::error{"[ntf::framebuffer] Incomplete framebuffer"};
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-  log::verbose("[shogle::framebuffer] Framebuffer created (id: {}, tex: {})", _fbo, _texture.id());
+  log::verbose("[ntf::framebuffer] Framebuffer created (id: {}, tex: {})", _fbo, _texture.id());
 }
 
-framebuffer::framebuffer(framebuffer&& f) noexcept :
+inline framebuffer::framebuffer(framebuffer&& f) noexcept :
   _fbo(std::move(f._fbo)), _rbo(std::move(f._rbo)), 
   _texture(std::move(f._texture)), _dim(std::move(f._dim)) {
   f._fbo = 0;
   f._rbo = 0;
 }
 
-framebuffer& framebuffer::operator=(framebuffer&& f) noexcept {
+inline framebuffer& framebuffer::operator=(framebuffer&& f) noexcept {
   if (_fbo && _rbo) {
     unload_framebuffer();
   }
@@ -100,7 +99,7 @@ framebuffer& framebuffer::operator=(framebuffer&& f) noexcept {
   return *this;
 }
 
-framebuffer::~framebuffer() {
+inline framebuffer::~framebuffer() {
   if (_fbo && _rbo) {
     unload_framebuffer();
   }
@@ -108,7 +107,7 @@ framebuffer::~framebuffer() {
 
 
 inline void framebuffer::unload_framebuffer() {
-  log::verbose("[shogle::framebuffer] Framebuffer destroyed (id: {}, tex: {})", _fbo, _texture.id());
+  log::verbose("[ntf::framebuffer] Framebuffer destroyed (id: {}, tex: {})", _fbo, _texture.id());
   glDeleteFramebuffers(1, &_fbo);
   glDeleteBuffers(1, &_rbo);
 }

@@ -1,157 +1,155 @@
 #pragma once
-#include <shogle/core/threadpool.hpp>
-#include <shogle/core/types.hpp>
 
-#include <tuple>
+#include <shogle/core/types.hpp>
+#include <shogle/core/threadpool.hpp>
 
 namespace ntf {
 
-// BROKEN for textures
-// TODO: don't use data_t?
+using resource_id = uint32_t;
 
-class async_loader {
-public:
-  using reqfun_t = std::function<void()>;
-
+class async_data_loader {
 private:
-  template<typename T>
-  using loadfun_t = std::function<void(T)>;
+  struct data_callback_base {
+    virtual ~data_callback_base() = default;
+    virtual void operator()() = 0;
+  };
 
-  template<typename T>
-  struct load_wrapper { // to be used as a reqfun_t
-    loadfun_t<T> _on_load;
-    T* _data; // has to be in the heap because of std::function
+  template<typename Data, typename Callback>
+  struct data_callback : public data_callback_base {
+    data_callback(Data data, Callback callback) :
+      _data(std::move(data)), _callback(std::move(callback)) {}
 
-    template<typename... Args>
-    load_wrapper(loadfun_t<T> fun, Args&&... args) :
-      _on_load(std::move(fun)),
-      _data(new T{std::forward<Args>(args)...}) {}
+    void operator()() override { _callback(std::move(_data)); }
 
-    void operator()(void) {
-      _on_load(std::move(*_data));
-      // when the callback fires we no longer need the memory
-      delete _data;
-    }
+    Data _data;
+    Callback _callback;
   };
 
 public:
-  async_loader() = default;
-  async_loader(size_t n_threads) :
-    _thpool(n_threads) {}
+  void do_requests();
 
-public:
-  inline void do_requests();
-
-public:
-  template<typename T, typename... Args>
-  void add_request(loadfun_t<T> on_load, Args&&... load_args);
+  template<typename Data, typename Callback, typename... Args>
+  void enqueue(Callback callback, Args&&... args);
 
 private:
-  std::mutex _req_mtx;
-  std::queue<reqfun_t> _req;
-  thread_pool _thpool;
+  std::queue<data_callback_base*> _callbacks;
+  std::mutex _callback_mutex;
+  thread_pool _threads;
 };
 
 
-template<typename... pool_types>
-class pool {
-public:
-  using id_t = std::string;
-  using load_callback = async_loader::reqfun_t;
+namespace impl {
 
-  struct path_info {
-    id_t id;
-    path_t path;
-  };
-
-private:
-  template<typename T>
-  using map_t = std::unordered_map<id_t, T>;
-
-  using pool_t = std::tuple<map_t<pool_types>...>;
-
-public:
-  pool() = default;
-
-public:
-  template<typename T>
-  T* get(id_t id);
-
-  template<typename T>
-  void clear();
-
-  template<typename T>
-  void direct_request(std::initializer_list<path_info> list);
-
-  template<typename T>
-  void async_request(async_loader& loader, load_callback on_load, std::initializer_list<path_info> list);
-
-private:
-  pool_t _pool;
-  std::vector<std::pair<size_t, size_t>> _load_counters;
+template<typename T, typename Data, typename Loader>
+concept check_loader_return = requires(Data data, Loader loader) {
+  // TODO: This thing doesn't check operator() properly
+  { loader(data) } -> std::convertible_to<T>;
 };
 
-inline void async_loader::do_requests() {
-  while (!_req.empty()) {
-    auto req_callback = std::move(_req.front());
-    _req.pop();
-    req_callback();
-  }
-}
+template<typename T, typename Data>
+concept async_resource_data = requires(Data data) {
+  typename Data::loader;
+  // requires check_loader_return<T, Data, typename Data::loader>;
+};
 
-template<typename T, typename... Args>
-void async_loader::add_request(loadfun_t<T> on_load, Args&&... load_args) {
-  // thank you based c++20
-  _thpool.enqueue([this, on_load=std::move(on_load), ...args=std::forward<Args>(load_args)]() {
-    load_wrapper<T> loader { std::move(on_load), std::forward<Args>(args)...};
-    std::unique_lock lock{_req_mtx};
-    _req.emplace(std::move(loader));
+struct dummy_data_type {};
+template<typename T, typename Data>
+concept resource_data_type = std::same_as<Data, dummy_data_type> || async_resource_data<T, Data>;
+
+
+template<typename T>
+class resource_pool {
+public:
+  using resource_id = uint32_t;
+  using resource_type = T;
+
+public:
+  resource_pool() = default;
+
+public:
+  template<typename... Args>
+  resource_id emplace(std::string name, Args&&... args);
+
+public:
+  void clear() { _resources.clear(); _resource_names.clear(); }
+
+public:
+  resource_id id(std::string_view name) const { return _resource_names.at(name.data()); }
+
+  T& at(resource_id id) { return _resources[id-1]; }
+  const T& at(resource_id id) const { return _resources[id-1]; }
+
+  T& at(std::string_view name) { return at(id(name)); }
+  const T& at(std::string_view name) const { return at(id(name)); }
+
+protected:
+  strmap<resource_id> _resource_names;
+  std::vector<T> _resources;
+};
+
+template<typename T, typename Data>
+class async_pool : public resource_pool<T> {
+public:
+  using resource_data = Data;
+  using resource_loader = typename Data::loader;
+
+private:
+  using callback_fun = std::function<void(typename async_pool::resource_id)>;
+
+public:
+  template<typename... Args>
+  void enqueue(std::string name, async_data_loader& loader, callback_fun callback, Args&&... args);
+};
+
+} // namespace impl
+
+
+template<typename Data, typename Callback, typename... Args>
+void async_data_loader::enqueue(Callback callback, Args&&... args) {
+  _threads.enqueue([this, callback=std::move(callback), ...args=std::forward<Args>(args)]() {
+    Data data = loader(std::forward<Args>(args)...);
+
+    std::unique_lock lock{_callback_mutex};
+    _callbacks.emplace(new data_callback<Data, Callback>{std::move(data), std::move(callback)});
   });
 }
 
-template<typename... pool_types>
-template<typename T>
-T* pool<pool_types...>::get(id_t id) {
-  return &std::get<map_t<T>>(_pool).at(id);
-}
-
-template<typename... pool_types>
-template<typename T>
-void pool<pool_types...>::clear() {
-  std::get<map_t<T>>(_pool).clear();
-}
-
-template<typename... pool_types>
-template<typename T>
-void pool<pool_types...>::direct_request(std::initializer_list<path_info> list) {
-  using data_t = T::data_t;
-  for (const auto& info : list) {
-    std::get<map_t<T>>(_pool).emplace(
-      std::make_pair(info.id, data_t{info.path})
-    );
+inline void async_data_loader::do_requests() {
+  std::unique_lock lock{_callback_mutex};
+  while(!_callbacks.empty()) {
+    auto callback = std::move(_callbacks.front());
+    _callbacks.pop();
+    (*callback)();
+    delete callback;
   }
 }
 
-template<typename... pool_types>
 template<typename T>
-void pool<pool_types...>::async_request(async_loader& loader, load_callback on_load, std::initializer_list<path_info> list) {
-  using data_t = T::data_t;
+template<typename... Args>
+auto impl::resource_pool<T>::emplace(std::string name, Args&&... args) -> resource_id {
+  _resources.emplace_back(std::forward<Args>(args)...);
 
-  _load_counters.push_back(std::make_pair(list.size(), 0));
-  auto* c_it = &_load_counters.back();
+  resource_id id = _resources.size();
+  _resource_names.emplace(std::make_pair(std::move(name), id));
 
-  for (const auto& info : list) {
-    auto id = info.id;
-    loader.add_request<data_t>([this, c_it, id=std::move(id), on_load](data_t data) {
-      size_t res_total = c_it->first;
-      size_t& res_c = c_it->second;
-
-      std::get<map_t<T>>(_pool).emplace(
-        std::make_pair(std::move(id), std::move(data))
-      );
-      if (++res_c == res_total) { on_load(); }
-    }, info.path);
-  }
+  return id;
 }
+
+template<typename T, typename Data>
+template<typename... Args>
+void impl::async_pool<T, Data>::enqueue(std::string name, async_data_loader& loader, 
+                                        callback_fun callback, Args&&... args) {
+  loader.enqueue<resource_data>([this, name=std::move(name), callback](resource_data data) {
+    resource_loader loader;
+    auto id = this->emplace(std::move(name), loader(std::move(data)));
+    callback(id);
+  }, std::forward<Args>(args)...);
+}
+
+
+template<typename T, typename Data = impl::dummy_data_type>
+requires(impl::resource_data_type<T, Data>)
+using resource_pool = 
+  std::conditional_t<impl::async_resource_data<T, Data>, impl::async_pool<T, Data>, impl::resource_pool<T>>;
 
 } // namespace ntf

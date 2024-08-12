@@ -6,7 +6,7 @@
 #include <functional>
 #include <memory>
 
-namespace ntf::shogle {
+namespace ntf {
 
 class tasker {
 public:
@@ -99,4 +99,4 @@ private:
   std::vector<uptr<task_type>> _new_tasks;
 };
 
-} // namespace ntf::shogle
+} // namespace ntf

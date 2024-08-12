@@ -1,9 +1,9 @@
 #pragma once
 
-#include <shogle/render/render.hpp>
-
 #include <shogle/core/types.hpp>
 #include <shogle/core/log.hpp>
+
+#include <shogle/render/render.hpp>
 
 #include <map>
 
@@ -20,13 +20,13 @@ struct font_glyph {
 class font {
 public:
   font() = default;
-  inline font(std::map<uint8_t, std::pair<uint8_t*, font_glyph>> chara);
+  font(std::map<uint8_t, std::pair<uint8_t*, font_glyph>> chara);
 
 public:
   size_t glyph_count() const { return _glyph_tex.size(); }
 
 public:
-  inline ~font();
+  ~font();
   font(font&&) = default;
   font(const font&) = delete;
   font& operator=(font&&) = default;
@@ -39,15 +39,8 @@ private:
   friend void render_draw_text(const font& font, vec2 pos, float scale, std::string_view text);
 };
 
-void render_draw_text(const font& font, vec2 pos, float scale, std::string_view text);
 
-template<typename... Args>
-void render_draw_text(const font& f, vec2 p, float s, fmt::format_string<Args...> fmt, Args&&... args) {
-  std::string str = fmt::format(fmt, std::forward<Args>(args)...);
-  render_draw_text(f, p, s, str);
-}
-
-font::font(std::map<uint8_t, std::pair<uint8_t*, font_glyph>> chara) {
+inline font::font(std::map<uint8_t, std::pair<uint8_t*, font_glyph>> chara) {
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   for (auto& [c, pair] : chara) {
     auto& [buff, ch] = pair;
@@ -67,17 +60,26 @@ font::font(std::map<uint8_t, std::pair<uint8_t*, font_glyph>> chara) {
   }
   glBindTexture(GL_TEXTURE_2D, 0);
 
-  log::verbose("[shogle::font] Loaded {} glyphs", chara.size());
+  log::verbose("[ntf::font] Loaded {} glyphs", chara.size());
 }
 
-font::~font() {
+inline font::~font() {
   if (glyph_count() != 0) { // May be empty
     for (auto& [_, pair] : _glyph_tex) {
       auto& [tex, ch] = pair;
       glDeleteTextures(1, &tex);
     }
-    log::verbose("[shogle::font] Font unloaded");
+    log::verbose("[ntf::font] Font unloaded");
   }
+}
+
+
+void render_draw_text(const font& font, vec2 pos, float scale, std::string_view text);
+
+template<typename... Args>
+void render_draw_text(const font& f, vec2 p, float s, fmt::format_string<Args...> fmt, Args&&... args) {
+  std::string str = fmt::format(fmt, std::forward<Args>(args)...);
+  render_draw_text(f, p, s, str);
 }
 
 } // namespace ntf

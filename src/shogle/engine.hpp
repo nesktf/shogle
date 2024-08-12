@@ -58,7 +58,7 @@ void engine_main_loop(uint ups, RFunc&& render, FUFunc&& fixed_update) {
   using duration = decltype(clock::duration{} + fixed_elapsed_time);
   using time_point = std::chrono::time_point<clock, duration>;
 
-  log::debug("[shogle::engine] Starting fixed main loop at {} ups", ups);
+  log::debug("[ntf::engine] Starting fixed main loop at {} ups", ups);
 
   time_point last_time = clock::now();
   duration lag = 0s;
@@ -91,7 +91,7 @@ void engine_main_loop(uint ups, RFunc&& render, FUFunc&& fixed_update) {
     glfwSwapBuffers(handle);
   }
 
-  log::debug("[shogle::engine] Main loop exited");
+  log::debug("[ntf::engine] Main loop exited");
 }
 
 template<renderfunc RFunc, updatefunc UFunc>
@@ -103,7 +103,7 @@ void engine_main_loop(RFunc&& render, UFunc&& update) {
   using duration = clock::duration;
   using time_point = std::chrono::time_point<clock, duration>;
 
-  log::debug("[shogle::engine] Starting non-fixed main loop");
+  log::debug("[ntf::engine] Starting non-fixed main loop");
 
   time_point last_time = clock::now();
   while (!glfwWindowShouldClose(handle)) {
@@ -129,7 +129,7 @@ void engine_main_loop(RFunc&& render, UFunc&& update) {
     glfwSwapBuffers(handle);
   }
 
-  log::debug("[shogle::engine] Main loop exited");
+  log::debug("[ntf::engine] Main loop exited");
 }
 
 } // namespace ntf

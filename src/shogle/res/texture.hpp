@@ -1,8 +1,8 @@
 #pragma once
 
-#include <shogle/render/texture.hpp>
-
 #include <shogle/core/error.hpp>
+
+#include <shogle/render/texture.hpp>
 
 #include <shogle/res/util.hpp>
 
@@ -11,6 +11,8 @@
 #include <stb/stb_image.h>
 
 namespace ntf {
+
+struct spritesheet_data;
 
 namespace impl {
 
@@ -25,155 +27,149 @@ constexpr tex_format toenum(int channels) {
   }
 }
 
-} // namespace impl
 
-struct texture2d_data {
+template<size_t faces>
+struct texture_data {
 public:
-  inline texture2d_data(std::string_view path_);
+  using data_type = typename tex_helper<faces>::data_type;
+  using dim_type = typename tex_helper<faces>::dim_type;
+  using texture_type = texture<faces>;
+
+  struct loader {
+    texture_type operator()(texture_data data) {
+      return impl::load_texture<faces>(data.pixels, data.dim, data.format, data.filter, data.wrap);
+    }
+  };
 
 public:
-  uint8_t* pixels{};
-  size_t width{}, height{};
+  texture_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_);
+
+public:
+  data_type pixels{};
+  dim_type dim{};
   tex_format format{};
-
-public:
-  inline ~texture2d_data();
-  inline texture2d_data(texture2d_data&&) noexcept;
-  texture2d_data(const texture2d_data&) = delete;
-  inline texture2d_data& operator=(texture2d_data&&) noexcept;
-  texture2d_data& operator=(const texture2d_data&) = delete;
+  tex_filter filter{};
+  tex_wrap wrap{};
 
 private:
-  friend struct spritesheet_data;
-  texture2d_data() = default;
+  void unload_pixels();
+  void invalidate_pixels();
+  texture_data() = default;
+
+private:
+  friend struct ntf::spritesheet_data;
+
+public:
+  ~texture_data();
+  texture_data(texture_data&&) noexcept;
+  texture_data(const texture_data&) = delete;
+  texture_data& operator=(texture_data&&) noexcept;
+  texture_data& operator=(const texture_data&) = delete;
 };
 
-struct cubemap_data {
-public:
-  inline cubemap_data(std::string_view path_);
 
-public:
-  cmappixels pixels{};
-  size_t dim{};
-  tex_format format{};
-
-public:
-  inline ~cubemap_data();
-  inline cubemap_data(cubemap_data&& c) noexcept;
-  cubemap_data(const cubemap_data&) = delete;
-  inline cubemap_data& operator=(cubemap_data&&) noexcept;
-  cubemap_data& operator=(const cubemap_data&) = delete;
-};
-
-inline texture2d load_texture(std::string_view path, tex_filter filter, tex_wrap wrap) {
-  auto data = texture2d_data{path};
-  return load_texture(data.pixels, data.width, data.height, data.format, filter, wrap);
-}
-
-inline cubemap load_cubemap(std::string_view path, tex_filter filter, tex_wrap wrap) {
-  auto data = cubemap_data{path};
-  return load_cubemap(data.pixels, data.dim, data.format, filter, wrap);
-}
-
-texture2d_data::texture2d_data(std::string_view path_) {
-  int w, h, ch;
-  pixels = stbi_load(path_.data(), &w, &h, &ch, 0);
-  if (!pixels) {
-    throw ntf::error{"[shogle::texture_data] Error loading texture: {}", path_};
-  }
-
-  width = static_cast<size_t>(w);
-  height = static_cast<size_t>(h);
-  format = impl::toenum(ch);
-}
-
-texture2d_data::~texture2d_data() {
-  if (pixels) {
-    stbi_image_free(pixels);
-  }
-}
-
-texture2d_data::texture2d_data(texture2d_data&& t) noexcept :
-  pixels(std::move(t.pixels)),
-  width(std::move(t.width)), height(std::move(t.height)),
-  format(std::move(t.format)) {
-  t.pixels = nullptr;
-}
-
-texture2d_data& texture2d_data::operator=(texture2d_data&& t) noexcept {
-  if (pixels) {
-    stbi_image_free(pixels);
-  }
-
-  pixels = std::move(t.pixels);
-  width = std::move(t.width);
-  height = std::move(t.height);
-  format = std::move(t.format);
-
-  t.pixels = nullptr;
-
-  return *this;
-}
-
-cubemap_data::cubemap_data(std::string_view path_) {
+template<size_t faces>
+texture_data<faces>::texture_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_) :
+  filter(filter_), wrap(wrap_) {
   using json = nlohmann::json;
+
   std::ifstream f{path_.data()};
   json data = json::parse(f);
-
   auto content = data["content"];
-  assert(content.size() == SHOGLE_CUBEMAP_FACES && "Invalid json data");
+  assert(content.size() == faces && "Invalid json data");
 
   int w, h, ch;
   for (size_t i = 0; i < content.size(); ++i) {
     auto& curr = content[i];
-
-    std::string path = file_dir(path_.data())+"/"+curr["path"].template get<std::string>();
+    std::string path = file_dir(path_.data())+"/"+curr["path"].get<std::string>();
     pixels[i] = stbi_load(path.c_str(), &w, &h, &ch, 0);
-
     if (!pixels[i]) {
-      throw ntf::error{"[shogle::cubemap_data] Error loading cubemap texture: {}, n: {}", path, i};
+      throw ntf::error{"[ntf::texture_data] Error loading cubemap texture: {}, n: {}", path, i};
     }
   }
 
-  // leeches off the last texture
-  // all of them >should< have the same format
   dim = static_cast<size_t>(w);
   format = impl::toenum(ch);
 }
 
-cubemap_data::~cubemap_data() {
-  for (auto& curr : pixels) {
-    if (curr) {
-      stbi_image_free(curr);
+template<>
+inline texture_data<1u>::texture_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_) :
+  filter(filter_), wrap(wrap_) {
+  int w, h, ch;
+  pixels = stbi_load(path_.data(), &w, &h, &ch, 0);
+  if (!pixels) {
+    throw ntf::error{"[ntf::texture_data] Error loading texture: {}", path_};
+  }
+  dim = ivec2{w, h};
+  format = impl::toenum(ch);
+}
+
+template<size_t faces>
+void texture_data<faces>::unload_pixels() {
+  for (auto& face : pixels) {
+    if (face) {
+      stbi_image_free(face);
     }
   }
 }
 
-cubemap_data::cubemap_data(cubemap_data&& c) noexcept :
-  pixels(std::move(c.pixels)),
-  dim(std::move(c.dim)),
-  format(std::move(c.format)) {
-  for (auto& curr : c.pixels) {
-    curr = nullptr;
+template<>
+inline void texture_data<1u>::unload_pixels() {
+  if (pixels) {
+    stbi_image_free(pixels);
   }
 }
 
-cubemap_data& cubemap_data::operator=(cubemap_data&& c) noexcept {
-  for (auto& curr : pixels) {
-    if (curr) {
-      stbi_image_free(curr);
-    }
+template<size_t faces>
+void texture_data<faces>::invalidate_pixels() {
+  for (auto& face : pixels) {
+    face = nullptr;
   }
+}
 
-  pixels = std::move(c.pixels);
-  dim = std::move(c.dim);
-  format = std::move(c.format);
+template<>
+inline void texture_data<1u>::invalidate_pixels() {
+  pixels = nullptr;
+}
 
-  for (auto& curr : c.pixels) {
-    curr = nullptr;
-  }
+template<size_t faces>
+texture_data<faces>::~texture_data() { unload_pixels(); }
+
+template<size_t faces>
+texture_data<faces>::texture_data(texture_data&& d) noexcept :
+  pixels(std::move(d.pixels)), dim(std::move(d.dim)), format(std::move(d.format)),
+  filter(std::move(d.filter)), wrap(std::move(d.wrap)) { d.invalidate_pixels(); }
+
+template<size_t faces>
+auto texture_data<faces>::operator=(texture_data&& d) noexcept -> texture_data& {
+  unload_pixels();
+
+  pixels = std::move(d.pixels);
+  dim = std::move(d.dim);
+  format = std::move(d.format);
+  filter = std::move(d.filter);
+  wrap = std::move(d.wrap);
+
+  d.invalidate_pixels();
 
   return *this;
+}
+
+} // namespace impl
+
+
+using texture2d_data = impl::texture_data<1u>;
+using cubemap_data = impl::texture_data<SHOGLE_CUBEMAP_FACES>;
+
+
+inline texture2d load_texture(std::string_view path, tex_filter filter, tex_wrap wrap) {
+  texture2d_data::loader loader;
+  return loader(texture2d_data{path, filter, wrap});
+}
+
+inline cubemap load_cubemap(std::string_view path, tex_filter filter, tex_wrap wrap) {
+  cubemap_data::loader loader;
+  return loader(cubemap_data{path, filter, wrap});
 }
 
 } // namespace ntf
