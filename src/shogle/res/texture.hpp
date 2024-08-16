@@ -12,7 +12,7 @@
 
 namespace ntf {
 
-struct spritesheet_data;
+struct texture_atlas_data;
 
 namespace impl {
 
@@ -57,10 +57,10 @@ private:
   texture_data() = default;
 
 private:
-  friend struct ntf::spritesheet_data;
+  friend struct ntf::texture_atlas_data;
 
 public:
-  ~texture_data();
+  ~texture_data() { unload_pixels(); };
   texture_data(texture_data&&) noexcept;
   texture_data(const texture_data&) = delete;
   texture_data& operator=(texture_data&&) noexcept;
@@ -131,9 +131,6 @@ template<>
 inline void texture_data<1u>::invalidate_pixels() {
   pixels = nullptr;
 }
-
-template<size_t faces>
-texture_data<faces>::~texture_data() { unload_pixels(); }
 
 template<size_t faces>
 texture_data<faces>::texture_data(texture_data&& d) noexcept :

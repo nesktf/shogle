@@ -23,7 +23,16 @@ public:
   font(std::map<uint8_t, std::pair<uint8_t*, font_glyph>> chara);
 
 public:
+  ivec2 len(std::string_view text);
+
+public:
   size_t glyph_count() const { return _glyph_tex.size(); }
+
+private:
+  std::map<uint8_t, std::pair<GLuint, font_glyph>> _glyph_tex;
+
+private:
+  friend void render_draw_text(const font& font, vec2 pos, float scale, std::string_view text);
 
 public:
   ~font();
@@ -31,12 +40,6 @@ public:
   font(const font&) = delete;
   font& operator=(font&&) = default;
   font& operator=(const font&) = delete;
-
-private:
-  std::map<uint8_t, std::pair<GLuint, font_glyph>> _glyph_tex;
-
-private:
-  friend void render_draw_text(const font& font, vec2 pos, float scale, std::string_view text);
 };
 
 
@@ -61,6 +64,18 @@ inline font::font(std::map<uint8_t, std::pair<uint8_t*, font_glyph>> chara) {
   glBindTexture(GL_TEXTURE_2D, 0);
 
   log::verbose("[ntf::font] Loaded {} glyphs", chara.size());
+}
+
+inline ivec2 font::len(std::string_view text) {
+  ivec2 dim {0, 0};
+
+  for (auto c = text.cbegin(); c != text.cend(); ++c) {
+    auto [tex, ch] = _glyph_tex.at(*c);
+    dim.x += (ch.advance >> 6);
+    // TODO: do the same with y
+  }
+
+  return dim;
 }
 
 inline font::~font() {

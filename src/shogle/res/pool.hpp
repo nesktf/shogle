@@ -62,6 +62,7 @@ class resource_pool {
 public:
   using resource_id = uint32_t;
   using resource_type = T;
+  static const constexpr resource_id INVALID_ID = UINT32_MAX;
 
 public:
   resource_pool() = default;
@@ -76,11 +77,22 @@ public:
 public:
   resource_id id(std::string_view name) const { return _resource_names.at(name.data()); }
 
-  T& at(resource_id id) { return _resources[id-1]; }
-  const T& at(resource_id id) const { return _resources[id-1]; }
+  T& at(resource_id id) { return _resources.at(id); }
+  const T& at(resource_id id) const { return _resources.at(id); }
 
-  T& at(std::string_view name) { return at(id(name)); }
-  const T& at(std::string_view name) const { return at(id(name)); }
+  T& operator[](resource_id id) { return _resources[id]; }
+  const T& operator[](resource_id id) const { return _resources[id]; }
+
+  T& at(std::string_view name) { return operator[](id(name)); }
+  const T& at(std::string_view name) const { return operator[](id(name)); }
+
+  T& operator[](std::string_view name) { return at(name); }
+  const T& operator[](std::string_view name) const { return at(name); }
+
+  bool has(std::string_view name) { return (_resource_names.find(name.data()) != _resource_names.end()); }
+  bool has(resource_id id) { return _resources.size() > id; }
+
+  size_t size() const { return _resources.size(); }
 
 protected:
   strmap<resource_id> _resource_names;
