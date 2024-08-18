@@ -41,14 +41,15 @@ public:
   const sequence& sequence_at(std::string_view name) const { return _sequences.at(name.data()); }
   const group& group_at(std::string_view name) const { return _groups.at(name.data()); }
 
-  const texture_meta& at(texture id) const { return _metas.at(id-1); }
-  const texture_meta& operator[](texture id) const { return _metas[id-1]; }
+  const texture_meta& at(texture id) const { return _metas.at(id); }
+  const texture_meta& operator[](texture id) const { return _metas[id]; }
 
   const texture2d& tex() const { return _texture; }
   texture2d& tex() { return _texture; }
 
   size_t size() const { return _metas.size(); }
   bool valid() const { return _texture.valid() && _metas.size() > 0; }
+  bool has(texture id) const { return _metas.size() > id; }
 
   operator const texture2d&() const { return _texture; }
 

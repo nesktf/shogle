@@ -141,7 +141,7 @@ template<typename... Args>
 auto impl::resource_pool<T>::emplace(std::string name, Args&&... args) -> resource_id {
   _resources.emplace_back(std::forward<Args>(args)...);
 
-  resource_id id = _resources.size();
+  resource_id id = _resources.size()-1;
   _resource_names.emplace(std::make_pair(std::move(name), id));
 
   return id;
