@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/core/types.hpp>
+#include <shogle/math/alg.hpp>
 
 namespace ntf {
 

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <shogle/core/types.hpp>
-
 #include <vector>
 #include <functional>
 #include <memory>
@@ -73,30 +71,30 @@ public:
     std::erase_if(_tasks, [](const auto& task) { return task->finished; });
   }
 
-  void push_back(uptr<task_type> task) {
+  void push_back(std::unique_ptr<task_type> task) {
     _new_tasks.push_back(std::move(task));
   }
 
   template<typename T, typename... Args>
   void emplace_back(Args&&... args) {
-    _new_tasks.emplace_back(make_uptr<T>(std::forward<Args>(args)...));
+    _new_tasks.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
   }
 
   template<typename F, typename = std::enable_if_t<std::is_invocable_r_v<bool, F, float>>>
   void emplace_back(F fun) {
-    _new_tasks.emplace_back(make_uptr<taskfun<F>>(std::move(fun)));
+    _new_tasks.emplace_back(std::make_unique<taskfun<F>>(std::move(fun)));
   }
 
   template<typename F, typename = std::enable_if_t<std::is_invocable_v<F>>>
   void emplace_back(float target, F event) {
-    _new_tasks.emplace_back(make_uptr<timed_event<F>>(target, std::move(event)));
+    _new_tasks.emplace_back(std::make_unique<timed_event<F>>(target, std::move(event)));
   }
 
   void clear() { _tasks.clear(); }
 
 private:
-  std::vector<uptr<task_type>> _tasks;
-  std::vector<uptr<task_type>> _new_tasks;
+  std::vector<std::unique_ptr<task_type>> _tasks;
+  std::vector<std::unique_ptr<task_type>> _new_tasks;
 };
 
 } // namespace ntf

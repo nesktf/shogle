@@ -1,9 +1,6 @@
-#pragma once
-
-#include <shogle/render/mesh.hpp>
-
-#include <shogle/res/texture.hpp>
-#include <shogle/res/util.hpp>
+#define SHOGLE_ASSETS_MODEL_INL
+#include <shogle/assets/model.hpp>
+#undef SHOGLE_ASSETS_MODEL_INL
 
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
@@ -11,81 +8,8 @@
 
 namespace ntf {
 
-enum class material_type {
-  diffuse = 0,
-  specular
-};
-
-struct mesh_data {
-  struct vertex {
-    vec3 coord;
-    vec3 normal;
-    vec2 tex_coord;
-  };
-
-  std::string name;
-  std::vector<vertex> vertices;
-  std::vector<uint> indices;
-  pair_vector<material_type, texture2d_data> materials;
-};
-
-class model {
-public:
-  class textured_mesh {
-  public:
-    textured_mesh(mesh mesh, std::unordered_map<material_type, texture2d> materials) :
-      _mesh(std::move(mesh)), _materials(std::move(materials)) {}
-
-  public:
-    const mesh& get_mesh() const { return _mesh; }
-    const texture2d& operator[](material_type material) const { return _materials.at(material); }
-
-    auto cbegin() const { return _materials.cbegin(); }
-    auto cend() const { return _materials.cend(); }
-    auto begin() { return _materials.begin(); }
-    auto end() { return _materials.end(); }
-
-    size_t size() const { return _materials.size(); }
-
-  private:
-    mesh _mesh;
-    std::unordered_map<material_type, texture2d> _materials;
-  };
-
-public:
-  model() = default;
-  model(std::vector<mesh_data> meshes);
-
-public:
-  const textured_mesh& operator[](std::string_view name) const { return _meshes.at(name.data()); }
-  const textured_mesh& at(std::string_view name) const { return _meshes.at(name.data()); }
-
-  auto cbegin() const { return _meshes.cbegin(); }
-  auto cend() const { return _meshes.cend(); }
-  auto begin() { return _meshes.begin(); }
-  auto end() { return _meshes.end(); }
-
-  size_t size() const { return _meshes.size(); }
-
-private:
-  std::unordered_map<std::string, textured_mesh> _meshes;
-};
-
-struct model_data {
-public:
-  struct loader {
-    model operator()(model_data data) { return model{std::move(data.meshes)}; }
-  };
-
-public:
-  model_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_);
-
-public:
-  std::vector<mesh_data> meshes;
-};
-
-
-inline model_data::model_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_) {
+template<typename Mesh, typename Texture>
+model<Mesh, Texture>::data_type::data_type(std::string_view path_, tex_filter filter_, tex_wrap wrap_) {
   Assimp::Importer import;
   const aiScene* scene = import.ReadFile(path_.data(), aiProcess_Triangulate | aiProcess_FlipUVs);
 
@@ -96,7 +20,7 @@ inline model_data::model_data(std::string_view path_, tex_filter filter_, tex_wr
   auto dir = file_dir(path_.data());
   std::vector<std::string> loaded_materials;
 
-  auto load_material = [&](mesh_data& mesh, aiMaterial* aimat, aiTextureType aitype) {
+  auto load_material = [&](mesh_data_type& mesh, aiMaterial* aimat, aiTextureType aitype) {
     material_type mat_type;
     switch (aitype) {
       case aiTextureType_SPECULAR: {
@@ -124,7 +48,7 @@ inline model_data::model_data(std::string_view path_, tex_filter filter_, tex_wr
 
       if (!skip) {
         mesh.materials.emplace_back(std::make_pair(
-          mat_type, texture2d_data{tex_path, filter_, wrap_}
+          mat_type, texture_data_type{tex_path, filter_, wrap_}
         ));
         loaded_materials.emplace_back(std::move(tex_path));
       }
@@ -132,12 +56,12 @@ inline model_data::model_data(std::string_view path_, tex_filter filter_, tex_wr
   };
 
   for (size_t i = 0; i < scene->mNumMeshes; ++i) {
-    mesh_data mesh;
+    mesh_data_type mesh;
     aiMesh* curr_aimesh = scene->mMeshes[i];
 
     // Extract vertices
     for (size_t j = 0; j < curr_aimesh->mNumVertices; ++j) { 
-      mesh_data::vertex vert;
+      typename mesh_data_type::vertex vert;
       vert.coord = vec3{
         curr_aimesh->mVertices[j].x,
         curr_aimesh->mVertices[j].y,
@@ -181,20 +105,23 @@ inline model_data::model_data(std::string_view path_, tex_filter filter_, tex_wr
   }
 }
 
-inline model::model(std::vector<mesh_data> meshes) {
+template<typename Mesh, typename Texture>
+model<Mesh, Texture>::model(std::vector<mesh_data_type> meshes) {
   for (auto& data : meshes) {
-    std::unordered_map<material_type, texture2d> materials;
+    std::unordered_map<material_type, texture_type> materials;
     for (auto& [type, tex_data] : data.materials) {
+      typename texture_type::loader tex_loader;
       materials.emplace(std::make_pair(type, 
-        impl::load_texture<1u>(tex_data.pixels, tex_data.dim, tex_data.format, tex_data.filter, tex_data.wrap)
+        tex_loader(tex_data.pixels, tex_data.dim, tex_data.format, tex_data.filter, tex_data.wrap)
       ));
     }
 
-    mesh mesh {
+    mesh_type mesh {
       mesh_primitive::triangles,
-      &data.vertices[0], data.vertices.size()*sizeof(mesh_data::vertex), mesh_buffer::static_draw,
+      &data.vertices[0], data.vertices.size()*sizeof(mesh_data_type::vertex), mesh_buffer::static_draw,
       &data.indices[0], data.indices.size()*sizeof(uint), mesh_buffer::static_draw,
-      shadatt_coords3d{}, shadatt_normals3d{}, shadatt_texcoords3d{}
+      typename mesh_data_type::att_coords{}, typename mesh_data_type::att_normal{},
+      typename mesh_data_type::att_texcoord{}
     };
 
     _meshes.emplace(std::make_pair(
@@ -202,12 +129,6 @@ inline model::model(std::vector<mesh_data> meshes) {
       textured_mesh{std::move(mesh), std::move(materials)}
     ));
   }
-}
-
-
-inline model load_model(std::string_view path, tex_filter mat_filter, tex_wrap mat_wrap) {
-  model_data::loader loader;
-  return loader(model_data{path, mat_filter, mat_wrap});
 }
 
 } // namespace ntf

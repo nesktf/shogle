@@ -1,41 +1,11 @@
-#pragma once
-
-#include <shogle/core/error.hpp>
-
-#include <shogle/render/font.hpp>
-
-#include <ft2build.h>
-#include FT_FREETYPE_H
+#define SHOGLE_ASSETS_FONT_INL
+#include <shogle/assets/font.hpp>
+#undef SHOGLE_ASSETS_FONT_INL
 
 namespace ntf {
 
-struct font_data {
-public:
-  struct loader {
-    font operator()(font_data data) { return font{std::move(data.glyphs)}; }
-  };
-
-public:
-  font_data(std::string_view path);
-
-public:
-  std::map<uint8_t, std::pair<uint8_t*, font_glyph>> glyphs;
-
-private:
-  std::vector<uptr<uint8_t[]>> _temp_glyphs;
-  FT_Face _ft_face;
-  FT_Library _ft_lib;
-
-public:
-  ~font_data() = default;
-  font_data(font_data&&) = default;
-  font_data(const font_data&) = delete;
-  font_data& operator=(font_data&&) = default;
-  font_data& operator=(const font_data&) = delete;
-};
-
-
-inline font_data::font_data(std::string_view path) { 
+template<typename Font>
+font_data<Font>::font_data(std::string_view path) { 
   if (FT_Init_FreeType(&_ft_lib)) {
     throw ntf::error {"[ntf::font_data] Couldn't init freetype"};
   }
@@ -51,7 +21,7 @@ inline font_data::font_data(std::string_view path) {
       continue;
     }
     size_t sz = _ft_face->glyph->bitmap.width*_ft_face->glyph->bitmap.rows;
-    _temp_glyphs.emplace_back(uptr<uint8_t[]>(new uint8_t[sz]));
+    _temp_glyphs.emplace_back(std::unique_ptr<uint8_t[]>(new uint8_t[sz]));
     uint8_t* data = _temp_glyphs.back().get();
     memcpy(data, _ft_face->glyph->bitmap.buffer, sz);
     glyphs.insert(std::make_pair(c, std::make_pair(data,
@@ -70,12 +40,6 @@ inline font_data::font_data(std::string_view path) {
   }
   FT_Done_Face(_ft_face);
   FT_Done_FreeType(_ft_lib);
-}
-
-
-inline font load_font(std::string_view path) {
-  font_data::loader loader;
-  return loader(font_data{path});
 }
 
 } // namespace ntf

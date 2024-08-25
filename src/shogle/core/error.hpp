@@ -22,4 +22,4 @@ protected:
   std::string msg;
 };
 
-}
+} // namespace ntf

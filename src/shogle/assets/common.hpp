@@ -1,10 +1,6 @@
 #pragma once
 
-#include <shogle/core/error.hpp>
-
-#include <string>
-#include <fstream>
-#include <sstream>
+#include <shogle/shogle.hpp>
 
 namespace ntf {
 

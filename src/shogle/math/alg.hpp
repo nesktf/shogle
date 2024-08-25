@@ -1,11 +1,47 @@
 #pragma once
 
-#include <shogle/core/types.hpp>
+// Might replace glm at some point (?)
+#ifndef SHOGLE_USE_GLM
+#define SHOGLE_USE_GLM 1
+#endif
 
+#include <shogle/shogle.hpp>
+
+#ifdef SHOGLE_USE_GLM
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#endif
+
+#include <complex>
 #include <cmath>
-#include <limits>
+
+// #define PI M_PIf
+// #define I cmplx{0.0f, 1.0f}
 
 namespace ntf {
+
+#ifdef SHOGLE_USE_GLM
+using vec2 = glm::vec2;
+using vec3 = glm::vec3;
+using vec4 = glm::vec4;
+using mat4 = glm::mat4;
+using mat3 = glm::mat3;
+using ivec2 = glm::ivec2;
+using quat = glm::quat;
+#endif
+
+using cmplx = std::complex<float>;
+
+using color = vec4;
+using color4 = vec4;
+using color3 = vec3;
+
+template<typename T>
+concept vertex_type = (ntf::same_as_any<T, vec2, vec3, vec4>);
 
 inline vec3 carcoord(vec3 v) { return {v.z, v.x, v.y}; }
 

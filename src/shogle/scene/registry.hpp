@@ -1,9 +1,11 @@
 #pragma once
 
-#include <shogle/core/types.hpp>
+#include <shogle/shogle.hpp>
 #include <shogle/core/sparse_set.hpp>
 
 namespace ntf {
+
+// Shitty and incomplete ECS, do not use
 
 template<size_t max_entities>
 class registry {
