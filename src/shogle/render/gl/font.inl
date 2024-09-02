@@ -4,7 +4,7 @@
 
 namespace ntf {
 
-inline gl::font::font(std::map<uint8_t, std::pair<uint8_t*, font_glyph>> chara) {
+inline gl_renderer::font::font(std::map<uint8_t, std::pair<uint8_t*, font_glyph>> chara) {
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
   GLuint tex;
@@ -29,16 +29,16 @@ inline gl::font::font(std::map<uint8_t, std::pair<uint8_t*, font_glyph>> chara) 
     "[SHOGLE][ntf::gl::font] Loaded (ids: {}-{}, glyphs: {})", tex-_atlas.size()+1, tex, _atlas.size());
 }
 
-inline gl::font::~font() noexcept {
+inline gl_renderer::font::~font() noexcept {
 #ifdef SHOGLE_GL_RAII_UNLOAD
   unload();
 #endif
 }
 
-inline gl::font::font(font&& f) noexcept :
+inline gl_renderer::font::font(font&& f) noexcept :
   _atlas(std::move(f._atlas)) {}
 
-inline auto gl::font::operator=(font&& f) noexcept -> font& {
+inline auto gl_renderer::font::operator=(font&& f) noexcept -> font& {
   unload();
 
   _atlas = std::move(f._atlas);
@@ -46,7 +46,7 @@ inline auto gl::font::operator=(font&& f) noexcept -> font& {
   return *this;
 }
 
-inline void gl::font::unload() {
+inline void gl_renderer::font::unload() {
   if (glyph_count() != 0) { // May be empty
     [[maybe_unused]] GLuint last_tex;
     for (auto& [_, pair] : _atlas) {
@@ -59,7 +59,7 @@ inline void gl::font::unload() {
   }
 }
 
-inline ivec2 gl::font::text_size(std::string_view text) const {
+inline ivec2 gl_renderer::font::text_size(std::string_view text) const {
   ivec2 dim {0, 0};
 
   for (auto c = text.cbegin(); c != text.cend(); ++c) {
@@ -71,12 +71,12 @@ inline ivec2 gl::font::text_size(std::string_view text) const {
   return dim;
 }
 
-inline void gl::font::draw_text(vec2 pos, float scale, std::string_view text) const {
-  renderer::draw_text(_atlas, pos, scale, text);
+inline void gl_renderer::font::draw_text(vec2 pos, float scale, std::string_view text) const {
+  renderer_type::draw_text(_atlas, pos, scale, text);
 }
 
 template<typename... Args>
-void gl::font::draw_text(vec2 pos, float scale, fmt::format_string<Args...> fmt, Args&&... args) const {
+void gl_renderer::font::draw_text(vec2 pos, float scale, fmt::format_string<Args...> fmt, Args&&... args) const {
   std::string str = fmt::format(fmt, std::forward<Args>(args)...);
   draw_text(pos, scale, str);
 }

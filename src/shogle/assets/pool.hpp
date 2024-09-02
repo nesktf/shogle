@@ -73,10 +73,13 @@ public:
   resource_id emplace(std::string name, Args&&... args);
 
 public:
-  void clear() { _resources.clear(); _resource_names.clear(); }
+  void clear() { _resources.clear(); }
+
+  void unload(resource_id id) { _reusable_slots.push(id); }
+  
 
 public:
-  resource_id id(std::string_view name) const { return _resource_names.at(name.data()); }
+  size_t size() const { return _resources.size(); }
 
   T& at(resource_id id) { return _resources.at(id); }
   const T& at(resource_id id) const { return _resources.at(id); }
@@ -84,20 +87,22 @@ public:
   T& operator[](resource_id id) { return _resources[id]; }
   const T& operator[](resource_id id) const { return _resources[id]; }
 
+  bool has(resource_id id) { return _resources.size() > id; }
+
+
+  resource_id id(std::string_view name) const;
+
   T& at(std::string_view name) { return operator[](id(name)); }
   const T& at(std::string_view name) const { return operator[](id(name)); }
 
   T& operator[](std::string_view name) { return at(name); }
   const T& operator[](std::string_view name) const { return at(name); }
 
-  bool has(std::string_view name) { return (_resource_names.find(name.data()) != _resource_names.end()); }
-  bool has(resource_id id) { return _resources.size() > id; }
-
-  size_t size() const { return _resources.size(); }
+  bool has(std::string_view name) const { return id(name) != INVALID_ID; }
 
 protected:
-  strmap<resource_id> _resource_names;
-  std::vector<T> _resources;
+  std::vector<std::pair<std::string, T>> _resources;
+  std::queue<resource_id> _reusable_slots;
 };
 
 template<typename T, typename Data>

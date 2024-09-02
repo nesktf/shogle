@@ -4,10 +4,10 @@
 
 namespace ntf {
 
-class gl::framebuffer {
+class gl_renderer::framebuffer {
 public:
-  using renderer = gl;
-  using texture2d = gl::texture2d;
+  using renderer_type = gl_renderer;
+  using texture_type = gl_renderer::texture2d;
 
 public:
   framebuffer() = default;
@@ -29,7 +29,7 @@ public:
   void bind(size_t viewport_w, size_t viewport_h, Renderer&& renderer);
 
 public:
-  const texture2d& tex() const { return _texture; }
+  const texture_type& tex() const { return _texture; }
 
   GLuint& id() { return _fbo; } // Not const
   ivec2 size() const { return _dim; }
@@ -39,7 +39,7 @@ public:
 
 private:
   GLuint _fbo{}, _rbo{};
-  texture2d _texture{};
+  texture_type _texture{};
   ivec2 _dim{};
 
 public:

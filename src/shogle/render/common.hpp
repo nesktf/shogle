@@ -52,13 +52,13 @@ enum class tex_wrap {
   clamp_border,
 };
 
-enum class shader_type {
+enum class shader_category {
   vertex = 0,
   fragment,
   geometry
 };
 
-enum class uniform_type {
+enum class uniform_category {
   scalar = 0, // float
   iscalar, // int
   vec2,
@@ -84,7 +84,7 @@ enum class mesh_primitive {
   points,
 };
 
-enum class material_type {
+enum class material_category {
   diffuse = 0,
   specular
 };
@@ -95,10 +95,65 @@ struct font_glyph {
   unsigned long advance;
 };
 
-template<unsigned int _index, typename T>
-requires(vertex_type<T>)
+
+template<typename T>
+struct uniform_traits {
+  static constexpr bool is_uniform = false;
+};
+
+template<>
+struct uniform_traits<float> {
+  static constexpr bool is_uniform = true;
+  static constexpr uniform_category enum_value = uniform_category::scalar;
+  static constexpr size_t size = sizeof(float);
+};
+
+template<>
+struct uniform_traits<int> {
+  static constexpr bool is_uniform = true;
+  static constexpr uniform_category enum_value = uniform_category::iscalar;
+  static constexpr size_t size = sizeof(int);
+};
+
+template<>
+struct uniform_traits<vec2> {
+  static constexpr bool is_uniform = true;
+  static constexpr uniform_category enum_value = uniform_category::vec2;
+  static constexpr size_t size = sizeof(vec2);
+};
+
+template<>
+struct uniform_traits<vec3> {
+  static constexpr bool is_uniform = true;
+  static constexpr uniform_category enum_value = uniform_category::vec3;
+  static constexpr size_t size = sizeof(vec3);
+};
+
+template<>
+struct uniform_traits<vec4> {
+  static constexpr bool is_uniform = true;
+  static constexpr uniform_category enum_value = uniform_category::vec4;
+  static constexpr size_t size = sizeof(vec4);
+};
+
+template<>
+struct uniform_traits<mat3> {
+  static constexpr bool is_uniform = true;
+  static constexpr uniform_category enum_value = uniform_category::mat3;
+  static constexpr size_t size = sizeof(mat3);
+};
+
+template<>
+struct uniform_traits<mat4> {
+  static constexpr bool is_uniform = true;
+  static constexpr uniform_category enum_value = uniform_category::mat4;
+  static constexpr size_t size = sizeof(mat4);
+};
+
+
+template<unsigned int Index, vertex_type T>
 struct shader_attribute {
-  static constexpr unsigned int index = _index;
+  static constexpr unsigned int index = Index;
   static constexpr size_t stride = sizeof(T);
 };
 
@@ -108,23 +163,53 @@ concept is_shader_attribute = requires(T x) {
 };
 
 template<typename... T>
-struct stride_sum { static constexpr size_t value = 0; };
+struct stride_sum {
+  static constexpr size_t value = 0;
+};
 
 template<typename T, typename... U >
-struct stride_sum<T, U...> { static constexpr size_t value = T::stride + stride_sum<U...>::value; };
+struct stride_sum<T, U...> {
+  static constexpr size_t value = T::stride + stride_sum<U...>::value;
+};
 
-constexpr tex_format toenum(int channels) {
-  switch (channels) {
-    case 1:
-      return tex_format::mono;
-    case 4:
-      return tex_format::rgba;
-    default:
-      return tex_format::rgb;
-  }
-}
 
-static const constexpr float cube_vertices[] {
+template<typename Shader>
+class uniform_tuple {
+public:
+  using shader_type = Shader;
+  using uniform_type = typename Shader::uniform_type;
+
+  using entry = std::pair<uniform_type, uniform_category>;
+
+public:
+  uniform_tuple() = default;
+
+  uniform_tuple(std::vector<entry> list);
+
+public:
+  void bind(const shader_type& shader) const;
+  void clear();
+
+  template<typename T>
+  requires(uniform_traits<T>::is_uniform)
+  bool set_uniform(uniform_type uniform, T&& val);
+
+public:
+  size_t size() const { return _uniforms.size(); }
+  bool empty() const { return size() == 0; }
+
+  operator bool() const { return !empty(); }
+
+private:
+  std::unordered_map<uniform_type, std::pair<uniform_category, size_t>> _uniforms;
+  uint8_t* _data;
+
+public:
+  NTF_DECLARE_MOVE_ONLY(uniform_tuple);
+};
+
+
+static constexpr float cube_vertices[] {
   // coord               // normal             // texcoord
   -0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
    0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   1.0f, 0.0f,
@@ -169,7 +254,7 @@ static const constexpr float cube_vertices[] {
   -0.5f,  0.5f, -0.5f,   0.0f,  1.0f,  0.0f,   0.0f, 1.0f
 };
 
-static const constexpr float quad_vertices[] {
+static constexpr float quad_vertices[] {
   // coord              //normals           // texcoord   // inv texcoord
   -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   /* 0.0f, 1.0f, // + vec2{0.0f, 1.0f} */
    0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 0.0f,   /* 1.0f, 1.0f, // + vec2{0.0f, 1.0f} */
@@ -177,9 +262,13 @@ static const constexpr float quad_vertices[] {
   -0.5f,  0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 1.0f,   /* 0.0f, 0.0f, // + vec2{0.0f, -1.0f} */
 };
 
-static const constexpr uint quad_indices[] {
+static constexpr uint quad_indices[] {
   0, 1, 2, // bottom right triangle
   0, 2, 3  // top left triangle
 };
 
 } // namespace ntf
+
+#ifndef SHOGLE_RENDER_COMMON_INL
+#include <shogle/render/common.inl>
+#endif

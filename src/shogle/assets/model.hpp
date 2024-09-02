@@ -23,7 +23,7 @@ struct mesh_data {
   std::string name;
   std::vector<vertex> vertices;
   std::vector<uint> indices;
-  pair_vector<material_type, texture_data_type> materials;
+  pair_vector<material_category, texture_data_type> materials;
 };
 
 
@@ -89,12 +89,12 @@ public:
   using mesh_type = Mesh;
 
 public:
-  textured_mesh(mesh_type mesh, std::unordered_map<material_type, texture_type> materials) :
+  textured_mesh(mesh_type mesh, std::unordered_map<material_category, texture_type> materials) :
     _mesh(std::move(mesh)), _materials(std::move(materials)) {}
 
 public:
   const mesh_type& mesh() const { return _mesh; }
-  const texture_type& operator[](material_type material) const { return _materials.at(material); }
+  const texture_type& operator[](material_category material) const { return _materials.at(material); }
 
   auto cbegin() const { return _materials.cbegin(); }
   auto cend() const { return _materials.cend(); }
@@ -105,7 +105,7 @@ public:
 
 private:
   mesh_type _mesh;
-  std::unordered_map<material_type, texture_type> _materials;
+  std::unordered_map<material_category, texture_type> _materials;
 };
 
 } // namespace ntf

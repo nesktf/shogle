@@ -4,7 +4,7 @@
 
 namespace ntf {
 
-inline gl::framebuffer::framebuffer(size_t w, size_t h) : 
+inline gl_renderer::framebuffer::framebuffer(size_t w, size_t h) : 
   _texture(nullptr, ivec2{w, h}, tex_format::rgb), _dim(w, h) {
   glGenFramebuffers(1, &_fbo);
   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
@@ -35,20 +35,20 @@ inline gl::framebuffer::framebuffer(size_t w, size_t h) :
                           "[SHOGLE][ntf::gl::framebuffer] Created (id: {}, tex: {})", _fbo, _texture.id());
 }
 
-inline gl::framebuffer::~framebuffer() noexcept {
+inline gl_renderer::framebuffer::~framebuffer() noexcept {
 #ifdef SHOGLE_GL_RAII_UNLOAD
   unload();
 #endif
 }
 
-inline gl::framebuffer::framebuffer(framebuffer&& f) noexcept :
+inline gl_renderer::framebuffer::framebuffer(framebuffer&& f) noexcept :
   _fbo(std::move(f._fbo)), _rbo(std::move(f._rbo)), 
   _texture(std::move(f._texture)), _dim(std::move(f._dim)) {
   f._fbo = 0;
   f._rbo = 0;
 }
 
-inline auto gl::framebuffer::operator=(framebuffer&& f) noexcept -> framebuffer& {
+inline auto gl_renderer::framebuffer::operator=(framebuffer&& f) noexcept -> framebuffer& {
   unload();
   
   _texture = std::move(f._texture);
@@ -62,7 +62,7 @@ inline auto gl::framebuffer::operator=(framebuffer&& f) noexcept -> framebuffer&
   return *this;
 }
 
-inline void gl::framebuffer::unload() {
+inline void gl_renderer::framebuffer::unload() {
   if (_fbo && _rbo) {
     SHOGLE_INTERNAL_LOG_FMT(verbose,
                             "[SHOGLE][ntf::gl::framebuffer] Destroyed (id: {}, tex: {})", _fbo, _texture.id());
@@ -75,17 +75,17 @@ inline void gl::framebuffer::unload() {
 }
 
 template<typename Renderer>
-void gl::framebuffer::bind(ivec2 vp_sz, Renderer&& renderer) {
+void gl_renderer::framebuffer::bind(ivec2 vp_sz, Renderer&& renderer) {
   assert(valid() && "Invalid Framebuffer");
   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
-  gl::set_viewport(_dim);
+  gl_renderer::set_viewport(_dim);
   renderer();
-  glBindFramebuffer(GL_FRAMEBUFFER, gl::DEFAULT_FRAMEBUFFER);
-  gl::set_viewport(vp_sz);
+  glBindFramebuffer(GL_FRAMEBUFFER, gl_renderer::DEFAULT_FRAMEBUFFER);
+  gl_renderer::set_viewport(vp_sz);
 }
 
 template<typename Renderer>
-void gl::framebuffer::bind(size_t viewport_w, size_t viewport_h, Renderer&& renderer) {
+void gl_renderer::framebuffer::bind(size_t viewport_w, size_t viewport_h, Renderer&& renderer) {
   bind(ivec2{static_cast<int>(viewport_w), static_cast<int>(viewport_h)}, std::forward<Renderer>(renderer));
 }
 

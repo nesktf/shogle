@@ -86,43 +86,43 @@ void destroy_meshes() {
 
 namespace ntf {
 
-void gl::init_meshes() {
+void gl_renderer::init_meshes() {
   create_meshes();
 }
 
-void gl::destroy() {
+void gl_renderer::destroy() {
   destroy_meshes();
 }
 
-const char* gl::name_str() {
+const char* gl_renderer::name_str() {
   return "OpenGL";
 }
 
-void gl::start_frame() {
+void gl_renderer::start_frame() {
 
 }
 
-void gl::end_frame() {
+void gl_renderer::end_frame() {
 
 }
 
-void gl::set_viewport(size_t w, size_t h) {
+void gl_renderer::set_viewport(size_t w, size_t h) {
   glViewport(0, 0, w, h);
 }
 
-void gl::set_viewport(ivec2 sz) {
+void gl_renderer::set_viewport(ivec2 sz) {
   glViewport(0, 0, sz.x, sz.y);
 }
 
-void gl::set_viewport(size_t x, size_t y, size_t w, size_t h) {
+void gl_renderer::set_viewport(size_t x, size_t y, size_t w, size_t h) {
   glViewport(x, y, w, h);
 }
 
-void gl::set_viewport(ivec2 pos, ivec2 sz) {
+void gl_renderer::set_viewport(ivec2 pos, ivec2 sz) {
   glViewport(pos.x, pos.y, sz.x, sz.y);
 }
 
-void gl::clear_viewport(color4 color, clear flag) {
+void gl_renderer::clear_viewport(color4 color, clear flag) {
   GLbitfield mask = GL_COLOR_BUFFER_BIT;
   if ((flag & clear::depth) != clear::none) {
     mask |= GL_DEPTH_BUFFER_BIT;
@@ -134,11 +134,11 @@ void gl::clear_viewport(color4 color, clear flag) {
   glClear(mask);
 }
 
-void gl::clear_viewport(color3 color, clear flag) {
+void gl_renderer::clear_viewport(color3 color, clear flag) {
   clear_viewport(color4{color, 1.0f}, flag);
 }
 
-void gl::set_stencil_test(bool flag) {
+void gl_renderer::set_stencil_test(bool flag) {
   if (flag) {
     glEnable(GL_STENCIL_TEST);
   } else {
@@ -146,7 +146,7 @@ void gl::set_stencil_test(bool flag) {
   }
 }
 
-void gl::set_depth_test(bool flag) {
+void gl_renderer::set_depth_test(bool flag) {
   if (flag) {
     glEnable(GL_DEPTH_TEST);
   } else {
@@ -154,7 +154,7 @@ void gl::set_depth_test(bool flag) {
   }
 }
 
-void gl::set_blending(bool flag) {
+void gl_renderer::set_blending(bool flag) {
   if (flag) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); //TODO: set_blending_fun
@@ -163,7 +163,7 @@ void gl::set_blending(bool flag) {
   }
 }
 
-void gl::set_depth_fun(depth_fun fun) {
+void gl_renderer::set_depth_fun(depth_fun fun) {
   //TODO: More funcs
   switch (fun) {
     case depth_fun::less: {
@@ -177,19 +177,19 @@ void gl::set_depth_fun(depth_fun fun) {
   }
 }
 
-void gl::draw_quad() {
+void gl_renderer::draw_quad() {
   glBindVertexArray(meshes[QUAD].VAO);
   glDrawElements(GL_TRIANGLES, meshes[QUAD].draw_count, GL_UNSIGNED_INT, 0);
   glBindVertexArray(0);
 }
 
-void gl::draw_cube() {
+void gl_renderer::draw_cube() {
   glBindVertexArray(meshes[CUBE].VAO);
   glDrawArrays(GL_TRIANGLES, 0, meshes[CUBE].draw_count);
   glBindVertexArray(0);
 }
 
-void gl::draw_text(const font_atlas& atlas, vec2 pos, float scale, std::string_view text) {
+void gl_renderer::draw_text(const font_atlas& atlas, vec2 pos, float scale, std::string_view text) {
   glBindVertexArray(meshes[TEXT].VAO);
 
   float x = pos.x, y = pos.y;

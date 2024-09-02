@@ -10,7 +10,7 @@
 
 namespace ntf {
 
-class gl {
+class gl_renderer {
 public:
   static constexpr int VER_MAJOR = 3;
   static constexpr int VER_MINOR = 3;
@@ -55,8 +55,7 @@ public:
   using shader_uniform = GLint;
   class shader;
   class shader_program;
-  class uniform_list;
-  class shader_args;
+  using uniform_tuple = ::ntf::uniform_tuple<shader_program>;
 
   class mesh;
 
@@ -134,34 +133,14 @@ public:
     return 0; // shutup gcc
   }
 
-  static constexpr GLint enumtogl(shader_type type) {
+  static constexpr GLint enumtogl(shader_category type) {
     switch (type) {
-      case shader_type::vertex:
+      case shader_category::vertex:
         return GL_VERTEX_SHADER;
-      case shader_type::fragment:
+      case shader_category::fragment:
         return GL_FRAGMENT_SHADER;
-      case shader_type::geometry:
+      case shader_category::geometry:
         return GL_GEOMETRY_SHADER;
-    }
-    return 0; // shutup gcc
-  }
-
-  static constexpr size_t enumtosz(uniform_type type) {
-    switch (type) {
-      case uniform_type::scalar:
-        return sizeof(float);
-      case uniform_type::iscalar:
-        return sizeof(int);
-      case uniform_type::vec2:
-        return sizeof(vec2);
-      case uniform_type::vec3:
-        return sizeof(vec3);
-      case uniform_type::vec4:
-        return sizeof(vec4);
-      case uniform_type::mat3:
-        return sizeof(mat3);
-      case uniform_type::mat4:
-        return sizeof(mat4);
     }
     return 0; // shutup gcc
   }
@@ -200,7 +179,7 @@ public:
 };
 
 template<typename GLLoader>
-bool gl::init(GLLoader proc) {
+bool gl_renderer::init(GLLoader proc) {
   if (!gladLoadGLLoader((GLADloadproc)proc)) {
     return false;
   }

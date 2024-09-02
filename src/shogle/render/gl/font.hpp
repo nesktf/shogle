@@ -4,9 +4,9 @@
 
 namespace ntf {
 
-class gl::font {
+class gl_renderer::font {
 public:
-  using renderer = gl;
+  using renderer_type = gl_renderer;
 
 public:
   font() = default;

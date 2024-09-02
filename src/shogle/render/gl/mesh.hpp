@@ -4,9 +4,9 @@
 
 namespace ntf {
 
-class gl::mesh {
+class gl_renderer::mesh {
 public:
-  using gl = gl;
+  using renderer_type = gl_renderer;
 
 public:
   mesh() = default;

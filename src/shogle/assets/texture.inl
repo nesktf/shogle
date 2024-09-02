@@ -11,15 +11,24 @@ namespace ntf {
 template<typename Texture>
 texture_data<Texture>::texture_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_) :
   filter(filter_), wrap(wrap_) {
-  constexpr size_t faces = texture_type::face_count;
+  auto toenum = [](int channels) -> tex_format {
+    switch (channels) {
+      case 1:
+        return tex_format::mono;
+      case 4:
+        return tex_format::rgba;
+      default:
+        return tex_format::rgb;
+    }
+  };
 
-  if constexpr (faces > 1) {
+  if constexpr (texture_type::face_count > 1) {
     using json = nlohmann::json;
 
     std::ifstream f{path_.data()};
     json data = json::parse(f);
     auto content = data["content"];
-    assert(content.size() == faces && "Invalid json data");
+    assert(content.size() == texture_type::face_count && "Invalid json data");
 
     int w, h, ch;
     for (size_t i = 0; i < content.size(); ++i) {
@@ -32,7 +41,7 @@ texture_data<Texture>::texture_data(std::string_view path_, tex_filter filter_, 
     }
 
     dim = static_cast<size_t>(w);
-    format = ntf::toenum(ch);
+    format = toenum(ch);
   } else {
     int w, h, ch;
     pixels = stbi_load(path_.data(), &w, &h, &ch, 0);
@@ -40,7 +49,7 @@ texture_data<Texture>::texture_data(std::string_view path_, tex_filter filter_, 
       throw ntf::error{"[ntf::texture_data] Error loading texture: {}", path_};
     }
     dim = ivec2{w, h};
-    format = ntf::toenum(ch);
+    format = toenum(ch);
   }
 }
 

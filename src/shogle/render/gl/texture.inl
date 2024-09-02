@@ -5,8 +5,8 @@
 namespace ntf {
 
 template<size_t faces>
-gl::texture<faces>::texture(data_type data, dim_type dim, tex_format format) : _dim(dim) {
-  const auto glformat = renderer::enumtogl(format);
+gl_renderer::texture<faces>::texture(data_type data, dim_type dim, tex_format format) : _dim(dim) {
+  const auto glformat = renderer_type::enumtogl(format);
 
   glGenTextures(1, &_id);
   glBindTexture(gltype, _id);
@@ -23,8 +23,8 @@ gl::texture<faces>::texture(data_type data, dim_type dim, tex_format format) : _
 }
 
 template<>
-inline gl::texture<1u>::texture(data_type data, dim_type dim, tex_format format) : _dim(dim) {
-  const auto glformat = renderer::enumtogl(format);
+inline gl_renderer::texture<1u>::texture(data_type data, dim_type dim, tex_format format) : _dim(dim) {
+  const auto glformat = renderer_type::enumtogl(format);
   glGenTextures(1, &_id);
   glBindTexture(gltype, _id);
 
@@ -38,18 +38,18 @@ inline gl::texture<1u>::texture(data_type data, dim_type dim, tex_format format)
 }
 
 template<size_t faces>
-gl::texture<faces>::~texture() noexcept { 
+gl_renderer::texture<faces>::~texture() noexcept { 
 #ifdef SHOGLE_GL_RAII_UNLOAD
   unload();
 #endif
 }
 
 template<size_t faces>
-gl::texture<faces>::texture(texture&& t) noexcept :
+gl_renderer::texture<faces>::texture(texture&& t) noexcept :
   _id(std::move(t._id)), _dim(std::move(t._dim)) { t._id = 0; }
 
 template<size_t faces>
-auto gl::texture<faces>::operator=(texture&& t) noexcept -> texture& {
+auto gl_renderer::texture<faces>::operator=(texture&& t) noexcept -> texture& {
   unload();
 
   _id = std::move(t._id);
@@ -61,7 +61,7 @@ auto gl::texture<faces>::operator=(texture&& t) noexcept -> texture& {
 }
 
 template<size_t faces>
-void gl::texture<faces>::unload() {
+void gl_renderer::texture<faces>::unload() {
   if (_id) {
     SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::texture] Unloaded (id: {})", _id);
     glDeleteTextures(1, &_id);
@@ -70,8 +70,8 @@ void gl::texture<faces>::unload() {
 }
 
 template<size_t faces>
-auto gl::texture<faces>::set_filter(tex_filter filter) -> texture& {
-  const auto glfilter = renderer::enumtogl(filter);
+auto gl_renderer::texture<faces>::set_filter(tex_filter filter) -> texture& {
+  const auto glfilter = renderer_type::enumtogl(filter);
 
   glBindTexture(gltype, _id);
   glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glfilter);
@@ -82,8 +82,8 @@ auto gl::texture<faces>::set_filter(tex_filter filter) -> texture& {
 }
 
 template<size_t faces>
-auto gl::texture<faces>::set_wrap(tex_wrap wrap) -> texture& {
-  const auto glwrap = renderer::enumtogl(wrap);
+auto gl_renderer::texture<faces>::set_wrap(tex_wrap wrap) -> texture& {
+  const auto glwrap = renderer_type::enumtogl(wrap);
 
   glBindTexture(gltype, _id);
   glTexParameteri(gltype, GL_TEXTURE_WRAP_T, glwrap);
@@ -97,7 +97,7 @@ auto gl::texture<faces>::set_wrap(tex_wrap wrap) -> texture& {
 }
 
 template<size_t faces>
-void gl::texture<faces>::bind_sampler(size_t sampler) const {
+void gl_renderer::texture<faces>::bind_sampler(size_t sampler) const {
   glActiveTexture(GL_TEXTURE0+sampler);
   glBindTexture(gltype, _id);
 }

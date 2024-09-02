@@ -27,12 +27,30 @@ inline void async_data_loader::do_requests() {
 template<typename T>
 template<typename... Args>
 auto impl::resource_pool<T>::emplace(std::string name, Args&&... args) -> resource_id {
-  _resources.emplace_back(std::forward<Args>(args)...);
-
-  resource_id id = _resources.size()-1;
-  _resource_names.emplace(std::make_pair(std::move(name), id));
-
+  resource_id id = INVALID_ID;
+  if (_reusable_slots.size() > 0) {
+    id = _reusable_slots.front();
+    _reusable_slots.pop();
+    _resources[id] =
+      std::make_pair(std::move(name), T{std::forward<Args>(args)...});
+  } else {
+    id = _resources.size();
+    _resources.emplace_back(
+      std::make_pair(std::move(name), T{std::forward<Args>(args)...}));
+  }
   return id;
+}
+
+template<typename T>
+auto impl::resource_pool<T>::id(std::string_view name) const -> resource_id {
+  const auto it = std::find_if(_resources.begin(), _resources.end(), [&](const auto& r) {
+    const auto& [res_name, res] = r;
+    return name == res_name;
+  });
+  if (it) {
+    return std::distance(_resources.begin(), it);
+  }
+  return INVALID_ID;
 }
 
 template<typename T, typename Data>

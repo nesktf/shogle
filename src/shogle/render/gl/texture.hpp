@@ -26,9 +26,9 @@ struct gl_tex_helper<1u> {
 } // namespace impl
 
 template<size_t faces>
-class gl::texture {
+class gl_renderer::texture {
 public:
-  using renderer = gl;
+  using renderer_type = gl_renderer;
   using data_type = typename impl::gl_tex_helper<faces>::data_type;
   using dim_type = typename impl::gl_tex_helper<faces>::dim_type;
 

@@ -21,14 +21,14 @@ model<Mesh, Texture>::data_type::data_type(std::string_view path_, tex_filter fi
   std::vector<std::string> loaded_materials;
 
   auto load_material = [&](mesh_data_type& mesh, aiMaterial* aimat, aiTextureType aitype) {
-    material_type mat_type;
+    material_category mat_type;
     switch (aitype) {
       case aiTextureType_SPECULAR: {
-        mat_type = material_type::specular;
+        mat_type = material_category::specular;
         break;
       }
       default: {
-        mat_type = material_type::diffuse;
+        mat_type = material_category::diffuse;
         break;
       }
     }
@@ -108,7 +108,7 @@ model<Mesh, Texture>::data_type::data_type(std::string_view path_, tex_filter fi
 template<typename Mesh, typename Texture>
 model<Mesh, Texture>::model(std::vector<mesh_data_type> meshes) {
   for (auto& data : meshes) {
-    std::unordered_map<material_type, texture_type> materials;
+    std::unordered_map<material_category, texture_type> materials;
     for (auto& [type, tex_data] : data.materials) {
       typename texture_type::loader tex_loader;
       materials.emplace(std::make_pair(type, 
