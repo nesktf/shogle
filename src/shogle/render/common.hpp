@@ -202,10 +202,7 @@ public:
 
 private:
   std::unordered_map<uniform_type, std::pair<uniform_category, size_t>> _uniforms;
-  uint8_t* _data;
-
-public:
-  NTF_DECLARE_MOVE_ONLY(uniform_tuple);
+  std::vector<uint8_t> _data;
 };
 
 

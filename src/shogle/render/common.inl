@@ -31,34 +31,13 @@ uniform_tuple<Shader>::uniform_tuple(std::vector<entry> entries) {
     _uniforms.emplace(std::make_pair(uniform, std::make_pair(type, data_size)));
     data_size += enumtosz(type);
   }
-  _data = new uint8_t[data_size];
-}
-
-template<typename Shader>
-uniform_tuple<Shader>::~uniform_tuple() noexcept { clear(); }
-
-template<typename Shader>
-uniform_tuple<Shader>::uniform_tuple(uniform_tuple&& t) noexcept :
-  _uniforms{std::move(t._uniforms)}, _data(std::move(_data)) { t._data = nullptr; }
-
-template<typename Shader>
-auto uniform_tuple<Shader>::operator=(uniform_tuple&& t) noexcept -> uniform_tuple& {
-  clear();
-
-  _uniforms = std::move(t._uniforms);
-  _data = std::move(t._data);
-
-  t._data = nullptr;
-
-  return *this;
+  _data.reserve(data_size);
 }
 
 template<typename Shader>
 void uniform_tuple<Shader>::clear() {
   _uniforms.clear();
-  if (_data) {
-    delete[] _data;
-  }
+  _data.clear();
 }
 
 template<typename Shader>
@@ -66,46 +45,47 @@ void uniform_tuple<Shader>::bind(const shader_type& shader) const {
   shader.use();
   for (const auto& [uniform, pair] : _uniforms) {
     const auto& [type, offset] = pair;
+    const uint8_t* pos = &_data[0]+offset;
     switch (type) {
       case uniform_category::scalar: {
         float stored;
-        std::memcpy(_data+offset, &stored, sizeof(stored));
+        std::memcpy(&stored, pos, sizeof(stored));
         shader.set_uniform(uniform, stored);
         break;
       }
       case uniform_category::iscalar: {
         int stored;
-        std::memcpy(_data+offset, &stored, sizeof(stored));
+        std::memcpy(&stored, pos, sizeof(stored));
         shader.set_uniform(uniform, stored);
         break;
       };
       case uniform_category::vec2: {
         vec2 stored;
-        std::memcpy(_data+offset, &stored, sizeof(stored));
+        std::memcpy(&stored, pos, sizeof(stored));
         shader.set_uniform(uniform, stored);
         break;
       }
       case uniform_category::vec3: {
         vec3 stored;
-        std::memcpy(_data+offset, &stored, sizeof(stored));
+        std::memcpy(&stored, pos, sizeof(stored));
         shader.set_uniform(uniform, stored);
         break;
       }
       case uniform_category::vec4: {
         vec4 stored;
-        std::memcpy(_data+offset, &stored, sizeof(stored));
+        std::memcpy(&stored, pos, sizeof(stored));
         shader.set_uniform(uniform, stored);
         break;
       }
       case uniform_category::mat3: {
         mat3 stored;
-        std::memcpy(_data+offset, &stored, sizeof(stored));
+        std::memcpy(&stored, pos, sizeof(stored));
         shader.set_uniform(uniform, stored);
         break;
       }
       case uniform_category::mat4: {
         mat4 stored;
-        std::memcpy(_data+offset, &stored, sizeof(stored));
+        std::memcpy(&stored, pos, sizeof(stored));
         shader.set_uniform(uniform, stored);
         break;
       }
@@ -125,7 +105,7 @@ bool uniform_tuple<Shader>::set_uniform(uniform_type uniform, T&& val) {
   if (type != uniform_traits<T>::enum_value) {
     return false;
   }
-  std::memcpy(_data+offset, &val, uniform_traits<T>::size);
+  std::memcpy(&val, &_data[0]+offset, uniform_traits<T>::size);
 
   return true;
 }
