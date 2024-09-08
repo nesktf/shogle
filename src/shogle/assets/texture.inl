@@ -9,6 +9,18 @@
 namespace ntf {
 
 template<typename Texture>
+auto texture_data<Texture>::loader::operator()(texture_data data) -> texture_type {
+  typename texture_type::loader tex_loader;
+  return tex_loader(data.pixels, data.dim, data.format, data.filter, data.wrap);
+}
+
+template<typename Texture>
+auto texture_data<Texture>::loader::operator()(std::string path, tex_filter filter,
+                                               tex_wrap wrap) -> texture_type {
+  return (*this)(texture_data{path, filter, wrap});
+}
+
+template<typename Texture>
 texture_data<Texture>::texture_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_) :
   filter(filter_), wrap(wrap_) {
   auto toenum = [](int channels) -> tex_format {

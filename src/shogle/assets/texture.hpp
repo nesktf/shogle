@@ -14,13 +14,8 @@ public:
   using dim_type = texture_type::dim_type;
 
   struct loader {
-    texture_type operator()(texture_data data) {
-      typename texture_type::loader tex_loader;
-      return tex_loader(data.pixels, data.dim, data.format, data.filter, data.wrap);
-    }
-    texture_type operator()(std::string_view path, tex_filter filter, tex_wrap wrap) {
-      return (*this)(texture_data{path, filter, wrap});
-    }
+    texture_type operator()(texture_data data);
+    texture_type operator()(std::string path, tex_filter filter, tex_wrap wrap);
   };
 
 public:

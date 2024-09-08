@@ -69,7 +69,7 @@ public:
     model operator()(data_type data) {
       return model{std::move(data.meshes)};
     }
-    model operator()(std::string_view path, tex_filter filter, tex_wrap wrap) {
+    model operator()(std::string path, tex_filter filter, tex_wrap wrap) {
       return (*this)(data_type{path, filter, wrap});
     }
   };

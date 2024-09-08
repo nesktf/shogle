@@ -9,7 +9,7 @@ public:
   using renderer_type = gl_renderer;
 
   struct loader {
-    shader operator()(std::string_view src, shader_category type) {
+    shader operator()(std::string src, shader_category type) {
       return shader{src, type};
     }
   };
@@ -47,13 +47,13 @@ public:
   using uniform_type = gl_renderer::shader_uniform;
 
   struct loader {
-    shader_program operator()(std::string_view vert, std::string_view frag) {
+    shader_program operator()(std::string vert, std::string frag) {
       return shader_program{
         shader{vert, shader_category::vertex},
         shader{frag, shader_category::fragment},
       };
     }
-    shader_program operator()(std::string_view vert, std::string_view frag, std::string_view geom) {
+    shader_program operator()(std::string vert, std::string frag, std::string geom) {
       return shader_program{
         shader{vert, shader_category::vertex},
         shader{frag, shader_category::fragment},

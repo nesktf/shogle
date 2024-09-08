@@ -19,7 +19,7 @@ public:
     font_type operator()(font_data data) {
       return font_type{std::move(data.glyphs)};
     }
-    font_type operator()(std::string_view path) {
+    font_type operator()(std::string path) {
       return (*this)(font_data{path});
     }
   };

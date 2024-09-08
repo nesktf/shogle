@@ -2,96 +2,100 @@
 
 #include <shogle/assets/texture.hpp>
 
+#include <optional>
+
 namespace ntf {
 
 template<typename Texture>
 class texture_atlas {
 public:
   using texture_type = Texture;
-  using texture = uint32_t;
-  struct texture_meta;
 
-  using group = std::vector<texture>;
-  using sequence = std::vector<texture>;
+  using texture_handle = uint16_t;
+  using group_handle = uint16_t;
+  using sequence_handle = uint16_t;
 
-  struct data_type;
+  using texture_vec = std::vector<texture_handle>;
+
+  struct texture_meta {
+    vec4 offset;
+    ivec2 dim;
+    vec2 aspect() const { return vec2{(float)dim.x/(float)dim.y, 1.f};}
+  };
+
+  struct data_type {
+  public:
+    using texture_type = Texture;
+    using texture_data_type = texture_data<texture_type>;
+
+    struct loader {
+      texture_atlas operator()(data_type data);
+      texture_atlas operator()(std::string path, tex_filter filter, tex_wrap wrap);
+    };
+
+  public:
+    data_type(std::string_view path, tex_filter filter, tex_wrap wrap);
+
+  public:
+    texture_data_type texture;
+    std::vector<texture_meta> metas;
+    std::vector<std::pair<std::string, texture_vec>> sequences;
+    std::vector<std::pair<std::string, texture_vec>> groups;
+  };
+
+  // using iterator = std::vector<texture_meta>::iterator;
+  using const_iterator = std::vector<texture_meta>::const_iterator;
 
 public:
   texture_atlas() = default;
 
   texture_atlas(texture_type tex) :
-    _texture(std::move(tex)),  _metas{default_meta(_texture.dim())} {} // Just wrap a texture
+    _texture(std::move(tex)),  _metas{def_meta(_texture.dim())} {} // Just wrap a texture
 
-  texture_atlas(texture_type tex, std::vector<texture_meta> sprites, 
-                strmap<group> groups = {}, strmap<sequence> seq = {}) :
-    _texture(std::move(tex)), _metas(std::move(sprites)),
-    _groups(std::move(groups)), _sequences(std::move(seq)) {}
+  texture_atlas(texture_type texture, std::vector<texture_meta> metas,
+                std::vector<std::pair<std::string, texture_vec>> groups = {},
+                std::vector<std::pair<std::string, texture_vec>> sequences = {});
 
 public:
-  const sequence& sequence_at(std::string_view name) const { return _sequences.at(name.data()); }
-  const group& group_at(std::string_view name) const { return _groups.at(name.data()); }
+  const texture_meta& at(texture_handle tex) const;
+  const texture_meta& operator[](texture_handle tex) const;
 
-  const texture_meta& at(texture id) const { return _metas.at(id); }
-  const texture_meta& operator[](texture id) const { return _metas[id]; }
+  const texture_vec& sequence_at(sequence_handle seq) const;
+  const texture_vec& group_at(group_handle group) const;
+  std::optional<sequence_handle> find_sequence(std::string_view name) const;
+  std::optional<group_handle> find_group(std::string_view name) const;
 
-  const texture_type& tex() const { return _texture; }
-  texture_type& tex() { return _texture; }
+  const texture_type& texture() const { return _texture; }
+  operator const texture_type&() const { return _texture; }
+  texture_type& texture() { return _texture; }
+  operator texture_type&() { return _texture; }
 
   size_t size() const { return _metas.size(); }
-  bool valid() const { return _texture.valid() && _metas.size() > 0; }
-  bool has(texture id) const { return _metas.size() > id; }
+  size_t group_count() const { return _groups.size(); }
+  size_t sequence_count() const { return _sequences.size(); }
 
-  operator const texture_type&() const { return _texture; }
+  bool valid() const { return _texture.valid() && _metas.size() > 0; }
+
+  // iterator begin() { return _metas.begin(); }
+  const_iterator begin() const { return _metas.begin(); }
+  const_iterator cbegin() const { return _metas.cbegin(); }
+
+  // iterator end() { return _metas.end(); }
+  const_iterator end() const { return _metas.end(); }
+  const_iterator cend() const { return _metas.cend(); }
 
 public:
-  texture_meta default_meta(ivec2 dim) { return texture_meta{.offset=vec4{vec2{1.f},vec2{0.f}},.dim=dim}; }
+  static texture_meta def_meta(ivec2 dim) { return texture_meta{.offset=vec4{vec2{1.f},vec2{0.f}},.dim=dim}; }
 
 private:
   texture_type _texture;
   std::vector<texture_meta> _metas;
-  strmap<group> _groups;
-  strmap<sequence> _sequences;
-};
 
+  std::vector<texture_vec> _groups;
+  std::unordered_map<std::string, group_handle> _group_names;
 
-template<typename Texture>
-struct texture_atlas<Texture>::texture_meta {
-public:
-  vec2 aspect() const { return vec2{(float)dim.x/(float)dim.y, 1.f};}
-
-public:
-  vec4 offset;
-  ivec2 dim;
-};
-
-
-template<typename Texture>
-struct texture_atlas<Texture>::data_type {
-public:
-  using texture_type = Texture;
-  using texture_data_type = texture_data<texture_type>;
-
-  struct loader {
-    texture_atlas operator()(data_type data) {
-      typename texture_type::loader tex_loader;
-      auto& tdata = data.texture;
-      auto tex = tex_loader(tdata.pixels, tdata.dim, tdata.format, tdata.filter, tdata.wrap);
-      return texture_atlas{std::move(tex), std::move(data.sprites), 
-        std::move(data.groups), std::move(data.sequences)};
-    }
-    texture_atlas operator()(std::string_view path, tex_filter filter, tex_wrap wrap) {
-      return (*this)(data_type{path, filter, wrap});
-    }
-  };
-
-public:
-  data_type(std::string_view path, tex_filter filter, tex_wrap wrap);
-
-public:
-  texture_data_type texture;
-  std::vector<texture_atlas::texture_meta> sprites;
-  strmap<texture_atlas::sequence> sequences;
-  strmap<texture_atlas::group> groups;
+  std::vector<texture_vec> _sequences;
+  std::unordered_map<std::string, sequence_handle> _sequence_names;
 };
 
 
@@ -99,34 +103,40 @@ template<typename Texture>
 class texture_animator {
 public:
   using texture_type = Texture;
+  using atlas_type = texture_atlas<Texture>;
+  using sequence_handle = texture_atlas<Texture>::sequence_handle;
+  using texture_handle = texture_atlas<Texture>::texture_handle;
 
 private:
   struct entry {
-    const texture_atlas<texture_type>::sequence& sequence;
+    const atlas_type::texture_vec& sequence;
     uint duration, clock{0};
   };
 
 public:
   texture_animator() = default;
 
-  texture_animator(const texture_atlas<texture_type>& atlas, std::string_view first_sequence) :
+  texture_animator(const atlas_type& atlas, sequence_handle first_sequence) :
     _atlas(&atlas) { enqueue_sequence(first_sequence, 0); }
 
 public:
-  void enqueue_sequence(std::string_view sequence, uint loops);
-  void enqueue_sequence_frames(std::string_view sequence, uint frames);
-  void soft_switch(std::string_view sequence, uint loops);
-  void hard_switch(std::string_view sequence, uint loops);
+  void enqueue_sequence(sequence_handle sequence, uint loops);
+  void enqueue_sequence_frames(sequence_handle sequence, uint frames);
+  void soft_switch(sequence_handle sequence, uint loops);
+  void hard_switch(sequence_handle sequence, uint loops);
 
 public:
   void tick();
-  texture_atlas<texture_type>::texture next_frame() const;
+  texture_handle frame() const;
+  const atlas_type& atlas() const { return *_atlas; }
+
+  bool valid() const { return _atlas != nullptr && _atlas->valid(); }
 
 private:
   void reset_queue(bool hard);
   
 private:
-  const texture_atlas<texture_type>* _atlas;
+  const atlas_type* _atlas;
   std::queue<entry> _sequences;
 };
 

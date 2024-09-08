@@ -4,9 +4,11 @@
 
 #include <shogle/core/threadpool.hpp>
 
+#include <optional>
+
 namespace ntf {
 
-using resource_id = uint32_t;
+using resource_handle = uint32_t;
 
 class async_data_loader {
 private:
@@ -61,48 +63,45 @@ concept resource_data_type = std::same_as<Data, dummy_data_type> || async_resour
 template<typename T>
 class resource_pool {
 public:
-  using resource_id = uint32_t;
   using resource_type = T;
-  static const constexpr resource_id INVALID_ID = UINT32_MAX;
+  using handle = ::ntf::resource_handle;
+
+  using iterator = std::vector<std::pair<std::string, T>>::iterator;
+  using const_iterator = std::vector<std::pair<std::string, T>>::const_iterator;
 
 public:
   resource_pool() = default;
 
 public:
   template<typename... Args>
-  resource_id emplace(std::string name, Args&&... args);
+  handle emplace(std::string name, Args&&... args);
 
 public:
   void clear() { _resources.clear(); }
-
-  void unload(resource_id id) { _reusable_slots.push(id); }
-  
+  void unload(handle id) { _reusable_slots.push(id); }
 
 public:
+  T& at(handle res);
+  T& operator[](handle res);
+  const T& at(handle res) const;
+  const T& operator[](handle res) const;
+
+  std::optional<handle> find(std::string_view name) const;
+
   size_t size() const { return _resources.size(); }
+  size_t queue_size() const { return _reusable_slots.size(); }
 
-  T& at(resource_id id) { return _resources.at(id); }
-  const T& at(resource_id id) const { return _resources.at(id); }
+  iterator begin() { return _resources.begin(); }
+  const_iterator begin() const { return _resources.begin(); }
+  const_iterator cbegin() const { return _resources.cbegin(); }
 
-  T& operator[](resource_id id) { return _resources[id]; }
-  const T& operator[](resource_id id) const { return _resources[id]; }
-
-  bool has(resource_id id) { return _resources.size() > id; }
-
-
-  resource_id id(std::string_view name) const;
-
-  T& at(std::string_view name) { return operator[](id(name)); }
-  const T& at(std::string_view name) const { return operator[](id(name)); }
-
-  T& operator[](std::string_view name) { return at(name); }
-  const T& operator[](std::string_view name) const { return at(name); }
-
-  bool has(std::string_view name) const { return id(name) != INVALID_ID; }
+  iterator end() { return _resources.end(); }
+  const_iterator end() const { return _resources.end();}
+  const_iterator cend() const { return _resources.cend(); }
 
 protected:
   std::vector<std::pair<std::string, T>> _resources;
-  std::queue<resource_id> _reusable_slots;
+  std::queue<handle> _reusable_slots;
 };
 
 template<typename T, typename Data>
@@ -112,7 +111,7 @@ public:
   using resource_loader = typename Data::loader;
 
 private:
-  using callback_fun = std::function<void(typename async_pool::resource_id)>;
+  using callback_fun = std::function<void(typename async_pool::handle, std::string)>;
 
 public:
   template<typename... Args>
