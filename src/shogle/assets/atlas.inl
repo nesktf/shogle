@@ -37,7 +37,7 @@ texture_atlas<Texture>::data_type::data_type(std::string_view path, tex_filter f
       size_t row = j / cols;
       size_t col = j % cols;
 
-      vec2 frac_a {(x0*cols) + (col*dx), y0 + (row*dy)};
+      vec2 frac_a {(x0*cols) + (col*dx), (y0*rows) + (row*dy)};
       vec2 frac_b {x*cols, y*rows};
       vec4 offset{linear_offset, vec2{frac_a.x/frac_b.x, frac_a.y/frac_b.y}};
 
@@ -47,7 +47,8 @@ texture_atlas<Texture>::data_type::data_type(std::string_view path, tex_filter f
     return data;
   };
 
-  auto parse_sequences = [](const std::string& group_name, const json& json_entry) {
+  size_t total_sprite_count = 0;
+  auto parse_sequences = [&](const std::string& group_name, const json& json_entry) {
     std::vector<std::pair<std::string, texture_atlas::texture_vec>> sequences(json_entry.size());
 
     size_t seq_pos = 0;
@@ -61,7 +62,7 @@ texture_atlas<Texture>::data_type::data_type(std::string_view path, tex_filter f
       for (uint i = 0, curr_frame = 0; i < total_frames; i += delay) {
         uint index = sequence[curr_frame];
         for (uint j = 0; j < delay; ++j) {
-          new_sequence[j+i] = index;
+          new_sequence[j+i] = total_sprite_count+index;
         }
         curr_frame++;
       }
@@ -73,7 +74,6 @@ texture_atlas<Texture>::data_type::data_type(std::string_view path, tex_filter f
     return sequences;
   };
 
-  size_t total_sprite_count = 0;
   auto create_group = [&](std::string group_name, size_t group_size) {
     std::pair<std::string, texture_atlas::texture_vec> group_data(
       std::make_pair(std::move(group_name), texture_atlas::texture_vec(group_size)));
