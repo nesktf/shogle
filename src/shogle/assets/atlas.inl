@@ -180,8 +180,8 @@ auto texture_atlas<Texture>::find_group(std::string_view name) const -> std::opt
   return {};
 }
 
-template<typename Texture>
-void texture_animator<Texture>::reset_queue(bool hard) {
+template<typename Texture, typename AtlasPtr>
+void texture_animator<Texture, AtlasPtr>::reset_queue(bool hard) {
   if (_sequences.size() == 0) {
     return;
   }
@@ -193,38 +193,38 @@ void texture_animator<Texture>::reset_queue(bool hard) {
   }
 }
 
-template<typename Texture>
-void texture_animator<Texture>::enqueue_sequence(sequence_handle sequence, uint loops) {
+template<typename Texture, typename AtlasPtr>
+void texture_animator<Texture, AtlasPtr>::enqueue_sequence(sequence_handle sequence, uint loops) {
   const auto& seq = _atlas->sequence_at(sequence);
   _sequences.push(entry{
-    .sequence=seq,
+    .sequence=sequence,
     .duration = loops*static_cast<uint>(seq.size())
   });
 }
 
-template<typename Texture>
-void texture_animator<Texture>::enqueue_sequence_frames(sequence_handle sequence, uint frames) {
+template<typename Texture, typename AtlasPtr>
+void texture_animator<Texture, AtlasPtr>::enqueue_sequence_frames(sequence_handle sequence, uint frames) {
   enqueue_sequence(sequence, 0);
   auto& enqueued = _sequences.back();
   enqueued.duration = frames;
 }
 
-template<typename Texture>
-void texture_animator<Texture>::soft_switch(sequence_handle sequence, uint loops) {
+template<typename Texture, typename AtlasPtr>
+void texture_animator<Texture, AtlasPtr>::soft_switch(sequence_handle sequence, uint loops) {
   reset_queue(false);
   enqueue_sequence(sequence, loops);
 }
 
-template<typename Texture>
-void texture_animator<Texture>::hard_switch(sequence_handle sequence, uint loops) {
+template<typename Texture, typename AtlasPtr>
+void texture_animator<Texture, AtlasPtr>::hard_switch(sequence_handle sequence, uint loops) {
   reset_queue(true);
   enqueue_sequence(sequence, loops);
 }
 
-template<typename Texture>
-void texture_animator<Texture>::tick() {
+template<typename Texture, typename AtlasPtr>
+void texture_animator<Texture, AtlasPtr>::tick() {
   auto& next = _sequences.front();
-  const auto& seq = next.sequence;
+  const auto& seq = _atlas->sequence_at(next.sequence);
   uint& clock = next.clock;
   clock++;
   if (clock >= next.duration && _sequences.size() > 1 && clock%seq.size() == 0) {
@@ -232,10 +232,11 @@ void texture_animator<Texture>::tick() {
   }
 }
 
-template<typename Texture>
-auto texture_animator<Texture>::frame() const -> texture_handle {
+template<typename Texture, typename AtlasPtr>
+auto texture_animator<Texture, AtlasPtr>::frame() const -> texture_handle {
   const auto& next = _sequences.front();
-  return next.sequence[next.clock%next.sequence.size()];
+  const auto& seq = _atlas->sequence_at(next.sequence);
+  return seq[next.clock%seq.size()];
 }
 
 } // namespace ntf

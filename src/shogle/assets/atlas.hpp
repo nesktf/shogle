@@ -99,7 +99,7 @@ private:
 };
 
 
-template<typename Texture>
+template<typename Texture, typename AtlasPtr = texture_atlas<Texture>*>
 class texture_animator {
 public:
   using texture_type = Texture;
@@ -109,15 +109,15 @@ public:
 
 private:
   struct entry {
-    const atlas_type::texture_vec& sequence;
+    sequence_handle sequence;
     uint duration, clock{0};
   };
 
 public:
   texture_animator() = default;
 
-  texture_animator(const atlas_type& atlas, sequence_handle first_sequence) :
-    _atlas(&atlas) { enqueue_sequence(first_sequence, 0); }
+  texture_animator(const AtlasPtr atlas, sequence_handle first_sequence) :
+    _atlas(atlas) { enqueue_sequence(first_sequence, 0); }
 
 public:
   void enqueue_sequence(sequence_handle sequence, uint loops);
@@ -128,15 +128,15 @@ public:
 public:
   void tick();
   texture_handle frame() const;
-  const atlas_type& atlas() const { return *_atlas; }
+  AtlasPtr atlas() const { return _atlas; }
 
-  bool valid() const { return _atlas != nullptr && _atlas->valid(); }
+  bool valid() const { return _atlas->valid(); }
 
 private:
   void reset_queue(bool hard);
   
 private:
-  const atlas_type* _atlas;
+  AtlasPtr _atlas;
   std::queue<entry> _sequences;
 };
 
