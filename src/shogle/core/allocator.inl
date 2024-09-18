@@ -6,7 +6,7 @@ namespace ntf {
 
 namespace impl {
 
-inline std::size_t align_fw_adjust(std::uintptr_t ptr, std::size_t align) noexcept {
+inline std::size_t align_fw_adjust(void* ptr, std::size_t align) noexcept {
   std::uintptr_t iptr = reinterpret_cast<uintptr_t>(ptr);
   // return ((iptr - 1u + align) & -align) - iptr;
   return align - (iptr & (align - 1u));
@@ -20,7 +20,7 @@ inline void* ptr_add(void* p, std::uintptr_t sz) noexcept {
 
 template<typename T, typename Allocator>
 auto allocator_adapter<T, Allocator>::allocate(std::size_t n) -> pointer {
-  return static_cast<pointer>(allocator_type{}.allocate(n*sizeof(T), alignof(T)));
+  return reinterpret_cast<pointer>(allocator_type{}.allocate(n*sizeof(T), alignof(T)));
 }
 
 template<typename T, typename Allocator>
@@ -48,6 +48,9 @@ template<typename T, typename Allocator>
 bool allocator_adapter<T, Allocator>::operator!=(const allocator_adapter& rhs) const noexcept {
   return !(*this == rhs);
 }
+
+template<std::size_t page_size>
+memory_arena<page_size>::memory_arena(std::size_t start_size) { _insert_page(start_size); }
 
 template<std::size_t page_size>
 memory_arena<page_size>::~memory_arena() noexcept { _clear_pages(); }

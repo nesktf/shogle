@@ -1,7 +1,5 @@
 #pragma once
 
-#include <shogle/core/common.hpp>
-
 #include <cstdlib>
 #include <cstdint>
 #include <list>
@@ -40,7 +38,6 @@ public:
   bool operator!=(const allocator_adapter& rhs) const noexcept;
 };
 
-
 template<std::size_t page_size>
 class memory_arena {
 private:
@@ -50,7 +47,7 @@ private:
   };
 
 public:
-  memory_arena(std::size_t start_size = page_size) { _insert_page(start_size); };
+  memory_arena(std::size_t start_size = page_size);
 
 public:
   [[nodiscard]] void* allocate(std::size_t size, std::size_t align);
@@ -74,7 +71,11 @@ private:
   std::size_t _page_offset{0};
 
 public:
-  NTF_DECLARE_MOVE_ONLY(memory_arena);
+  ~memory_arena() noexcept;
+  memory_arena(memory_arena&&) = default;
+  memory_arena(const memory_arena&) = delete;
+  memory_arena& operator=(memory_arena&&) = default;
+  memory_arena& operator=(const memory_arena&) = delete;
 };
 
 } // namespace ntf
