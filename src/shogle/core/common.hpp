@@ -29,3 +29,21 @@
   __type(const __type&) = delete; \
   __type& operator=(__type&&) = delete; \
   __type& operator=(const __type&) = delete
+
+#define NTF_DISABLE_MOVE(__type) \
+  __type(__type&&) = delete; \
+  __type(const __type&) = default; \
+  __type& operator=(__type&&) = delete; \
+  __type& operator=(const __type&) = default
+
+#define NTF_DISABLE_COPY(__type) \
+  __type(__type&&) = default; \
+  __type(const __type&) = delete; \
+  __type& operator=(__type&&) = default; \
+  __type& operator=(const __type&) = delete
+
+#define NTF_DISABLE_MOVE_COPY(__type) \
+  __type(__type&&) = delete; \
+  __type(const __type&) = delete; \
+  __type& operator=(__type&&) = delete; \
+  __type& operator=(const __type&) = delete

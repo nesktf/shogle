@@ -1,10 +1,22 @@
 #pragma once
 
+#include <shogle/core/common.hpp>
+
+#include <memory>
+#include <cassert>
 #include <cstdlib>
 #include <cstdint>
 #include <list>
 
 namespace ntf {
+
+template<typename T, typename Allocator>
+struct rebind_alloc {
+  using type = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
+};
+
+template<typename T, typename Allocator>
+using rebind_alloc_t = typename rebind_alloc<T, Allocator>::type;
 
 // For using allocators in STL containers
 // Store an allocator somewhere, create a stateless
@@ -16,15 +28,8 @@ public:
 
   using value_type = T;
   using pointer = T*;
-  using reference = T&;
-  using const_reference = const T&;
 
-  template<typename U>
-  struct rebind {
-    using other = allocator_adapter<U, allocator_type>;
-  };
-
-public:
+ public:
   [[nodiscard]] pointer allocate(std::size_t n);
   void deallocate(pointer ptr, [[maybe_unused]] std::size_t n);
 
@@ -38,7 +43,7 @@ public:
   bool operator!=(const allocator_adapter& rhs) const noexcept;
 };
 
-template<std::size_t page_size>
+template<std::size_t min_page_size>
 class memory_arena {
 private:
   struct page_header {
@@ -47,9 +52,12 @@ private:
   };
 
 public:
-  memory_arena(std::size_t start_size = page_size);
+  memory_arena() = default;
+  memory_arena(std::size_t start_size);
 
 public:
+  void init(std::size_t start_size = min_page_size);
+
   [[nodiscard]] void* allocate(std::size_t size, std::size_t align);
   void deallocate([[maybe_unused]] void* ptr) {}
 
@@ -72,10 +80,39 @@ private:
 
 public:
   ~memory_arena() noexcept;
-  memory_arena(memory_arena&&) = default;
-  memory_arena(const memory_arena&) = delete;
-  memory_arena& operator=(memory_arena&&) = default;
-  memory_arena& operator=(const memory_arena&) = delete;
+  NTF_DISABLE_COPY(memory_arena);
+};
+
+class memory_stack {
+public:
+  memory_stack() = default;
+  memory_stack(std::size_t size);
+
+public:
+  void init(std::size_t size);
+
+  [[nodiscard]] void* allocate(std::size_t size, std::size_t align);
+  void deallocate([[maybe_unused]] void* ptr) {}
+
+  void resize(std::size_t new_size);
+  void clear();
+  void reset();
+
+public:
+  std::size_t used() const noexcept { return _offset; }
+  std::size_t allocated() const noexcept { return _allocated; }
+
+private:
+  void* _create_page(std::size_t size);
+  void _clear_page();
+
+private:
+  std::size_t _allocated{0};
+  std::size_t _offset{0};
+  void* _page{nullptr};
+
+public:
+  NTF_DECLARE_MOVE_ONLY(memory_stack);
 };
 
 } // namespace ntf
