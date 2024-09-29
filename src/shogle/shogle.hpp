@@ -1,8 +1,8 @@
 #pragma once
 
-#ifndef SHOGLE_ENABLE_INTERNAL_LOGS
-#define SHOGLE_ENABLE_INTERNAL_LOGS 1
-#endif
+#include <shogle/core/common.hpp>
+#include <shogle/core/error.hpp>
+#include <shogle/core/log.hpp>
 
 #include <array>
 #include <vector>
@@ -21,9 +21,9 @@
 
 #include <sys/types.h>
 
-#include <shogle/core/common.hpp>
-
-#include <shogle/core/log.hpp>
+#ifndef SHOGLE_ENABLE_INTERNAL_LOGS
+#define SHOGLE_ENABLE_INTERNAL_LOGS 1
+#endif
 
 #ifdef SHOGLE_ENABLE_INTERNAL_LOGS
 #define SHOGLE_INTERNAL_LOG_FMT(__priority, __format, ...) ::ntf::log::__priority(__format, __VA_ARGS__)
@@ -32,9 +32,6 @@
 #define SHOGLE_INTERNAL_LOG_FMT(__priority, __format, ...) NTF_NOOP
 #define SHOGLE_INTERNAL_LOG(__priority, __msg, ...) NTF_NOOP
 #endif
-
-#include <shogle/core/error.hpp>
-// #include <shogle/math/alg.hpp>
 
 namespace ntf {
 
