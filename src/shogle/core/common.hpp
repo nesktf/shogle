@@ -50,7 +50,6 @@ if (!NTF_UNLIKELY(cond)) { \
 
 #define NTF_ASSERT_(...) NTF_APPLY_VA_ARGS( \
                            NTF_JOIN(NTF_ASSERT_, NTF_NARG(__VA_ARGS__)), __VA_ARGS__)
-#define NTF_ASSERT(...) NTF_ASSERT_(__VA_ARGS__)
 
 #define NTF_UNREACHABLE() {\
   NTF_ASSERT(0, "Triggered unreachable code!!!!!");\
@@ -59,12 +58,20 @@ if (!NTF_UNLIKELY(cond)) { \
 
 #ifdef __has_builtin
 #if __has_builtin(__builtin_assume)
-#define NTF_ASSUME(x) __builtin_assume(x)
+#define NTF_ASSUME_(x) __builtin_assume(x)
 #endif
 #endif
 
-#if !defined(NTF_ASSUME)
-#define NTF_ASSUME(x) do { if(!NTF_UNLIKELY(x)) { NTF_UNREACHABLE(); } } while(0)
+#if !defined(NTF_ASSUME_)
+#define NTF_ASSUME_(x) do { if(!NTF_UNLIKELY(x)) { NTF_UNREACHABLE(); } } while(0)
+#endif
+
+#ifdef NDEBUG
+#define NTF_ASSERT(...) NTF_NOOP
+#define NTF_ASSUME(x) NTF_ASSUME_(x)
+#else
+#define NTF_ASSERT(...) NTF_ASSERT_(__VA_ARGS__)
+#define NTF_ASSUME(x) NTF_ASSERT(x)
 #endif
 
 #define NTF_DECLARE_MOVE_COPY(__type) \
