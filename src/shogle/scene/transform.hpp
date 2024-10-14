@@ -2,234 +2,175 @@
 
 #include <shogle/math/alg.hpp>
 
+#define SHOGLE_TRANSFORM_DECL_SETTER(signature) \
+T& signature &;\
+T&& signature &&
+
 namespace ntf {
 
-template<size_t dim_size, typename T>
-class transf_impl;
+namespace impl {
 
-template<size_t dim_size>
-class transform : public transf_impl<dim_size, transform<dim_size>> {
+template<std::size_t dim, typename T>
+class transform;
+
+template<typename T>
+class transform<2, T> {
 public:
-  transform();
+  transform() = default;
 
 public:
-  void add_child(transform* child);
+  SHOGLE_TRANSFORM_DECL_SETTER(pos(vec2 pos));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos(float x, float y));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos(cmplx pos));
+
+  SHOGLE_TRANSFORM_DECL_SETTER(scale(vec2 scale));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale(cmplx scale));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale(float scale));
+
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(float rot));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(vec3 rot));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(float euler_x, float euler_y, float euler_z));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(vec2 euler_xy, float euler_z));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(float euler_x, vec2 euler_yz));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(cmplx euler_xy, float euler_z));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(float euler_x, cmplx euler_yz));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot_x(float ang));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot_y(float ang));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot_z(float ang));
+
+public:
+  vec2 pos() const { return _pos; }
+  vec2 scale() const { return _scale; }
+  float rot() const { return _rot.z; }
+
+  cmplx cpos() const { return cmplx{_pos.x, _pos.y}; }
+  vec3 erot() const { return _rot; }
+  float rot_x() const { return _rot.x; }
+  float rot_y() const { return _rot.y; }
+  float rot_z() const { return _rot.z; }
+
+  bool dirty() const { return _dirty; }
+
+public:
+  static mat4 build_matrix(vec2 pos, vec2 scale, float rot);
+  static mat4 build_matrix(vec2 pos, vec2 scale, vec3 rot);
+
+protected:
+  mat4 _mat;
+  vec2 _pos{0.f};
+  vec2 _scale{0.f};
+  vec3 _rot{0.f};
+  bool _dirty{true};
+};
+
+
+template<typename T>
+class transform<3, T> {
+public:
+  transform() = default;
+
+public:
+  SHOGLE_TRANSFORM_DECL_SETTER(pos(vec3 pos));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos(float x, float y, float z));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos(vec2 xy, float z));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos(float x, vec2 yz));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos(cmplx xy, float z));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos(float x, cmplx yz));
+
+  SHOGLE_TRANSFORM_DECL_SETTER(scale(vec3 scale));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale(vec2 xy, float z));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale(float x, vec2 yz));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale(cmplx xy, float z));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale(float x, cmplx yz));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale(float scale));
+
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(quat rot));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(float ang, vec3 axis));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(vec3 euler_ang));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(float euler_x, float euler_y, float euler_z));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(vec2 euler_xy, float z));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(float euler_x, vec2 euler_yz));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(cmplx euler_xy, float z));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot(float euler_x, cmplx euler_yz));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot_x(float ang));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot_y(float ang));
+  SHOGLE_TRANSFORM_DECL_SETTER(rot_z(float ang));
+
+public:
+  vec3 pos() const { return _pos; }
+  vec3 scale() const { return _scale; }
+  quat rot() const { return _rot; }
+
+  vec3 erot() const { return glm::eulerAngles(_rot); }
+  float rot_x() const { return rot().x; }
+  float rot_y() const { return rot().y; }
+  float rot_z() const { return rot().z; }
+
+  bool dirty() const { return _dirty; }
+
+public:
+  static mat4 build_matrix(vec3 pos, vec3 scale, quat rot);
+
+protected:
+  mat4 _mat;
+  quat _rot{1.f, vec3{0.f}};
+  vec3 _pos{0.f};
+  vec3 _scale{1.f};
+  bool _dirty{true};
+};
+
+
+template<std::size_t dim>
+class scene_graph : public transform<dim, scene_graph<dim>> {
+public:
+  scene_graph() = default;
+
+public:
+  scene_graph& add_child(scene_graph* child) &;
+  scene_graph&& add_child(scene_graph* child) &&;
   void force_update();
-  const mat4& mat();
+
+public:
+  const mat4& mat() &; // Not const
+
+  mat4 mat() &&; // Just build a matrix if it's an rvalue
 
 private:
-  mat4 _mat {1.0f};
+  scene_graph* _parent{nullptr};
+  std::vector<scene_graph*> _children;
 
-  transform* _parent {nullptr};
-  std::vector<transform*> _children;
+public:
+  // TODO: Define move and copy things...
+  ~scene_graph() noexcept;
+  NTF_DISABLE_NOTHING(scene_graph);
 };
 
 
-template<typename T>
-class transf_impl<3, T> {
-protected:
-  transf_impl() = default;
+template<std::size_t dim>
+class transform_nograph : public transform<dim, transform_nograph<dim>> {
+public:
+  transform_nograph() = default;
 
 public:
-  inline T& set_pos(vec3 pos);
-  inline T& set_pos(float x, float y, float z);
-  inline T& set_scale(vec3 scale);
-  inline T& set_scale(float scale);
-  inline T& set_rot(quat rot);
-  inline T& set_rot(float ang, vec3 axis);
-  inline T& set_rot(vec3 euler_ang);
+  void force_update();
 
 public:
-  inline vec3 pos() const { return _pos; }
-  inline vec3 scale() const { return _scale; }
-  inline quat rot() const { return _rot; }
-  inline vec3 erot() const { return glm::eulerAngles(_rot); }
+  const mat4& mat() &; // Not const
 
-protected:
-  bool _dirty {false};
-  vec3 _pos {0.0f};
-  vec3 _scale {1.0f};
-  quat _rot {1.0f, vec3{0.0f}};
+  mat4 mat() &&; // Just build a matrix if it's an rvalue
 };
 
+} // namespace impl
 
-template<typename T>
-class transf_impl<2, T> {
-protected:
-  transf_impl() = default;
-  
-public:
-  inline T& set_pos(vec2 pos);
-  inline T& set_pos(float x, float y);
-  inline T& set_pos(cmplx pos);
-  inline T& set_scale(vec2 scale);
-  inline T& set_scale(float scale);
-  inline T& set_rot(float rot);
-
-public:
-  inline vec2 pos() const { return _pos; }
-  inline cmplx cpos() const { return cmplx{_pos.x, _pos.y}; }
-  inline vec2 scale() const { return _scale; }
-  inline float rot() const { return _rot; }
-
-protected:
-  bool _dirty {false};
-  vec2 _pos {0.0f};
-  vec2 _scale {1.0f};
-  float _rot {0.0f};
-};
-
-
-inline mat4 transf_mat(vec3 pos, vec3 scale, quat rot) {
-  mat4 model{1.0f};
-
-  model = glm::translate(model, pos);
-  model*= glm::mat4_cast(rot);
-  model = glm::scale(model, scale);
-
-  return model;
-}
-
-inline mat4 transf_mat(vec2 pos, vec2 scale, float rot) {
-  mat4 model{1.0f};
-
-  model = glm::translate(model, vec3{pos, 0.0f});
-  model = glm::rotate(model, rot, vec3{0.0f, 0.0f, 1.0f});
-  model = glm::scale(model, vec3{scale, 1.0f});
-
-  return model;
-}
-
-
-using transform2d = transform<2>;
-using transform3d = transform<3>;
-
-
-template<size_t dim_size>
-transform<dim_size>::transform() { 
-  _mat = transf_mat(this->_pos, this->_scale, this->_rot); // Init matrix
-}
-
-template<size_t dim_size>
-const mat4& transform<dim_size>::mat() {
-  if (this->_dirty) {
-    force_update();
-  }
-  return _mat;
-}
-
-template<size_t dim_size>
-void transform<dim_size>::force_update() {
-  if (_parent) {
-    _mat = _parent->_mat*transf_mat(this->_pos, this->_scale, this->_rot);
-  } else {
-    _mat = transf_mat(this->_pos, this->_scale, this->_rot);
-  }
-  for (auto* child : _children) {
-    child->force_update();
-  }
-  this->_dirty = false;
-}
-
-template<size_t dim_size>
-void transform<dim_size>::add_child(transform* child) {
-  _children.push_back(child);
-  child->_parent = this;
-  child->_dirty = true; // force child to update
-}
-
-
-template<typename T>
-inline auto transf_impl<3, T>::set_pos(vec3 pos) -> T& {
-  _pos = pos;
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto transf_impl<3, T>::set_pos(float x, float y, float z) -> T& {
-  _pos = vec3{x, y, z};
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto transf_impl<3, T>::set_scale(vec3 scale) -> T& {
-  _scale = scale;
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto transf_impl<3, T>::set_scale(float scale) -> T& {
-  _scale = vec3{scale};
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto transf_impl<3, T>::set_rot(quat rot) -> T& {
-  _rot = rot;
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto transf_impl<3, T>::set_rot(float ang, vec3 axis) -> T& {
-  _rot = axisquat(ang, axis);
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto transf_impl<3, T>::set_rot(vec3 euler_ang) -> T& {
-  _rot = eulerquat(euler_ang);
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-
-template<typename T>
-inline auto transf_impl<2, T>::set_pos(vec2 pos) -> T& {
-  _pos = pos;
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto transf_impl<2, T>::set_pos(float x, float y) -> T& {
-  _pos = vec2{x, y};
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto transf_impl<2, T>::set_pos(cmplx pos) -> T& {
-  _pos = vec2{pos.real(), pos.imag()};
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto transf_impl<2, T>::set_scale(vec2 scale) -> T& {
-  _scale = scale;
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto transf_impl<2, T>::set_scale(float scale) -> T& {
-  _scale = vec2{scale};
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto transf_impl<2, T>::set_rot(float rot) -> T& {
-  _rot = rot;
-  _dirty = true;
-  return static_cast<T&>(*this);
-}
+using transform2d = impl::transform_nograph<2>;
+using transform3d = impl::transform_nograph<3>;
+using scene_graph2d = impl::scene_graph<2>;
+using scene_graph3d = impl::scene_graph<3>;
 
 } // namespace ntf
 
+#undef SHOGLE_TRANSFORM_DECL_SETTER
+
+#ifndef SHOGLE_TRANSFORM_INL
+#include <shogle/scene/transform.inl>
+#endif

@@ -119,3 +119,9 @@ if (!NTF_UNLIKELY(cond)) { \
   __type(const __type&) = delete; \
   __type& operator=(__type&&) = delete; \
   __type& operator=(const __type&) = delete
+
+#define NTF_DISABLE_NOTHING(__type) \
+  __type(__type&&) = default; \
+  __type(const __type&) = default; \
+  __type& operator=(__type&&) = default; \
+  __type& operator=(const __type&) = default
