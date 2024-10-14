@@ -172,8 +172,6 @@ mat4 impl::transform<3, T>::build_matrix(vec3 pos, vec3 scale, quat rot) {
 }
 
 
-namespace impl {
-
 template<std::size_t dim>
 scene_graph<dim>::~scene_graph() noexcept {
   for (auto* child : _children) {
@@ -181,10 +179,8 @@ scene_graph<dim>::~scene_graph() noexcept {
   }
 }
 
-} // namespace impl
-
 template<std::size_t dim>
-auto impl::scene_graph<dim>::add_child(scene_graph* child) & -> scene_graph& {
+auto scene_graph<dim>::add_child(scene_graph* child) & -> scene_graph& {
   _children.push_back(child);
   child->_parent = this;
   child->_dirty = true; // force child to update
@@ -192,7 +188,7 @@ auto impl::scene_graph<dim>::add_child(scene_graph* child) & -> scene_graph& {
 }
 
 template<std::size_t dim>
-auto impl::scene_graph<dim>::add_child(scene_graph* child) && -> scene_graph&& {
+auto scene_graph<dim>::add_child(scene_graph* child) && -> scene_graph&& {
   _children.push_back(child);
   child->_parent = this;
   child->_dirty = true; // force child to update
@@ -200,11 +196,11 @@ auto impl::scene_graph<dim>::add_child(scene_graph* child) && -> scene_graph&& {
 }
 
 template<std::size_t dim>
-void impl::scene_graph<dim>::force_update() {
+void scene_graph<dim>::force_update() & {
   if (_parent) {
-    this->_mat = _parent->mat()*scene_graph::build_matrix(this->_pos, this->_scale, this->_rot);
+    this->_mat = _parent->mat()*this->build_matrix(this->_pos, this->_scale, this->_rot);
   } else {
-    this->_mat = scene_graph::build_matrix(this->_pos, this->_scale, this->_rot);
+    this->_mat = this->build_matrix(this->_pos, this->_scale, this->_rot);
   }
   for (auto* child : _children) {
     child->_dirty = true; // child may update later
@@ -213,7 +209,7 @@ void impl::scene_graph<dim>::force_update() {
 }
 
 template<std::size_t dim>
-const mat4& impl::scene_graph<dim>::mat() & {
+const mat4& scene_graph<dim>::mat() & {
   if (this->_dirty) {
     force_update();
   }
@@ -221,23 +217,23 @@ const mat4& impl::scene_graph<dim>::mat() & {
 }
 
 template<std::size_t dim>
-mat4 impl::scene_graph<dim>::mat() && {
+mat4 scene_graph<dim>::mat() && {
   // TODO: Test this?
   if (_parent) {
-    return _parent->mat()*scene_graph::build_matrix(this->_pos, this->_scale, this->_rot);
+    return _parent->mat()*this->build_matrix(this->_pos, this->_scale, this->_rot);
   }
-  return scene_graph::build_matrix(this->_pos, this->_scale, this->_rot);
+  return this->build_matrix(this->_pos, this->_scale, this->_rot);
 }
 
 
 template<std::size_t dim>
-void impl::transform_nograph<dim>::force_update() {
-  this->_mat = transform_nograph::build_matrix(this->_pos, this->scale, this->_rot);
+void transform<dim>::force_update() & {
+  this->_mat = this->build_matrix(this->_pos, this->_scale, this->_rot);
   this->_dirty = false;
 }
 
 template<std::size_t dim>
-const mat4& impl::transform_nograph<dim>::mat() & {
+const mat4& transform<dim>::mat() & {
   if (this->_dirty) {
     force_update();
   }
@@ -245,8 +241,8 @@ const mat4& impl::transform_nograph<dim>::mat() & {
 }
 
 template<std::size_t dim>
-mat4 impl::transform_nograph<dim>::mat() && {
-  return transform_nograph::build_matrix(this->_pos, this->_scale, this->_rot);
+mat4 transform<dim>::mat() && {
+  return this->build_matrix(this->_pos, this->_scale, this->_rot);
 }
 
 } // namespace ntf

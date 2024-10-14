@@ -2,270 +2,175 @@
 
 #include <shogle/math/alg.hpp>
 
+#define SHOGLE_CAMERA_DECL_SETTER(signature) \
+T& signature &;\
+T&& signature &&
+
 namespace ntf {
 
-template<size_t dim_size, typename T>
-class camera_view;
+enum class camera_proj {
+  orthographic = 0,
+  perspective,
+};
 
+namespace impl {
 
-template<size_t dim_size>
-class camera : public camera_view<dim_size, camera<dim_size>> {
+template<typename T>
+class camera_common {
 public:
-  camera(vec2 viewport);
-  camera(float w, float h);
-
-public:
-  void update();
-
-public:
-  inline camera& set_viewport(vec2 viewport);
-  inline camera& set_viewport(float w, float h);
-  inline camera& set_znear(float znear);
-  inline camera& set_zfar(float zfar);
+  camera_common() = default;
 
 public:
-  mat4 proj() const { return _proj; }
-  mat4 view() const { return _view; }
+  SHOGLE_CAMERA_DECL_SETTER(znear(float znear));
+  SHOGLE_CAMERA_DECL_SETTER(zfar(float zfar));
+
+public:
   float znear() const { return _znear; }
   float zfar() const { return _zfar; }
-  vec2 vport() const { return _viewport; }
+  vec2 viewport() const { return _viewport; }
 
-private:
-  mat4 _proj {1.0f};
-  mat4 _view {1.0f};
-  float _znear {0.1f};
-  float _zfar {100.0f};
-  vec2 _viewport;
+  bool view_dirty() const { return _view_dirty; }
+  bool proj_dirty() const { return _proj_dirty; }
+
+public:
+  static mat4 build_proj_ortho(vec2 viewport, float znear, float zfar);
+  static mat4 build_proj_persp(vec2 viewport, float znear, float zfar, float fov);
+
+protected:
+  mat4 _proj, _view;
+  float _znear{.1f}, _zfar{100.f};
+  vec2 _viewport{1.f, 1.f};
+  bool _view_dirty{true}, _proj_dirty{true};
 };
 
 
+template<std::size_t dim, typename T>
+class camera;
+
+
 template<typename T>
-class camera_view<2, T> {
-protected:
-  camera_view(vec2 viewport);
+class camera<2, T> : public camera_common<T> {
+public:
+  camera() = default;
 
 public:
-  inline T& set_pos(vec2 center);
-  inline T& set_pos(float x, float y);
-  inline T& set_zoom(vec2 zoom);
-  inline T& set_zoom(float x, float y);
-  inline T& set_zoom(float zoom);
-  inline T& set_rot(float rot);
+  SHOGLE_CAMERA_DECL_SETTER(pos(vec2 pos));
+  SHOGLE_CAMERA_DECL_SETTER(pos(float x, float y));
+  SHOGLE_CAMERA_DECL_SETTER(pos(cmplx pos));
+
+  SHOGLE_CAMERA_DECL_SETTER(zoom(vec2 zoom));
+  SHOGLE_CAMERA_DECL_SETTER(zoom(float x, float y));
+  SHOGLE_CAMERA_DECL_SETTER(zoom(cmplx zoom));
+  SHOGLE_CAMERA_DECL_SETTER(zoom(float zoom));
+
+  SHOGLE_CAMERA_DECL_SETTER(rot(float rot));
+
+  SHOGLE_CAMERA_DECL_SETTER(viewport(vec2 viewport));
+  SHOGLE_CAMERA_DECL_SETTER(viewport(cmplx viewport));
+  SHOGLE_CAMERA_DECL_SETTER(viewport(float x, float y));
 
 public:
-  vec2 center() const { return _pos; }
+  vec2 pos() const { return _pos; }
   vec2 zoom() const { return _zoom; }
   float rot() const { return _rot; }
 
+  cmplx cpos() const { return cmplx{_pos.x, _pos.y}; }
+  float zoom_x() const { return _zoom.x; }
+  float zoom_y() const { return _zoom.y;}
+
+public:
+  static mat4 build_view(vec2 origin, vec2 pos, vec2 zoom, float rot);
+  static mat4 build_view(vec2 origin, vec2 pos, vec2 zoom, vec3 rot);
+
 protected:
-  vec2 _pos {0.0f};
-  vec2 _zoom {1.0f};
-  float _rot {0.0f};
-  vec2 _origin;
+  vec2 _pos{0.f};
+  vec2 _zoom{1.f};
+  float _rot{0.f};
+  vec2 _origin{0.f};
 };
 
 
 template<typename T>
-class camera_view<3, T> {
+class camera<3, T> : public camera_common<T> {
 public:
-  enum class proj_type {
-    perspective,
-    orthographic,
-  };
-
-protected:
-  camera_view(vec2 viewport);
+  camera() = default;
 
 public:
-  inline T& set_pos(vec3 pos);
-  inline T& set_pos(float x, float y, float z);
-  inline T& set_dir(vec3 dir);
-  inline T& set_dir(float x, float y, float z);
-  inline T& set_fov(float fov);
-  inline T& set_proj(proj_type type);
+  SHOGLE_CAMERA_DECL_SETTER(pos(vec3 pos));
+  SHOGLE_CAMERA_DECL_SETTER(pos(float x, float y, float z));
+  SHOGLE_CAMERA_DECL_SETTER(pos(vec2 xy, float z));
+  SHOGLE_CAMERA_DECL_SETTER(pos(float x, vec2 yz));
+  SHOGLE_CAMERA_DECL_SETTER(pos(cmplx xy, float z));
+  SHOGLE_CAMERA_DECL_SETTER(pos(float x, cmplx yz));
+
+  SHOGLE_CAMERA_DECL_SETTER(dir(vec3 dir));
+  SHOGLE_CAMERA_DECL_SETTER(dir(float x, float y, float z));
+  SHOGLE_CAMERA_DECL_SETTER(dir(vec2 xy, float z));
+  SHOGLE_CAMERA_DECL_SETTER(dir(float x, vec2 yz));
+  SHOGLE_CAMERA_DECL_SETTER(dir(cmplx xy, float z));
+  SHOGLE_CAMERA_DECL_SETTER(dir(float x, cmplx yz));
+
+  SHOGLE_CAMERA_DECL_SETTER(up(vec3 up));
+  SHOGLE_CAMERA_DECL_SETTER(up(float x, float y, float z));
+  SHOGLE_CAMERA_DECL_SETTER(up(vec2 xy, float z));
+  SHOGLE_CAMERA_DECL_SETTER(up(float x, vec2 yz));
+  SHOGLE_CAMERA_DECL_SETTER(up(cmplx xy, float z));
+  SHOGLE_CAMERA_DECL_SETTER(up(float x, cmplx yz));
+
+  SHOGLE_CAMERA_DECL_SETTER(viewport(vec2 viewport));
+  SHOGLE_CAMERA_DECL_SETTER(viewport(cmplx viewport));
+  SHOGLE_CAMERA_DECL_SETTER(viewport(float x, float y));
+
+  SHOGLE_CAMERA_DECL_SETTER(fov(float fov));
+  SHOGLE_CAMERA_DECL_SETTER(proj_type(camera_proj proj));
 
 public:
   vec3 pos() const { return _pos; }
   vec3 dir() const { return _dir; }
   vec3 up() const { return _up; }
   float fov() const { return _fov; }
+  camera_proj proj_type() const { return _proj_type; }
+
+public:
+  static mat4 build_view(vec3 pos, vec3 dir, vec3 up);
 
 protected:
-  bool _use_persp {true};
-  vec3 _pos {0.0f};
+  vec3 _pos{0.f};
   vec3 _dir {0.0f, 0.0f, -1.0f};
   vec3 _up {0.0f, 1.0f, 0.0f};
   float _fov {M_PIf*0.25f};
+  camera_proj _proj_type{camera_proj::perspective};
 };
 
+} // namespace impl
 
-inline mat4 proj_ortho(vec2 viewport, float znear, float zfar) {
-  return glm::ortho(
-    0.0f, viewport.x,
-    viewport.y, 0.0f,
-    znear, zfar
-  );
-}
+template<std::size_t dim>
+class camera : public impl::camera<dim, ::ntf::camera<dim>> {
+public:
+  camera() = default;
 
-inline mat4 proj_persp(vec2 viewport, float znear, float zfar, float fov) {
-  return glm::perspective(
-    fov,
-    viewport.x/viewport.y,
-    znear, zfar
-  );
-}
+public:
+  void force_update_proj() &;
+  void force_update_view() &;
+  void force_update() &;
 
-inline mat4 view2d(vec2 origin, vec2 pos, vec2 zoom, float rot) {
-  mat4 view {1.0f};
+public:
+  const mat4& proj() &; // Not const
+  const mat4& view() &; // Not const
+  mat4 proj() &&;
+  mat4 view() &&;
 
-  view = glm::translate(view, vec3{origin, 0.0f});
-  view = glm::rotate(view, rot, vec3{0.0f, 0.0f, 1.0f});
-  view = glm::scale(view, vec3{zoom, 1.0f});
-  view = glm::translate(view, vec3{-pos, 0.0f});
-
-  return view;
-}
-
-inline mat4 view3d(vec3 pos, vec3 dir, vec3 up) {
-  return glm::lookAt(
-    pos,
-    pos + dir,
-    up
-  );
-}
-
+  std::pair<const mat4&, const mat4&> mat() &;
+  std::pair<mat4, mat4> mat() &&;
+};
 
 using camera2d = camera<2>;
 using camera3d = camera<3>;
 
-
-template<size_t dim_size>
-camera<dim_size>::camera(vec2 viewport) : 
-  camera_view<dim_size, camera<dim_size>>(viewport),
-  _viewport(viewport) {
-  if constexpr (dim_size == 2) {
-    _znear = -10.0f;
-    _zfar = 1.0f;
-  }
-  update();
-};
-
-template<size_t dim_size>
-camera<dim_size>::camera(float w, float h) :
-  camera(vec2{w, h}) {}
-
-template<size_t dim_size>
-void camera<dim_size>::update() {
-  if constexpr (dim_size == 2) {
-    _proj = proj_ortho(_viewport, _znear, _zfar);
-    _view = view2d(this->_origin, this->_pos, this->_zoom, this->_rot);
-  } else {
-    _proj = this->_use_persp ?
-      proj_persp(_viewport, _znear, _zfar, this->_fov) : proj_ortho(_viewport, _znear, _zfar);
-    _view = view3d(this->_pos, this->_dir, this->_up);
-  }
-}
-
-template<size_t dim_size>
-inline auto camera<dim_size>::set_viewport(vec2 viewport) -> camera& {
-  _viewport = viewport;
-  if constexpr (dim_size == 2) {
-    this->_origin = viewport * 0.5f;
-  }
-  return *this;
-}
-
-template<size_t dim_size>
-inline auto camera<dim_size>::set_viewport(float w, float h) -> camera& {
-  return set_viewport(vec2{w, h});
-}
-
-template<size_t dim_size>
-inline auto camera<dim_size>::set_znear(float znear) -> camera& {
-  _znear = znear;
-  return *this;
-}
-
-template<size_t dim_size>
-inline auto camera<dim_size>::set_zfar(float zfar) -> camera& {
-  _zfar = zfar;
-  return *this;
-}
-
-
-template<typename T>
-camera_view<2, T>::camera_view(vec2 viewport) :
-  _origin(viewport*0.5f) {}
-
-template<typename T>
-inline auto camera_view<2, T>::set_pos(vec2 center) -> T& {
-  _pos = center;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto camera_view<2, T>::set_pos(float x, float y) -> T& {
-  return set_pos(vec2{x, y});
-}
-
-template<typename T>
-inline auto camera_view<2, T>::set_zoom(vec2 zoom) -> T& {
-  _zoom = zoom;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto camera_view<2, T>::set_zoom(float x, float y) -> T& {
-  return set_zoom(vec2{x, y});
-}
-
-template<typename T>
-inline auto camera_view<2, T>::set_zoom(float zoom) -> T& {
-  return set_zoom(vec2{zoom});
-}
-
-template<typename T>
-inline auto camera_view<2, T>::set_rot(float rot) -> T& {
-  _rot = rot;
-  return static_cast<T&>(*this);
-}
-
-
-template<typename T>
-camera_view<3, T>::camera_view(vec2) {}
-
-template<typename T>
-inline auto camera_view<3, T>::set_pos(vec3 pos) -> T& {
-  _pos = pos;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto camera_view<3, T>::set_pos(float x, float y, float z) -> T& {
-  return set_pos(vec3{x, y, z});
-}
-
-template<typename T>
-inline auto camera_view<3, T>::set_dir(vec3 dir) -> T& {
-  _dir = dir;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto camera_view<3, T>::set_dir(float x, float y, float z) -> T& {
-  return set_dir(vec3{x, y, z});
-}
-
-template<typename T>
-inline auto camera_view<3, T>::set_fov(float fov) -> T& {
-  _fov = fov;
-  return static_cast<T&>(*this);
-}
-
-template<typename T>
-inline auto camera_view<3, T>::set_proj(proj_type type) -> T& {
-  _use_persp = (type == proj_type::perspective);
-  return static_cast<T&>(*this);
-}
-
 } // namespace ntf
+
+#undef SHOGLE_CAMERA_DECL_SETTER
+
+#ifndef SHOGLE_CAMERA_INL
+#include <shogle/scene/camera.inl>
+#endif

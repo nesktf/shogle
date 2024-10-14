@@ -58,7 +58,7 @@ public:
 protected:
   mat4 _mat;
   vec2 _pos{0.f};
-  vec2 _scale{0.f};
+  vec2 _scale{1.f};
   vec3 _rot{0.f};
   bool _dirty{true};
 };
@@ -119,16 +119,17 @@ protected:
   bool _dirty{true};
 };
 
+} // namespace impl
 
 template<std::size_t dim>
-class scene_graph : public transform<dim, scene_graph<dim>> {
+class scene_graph : public impl::transform<dim, scene_graph<dim>> {
 public:
   scene_graph() = default;
 
 public:
   scene_graph& add_child(scene_graph* child) &;
   scene_graph&& add_child(scene_graph* child) &&;
-  void force_update();
+  void force_update() &;
 
 public:
   const mat4& mat() &; // Not const
@@ -147,12 +148,12 @@ public:
 
 
 template<std::size_t dim>
-class transform_nograph : public transform<dim, transform_nograph<dim>> {
+class transform : public impl::transform<dim, ::ntf::transform<dim>> {
 public:
-  transform_nograph() = default;
+  transform() = default;
 
 public:
-  void force_update();
+  void force_update() &;
 
 public:
   const mat4& mat() &; // Not const
@@ -160,12 +161,11 @@ public:
   mat4 mat() &&; // Just build a matrix if it's an rvalue
 };
 
-} // namespace impl
 
-using transform2d = impl::transform_nograph<2>;
-using transform3d = impl::transform_nograph<3>;
-using scene_graph2d = impl::scene_graph<2>;
-using scene_graph3d = impl::scene_graph<3>;
+using transform2d = transform<2>;
+using transform3d = transform<3>;
+using scene_graph2d = scene_graph<2>;
+using scene_graph3d = scene_graph<3>;
 
 } // namespace ntf
 
