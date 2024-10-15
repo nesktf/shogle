@@ -44,28 +44,28 @@ public:
   SHOGLE_TRANSFORM_DECL_SETTER(rot_z(float ang));
 
 public:
-  vec2 pos() const { return _pos; }
-  vec2 scale() const { return _scale; }
-  float rot() const { return _rot.z; }
+  [[nodiscard]] vec2 pos() const { return _pos; }
+  [[nodiscard]] vec2 scale() const { return _scale; }
+  [[nodiscard]] float rot() const { return _rot.z; }
 
-  float pos_x() const { return _pos.x; }
-  float pos_y() const { return _pos.y;}
-  cmplx cpos() const { return cmplx{_pos.x, _pos.y}; }
+  [[nodiscard]] float pos_x() const { return _pos.x; }
+  [[nodiscard]] float pos_y() const { return _pos.y;}
+  [[nodiscard]] cmplx cpos() const { return cmplx{_pos.x, _pos.y}; }
 
-  float scale_x() const { return _scale.x; }
-  float scale_y() const { return _scale.y; }
-  cmplx cscale() const { return cmplx{_scale.x, _scale.y}; }
+  [[nodiscard]] float scale_x() const { return _scale.x; }
+  [[nodiscard]] float scale_y() const { return _scale.y; }
+  [[nodiscard]] cmplx cscale() const { return cmplx{_scale.x, _scale.y}; }
 
-  vec3 erot() const { return _rot; }
-  float rot_x() const { return _rot.x; }
-  float rot_y() const { return _rot.y; }
-  float rot_z() const { return _rot.z; }
+  [[nodiscard]] vec3 erot() const { return _rot; }
+  [[nodiscard]] float rot_x() const { return _rot.x; }
+  [[nodiscard]] float rot_y() const { return _rot.y; }
+  [[nodiscard]] float rot_z() const { return _rot.z; }
 
-  bool dirty() const { return _dirty; }
+  [[nodiscard]] bool dirty() const { return _dirty; }
 
 public:
-  static mat4 build_matrix(vec2 pos, vec2 scale, float rot);
-  static mat4 build_matrix(vec2 pos, vec2 scale, vec3 rot);
+  [[nodiscard]] static mat4 build_matrix(vec2 pos, vec2 scale, float rot);
+  [[nodiscard]] static mat4 build_matrix(vec2 pos, vec2 scale, vec3 rot);
 
 protected:
   mat4 _mat;
@@ -116,27 +116,27 @@ public:
   SHOGLE_TRANSFORM_DECL_SETTER(rot_z(float ang));
 
 public:
-  vec3 pos() const { return _pos; }
-  vec3 scale() const { return _scale; }
-  quat rot() const { return _rot; }
+  [[nodiscard]] vec3 pos() const { return _pos; }
+  [[nodiscard]] vec3 scale() const { return _scale; }
+  [[nodiscard]] quat rot() const { return _rot; }
 
-  float pos_x() const { return _pos.x; }
-  float pos_y() const { return _pos.y; }
-  float pos_z() const { return _pos.z; }
+  [[nodiscard]] float pos_x() const { return _pos.x; }
+  [[nodiscard]] float pos_y() const { return _pos.y; }
+  [[nodiscard]] float pos_z() const { return _pos.z; }
 
-  float scale_x() const { return _scale.x; }
-  float scale_y() const { return _scale.y; }
-  float scale_z() const { return _scale.z; }
+  [[nodiscard]] float scale_x() const { return _scale.x; }
+  [[nodiscard]] float scale_y() const { return _scale.y; }
+  [[nodiscard]] float scale_z() const { return _scale.z; }
 
-  vec3 erot() const { return glm::eulerAngles(_rot); }
-  float rot_x() const { return rot().x; }
-  float rot_y() const { return rot().y; }
-  float rot_z() const { return rot().z; }
+  [[nodiscard]] vec3 erot() const { return glm::eulerAngles(_rot); }
+  [[nodiscard]] float rot_x() const { return rot().x; }
+  [[nodiscard]] float rot_y() const { return rot().y; }
+  [[nodiscard]] float rot_z() const { return rot().z; }
 
-  bool dirty() const { return _dirty; }
+  [[nodiscard]] bool dirty() const { return _dirty; }
 
 public:
-  static mat4 build_matrix(vec3 pos, vec3 scale, quat rot);
+  [[nodiscard]] static mat4 build_matrix(vec3 pos, vec3 scale, quat rot);
 
 protected:
   mat4 _mat;
@@ -163,9 +163,9 @@ public:
   void force_update() &;
 
 public:
-  const mat4& mat() &; // Not const
+  [[nodiscard]] const mat4& mat() &; // Not const
 
-  mat4 mat() &&; // Just build a matrix if it's an rvalue
+  [[nodiscard]] mat4 mat() &&; // Just build a matrix if it's an rvalue
 
 private:
   scene_graph* _parent{nullptr};
@@ -191,9 +191,9 @@ public:
   void force_update() &;
 
 public:
-  const mat4& mat() &; // Not const
+  [[nodiscard]] const mat4& mat() &; // Not const
 
-  mat4 mat() &&; // Just build a matrix if it's an rvalue
+  [[nodiscard]] mat4 mat() &&; // Just build a matrix if it's an rvalue
 };
 
 
