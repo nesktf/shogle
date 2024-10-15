@@ -16,16 +16,21 @@ class transform;
 template<typename T>
 class transform<2, T> {
 public:
-  transform() = default;
+  transform(vec2 pos = vec2{0.f}, vec2 scale = vec2{1.f}, vec3 rot = vec3{0.f}) :
+    _pos(pos), _scale(scale), _rot(rot) {}
 
 public:
   SHOGLE_TRANSFORM_DECL_SETTER(pos(vec2 pos));
   SHOGLE_TRANSFORM_DECL_SETTER(pos(float x, float y));
   SHOGLE_TRANSFORM_DECL_SETTER(pos(cmplx pos));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos_x(float x));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos_y(float y));
 
   SHOGLE_TRANSFORM_DECL_SETTER(scale(vec2 scale));
   SHOGLE_TRANSFORM_DECL_SETTER(scale(cmplx scale));
   SHOGLE_TRANSFORM_DECL_SETTER(scale(float scale));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale_x(float x));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale_y(float y));
 
   SHOGLE_TRANSFORM_DECL_SETTER(rot(float rot));
   SHOGLE_TRANSFORM_DECL_SETTER(rot(vec3 rot));
@@ -43,7 +48,14 @@ public:
   vec2 scale() const { return _scale; }
   float rot() const { return _rot.z; }
 
+  float pos_x() const { return _pos.x; }
+  float pos_y() const { return _pos.y;}
   cmplx cpos() const { return cmplx{_pos.x, _pos.y}; }
+
+  float scale_x() const { return _scale.x; }
+  float scale_y() const { return _scale.y; }
+  cmplx cscale() const { return cmplx{_scale.x, _scale.y}; }
+
   vec3 erot() const { return _rot; }
   float rot_x() const { return _rot.x; }
   float rot_y() const { return _rot.y; }
@@ -57,9 +69,9 @@ public:
 
 protected:
   mat4 _mat;
-  vec2 _pos{0.f};
-  vec2 _scale{1.f};
-  vec3 _rot{0.f};
+  vec2 _pos;
+  vec2 _scale;
+  vec3 _rot;
   bool _dirty{true};
 };
 
@@ -67,7 +79,8 @@ protected:
 template<typename T>
 class transform<3, T> {
 public:
-  transform() = default;
+  transform(vec3 pos = vec3{0.f}, vec3 scale = vec3{1.f}, quat rot = quat{1.f, vec3{0.f}}) :
+    _rot(rot), _pos(pos), _scale(scale) {};
 
 public:
   SHOGLE_TRANSFORM_DECL_SETTER(pos(vec3 pos));
@@ -76,6 +89,9 @@ public:
   SHOGLE_TRANSFORM_DECL_SETTER(pos(float x, vec2 yz));
   SHOGLE_TRANSFORM_DECL_SETTER(pos(cmplx xy, float z));
   SHOGLE_TRANSFORM_DECL_SETTER(pos(float x, cmplx yz));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos_x(float x));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos_y(float y));
+  SHOGLE_TRANSFORM_DECL_SETTER(pos_z(float z));
 
   SHOGLE_TRANSFORM_DECL_SETTER(scale(vec3 scale));
   SHOGLE_TRANSFORM_DECL_SETTER(scale(vec2 xy, float z));
@@ -83,6 +99,9 @@ public:
   SHOGLE_TRANSFORM_DECL_SETTER(scale(cmplx xy, float z));
   SHOGLE_TRANSFORM_DECL_SETTER(scale(float x, cmplx yz));
   SHOGLE_TRANSFORM_DECL_SETTER(scale(float scale));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale_x(float x));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale_y(float y));
+  SHOGLE_TRANSFORM_DECL_SETTER(scale_z(float z));
 
   SHOGLE_TRANSFORM_DECL_SETTER(rot(quat rot));
   SHOGLE_TRANSFORM_DECL_SETTER(rot(float ang, vec3 axis));
@@ -101,6 +120,14 @@ public:
   vec3 scale() const { return _scale; }
   quat rot() const { return _rot; }
 
+  float pos_x() const { return _pos.x; }
+  float pos_y() const { return _pos.y; }
+  float pos_z() const { return _pos.z; }
+
+  float scale_x() const { return _scale.x; }
+  float scale_y() const { return _scale.y; }
+  float scale_z() const { return _scale.z; }
+
   vec3 erot() const { return glm::eulerAngles(_rot); }
   float rot_x() const { return rot().x; }
   float rot_y() const { return rot().y; }
@@ -113,9 +140,9 @@ public:
 
 protected:
   mat4 _mat;
-  quat _rot{1.f, vec3{0.f}};
-  vec3 _pos{0.f};
-  vec3 _scale{1.f};
+  quat _rot;
+  vec3 _pos;
+  vec3 _scale;
   bool _dirty{true};
 };
 
@@ -125,6 +152,10 @@ template<std::size_t dim>
 class scene_graph : public impl::transform<dim, scene_graph<dim>> {
 public:
   scene_graph() = default;
+
+  template<typename... Args>
+  explicit scene_graph(Args&&... args) :
+    impl::transform<dim, scene_graph<dim>>{std::forward<Args>(args)...} {}
 
 public:
   scene_graph& add_child(scene_graph* child) &;
@@ -151,6 +182,10 @@ template<std::size_t dim>
 class transform : public impl::transform<dim, ::ntf::transform<dim>> {
 public:
   transform() = default;
+
+  template<typename... Args>
+  explicit transform(Args&&... args) :
+    impl::transform<dim, transform<dim>>{std::forward<Args>(args)...} {}
 
 public:
   void force_update() &;
