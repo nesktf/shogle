@@ -228,15 +228,15 @@ SHOGLE_TRANSFORM_DEF_SETTER(3, rot(float euler_x, cmplx euler_yz),
 )
 
 SHOGLE_TRANSFORM_DEF_SETTER(3, rot_x(float ang),
-  _rot.x = ang;
+  _rot *= ::ntf::axisquat(ang, vec3{1.f, 0.f, 0.f});
 )
 
 SHOGLE_TRANSFORM_DEF_SETTER(3, rot_y(float ang),
-  _rot.y = ang;
+  _rot *= ::ntf::axisquat(ang, vec3{0.f, 1.f, 0.f});
 )
 
 SHOGLE_TRANSFORM_DEF_SETTER(3, rot_z(float ang),
-  _rot.z = ang;
+  _rot *= ::ntf::axisquat(ang, vec3{0.f, 0.f, 1.f});
 )
 
 template<typename T>
