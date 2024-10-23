@@ -29,6 +29,7 @@ public:
   void bind(size_t viewport_w, size_t viewport_h, Renderer&& renderer);
 
 public:
+  texture_type& tex() { return _texture; }
   const texture_type& tex() const { return _texture; }
 
   GLuint& id() { return _fbo; } // Not const

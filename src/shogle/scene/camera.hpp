@@ -69,6 +69,8 @@ public:
   SHOGLE_CAMERA_DECL_SETTER(viewport(cmplx viewport));
   SHOGLE_CAMERA_DECL_SETTER(viewport(float x, float y));
 
+  using camera_common<T>::viewport;
+
 public:
   vec2 pos() const { return _pos; }
   vec2 zoom() const { return _zoom; }
@@ -123,6 +125,8 @@ public:
 
   SHOGLE_CAMERA_DECL_SETTER(fov(float fov));
   SHOGLE_CAMERA_DECL_SETTER(proj_type(camera_proj proj));
+
+  using camera_common<T>::viewport;
 
 public:
   vec3 pos() const { return _pos; }

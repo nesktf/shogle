@@ -270,7 +270,7 @@ mat4 impl::camera<3, T>::build_view(vec3 pos, vec3 dir, vec3 up) {
 template<std::size_t dim>
 void camera<dim>::force_update_proj() & {
   if constexpr (dim == 2) {
-    this->_proj = this->_build_proj_ortho(this->_viewport, this->_znear, this->_zfar);
+    this->_proj = this->build_proj_ortho(this->_viewport, this->_znear, this->_zfar);
   } else {
     if (this->_proj_type == camera_proj::orthographic) {
       this->_proj = this->build_proj_ortho(this->_viewport, this->_znear, this->_zfar);
