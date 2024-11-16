@@ -18,37 +18,6 @@ inline void* ptr_add(void* p, std::uintptr_t sz) noexcept {
 
 } // namespace impl
 
-template<typename T, typename Allocator>
-auto allocator_adapter<T, Allocator>::allocate(std::size_t n) -> pointer {
-  return reinterpret_cast<pointer>(allocator_type{}.allocate(n*sizeof(T), alignof(T)));
-}
-
-template<typename T, typename Allocator>
-void allocator_adapter<T, Allocator>::deallocate(pointer ptr, [[maybe_unused]] std::size_t n) {
-  allocator_type{}.deallocate(ptr, n);
-}
-
-template<typename T, typename Allocator>
-template<typename... Args>
-void allocator_adapter<T, Allocator>::construct(pointer ptr, Args&&... args) {
-  new (ptr) T{std::forward<Args>(args)...};
-}
-
-template<typename T, typename Allocator>
-void allocator_adapter<T, Allocator>::destroy(pointer ptr) {
-  ptr->~T();
-}
-
-template<typename T, typename Allocator>
-bool allocator_adapter<T, Allocator>::operator==(const allocator_adapter&) const noexcept {
-  return true; // TODO: Actually compare both...
-}
-
-template<typename T, typename Allocator>
-bool allocator_adapter<T, Allocator>::operator!=(const allocator_adapter& rhs) const noexcept {
-  return !(*this == rhs);
-}
-
 template<std::size_t min_page_size>
 memory_arena<min_page_size>::memory_arena(std::size_t start_size) { init(start_size); }
 

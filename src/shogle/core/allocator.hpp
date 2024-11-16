@@ -18,29 +18,71 @@ struct rebind_alloc {
 template<typename T, typename Allocator>
 using rebind_alloc_t = typename rebind_alloc<T, Allocator>::type;
 
-// For using allocators in STL containers
-// Store an allocator somewhere, create a stateless
-// class that wraps it, and then pass it to the adapter
-template<typename T, typename Allocator>
+template<typename P>
+struct memory_pool_traits {
+  static constexpr bool is_stateless = false;
+};
+
+template<typename T, typename P,
+  bool = memory_pool_traits<P>::is_stateless>
 class allocator_adapter {
 public:
-  using allocator_type = Allocator;
-
+  using pool_type = P;
   using value_type = T;
   using pointer = T*;
 
- public:
-  [[nodiscard]] pointer allocate(std::size_t n);
-  void deallocate(pointer ptr, [[maybe_unused]] std::size_t n);
+public:
+  allocator_adapter(pool_type& pool) :
+    _pool(pool) {}
 
-  template<typename... Args>
-  void construct(pointer ptr, Args&&... args);
-
-  void destroy(pointer ptr);
+  template<typename U>
+  allocator_adapter(const allocator_adapter<U, P>& other) :
+    _pool(other._pool) {}
 
 public:
-  bool operator==(const allocator_adapter& rhs) const noexcept;
-  bool operator!=(const allocator_adapter& rhs) const noexcept;
+  [[nodiscard]] pointer allocate(std::size_t n) {
+    return reinterpret_cast<pointer>(_pool.allocate(n*sizeof(T), alignof(T)));
+  }
+  
+  void deallocate(pointer ptr, std::size_t n) {
+    _pool.deallocate(ptr, n);
+  }
+
+public:
+  constexpr bool operator==(const allocator_adapter& rhs) const noexcept {
+    return (std::addressof(_pool) == std::addressof(rhs._pool));
+  }
+  constexpr bool operator!=(const allocator_adapter& rhs) const noexcept {
+    return !(*this == rhs);
+  }
+
+private:
+  pool_type& _pool;
+};
+
+template<typename T, typename P>
+class allocator_adapter<T, P, true> {
+public:
+  using pool_type = P;
+  using value_type = T;
+  using pointer = T*;
+
+public:
+  [[nodiscard]] pointer allocate(std::size_t n) {
+    return reinterpret_cast<pointer>(pool_type{}.allocate(n*sizeof(T), alignof(T)));
+  }
+
+  void deallocate(pointer ptr, std::size_t n) {
+    pool_type{}.deallocate(ptr, n);
+  }
+
+public:
+  constexpr bool operator==(const allocator_adapter& rhs) const noexcept {
+    return true;
+  }
+  constexpr bool operator!=(const allocator_adapter& rhs) const noexcept {
+    return !(*this == rhs);
+  }
 };
 
 template<std::size_t min_page_size>
