@@ -97,7 +97,7 @@ void basic_memory_arena<P>::clear(bool reallocate) noexcept {
 template<typename P>
 template<typename T>
 auto basic_memory_arena<P>::make_adaptor() -> allocator_adaptor<T, P> {
-  return allocator_adaptor<T, P>{*this};
+  return allocator_adaptor<T, P>{static_cast<T&>(*this)};
 }
 
 } // namespace impl

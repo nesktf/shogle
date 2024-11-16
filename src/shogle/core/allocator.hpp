@@ -110,12 +110,14 @@ public:
 
 public:
   void init(std::size_t size) noexcept;
-
   void deallocate(void*, std::size_t) noexcept {}
-
   void clear(bool reallocate = false) noexcept;
 
 public:
+  std::size_t used() const noexcept { return _used; }
+  std::size_t allocated() const noexcept { return _allocated; }
+  std::size_t blocks() const noexcept { return _block_count; }
+
   template<typename T>
   allocator_adaptor<T, P> make_adaptor();
 
@@ -157,6 +159,10 @@ public:
 public:
   [[nodiscard]] void* allocate(std::size_t size, std::size_t align) noexcept;
   void reset() noexcept;
+
+public:
+  std::size_t limit() const { return _alloc_limit; }
+  std::size_t remaining() const { return limit() - used(); }
 
 private:
   std::size_t _alloc_limit{DEFAULT_ALLOC_LIMIT};
