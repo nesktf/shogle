@@ -52,20 +52,15 @@ pkg_search_module(GLFW REQUIRED glfw3)
 list(APPEND SHOGLE_LIB_INCLUDE ${GLFW_INCLUDE_DIRS})
 list(APPEND SHOGLE_LIB_LINK glfw)
 
-# lua
-pkg_search_module(Lua REQUIRED lua5.3)
-list(APPEND SHOGLE_LIB_INCLUDE /usr/include/lua5.3)
-list(APPEND SHOGLE_LIB_LINK lua5.3)
-
 # freetype
 find_package(Freetype REQUIRED)
 list(APPEND SHOGLE_LIB_INCLUDE ${FREETYPE_INCLUDE_DIRS})
 list(APPEND SHOGLE_LIB_LINK freetype)
 
-# OpenAL
-find_package(OpenAL REQUIRED)
-list(APPEND SHOGLE_LIB_INCLUDE ${OPENAL_INCLUDE_DIRS})
-list(APPEND SHOGLE_LIB_LINK OpenAL::OpenAL)
+# # OpenAL
+# find_package(OpenAL REQUIRED)
+# list(APPEND SHOGLE_LIB_INCLUDE ${OPENAL_INCLUDE_DIRS})
+# list(APPEND SHOGLE_LIB_LINK OpenAL::OpenAL)
 
 ## Lib files ##
 file(GLOB_RECURSE SHOGLE_SOURCE "${SHOGLE_PATH}/*.cpp")
