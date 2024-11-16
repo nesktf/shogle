@@ -16,6 +16,29 @@ inline void* ptr_add(void* p, std::uintptr_t sz) noexcept {
   return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(p) + sz);
 }
 
+template<typename T>
+basic_memory_arena<T>::~basic_memory_arena() noexcept { _clear_pages(); }
+
+template<typename T>
+basic_memory_arena<T>::basic_memory_arena(basic_memory_arena&& a) noexcept :
+  _block(a._block),
+  _block_count(a._block_count), _block_offset(a._block_offset),
+  _used(a._used), _allocated(a._allocated) { a._block = nullptr; }
+
+template<typename T>
+auto basic_memory_arena<T>::operator=(basic_memory_arena&& a) noexcept -> basic_memory_arena& {
+  _clear_pages();
+
+  _block = std::move(a._block);
+  _block_count = std::move(a._block_count);
+  _block_offset = std::move(a._block_offset);
+  _used = std::move(a._used);
+  _allocated = std::move(a._allocated);
+
+  a._block = nullptr;
+
+  return *this;
+}
 
 template<typename P>
 void basic_memory_arena<P>::init(std::size_t size) noexcept {
@@ -80,7 +103,7 @@ auto basic_memory_arena<P>::make_adaptor() -> allocator_adaptor<T, P> {
 } // namespace impl
 
 inline void* memory_arena::allocate(std::size_t size, std::size_t align) noexcept {
-  NTF_ASSERT(_block_count >= 1, "Arena not initialized");
+  NTF_ASSERT(_block && _block_count >= 1, "Arena not initialized");
   NTF_ASSERT(size > 0, "Invalid allocation size");
 
   auto* block = _block;
@@ -102,7 +125,7 @@ inline void* memory_arena::allocate(std::size_t size, std::size_t align) noexcep
 }
 
 inline void* memory_stack::allocate(std::size_t size, std::size_t align) noexcept {
-  NTF_ASSERT(_block_count >= 1, "Memory stack not initialized");
+  NTF_ASSERT(_block && _block_count >= 1, "Memory stack not initialized");
   NTF_ASSERT(size > 0, "Invalid allocation size");
 
   auto* block = _block;

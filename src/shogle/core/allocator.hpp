@@ -130,8 +130,7 @@ protected:
   std::size_t _used{0}, _allocated{0};
 
 public:
-  ~basic_memory_arena() noexcept { _clear_pages(); }
-  NTF_DISABLE_COPY(basic_memory_arena);
+  NTF_DECLARE_MOVE_ONLY(basic_memory_arena);
 };
 
 } // namespace impl
