@@ -119,4 +119,9 @@ inline void* memory_stack::allocate(std::size_t size, std::size_t align) noexcep
   return mem;
 }
 
+inline void memory_stack::reset() noexcept {
+  _used = 0;
+  _block_offset = 0;
+}
+
 } // namespace ntf

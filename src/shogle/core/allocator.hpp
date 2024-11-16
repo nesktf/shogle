@@ -157,6 +157,7 @@ public:
 
 public:
   [[nodiscard]] void* allocate(std::size_t size, std::size_t align) noexcept;
+  void reset() noexcept;
 
 private:
   std::size_t _alloc_limit{DEFAULT_ALLOC_LIMIT};
