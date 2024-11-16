@@ -26,13 +26,13 @@ memory_arena<min_page_size>::~memory_arena() noexcept { _clear_pages(); }
 
 template<std::size_t min_page_size>
 void memory_arena<min_page_size>::init(std::size_t start_size) { 
-  assert(page_count() == 0);
+  NTF_ASSERT(page_count() == 0);
   _insert_page(start_size);
 }
 
 template<std::size_t min_page_size>
 void* memory_arena<min_page_size>::allocate(std::size_t size, std::size_t align) {
-  assert(page_count() > 1 && size > 0);
+  NTF_ASSERT(page_count() > 1 && size > 0);
   auto* page = &_pages.back();
 
   std::size_t available = page->size - _page_offset;
@@ -54,7 +54,7 @@ void* memory_arena<min_page_size>::allocate(std::size_t size, std::size_t align)
 
 template<std::size_t min_page_size>
 void memory_arena<min_page_size>::reset() {
-  assert(page_count() > 1);
+  NTF_ASSERT(page_count() > 1);
   std::size_t used = _used;
   _used = 0;
   _allocated = 0;
@@ -93,12 +93,12 @@ inline memory_stack::~memory_stack() noexcept { _clear_page(); }
 inline void memory_stack::init(std::size_t size) { _create_page(size); }
 
 inline void* memory_stack::allocate(std::size_t size, std::size_t align) {
-  assert(_allocated > 0 && _page && size > 0);
+  NTF_ASSERT(_allocated > 0 && _page && size > 0);
   std::size_t available = _allocated - _offset;
   std::size_t adjustment = impl::align_fw_adjust(impl::ptr_add(_page, _offset), align);
   std::size_t required = size + adjustment;
 
-  assert(available > required);
+  NTF_ASSERT(available > required);
   void* mem = impl::ptr_add(_page, _offset+adjustment);
   _offset += required;
 
@@ -118,7 +118,7 @@ inline void memory_stack::clear() { _offset = 0; }
 inline void memory_stack::reset() { resize(_allocated); }
 
 inline void* memory_stack::_create_page(std::size_t size) {
-  assert(_allocated == 0 && !_page && size > 0);
+  NTF_ASSERT(_allocated == 0 && !_page && size > 0);
   _page = std::malloc(size);
   _allocated = size;
   return _page;

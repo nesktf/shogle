@@ -19,6 +19,11 @@
 #include <thread>
 #include <functional>
 
+#include <memory>
+#include <cstdlib>
+#include <cstdint>
+#include <list>
+
 #include <sys/types.h>
 
 #ifndef SHOGLE_ENABLE_INTERNAL_LOGS
@@ -45,13 +50,17 @@ struct cleanup {
 template<typename T, typename U>
 using pair_vector = std::vector<std::pair<T,U>>;
 
-template<typename T>
-using polymorphic_vector = std::vector<std::unique_ptr<T>>;
-
-template<typename T>
-using strmap = std::unordered_map<std::string, T>;
-
 template<typename TL, typename... TR>
 concept same_as_any = (... or std::same_as<TL, TR>);
+
+template<typename T>
+concept has_operator_equals = requires(T a, T b) {
+  { a == b } -> std::convertible_to<bool>;
+};
+
+template<typename T>
+concept has_operator_nequals = requires(T a, T b) {
+  { a != b } -> std::convertible_to<bool>;
+};
 
 } // namespace ntf

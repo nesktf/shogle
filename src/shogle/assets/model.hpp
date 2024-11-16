@@ -54,7 +54,7 @@ public:
   size_t size() const { return _meshes.size(); }
 
 private:
-  strmap<textured_mesh> _meshes;
+  std::unordered_map<std::string, textured_mesh> _meshes;
 };
 
 

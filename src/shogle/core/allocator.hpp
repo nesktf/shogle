@@ -1,12 +1,6 @@
 #pragma once
 
-#include <shogle/core/common.hpp>
-
-#include <memory>
-#include <cassert>
-#include <cstdlib>
-#include <cstdint>
-#include <list>
+#include <shogle/shogle.hpp>
 
 namespace ntf {
 
@@ -36,7 +30,7 @@ public:
     _pool(pool) {}
 
   template<typename U>
-  allocator_adapter(const allocator_adapter<U, P>& other) :
+  allocator_adapter(allocator_adapter<U, P>& other) :
     _pool(other._pool) {}
 
 public:
@@ -50,10 +44,18 @@ public:
 
 public:
   constexpr bool operator==(const allocator_adapter& rhs) const noexcept {
-    return (std::addressof(_pool) == std::addressof(rhs._pool));
+    if constexpr (has_operator_equals<T>) {
+      return _pool == rhs._pool;
+    } else {
+      return (std::addressof(_pool) == std::addressof(rhs._pool));
+    }
   }
   constexpr bool operator!=(const allocator_adapter& rhs) const noexcept {
-    return !(*this == rhs);
+    if constexpr (has_operator_nequals<T>) {
+      return _pool != rhs._pool;
+    } else {
+      return !(*this == rhs);
+    }
   }
 
 private:
