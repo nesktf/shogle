@@ -19,18 +19,18 @@ struct memory_pool_traits {
 
 template<typename T, typename P,
   bool = memory_pool_traits<P>::is_stateless>
-class allocator_adapter {
+class allocator_adaptor {
 public:
   using pool_type = P;
   using value_type = T;
   using pointer = T*;
 
 public:
-  allocator_adapter(pool_type& pool) :
+  allocator_adaptor(pool_type& pool) :
     _pool(pool) {}
 
   template<typename U>
-  allocator_adapter(allocator_adapter<U, P>& other) :
+  allocator_adaptor(allocator_adaptor<U, P>& other) :
     _pool(other._pool) {}
 
 public:
@@ -43,14 +43,14 @@ public:
   }
 
 public:
-  constexpr bool operator==(const allocator_adapter& rhs) const noexcept {
+  constexpr bool operator==(const allocator_adaptor& rhs) const noexcept {
     if constexpr (has_operator_equals<T>) {
       return _pool == rhs._pool;
     } else {
       return (std::addressof(_pool) == std::addressof(rhs._pool));
     }
   }
-  constexpr bool operator!=(const allocator_adapter& rhs) const noexcept {
+  constexpr bool operator!=(const allocator_adaptor& rhs) const noexcept {
     if constexpr (has_operator_nequals<T>) {
       return _pool != rhs._pool;
     } else {
@@ -63,7 +63,7 @@ private:
 };
 
 template<typename T, typename P>
-class allocator_adapter<T, P, true> {
+class allocator_adaptor<T, P, true> {
 public:
   using pool_type = P;
   using value_type = T;
@@ -79,84 +79,87 @@ public:
   }
 
 public:
-  constexpr bool operator==(const allocator_adapter& rhs) const noexcept {
+  constexpr bool operator==(const allocator_adaptor& rhs) const noexcept {
     return true;
   }
-  constexpr bool operator!=(const allocator_adapter& rhs) const noexcept {
+  constexpr bool operator!=(const allocator_adaptor& rhs) const noexcept {
     return !(*this == rhs);
   }
 };
 
-template<std::size_t min_page_size>
-class memory_arena {
+namespace impl {
+
+template<typename P>
+class basic_memory_arena {
+public:
+  template<typename T>
+  using bind_adaptor = allocator_adaptor<T, P>;
+
 private:
-  struct page_header {
+  struct arena_block {
+    arena_block* next;
     std::size_t size;
     void* data;
   };
 
-public:
-  memory_arena() = default;
-  memory_arena(std::size_t start_size);
+  static constexpr std::size_t MIN_BLOCK_SIZE = 4096;
 
 public:
-  void init(std::size_t start_size = min_page_size);
-
-  [[nodiscard]] void* allocate(std::size_t size, std::size_t align);
-  void deallocate([[maybe_unused]] void* ptr) {}
-
-  void reset();
+  basic_memory_arena() = default;
+  basic_memory_arena(std::size_t initial_block_size) noexcept { init(initial_block_size); }
 
 public:
-  std::size_t used() const noexcept { return _used; }
-  std::size_t allocated() const noexcept { return _allocated; }
-  std::size_t page_count() const noexcept { return _pages.size(); }
+  void init(std::size_t size) noexcept;
 
-private:
-  page_header* _insert_page(std::size_t size);
-  void _clear_pages();
+  void deallocate(void*, std::size_t) noexcept {}
 
-private:
-  std::list<page_header> _pages;
-  std::size_t _used{0};
-  std::size_t _allocated{0};
-  std::size_t _page_offset{0};
+  void clear(bool reallocate = false) noexcept;
 
 public:
-  ~memory_arena() noexcept;
-  NTF_DISABLE_COPY(memory_arena);
+  template<typename T>
+  allocator_adaptor<T, P> make_adaptor();
+
+protected:
+  arena_block* _insert_block(std::size_t size) noexcept;
+  void _clear_pages() noexcept;
+
+protected:
+  arena_block* _block{nullptr};
+  std::size_t _block_count{0}, _block_offset{0};
+
+  std::size_t _used{0}, _allocated{0};
+
+public:
+  ~basic_memory_arena() noexcept { _clear_pages(); }
+  NTF_DISABLE_COPY(basic_memory_arena);
 };
 
-class memory_stack {
+} // namespace impl
+
+
+class memory_arena : public impl::basic_memory_arena<memory_arena> {
+public:
+  using basic_memory_arena<memory_arena>::basic_memory_arena;
+
+public:
+  [[nodiscard]] void* allocate(std::size_t size, std::size_t align) noexcept;
+};
+
+
+class memory_stack : public impl::basic_memory_arena<memory_stack> {
+private:
+  static constexpr std::size_t DEFAULT_ALLOC_LIMIT = 4096;
+
 public:
   memory_stack() = default;
-  memory_stack(std::size_t size);
+  memory_stack(std::size_t alloc_limit) noexcept :
+    basic_memory_arena(alloc_limit), _alloc_limit(alloc_limit) {}
 
 public:
-  void init(std::size_t size);
-
-  [[nodiscard]] void* allocate(std::size_t size, std::size_t align);
-  void deallocate([[maybe_unused]] void* ptr) {}
-
-  void resize(std::size_t new_size);
-  void clear();
-  void reset();
-
-public:
-  std::size_t used() const noexcept { return _offset; }
-  std::size_t allocated() const noexcept { return _allocated; }
+  [[nodiscard]] void* allocate(std::size_t size, std::size_t align) noexcept;
 
 private:
-  void* _create_page(std::size_t size);
-  void _clear_page();
-
-private:
-  std::size_t _allocated{0};
-  std::size_t _offset{0};
-  void* _page{nullptr};
-
-public:
-  NTF_DECLARE_MOVE_ONLY(memory_stack);
+  std::size_t _alloc_limit{DEFAULT_ALLOC_LIMIT};
 };
 
 } // namespace ntf
