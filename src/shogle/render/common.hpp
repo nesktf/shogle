@@ -1,6 +1,5 @@
 #pragma once
 
-#include <shogle/shogle.hpp>
 #include <shogle/math/alg.hpp>
 
 #define SHOGLE_CUBEMAP_FACES 6u

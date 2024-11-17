@@ -1,66 +1,53 @@
 #pragma once
 
-#include <shogle/core/common.hpp>
-#include <shogle/core/error.hpp>
-#include <shogle/core/log.hpp>
-
-#include <array>
-#include <vector>
-#include <queue>
-#include <memory>
-#include <functional>
-#include <map>
-#include <unordered_map>
-#include <string>
-#include <limits>
-#include <fstream>
-#include <sstream>
-#include <chrono>
-#include <thread>
-#include <functional>
-
-#include <memory>
-#include <cstdlib>
-#include <cstdint>
-#include <list>
-
-#include <sys/types.h>
-
-#ifndef SHOGLE_ENABLE_INTERNAL_LOGS
-#define SHOGLE_ENABLE_INTERNAL_LOGS 1
-#endif
-
-#ifdef SHOGLE_ENABLE_INTERNAL_LOGS
-#define SHOGLE_INTERNAL_LOG_FMT(__priority, __format, ...) ::ntf::log::__priority(__format, __VA_ARGS__)
-#define SHOGLE_INTERNAL_LOG(__priority, __msg, ...) ::ntf::log::__priority(__msg)
-#else
-#define SHOGLE_INTERNAL_LOG_FMT(__priority, __format, ...) NTF_NOOP
-#define SHOGLE_INTERNAL_LOG(__priority, __msg, ...) NTF_NOOP
-#endif
+#include <shogle/render/gl.hpp>
+#include <shogle/render/glfw.hpp>
+#include <shogle/render/imgui.hpp>
 
 namespace ntf {
 
 template<typename F>
-struct cleanup {
-  F _f;
-  cleanup(F f) : _f(f){}
-  ~cleanup() {_f();}
-};
+concept is_render_fun = std::invocable<F, double, double>; // f(dt, alpha) -> void
 
-template<typename T, typename U>
-using pair_vector = std::vector<std::pair<T,U>>;
+template<typename F>
+concept is_update_fun = std::invocable<F>; // f() -> void
 
-template<typename TL, typename... TR>
-concept same_as_any = (... or std::same_as<TL, TR>);
+template<typename Window, is_render_fun RFunc, is_update_fun FUFunc>
+void shogle_main_loop(Window& window, uint ups, RFunc&& render, FUFunc&& fixed_update) {
+  using namespace std::literals;
 
-template<typename T>
-concept has_operator_equals = requires(T a, T b) {
-  { a == b } -> std::convertible_to<bool>;
-};
+  const auto fixed_elapsed_time = std::chrono::duration<double>{std::chrono::microseconds{1000000/ups}};
 
-template<typename T>
-concept has_operator_nequals = requires(T a, T b) {
-  { a != b } -> std::convertible_to<bool>;
-};
+  using clock = std::chrono::steady_clock;
+  using duration = decltype(clock::duration{} + fixed_elapsed_time);
+  using time_point = std::chrono::time_point<clock, duration>;
+
+  SHOGLE_INTERNAL_LOG_FMT(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop started (ups: {})", ups);
+
+  time_point last_time = clock::now();
+  duration lag = 0s;
+  while (!window.should_close()) {
+    time_point start_time = clock::now();
+    auto elapsed_time = start_time - last_time;
+    last_time = start_time;
+    lag += elapsed_time;
+
+    double dt {std::chrono::duration<double>{elapsed_time}/1s};
+    double alpha {std::chrono::duration<double>{lag}/fixed_elapsed_time};
+
+    window.poll_events();
+
+    while (lag >= fixed_elapsed_time) {
+      fixed_update();
+      lag -= fixed_elapsed_time;
+    }
+
+    render(dt, alpha);
+
+    window.swap_buffers();
+  }
+
+  SHOGLE_INTERNAL_LOG(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop exit");
+}
 
 } // namespace ntf

@@ -5,7 +5,7 @@
 #define SHOGLE_USE_GLM 1
 #endif
 
-#include <shogle/shogle.hpp>
+#include <shogle/core/common.hpp>
 
 #ifdef SHOGLE_USE_GLM
 #include <glm/vec2.hpp>

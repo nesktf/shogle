@@ -4,9 +4,9 @@
 #define SHOGLE_GL_RAII_UNLOAD 1
 #endif
 
-#include <shogle/render/common.hpp>
-
 #include <glad/glad.h>
+
+#include <shogle/render/common.hpp>
 
 namespace ntf {
 

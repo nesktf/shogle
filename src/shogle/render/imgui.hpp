@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/shogle.hpp>
+#include <shogle/core/common.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>

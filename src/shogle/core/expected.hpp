@@ -2,18 +2,7 @@
 
 #include <shogle/core/common.hpp>
 
-#include <initializer_list>
-#include <type_traits>
-#include <utility>
-#include <memory>
-
 namespace ntf {
-
-template<typename T, typename U>
-concept is_forwarding = std::is_same_v<U, std::remove_cvref_t<T>>;
-
-template<typename T>
-concept not_void = !std::is_void_v<T>;
 
 template<not_void E>
 class unexpected {

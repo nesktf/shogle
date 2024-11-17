@@ -1,8 +1,6 @@
 #pragma once
 
-#include <vector>
-#include <functional>
-#include <memory>
+#include <shogle/core/common.hpp>
 
 namespace ntf {
 

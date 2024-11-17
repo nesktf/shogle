@@ -2,12 +2,6 @@
 
 #include <shogle/core/common.hpp>
 
-#include <queue>
-#include <thread>
-#include <functional>
-#include <condition_variable>
-#include <vector>
-
 namespace ntf {
 
 class thread_pool {
@@ -34,7 +28,6 @@ public:
 };
 
 } // namespace ntf
-
 
 #ifndef NTF_THREADPOOL_INL
 #include <shogle/core/threadpool.inl>

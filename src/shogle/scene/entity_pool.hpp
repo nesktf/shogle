@@ -2,8 +2,6 @@
 
 #include <shogle/core/allocator.hpp>
 
-#include <cstring>
-
 namespace ntf {
 
 template<typename T>

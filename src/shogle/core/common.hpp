@@ -125,3 +125,112 @@ if (!NTF_UNLIKELY(cond)) { \
   __type(const __type&) = default; \
   __type& operator=(__type&&) = default; \
   __type& operator=(const __type&) = default
+
+
+#include <array>
+#include <vector>
+#include <queue>
+#include <map>
+#include <unordered_map>
+#include <list>
+#include <initializer_list>
+
+#include <exception>
+#include <type_traits>
+#include <memory>
+#include <utility>
+
+#include <limits>
+#include <fstream>
+#include <sstream>
+
+#include <thread>
+#include <condition_variable>
+#include <functional>
+
+#include <cstdlib>
+#include <cstdint>
+#include <cstring>
+
+#include <sys/types.h>
+
+#ifndef SHOGLE_ENABLE_INTERNAL_LOGS
+#define SHOGLE_ENABLE_INTERNAL_LOGS 1
+#endif
+
+#ifdef SHOGLE_ENABLE_INTERNAL_LOGS
+#define SHOGLE_INTERNAL_LOG_FMT(__priority, __format, ...) ::ntf::log::__priority(__format, __VA_ARGS__)
+#define SHOGLE_INTERNAL_LOG(__priority, __msg, ...) ::ntf::log::__priority(__msg)
+#else
+#define SHOGLE_INTERNAL_LOG_FMT(__priority, __format, ...) NTF_NOOP
+#define SHOGLE_INTERNAL_LOG(__priority, __msg, ...) NTF_NOOP
+#endif
+
+#include <shogle/core/log.hpp>
+
+namespace ntf {
+
+class error : public std::exception {
+public:
+  template<typename... Args>
+  error(fmt::format_string<Args...> format, Args&&... args) :
+    msg(fmt::format(format, std::forward<Args>(args)...)) {}
+
+public:
+  const char* what() const noexcept override {
+    return msg.c_str();
+  }
+
+protected:
+  std::string msg;
+};
+
+
+template<typename F>
+struct cleanup {
+  F _f;
+  cleanup(F f) : _f(f){}
+  ~cleanup() {_f();}
+};
+
+
+template <typename T>
+class singleton {
+protected:
+  singleton() {}
+
+public:
+  singleton(const singleton&) = delete;
+  singleton& operator=(const singleton&) = delete;
+
+public:
+  static T& instance() {
+    static T instance;
+    return instance;
+  }
+};
+
+
+template<typename T, typename U>
+using pair_vector = std::vector<std::pair<T,U>>;
+
+template<typename TL, typename... TR>
+concept same_as_any = (... or std::same_as<TL, TR>);
+
+template<typename T>
+concept has_operator_equals = requires(T a, T b) {
+  { a == b } -> std::convertible_to<bool>;
+};
+
+template<typename T>
+concept has_operator_nequals = requires(T a, T b) {
+  { a != b } -> std::convertible_to<bool>;
+};
+
+template<typename T, typename U>
+concept is_forwarding = std::is_same_v<U, std::remove_cvref_t<T>>;
+
+template<typename T>
+concept not_void = !std::is_void_v<T>;
+
+} // namespace ntf
