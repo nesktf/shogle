@@ -1,7 +1,6 @@
 #pragma once
 
-#include <shogle/shogle.hpp>
-
+#include <shogle/assets/common.hpp>
 #include <shogle/render/common.hpp>
 
 #include <ft2build.h>

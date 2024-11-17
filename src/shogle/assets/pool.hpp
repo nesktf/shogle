@@ -1,10 +1,7 @@
 #pragma once
 
-#include <shogle/shogle.hpp>
-
+#include <shogle/assets/common.hpp>
 #include <shogle/core/threadpool.hpp>
-
-#include <optional>
 
 namespace ntf {
 

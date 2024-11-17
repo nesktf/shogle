@@ -134,6 +134,7 @@ if (!NTF_UNLIKELY(cond)) { \
 #include <unordered_map>
 #include <list>
 #include <initializer_list>
+#include <optional>
 
 #include <exception>
 #include <type_traits>

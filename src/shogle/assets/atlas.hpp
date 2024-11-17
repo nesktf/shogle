@@ -1,8 +1,7 @@
 #pragma once
 
+#include <shogle/assets/common.hpp>
 #include <shogle/assets/texture.hpp>
-
-#include <optional>
 
 namespace ntf {
 
