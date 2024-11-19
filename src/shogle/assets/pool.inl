@@ -1,5 +1,5 @@
 #define SHOGLE_ASSETS_POOL_INL
-#include <shogle/assets/pool.hpp>
+#include "./pool.hpp"
 #undef SHOGLE_ASSETS_POOL_INL
 
 namespace ntf {

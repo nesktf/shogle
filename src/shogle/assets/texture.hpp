@@ -1,7 +1,7 @@
 #pragma once
 
-#include <shogle/assets/common.hpp>
-#include <shogle/render/common.hpp>
+#include "./common.hpp"
+#include "../render/render.hpp"
 
 namespace ntf {
 
@@ -40,5 +40,5 @@ public:
 } // namespace ntf
 
 #ifndef SHOGLE_ASSETS_TEXTURE_INL
-#include <shogle/assets/texture.inl>
+#include "./texture.inl"
 #endif

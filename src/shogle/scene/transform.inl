@@ -1,6 +1,6 @@
-#define SHOGLE_TRANSFORM_INL
-#include <shogle/scene/transform.hpp>
-#undef SHOGLE_TRANSFORM_INL
+#define SHOGLE_SCENE_TRANSFORM_INL
+#include "./transform.hpp"
+#undef SHOGLE_SCENE_TRANSFORM_INL
 
 #define SHOGLE_TRANSFORM_DEF_SETTER(dim, signature, ...) \
 template<typename T> \

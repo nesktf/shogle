@@ -1,7 +1,9 @@
 #pragma once
 
-#include <shogle/assets/common.hpp>
-#include <shogle/core/threadpool.hpp>
+#include "./common.hpp"
+#include "../stl/threadpool.hpp"
+
+#include <optional>
 
 namespace ntf {
 
@@ -126,5 +128,5 @@ using resource_pool =
 } // namespace ntf
 
 #ifndef SHOGLE_ASSETS_POOL_INL
-#include <shogle/assets/pool.inl>
+#include "./pool.inl"
 #endif

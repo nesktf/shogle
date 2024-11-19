@@ -1,5 +1,5 @@
 #define SHOGLE_ASSETS_MODEL_INL
-#include <shogle/assets/model.hpp>
+#include "./model.hpp"
 #undef SHOGLE_ASSETS_MODEL_INL
 
 #include <assimp/scene.h>
@@ -9,7 +9,8 @@
 namespace ntf {
 
 template<typename Mesh, typename Texture>
-model<Mesh, Texture>::data_type::data_type(std::string_view path_, tex_filter filter_, tex_wrap wrap_) {
+model<Mesh, Texture>::data_type::data_type(std::string_view path_, tex_filter filter_,
+                                           tex_wrap wrap_) {
   Assimp::Importer import;
   const aiScene* scene = import.ReadFile(path_.data(), aiProcess_Triangulate | aiProcess_FlipUVs);
 
@@ -118,8 +119,10 @@ model<Mesh, Texture>::model(std::vector<mesh_data_type> meshes) {
 
     mesh_type mesh {
       mesh_primitive::triangles,
-      &data.vertices[0], data.vertices.size()*sizeof(mesh_data_type::vertex), mesh_buffer::static_draw,
-      &data.indices[0], data.indices.size()*sizeof(uint), mesh_buffer::static_draw,
+      &data.vertices[0], data.vertices.size()*sizeof(mesh_data_type::vertex),
+      mesh_buffer::static_draw,
+      &data.indices[0], data.indices.size()*sizeof(uint),
+      mesh_buffer::static_draw,
       typename mesh_data_type::att_coords{}, typename mesh_data_type::att_normal{},
       typename mesh_data_type::att_texcoord{}
     };

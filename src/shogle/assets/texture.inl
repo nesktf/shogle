@@ -1,5 +1,5 @@
 #define SHOGLE_ASSETS_TEXTURE_INL
-#include <shogle/assets/texture.hpp>
+#include "./texture.hpp"
 #undef SHOGLE_ASSETS_TEXTURE_INL
 
 #include <nlohmann/json.hpp>

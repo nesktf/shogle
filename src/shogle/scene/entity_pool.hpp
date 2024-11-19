@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/core/allocator.hpp>
+#include "../stl/arena.hpp"
 
 namespace ntf {
 
@@ -37,7 +37,7 @@ public:
   };
 
 public:
-  entity_pool() { _arena.init(); }
+  entity_pool() { _arena.init(4096); }
   
 public:
   node* allocate(std::size_t n) {
@@ -89,7 +89,7 @@ private:
   }
 
 private:
-  ntf::memory_arena<_arena_block> _arena;
+  ntf::memory_arena _arena;
 
   node* _free{nullptr};
   std::size_t _free_count{0};

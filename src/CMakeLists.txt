@@ -1,75 +1,20 @@
 cmake_minimum_required(VERSION 3.10)
 
-message(STATUS "ShOGLE: Configuring version ${SHOGLE_VERSION}")
+project(shogle VERSION ${SHOGLE_VERSION} LANGUAGES CXX C)
 
-## Vars ##
-set(SOURCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
-set(EXTERN_PATH "${SOURCE_PATH}/extern")
-set(SHOGLE_PATH "${SOURCE_PATH}/shogle")
+set(SHOGLE_OPTS)
+list(APPEND SHOGLE_OPTS -DSHOGLE_VERSION="${SHOGLE_VERSION}")
 
-set(SHOGLE_SOURCE)
-set(SHOGLE_LIB_LINK)
-set(SHOGLE_LIB_SOURCE)
-set(SHOGLE_LIB_INCLUDE)
+if (SHOGLE_ENABLE_IMGUI)
+  message(STATUS "ShOGLE: Including dear imgui support")
+  list(APPEND SHOGLE_OPTS -DSHOGLE_ENABLE_IMGUI="${SHOGLE_ENABLE_IMGUI}")
+endif()
 
-## Compiled libs ##
-list(APPEND SHOGLE_LIB_INCLUDE ${EXTERN_PATH})
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/extern")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/shogle")
 
-# stb_image
-list(APPEND SHOGLE_LIB_SOURCE ${EXTERN_PATH}/stb/stb_image.c)
-
-# glad
-list(APPEND SHOGLE_LIB_SOURCE ${EXTERN_PATH}/glad/glad.c)
-
-# imgui
-set(IMGUI_DIR ${EXTERN_PATH}/imgui)
-file(GLOB IMGUI_SRC "${IMGUI_DIR}/imgui*.cpp")
-list(APPEND IMGUI_SRC ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp)
-list(APPEND IMGUI_SRC ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
-list(APPEND SHOGLE_LIB_SOURCE ${IMGUI_SRC})
-list(APPEND SHOGLE_LIB_INCLUDE ${IMGUI_DIR} "${IMGUI_DIR}/backends")
-
-## Packaged libs ##
-find_package(PkgConfig REQUIRED)
-
-# glm
-find_package(glm CONFIG REQUIRED)
-list(APPEND SHOGLE_LIB_INCLUDE ${GLM_INCLUDE_DIRS})
-list(APPEND SHOGLE_LIB_LINK glm::glm)
-
-# assimp
-find_package(assimp REQUIRED)
-list(APPEND SHOGLE_LIB_INCLUDE ${ASSIMP_INCLUDE_DIRS})
-list(APPEND SHOGLE_LIB_LINK assimp)
-
-# fmt
-find_package(fmt REQUIRED)
-list(APPEND SHOGLE_LIB_INCLUDE ${FMT_INCLUDE_DIRS})
-list(APPEND SHOGLE_LIB_LINK fmt)
-
-# glfw
-pkg_search_module(GLFW REQUIRED glfw3)
-list(APPEND SHOGLE_LIB_INCLUDE ${GLFW_INCLUDE_DIRS})
-list(APPEND SHOGLE_LIB_LINK glfw)
-
-# freetype
-find_package(Freetype REQUIRED)
-list(APPEND SHOGLE_LIB_INCLUDE ${FREETYPE_INCLUDE_DIRS})
-list(APPEND SHOGLE_LIB_LINK freetype)
-
-# # OpenAL
-# find_package(OpenAL REQUIRED)
-# list(APPEND SHOGLE_LIB_INCLUDE ${OPENAL_INCLUDE_DIRS})
-# list(APPEND SHOGLE_LIB_LINK OpenAL::OpenAL)
-
-## Lib files ##
-file(GLOB_RECURSE SHOGLE_SOURCE "${SHOGLE_PATH}/*.cpp")
-
-add_library(shogle STATIC ${SHOGLE_SOURCE} ${SHOGLE_LIB_SOURCE})
-set_target_properties(shogle PROPERTIES CXX_STANDARD 20)
-target_include_directories(shogle PUBLIC ${SOURCE_PATH} ${SHOGLE_LIB_INCLUDE})
-target_link_libraries(shogle ${SHOGLE_LIB_LINK})
-target_compile_options(shogle PUBLIC
-  -DSHOGLE_RESOURCES="${SHOGLE_RESOURCES_PATH}"
-  -DSHOGLE_VERSION="${SHOGLE_VERSION}"
-)
+add_library(${PROJECT_NAME} STATIC ${SHOGLE_SOURCE} ${EXTERN_SOURCE})
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${EXTERN_INCLUDE})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${EXTERN_LINK})
+target_compile_options(${PROJECT_NAME} PUBLIC ${SHOGLE_OPTS})

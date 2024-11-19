@@ -1,6 +1,8 @@
 #pragma once
 
-#include <shogle/math/alg.hpp>
+#include "../math/alg.hpp"
+
+#include <vector>
 
 #define SHOGLE_TRANSFORM_DECL_SETTER(signature) \
 T& signature &;\
@@ -206,6 +208,6 @@ using scene_graph3d = scene_graph<3>;
 
 #undef SHOGLE_TRANSFORM_DECL_SETTER
 
-#ifndef SHOGLE_TRANSFORM_INL
-#include <shogle/scene/transform.inl>
+#ifndef SHOGLE_SCENE_TRANSFORM_INL
+#include "./transform.inl"
 #endif

@@ -1,7 +1,9 @@
 #pragma once
 
-#include <shogle/assets/common.hpp>
-#include <shogle/assets/texture.hpp>
+#include "./common.hpp"
+#include "./texture.hpp"
+
+#include <queue>
 
 namespace ntf {
 
@@ -84,7 +86,8 @@ public:
   const_iterator cend() const { return _metas.cend(); }
 
 public:
-  static texture_meta def_meta(ivec2 dim) { return texture_meta{.offset=vec4{vec2{1.f},vec2{0.f}},.dim=dim}; }
+  static texture_meta def_meta(ivec2 dim)
+    { return texture_meta{.offset=vec4{vec2{1.f},vec2{0.f}},.dim=dim}; }
 
 private:
   texture_type _texture;
@@ -142,5 +145,5 @@ private:
 } // namespace ntf
 
 #ifndef SHOGLE_ASSETS_ATLAS_INL
-#include <shogle/assets/atlas.inl>
+#include "./atlas.inl"
 #endif

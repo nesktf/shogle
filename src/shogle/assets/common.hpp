@@ -1,6 +1,9 @@
 #pragma once
 
-#include <shogle/core/common.hpp>
+#include "../stl/common.hpp"
+
+#include <fstream>
+#include <sstream>
 
 namespace ntf {
 

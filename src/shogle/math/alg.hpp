@@ -1,11 +1,7 @@
 #pragma once
 
-// Might replace glm at some point (?)
-#ifndef SHOGLE_USE_GLM
-#define SHOGLE_USE_GLM 1
-#endif
-
-#include <shogle/core/common.hpp>
+#include "../core.hpp"
+#include "../stl/common.hpp"
 
 #ifdef SHOGLE_USE_GLM
 #include <glm/vec2.hpp>
@@ -99,6 +95,38 @@ inline bool equal(T f1, T f2) {
 template<typename T>
 T epserr(const T& a, const T& b) {
   return std::abs((b-a)/b);
+}
+
+constexpr float norm2(cmplx z) {
+  return z.real()*z.real() + z.imag()*z.imag();
+}
+
+constexpr float norm2(vec2 v) {
+  return v.x*v.x + v.y*v.y;
+}
+
+constexpr float norm(cmplx z) {
+  return glm::sqrt(norm2(z));
+}
+
+constexpr float norm(vec2 v) {
+  return glm::sqrt(norm2(v));
+}
+
+constexpr cmplx normalize(cmplx z) {
+  return z/glm::sqrt(norm2(z));
+}
+
+constexpr vec2 normalize(vec2 v) {
+  return v/glm::sqrt(norm2(v));
+}
+
+constexpr cmplx conv(const vec2& v) {
+  return cmplx{v.x, v.y};
+}
+
+constexpr vec2 conv(const cmplx& z) {
+  return vec2{z.real(), z.imag()};
 }
 
 } // namespace ntf

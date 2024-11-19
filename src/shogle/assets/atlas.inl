@@ -1,11 +1,12 @@
 #define SHOGLE_ASSETS_ATLAS_INL
-#include <shogle/assets/atlas.hpp>
+#include "./atlas.hpp"
 #undef SHOGLE_ASSETS_ATLAS_INL
 
 namespace ntf {
 
 template<typename Texture>
-texture_atlas<Texture>::data_type::data_type(std::string_view path, tex_filter filter, tex_wrap wrap) {
+texture_atlas<Texture>::data_type::data_type(std::string_view path, tex_filter filter,
+                                             tex_wrap wrap) {
   using json = nlohmann::json;
   std::ifstream f{path.data()};
   json json_data = json::parse(f);
@@ -122,7 +123,8 @@ template<typename Texture>
 texture_atlas<Texture>::texture_atlas(texture_type texture, std::vector<texture_meta> metas,
                                       std::vector<std::pair<std::string, texture_vec>> groups,
                                       std::vector<std::pair<std::string, texture_vec>> sequences) :
-  _texture(std::move(texture)), _metas(std::move(metas)), _groups(groups.size()), _sequences(sequences.size()) {
+  _texture(std::move(texture)), _metas(std::move(metas)), _groups(groups.size()),
+  _sequences(sequences.size()) {
   for (group_handle i = 0; i < groups.size(); ++i) {
     auto& [name, group] = groups[i];
     _groups[i] = std::move(group);
@@ -161,7 +163,8 @@ auto texture_atlas<Texture>::group_at(group_handle group) const -> const texture
 }
 
 template<typename Texture>
-auto texture_atlas<Texture>::find_sequence(std::string_view name) const -> std::optional<sequence_handle> {
+auto texture_atlas<Texture>::find_sequence(std::string_view name) const
+                                                                -> std::optional<sequence_handle> {
   auto it = _sequence_names.find(name.data());
   if (it != _sequence_names.end()) {
     return {static_cast<sequence_handle>(it->second)};
@@ -171,7 +174,8 @@ auto texture_atlas<Texture>::find_sequence(std::string_view name) const -> std::
 }
 
 template<typename Texture>
-auto texture_atlas<Texture>::find_group(std::string_view name) const -> std::optional<sequence_handle> {
+auto texture_atlas<Texture>::find_group(std::string_view name) const 
+                                                                -> std::optional<sequence_handle> {
   auto it = _group_names.find(name.data());
   if (it != _group_names.end()) {
     return {static_cast<group_handle>(it->second)};
@@ -203,7 +207,8 @@ void texture_animator<Texture, AtlasPtr>::enqueue_sequence(sequence_handle seque
 }
 
 template<typename Texture, typename AtlasPtr>
-void texture_animator<Texture, AtlasPtr>::enqueue_sequence_frames(sequence_handle sequence, uint frames) {
+void texture_animator<Texture, AtlasPtr>::enqueue_sequence_frames(sequence_handle sequence,
+                                                                  uint frames) {
   enqueue_sequence(sequence, 0);
   auto& enqueued = _sequences.back();
   enqueued.duration = frames;

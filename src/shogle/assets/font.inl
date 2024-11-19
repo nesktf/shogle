@@ -1,5 +1,5 @@
 #define SHOGLE_ASSETS_FONT_INL
-#include <shogle/assets/font.hpp>
+#include "./font.hpp"
 #undef SHOGLE_ASSETS_FONT_INL
 
 namespace ntf {
@@ -17,7 +17,7 @@ font_data<Font>::font_data(std::string_view path) {
 
   for (uint8_t c = 0; c < 128; ++c) {
     if (FT_Load_Char(_ft_face, c, FT_LOAD_RENDER)) {
-      log::warning("[ntf::font_data] Failed to load glyph {}", c);
+      logger::warning("[ntf::font_data] Failed to load glyph {}", c);
       continue;
     }
     size_t sz = _ft_face->glyph->bitmap.width*_ft_face->glyph->bitmap.rows;

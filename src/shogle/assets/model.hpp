@@ -1,7 +1,8 @@
 #pragma once
 
-#include <shogle/assets/texture.hpp>
-#include <shogle/render/common.hpp>
+#include "./common.hpp"
+#include "./texture.hpp"
+#include "../render/render.hpp"
 
 namespace ntf {
 
@@ -22,7 +23,7 @@ struct mesh_data {
   std::string name;
   std::vector<vertex> vertices;
   std::vector<uint> indices;
-  pair_vector<material_category, texture_data_type> materials;
+  std::vector<std::pair<material_category, texture_data_type>> materials;
 };
 
 
@@ -110,5 +111,5 @@ private:
 } // namespace ntf
 
 #ifndef SHOGLE_ASSETS_MODEL_INL
-#include <shogle/assets/model.inl>
+#include "./model.inl"
 #endif

@@ -1,10 +1,12 @@
 #pragma once
 
-#include <shogle/assets/common.hpp>
-#include <shogle/render/common.hpp>
+#include "./common.hpp"
+#include "../render/render.hpp"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+
+#include <vector>
 
 namespace ntf {
 
@@ -38,5 +40,5 @@ private:
 } // namespace ntf
 
 #ifndef SHOGLE_ASSETS_FONT_INL
-#include <shogle/assets/font.inl>
+#include "./font.inl"
 #endif

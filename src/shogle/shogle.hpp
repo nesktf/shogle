@@ -1,28 +1,40 @@
 #pragma once
 
-#include <shogle/render/gl.hpp>
-#include <shogle/render/glfw.hpp>
-#include <shogle/render/imgui.hpp>
+#include "./core.hpp"
+
+#include "./render/opengl/context.hpp"
+#include "./render/opengl/context.hpp"
+#include "./render/glfw/window.hpp"
+
+#include "./render/camera.hpp"
+#include "./scene/transform.hpp"
+
+#include <chrono>
 
 namespace ntf {
 
 template<typename F>
-concept is_render_fun = std::invocable<F, double, double>; // f(dt, alpha) -> void
+concept render_func = std::invocable<F, double, double>; // f(dt, alpha) -> void
 
 template<typename F>
-concept is_update_fun = std::invocable<F>; // f() -> void
+concept update_func = std::invocable<F>; // f() -> void
 
-template<typename Window, is_render_fun RFunc, is_update_fun FUFunc>
-void shogle_main_loop(Window& window, uint ups, RFunc&& render, FUFunc&& fixed_update) {
+template<typename W>
+concept window_object = true; // TODO: define this
+
+template<window_object Window, render_func RFunc, update_func UFunc>
+void shogle_main_loop(Window& window, uint ups, RFunc&& render, UFunc&& fixed_update) {
   using namespace std::literals;
 
-  const auto fixed_elapsed_time = std::chrono::duration<double>{std::chrono::microseconds{1000000/ups}};
+  const auto fixed_elapsed_time =
+    std::chrono::duration<double>{std::chrono::microseconds{1000000/ups}};
 
   using clock = std::chrono::steady_clock;
   using duration = decltype(clock::duration{} + fixed_elapsed_time);
   using time_point = std::chrono::time_point<clock, duration>;
 
-  SHOGLE_INTERNAL_LOG_FMT(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop started (ups: {})", ups);
+  SHOGLE_INTERNAL_LOG_FMT(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop started (ups: {})",
+                          ups);
 
   time_point last_time = clock::now();
   duration lag = 0s;
