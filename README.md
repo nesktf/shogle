@@ -42,7 +42,6 @@ project(my_funny_project CXX C)
 add_subdirectory("lib/shogle")
 # ...
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
-target_include_directories(${PROJECT_NAME} PRIVATE lib)
 target_link_libraries(${PROJECT_NAME} shogle)
 ```
 
