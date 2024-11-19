@@ -6,12 +6,7 @@ Funny C++ graphics framework that I use for my personal projects.
 - Wrappers for GLFW, Imgui and OpenGL (might add some other backends in the future)
 - Resource loading (texture atlases, fonts, models...)
 - Some maths for physics and collisions
-- Some general utillities
-    - Logger
-    - Arenas
-    - Threadpool
-    - std::expected for c++20
-    - And some other nice things
+- Some custom stl implementations (and other extra utillities)
 
 ## Installation
 Clone the library in your libraries folder recursing submodules
@@ -38,27 +33,17 @@ if you install the appropiate dependencies. Windows is not supported (for now).
 sudo apt install cmake libglfw3-dev libfreetype-dev libfmt-dev libglm-dev libassimp-dev
 ```
 
-Then in your project add the following in your CMakeLists.txt
+Then add the following in your project's CMakeLists.txt
 
 ```cmake
-# ... 
-
-set(LIB_INCLUDE)
-set(LIB_LINK)
-
+cmake_minimum_required(VERSION 3.10)
+project(my_funny_project CXX C)
 # ...
-
-set(SHOGLE_LIB "lib/shogle")
-add_subdirectory(${SHOGLE_LIB})
-list(APPEND LIB_INCLUDE "${SHOGLE_LIB}/shogle")
-list(APPEND LIB_LINK shogle)
-
+add_subdirectory("lib/shogle")
 # ...
-
-target_include_directories(${PROJECT_NAME} PUBLIC ${LIB_INCLUDE})
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
-target_link_libraries(${PROJECT_NAME} ${LIB_LINK})
-
+target_include_directories(${PROJECT_NAME} PRIVATE lib)
+target_link_libraries(${PROJECT_NAME} shogle)
 ```
 
 ## Examples
