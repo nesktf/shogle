@@ -7,16 +7,21 @@
 
 namespace ntf {
 
+using atlas_texture = uint16_t;
+constexpr atlas_texture atlas_tombstone = UINT16_MAX;
+
+using atlas_group = uint16_t;
+constexpr atlas_group atlas_group_tombstone = UINT16_MAX;
+
+using atlas_sequence = uint16_t;
+constexpr atlas_sequence atlas_sequence_tombstone = UINT16_MAX;
+
 template<typename Texture>
 class texture_atlas {
 public:
   using texture_type = Texture;
 
-  using texture_handle = uint16_t;
-  using group_handle = uint16_t;
-  using sequence_handle = uint16_t;
-
-  using texture_vec = std::vector<texture_handle>;
+  using texture_vec = std::vector<atlas_texture>;
 
   struct texture_meta {
     vec4 offset;
@@ -58,13 +63,13 @@ public:
                 std::vector<std::pair<std::string, texture_vec>> sequences = {});
 
 public:
-  const texture_meta& at(texture_handle tex) const;
-  const texture_meta& operator[](texture_handle tex) const;
+  const texture_meta& at(atlas_texture tex) const;
+  const texture_meta& operator[](atlas_texture tex) const;
 
-  const texture_vec& sequence_at(sequence_handle seq) const;
-  const texture_vec& group_at(group_handle group) const;
-  std::optional<sequence_handle> find_sequence(std::string_view name) const;
-  std::optional<group_handle> find_group(std::string_view name) const;
+  const texture_vec& sequence_at(atlas_sequence seq) const;
+  const texture_vec& group_at(atlas_group group) const;
+  std::optional<atlas_sequence> find_sequence(std::string_view name) const;
+  std::optional<atlas_group> find_group(std::string_view name) const;
 
   const texture_type& texture() const { return _texture; }
   operator const texture_type&() const { return _texture; }
@@ -94,10 +99,10 @@ private:
   std::vector<texture_meta> _metas;
 
   std::vector<texture_vec> _groups;
-  std::unordered_map<std::string, group_handle> _group_names;
+  std::unordered_map<std::string, atlas_group> _group_names;
 
   std::vector<texture_vec> _sequences;
-  std::unordered_map<std::string, sequence_handle> _sequence_names;
+  std::unordered_map<std::string, atlas_sequence> _sequence_names;
 };
 
 
@@ -107,7 +112,7 @@ public:
   using texture_type = Texture;
   using atlas_type = texture_atlas<Texture>;
   using sequence_handle = texture_atlas<Texture>::sequence_handle;
-  using texture_handle = texture_atlas<Texture>::texture_handle;
+  using atlas_texture = texture_atlas<Texture>::atlas_texture;
 
 private:
   struct entry {
@@ -129,7 +134,7 @@ public:
 
 public:
   void tick();
-  texture_handle frame() const;
+  atlas_texture frame() const;
   AtlasPtr atlas() const { return _atlas; }
 
   bool valid() const { return _atlas->valid(); }

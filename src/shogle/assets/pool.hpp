@@ -8,6 +8,7 @@
 namespace ntf {
 
 using resource_handle = uint32_t;
+constexpr resource_handle resource_tombstone = UINT32_MAX;
 
 class async_data_loader {
 private:

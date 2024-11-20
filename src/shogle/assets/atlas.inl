@@ -125,12 +125,12 @@ texture_atlas<Texture>::texture_atlas(texture_type texture, std::vector<texture_
                                       std::vector<std::pair<std::string, texture_vec>> sequences) :
   _texture(std::move(texture)), _metas(std::move(metas)), _groups(groups.size()),
   _sequences(sequences.size()) {
-  for (group_handle i = 0; i < groups.size(); ++i) {
+  for (atlas_group i = 0; i < groups.size(); ++i) {
     auto& [name, group] = groups[i];
     _groups[i] = std::move(group);
     _group_names.emplace(std::make_pair(std::move(name), i));
   }
-  for (sequence_handle i = 0; i < sequences.size(); ++i) {
+  for (atlas_sequence i = 0; i < sequences.size(); ++i) {
     auto& [name, sequence] = sequences[i];
     _sequences[i] = std::move(sequence);
     _sequence_names.emplace(std::make_pair(std::move(name), i));
@@ -138,36 +138,36 @@ texture_atlas<Texture>::texture_atlas(texture_type texture, std::vector<texture_
 }
 
 template<typename Texture>
-auto texture_atlas<Texture>::at(texture_handle tex) const -> const texture_meta& {
+auto texture_atlas<Texture>::at(atlas_texture tex) const -> const texture_meta& {
   // return _metas.at(tex);
   assert(tex < _metas.size() && "Texture id out of range");
   return _metas[tex];
 }
 
 template<typename Texture>
-auto texture_atlas<Texture>::operator[](texture_handle tex) const -> const texture_meta& {
+auto texture_atlas<Texture>::operator[](atlas_texture tex) const -> const texture_meta& {
   assert(tex < _metas.size() && "Texture id out of range");
   return _metas[tex];
 }
 
 template<typename Texture>
-auto texture_atlas<Texture>::sequence_at(sequence_handle seq) const -> const texture_vec& {
+auto texture_atlas<Texture>::sequence_at(atlas_sequence seq) const -> const texture_vec& {
   assert(seq < _sequences.size() && "Sequence id out of range");
   return _sequences[seq];
 }
 
 template<typename Texture>
-auto texture_atlas<Texture>::group_at(group_handle group) const -> const texture_vec& {
+auto texture_atlas<Texture>::group_at(atlas_group group) const -> const texture_vec& {
   assert(group < _groups.size() && "Group id out of range");
   return _groups[group];
 }
 
 template<typename Texture>
 auto texture_atlas<Texture>::find_sequence(std::string_view name) const
-                                                                -> std::optional<sequence_handle> {
+                                                                -> std::optional<atlas_sequence> {
   auto it = _sequence_names.find(name.data());
   if (it != _sequence_names.end()) {
-    return {static_cast<sequence_handle>(it->second)};
+    return {static_cast<atlas_sequence>(it->second)};
   }
 
   return {};
@@ -175,10 +175,10 @@ auto texture_atlas<Texture>::find_sequence(std::string_view name) const
 
 template<typename Texture>
 auto texture_atlas<Texture>::find_group(std::string_view name) const 
-                                                                -> std::optional<sequence_handle> {
+                                                                -> std::optional<atlas_sequence> {
   auto it = _group_names.find(name.data());
   if (it != _group_names.end()) {
-    return {static_cast<group_handle>(it->second)};
+    return {static_cast<atlas_group>(it->second)};
   }
 
   return {};
@@ -238,7 +238,7 @@ void texture_animator<Texture, AtlasPtr>::tick() {
 }
 
 template<typename Texture, typename AtlasPtr>
-auto texture_animator<Texture, AtlasPtr>::frame() const -> texture_handle {
+auto texture_animator<Texture, AtlasPtr>::frame() const -> atlas_texture {
   const auto& next = _sequences.front();
   const auto& seq = _atlas->sequence_at(next.sequence);
   return seq[next.clock%seq.size()];
