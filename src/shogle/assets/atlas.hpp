@@ -111,26 +111,24 @@ class texture_animator {
 public:
   using texture_type = Texture;
   using atlas_type = texture_atlas<Texture>;
-  using sequence_handle = texture_atlas<Texture>::sequence_handle;
-  using atlas_texture = texture_atlas<Texture>::atlas_texture;
 
 private:
   struct entry {
-    sequence_handle sequence;
+    atlas_sequence sequence;
     uint duration, clock{0};
   };
 
 public:
   texture_animator() = default;
 
-  texture_animator(const AtlasPtr atlas, sequence_handle first_sequence) :
+  texture_animator(const AtlasPtr atlas, atlas_sequence first_sequence) :
     _atlas(atlas) { enqueue_sequence(first_sequence, 0); }
 
 public:
-  void enqueue_sequence(sequence_handle sequence, uint loops);
-  void enqueue_sequence_frames(sequence_handle sequence, uint frames);
-  void soft_switch(sequence_handle sequence, uint loops);
-  void hard_switch(sequence_handle sequence, uint loops);
+  void enqueue_sequence(atlas_sequence sequence, uint loops);
+  void enqueue_sequence_frames(atlas_sequence sequence, uint frames);
+  void soft_switch(atlas_sequence sequence, uint loops);
+  void hard_switch(atlas_sequence sequence, uint loops);
 
 public:
   void tick();

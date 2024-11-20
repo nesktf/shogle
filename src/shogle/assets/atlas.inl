@@ -198,7 +198,7 @@ void texture_animator<Texture, AtlasPtr>::reset_queue(bool hard) {
 }
 
 template<typename Texture, typename AtlasPtr>
-void texture_animator<Texture, AtlasPtr>::enqueue_sequence(sequence_handle sequence, uint loops) {
+void texture_animator<Texture, AtlasPtr>::enqueue_sequence(atlas_sequence sequence, uint loops) {
   const auto& seq = _atlas->sequence_at(sequence);
   _sequences.push(entry{
     .sequence=sequence,
@@ -207,7 +207,7 @@ void texture_animator<Texture, AtlasPtr>::enqueue_sequence(sequence_handle seque
 }
 
 template<typename Texture, typename AtlasPtr>
-void texture_animator<Texture, AtlasPtr>::enqueue_sequence_frames(sequence_handle sequence,
+void texture_animator<Texture, AtlasPtr>::enqueue_sequence_frames(atlas_sequence sequence,
                                                                   uint frames) {
   enqueue_sequence(sequence, 0);
   auto& enqueued = _sequences.back();
@@ -215,13 +215,13 @@ void texture_animator<Texture, AtlasPtr>::enqueue_sequence_frames(sequence_handl
 }
 
 template<typename Texture, typename AtlasPtr>
-void texture_animator<Texture, AtlasPtr>::soft_switch(sequence_handle sequence, uint loops) {
+void texture_animator<Texture, AtlasPtr>::soft_switch(atlas_sequence sequence, uint loops) {
   reset_queue(false);
   enqueue_sequence(sequence, loops);
 }
 
 template<typename Texture, typename AtlasPtr>
-void texture_animator<Texture, AtlasPtr>::hard_switch(sequence_handle sequence, uint loops) {
+void texture_animator<Texture, AtlasPtr>::hard_switch(atlas_sequence sequence, uint loops) {
   reset_queue(true);
   enqueue_sequence(sequence, loops);
 }
