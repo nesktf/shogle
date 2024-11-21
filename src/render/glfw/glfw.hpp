@@ -164,6 +164,20 @@ enum class glfw_mousebutton : int {
 
 // TODO: Add gamepad things
 
+enum class glfw_profile {
+  any = GLFW_OPENGL_ANY_PROFILE,
+  compat = GLFW_OPENGL_COMPAT_PROFILE,
+  core = GLFW_OPENGL_CORE_PROFILE,
+};
+
+struct glfw_hints {
+  glfw_profile profile = glfw_profile::core;
+  int context_ver_maj = 3;
+  int context_ver_min = 3;
+  std::string_view x11_class_name = "";
+  std::string_view x11_instance_name = "";
+};
+
 class glfw_lib {
 public:
   using keycode = glfw_keycode;
@@ -171,29 +185,59 @@ public:
   using keystate = glfw_keystate;
   using keymod = glfw_keymod;
 
-public:
-  glfw_lib() noexcept :
-    _err(glfwInit() == GLFW_TRUE) {}
+private:
+  glfw_lib(bool succ) noexcept 
+    { _inited = succ; }
 
+public:
   ~glfw_lib() noexcept {
-    if (!_err) {
+    if (_inited) {
       glfwTerminate();
+      _inited = false;
     }
   }
 
 public:
-  void set_swap_interval(uint interval) {
+  static void set_swap_interval(uint interval) {
+    NTF_ASSERT(_inited);
     glfwSwapInterval(static_cast<int>(interval));
   }
 
+  template<is_forwarding<glfw_hints> Hints>
+  static void apply_hints(Hints&& hints) {
+    NTF_ASSERT(_inited);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, static_cast<int>(hints.gl_profile));
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, static_cast<int>(hints.context_ver_maj));
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, static_cast<int>(hints.context_ver_min));
+    glfwWindowHintString(GLFW_X11_CLASS_NAME, hints.x11_class_name.data());
+    glfwWindowHintString(GLFW_X11_INSTANCE_NAME, hints.x11_instance_name.data());
+  }
+
+  static std::string_view error() {
+    const char* err;
+    if (glfwGetError(&err) == GLFW_NO_ERROR) {
+      return std::string_view{};
+    }
+    return std::string_view{err};
+  }
+
 public:
-  bool valid() const { return _err; }
+  bool valid() const { return _inited; }
   explicit operator bool() const { return valid(); }
 
 private:
-  bool _err;
+  static inline bool _inited{false};
+
+public:
+  NTF_DISABLE_MOVE_COPY(glfw_lib);
+
+private:
+  friend glfw_lib glfw_init();
 };
 
-[[nodiscard]] inline glfw_lib glfw_init() { return glfw_lib{}; }
+[[nodiscard]] inline glfw_lib glfw_init() {
+  NTF_ASSERT(!glfw_lib::_inited);
+  return glfw_lib{glfwInit() == GLFW_TRUE};
+}
 
 } // namespace ntf

@@ -67,7 +67,7 @@ public:
   using scroll_event = std::function<void(double, double)>;
 
 public:
-  glfw_window(std::size_t w, std::size_t h, std::string_view title, int ver_min, int ver_maj);
+  glfw_window(std::size_t w, std::size_t h, std::string_view title);
 
 public:
   void set_viewport_event(viewport_event event);

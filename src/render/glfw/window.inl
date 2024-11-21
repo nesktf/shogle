@@ -5,14 +5,7 @@
 namespace ntf {
 
 template<typename RenderContext>
-glfw_window<RenderContext>::glfw_window(std::size_t w, std::size_t h, std::string_view title,
-                                        int ver_min, int ver_maj) {
-  // TODO: Pass window hints as arguments, don't hardcode opengl
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, ver_min);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, ver_maj);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwWindowHintString(GLFW_X11_CLASS_NAME, title.data());
-
+glfw_window<RenderContext>::glfw_window(std::size_t w, std::size_t h, std::string_view title) {
   GLFWwindow* win = glfwCreateWindow(w, h, title.data(), nullptr, nullptr);
 
   if (!win) {
