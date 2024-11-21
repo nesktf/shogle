@@ -36,8 +36,8 @@ void gl_font::load(const glyph_map& chara) {
   }
   glBindTexture(GL_TEXTURE_2D, 0);
 
-  SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::font] Loaded (ids: {}-{}, glyphs: {})",
-                          tex-_atlas.size()+1, tex, _atlas.size());
+  SHOGLE_LOG(verbose, "[ntf::gl_font] Font loaded (ids: {}-{}, glyphs: {})",
+             tex-_atlas.size()+1, tex, _atlas.size());
 }
 
 void gl_font::unload() {
@@ -48,8 +48,8 @@ void gl_font::unload() {
       last_tex = tex;
       glDeleteTextures(1, &tex);
     }
-    SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::font] Unloaded (ids: {}-{})",
-                            last_tex-_atlas.size()+1, last_tex);
+    SHOGLE_LOG(verbose, "[ntf::gl_font] Font destroyed (ids: {}-{})",
+               last_tex-_atlas.size()+1, last_tex);
   }
 }
 

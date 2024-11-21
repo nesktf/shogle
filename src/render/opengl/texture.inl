@@ -23,14 +23,13 @@ void gl_texture<faces>::load(data_type data, dim_type dim, tex_format format) {
   glGenerateMipmap(gltype);
   glBindTexture(gltype, 0);
 
-  SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::texture] Loaded (id: {}, faces: {})",
-                          _id, face_count);
+  SHOGLE_LOG(verbose, "[ntf::gl_texture] Texture loaded (id: {}, faces: {})", _id, face_count);
 }
 
 template<std::size_t faces>
 void gl_texture<faces>::unload() {
   if (_id) {
-    SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::texture] Unloaded (id: {})", _id);
+    SHOGLE_LOG(verbose, "[ntf::gl_texture] Texture unloaded (id: {})", _id);
     glDeleteTextures(1, &_id);
     _id = 0;
   }

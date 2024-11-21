@@ -28,9 +28,8 @@ glfw_window<RenderContext>::glfw_window(std::size_t w, std::size_t h, std::strin
     return;
   }
   _render_ctx.set_viewport(w, h);
-  SHOGLE_INTERNAL_LOG_FMT(verbose,
-                          "[SHOGLE][ntf::glfw_window] Render context initialized \"{} {} {}\"",
-                          _render_ctx.name(), _render_ctx.version(), _render_ctx.vendor());
+  SHOGLE_LOG(verbose, "[ntf::glfw_window] Render context initialized \"{} {} {}\"",
+             _render_ctx.name(), _render_ctx.version(), _render_ctx.vendor());
 
   glfwSetWindowUserPointer(win, this);
 
@@ -45,16 +44,16 @@ glfw_window<RenderContext>::glfw_window(std::size_t w, std::size_t h, std::strin
     if (!imgui_init<imgui_impl>(_handle, enable_callbacks, "#version 130")) {
       _render_ctx.destroy();
       glfwDestroyWindow(_handle);
-      ntf::logger::error("[SHOGLE][ntf::glfw_window] Failed to initialize imgui");
+      SHOGLE_LOG(error, "[ntf::glfw_window] Failed to initialize imgui");
       return;
     }
   }
+  SHOGLE_LOG(verbose, "[ntf::glfw_window] Imgui initialized");
 #endif
 
   _handle = win;
 
-  SHOGLE_INTERNAL_LOG_FMT(verbose,
-    "[SHOGLE][ntf::glfw_window] Created (w: {}, h: {}, title: {})", w, h, title);
+  SHOGLE_LOG(verbose, "[ntf::glfw_window] Window created (w: {}, h: {}, title: {})", w, h, title);
 }
 
 template<typename RenderContext>

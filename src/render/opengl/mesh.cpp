@@ -4,7 +4,7 @@ namespace ntf {
 
 void gl_mesh::unload() {
   if (_vao && _vbo) {
-    SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::mesh] Unloaded (id: {})", _vao);
+    SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh unloaded (id: {})", _vao);
     glBindVertexArray(_vao);
     for (std::size_t i = 0; i < _attrib_count; ++i) {
       glDisableVertexAttribArray(i); // ???

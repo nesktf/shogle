@@ -29,7 +29,7 @@ void gl_framebuffer::load(std::size_t w, std::size_t h) {
     glDeleteFramebuffers(1, &_fbo);
     glDeleteRenderbuffers(1, &_rbo);
     _texture.unload();
-    ntf::logger::error("[SHOGLE][ntf::gl::framebuffer] Failed to create, incomplete (id: {})", _fbo);
+    SHOGLE_LOG(error, "[ntf::gl_framebuffer] Failed to create, incomplete (id: {})", _fbo);
     _fbo = 0;
     _rbo = 0;
     return;
@@ -37,14 +37,12 @@ void gl_framebuffer::load(std::size_t w, std::size_t h) {
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-  SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::framebuffer] Created (id: {}, tex: {})",
-                          _fbo, _texture.id());
+  SHOGLE_LOG(verbose, "[ntf::gl_framebuffer] Created (id: {}, tex: {})",_fbo, _texture.id());
 }
 
 void gl_framebuffer::unload() {
   if (_fbo && _rbo) {
-    SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::framebuffer] Destroyed (id: {}, tex: {})",
-                            _fbo, _texture.id());
+    SHOGLE_LOG(verbose, "[ntf::gl_framebuffer] Destroyed (id: {}, tex: {})", _fbo, _texture.id());
     glDeleteFramebuffers(1, &_fbo);
     glDeleteBuffers(1, &_rbo);
     _fbo = 0;

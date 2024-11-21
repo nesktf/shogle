@@ -25,7 +25,7 @@ void gl_mesh::load(mesh_primitive primitive, T* vertices, std::size_t vert_sz,
 
   glBindVertexArray(0);
 
-  SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::mesh] Loaded (id: {})", _vao);
+  SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh loaded (id: {})", _vao);
 }
 
 template<typename T, is_shader_attribute... Attribs>
@@ -54,7 +54,7 @@ void gl_mesh::load(mesh_primitive primitive, T* vertices, std::size_t vert_sz,
 
   glBindVertexArray(0);
 
-  SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::mesh] Loaded (id: {})", _vao);
+  SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh loaded (id: {})", _vao);
 }
 
 template<std::size_t total_size, std::size_t next_stride,

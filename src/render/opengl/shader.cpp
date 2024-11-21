@@ -16,18 +16,18 @@ void gl_shader::load(std::string_view src, shader_category type) {
   glGetShaderiv(_id, GL_COMPILE_STATUS, &succ);
   if (!succ) {
     glGetShaderInfoLog(_id, 512, nullptr, log);
-    ntf::logger::error("[SHOGLE][ntf::gl::shader] Compilation failed (id: {}) -> {}", _id, log);
+    SHOGLE_LOG(error, "[ntf::gl_shader] Shader compilation failed (id: {}) -> {}", _id, log);
     glDeleteShader(_id);
     _id = 0;
     return;
   }
 
-  SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::shader] Compiled (id: {})", _id);
+  SHOGLE_LOG(verbose, "[ntf::gl_shader] Shader compiled (id: {})", _id);
 }
 
 void gl_shader::unload() {
   if (compiled()) {
-    SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::shader] Unloaded (id: {})", _id);
+    SHOGLE_LOG(verbose, "[ntf::gl_shader] Shader destroyed (id: {})", _id);
     glDeleteShader(_id);
     _id = 0;
   }
@@ -68,13 +68,14 @@ void gl_shader_program::load(shader_type vert, shader_type frag) {
   glGetProgramiv(_id, GL_LINK_STATUS, &succ);
   if (!succ) {
     glGetShaderInfoLog(vert.id(), 512, nullptr, log);
-    ntf::logger::error("[SHOGLE][ntf::gl::shader_program] Link failed (id: {}) -> {}", _id, log);
+    SHOGLE_LOG(error, "[ntf::gl_shader_program] Shader program link failed (id: {} -> {})",
+               _id, log);
     glDeleteProgram(_id);
     _id = 0;
     return;
   }
 
-  SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::shader_program] Linked (id: {})", _id);
+  SHOGLE_LOG(verbose, "[ntf::gl_shader_program] Shader program linked (id: {})", _id);
 }
 
 void gl_shader_program::load(shader_type vert, shader_type frag, shader_type geom) {
@@ -98,13 +99,14 @@ void gl_shader_program::load(shader_type vert, shader_type frag, shader_type geo
   glGetProgramiv(_id, GL_LINK_STATUS, &succ);
   if (!succ) {
     glGetShaderInfoLog(vert.id(), 512, nullptr, log);
-    ntf::logger::error("[SHOGLE][ntf::gl::shader_program] Link failed (id: {}) -> {}", _id, log);
+    SHOGLE_LOG(error, "[ntf::gl_shader_program] Shader program link failed (id: {} -> {})",
+               _id, log);
     glDeleteProgram(_id);
     _id = 0;
     return;
   } 
 
-  SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::shader_program] Linked (id: {})", _id);
+  SHOGLE_LOG(verbose, "[ntf::gl_shader_program] Shader program linked (id: {})", _id);
 }
 
 void gl_shader_program::load(std::string_view vert_src, std::string_view frag_src) {
@@ -132,7 +134,7 @@ auto gl_shader_program::uniform_location(std::string_view name) const -> uniform
 
 void gl_shader_program::unload() {
   if (_id) {
-    SHOGLE_INTERNAL_LOG_FMT(verbose, "[SHOGLE][ntf::gl::shader_program] Unloaded (id: {})", _id);
+    SHOGLE_LOG(verbose, "[ntf::gl_shader_program] Shader program destroyed (id: {})", _id);
     glDeleteProgram(_id);
     _id = 0;
   }

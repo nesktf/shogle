@@ -57,7 +57,7 @@ void shogle_main_loop(Window& window, LoopObj&& obj) {
   using duration = clock::duration;
   using time_point = std::chrono::time_point<clock, duration>;
 
-  SHOGLE_INTERNAL_LOG(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop started");
+  SHOGLE_LOG(debug, "[ntf::shogle_main_loop] Main loop started");
 
   time_point last_time = clock::now();
   while (!window.should_close()) {
@@ -76,7 +76,7 @@ void shogle_main_loop(Window& window, LoopObj&& obj) {
     window.swap_buffers();
   }
 
-  SHOGLE_INTERNAL_LOG(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop exit");
+  SHOGLE_LOG(debug, "[ntf::shogle_main_loop] Main loop exit");
 }
 
 template<window_object Window, fixed_loop_object LoopObj>
@@ -90,9 +90,7 @@ void shogle_main_loop(Window& window, uint ups, LoopObj&& obj) {
   using duration = decltype(clock::duration{} + fixed_elapsed_time);
   using time_point = std::chrono::time_point<clock, duration>;
 
-  SHOGLE_INTERNAL_LOG_FMT(debug,
-                          "[SHOGLE][ntf::shogle_main_loop] Fixed main loop started at {} ups",
-                          ups);
+  SHOGLE_LOG(debug, "[ntf::shogle_main_loop] Fixed main loop started at {} ups", ups);
 
   time_point last_time = clock::now();
   duration lag = 0s;
@@ -125,7 +123,7 @@ void shogle_main_loop(Window& window, uint ups, LoopObj&& obj) {
     window.swap_buffers();
   }
 
-  SHOGLE_INTERNAL_LOG(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop exit");
+  SHOGLE_LOG(debug, "[ntf::shogle_main_loop] Main loop exit");
 }
 
 template<window_object Window, fixed_render_func RFunc, fixed_update_func UFunc>
@@ -139,9 +137,7 @@ void shogle_main_loop(Window& window, uint ups, RFunc&& render, UFunc&& fixed_up
   using duration = decltype(clock::duration{} + fixed_elapsed_time);
   using time_point = std::chrono::time_point<clock, duration>;
 
-  SHOGLE_INTERNAL_LOG_FMT(debug,
-                          "[SHOGLE][ntf::shogle_main_loop] Fixed main loop started at {} ups",
-                          ups);
+  SHOGLE_LOG(debug, "[ntf::shogle_main_loop] Fixed main loop started at {} ups", ups);
 
   time_point last_time = clock::now();
   duration lag = 0s;
@@ -166,7 +162,7 @@ void shogle_main_loop(Window& window, uint ups, RFunc&& render, UFunc&& fixed_up
     window.swap_buffers();
   }
 
-  SHOGLE_INTERNAL_LOG(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop exit");
+  SHOGLE_LOG(debug, "[ntf::shogle_main_loop] Main loop exit");
 }
 
 } // namespace ntf

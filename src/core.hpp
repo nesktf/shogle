@@ -92,13 +92,10 @@
 #define NTF_UNLIKELY(arg) __builtin_expect(!!(arg), 0)
 
 #ifdef SHOGLE_ENABLE_INTERNAL_LOGS
-#define SHOGLE_INTERNAL_LOG_FMT(__priority, __format, ...) \
-  ::ntf::logger::__priority(__format, __VA_ARGS__)
-#define SHOGLE_INTERNAL_LOG(__priority, __msg, ...) \
-  ::ntf::logger::__priority(__msg)
+#define SHOGLE_LOG(_priority, _fmt, ...) \
+  ::ntf::logger::_priority("[ShOGLE]" _fmt, ##__VA_ARGS__)
 #else
-#define SHOGLE_INTERNAL_LOG_FMT(__priority, __format, ...) NTF_NOOP
-#define SHOGLE_INTERNAL_LOG(__priority, __msg, ...) NTF_NOOP
+#define SHOGLE_LOG(_priority, _fmt, ...) NTF_NOOP
 #endif
 
 #include <string_view>
