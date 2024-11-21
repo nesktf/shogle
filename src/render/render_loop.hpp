@@ -1,13 +1,6 @@
 #pragma once
 
-#include "./core.hpp"
-
-#include "./render/opengl/context.hpp"
-#include "./render/opengl/context.hpp"
-#include "./render/glfw/window.hpp"
-
-#include "./render/camera.hpp"
-#include "./scene/transform.hpp"
+#include "../core.hpp"
 
 #include <chrono>
 
