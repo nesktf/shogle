@@ -70,12 +70,10 @@ void shogle_main_loop(Window& window, RFunc&& render) {
   SHOGLE_INTERNAL_LOG(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop started");
 
   time_point last_time = clock::now();
-  duration lag = 0s;
   while (!window.should_close()) {
     time_point start_time = clock::now();
     auto elapsed_time = start_time - last_time;
     last_time = start_time;
-    lag += elapsed_time;
 
     double dt {std::chrono::duration<double>{elapsed_time}/1s};
 
