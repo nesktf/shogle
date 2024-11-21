@@ -7,7 +7,10 @@
 namespace ntf {
 
 template<typename F>
-concept render_func = std::invocable<F, double, double>; // f(dt, alpha) -> void
+concept render_func = std::invocable<F, double>;
+
+template<typename F>
+concept frender_func = std::invocable<F, double, double>; // f(dt, alpha) -> void
 
 template<typename F>
 concept update_func = std::invocable<F>; // f() -> void
@@ -15,7 +18,7 @@ concept update_func = std::invocable<F>; // f() -> void
 template<typename W>
 concept window_object = true; // TODO: define this
 
-template<window_object Window, render_func RFunc, update_func UFunc>
+template<window_object Window, frender_func RFunc, update_func UFunc>
 void shogle_main_loop(Window& window, uint ups, RFunc&& render, UFunc&& fixed_update) {
   using namespace std::literals;
 
@@ -26,7 +29,8 @@ void shogle_main_loop(Window& window, uint ups, RFunc&& render, UFunc&& fixed_up
   using duration = decltype(clock::duration{} + fixed_elapsed_time);
   using time_point = std::chrono::time_point<clock, duration>;
 
-  SHOGLE_INTERNAL_LOG_FMT(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop started (ups: {})",
+  SHOGLE_INTERNAL_LOG_FMT(debug,
+                          "[SHOGLE][ntf::shogle_main_loop] Fixed main loop started at {} ups",
                           ups);
 
   time_point last_time = clock::now();
@@ -49,6 +53,34 @@ void shogle_main_loop(Window& window, uint ups, RFunc&& render, UFunc&& fixed_up
 
     render(dt, alpha);
 
+    window.swap_buffers();
+  }
+
+  SHOGLE_INTERNAL_LOG(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop exit");
+}
+
+template<window_object Window, render_func RFunc>
+void shogle_main_loop(Window& window, RFunc&& render) {
+  using namespace std::literals;
+
+  using clock = std::chrono::steady_clock;
+  using duration = clock::duration;
+  using time_point = std::chrono::time_point<clock, duration>;
+
+  SHOGLE_INTERNAL_LOG(debug, "[SHOGLE][ntf::shogle_main_loop] Main loop started");
+
+  time_point last_time = clock::now();
+  duration lag = 0s;
+  while (!window.should_close()) {
+    time_point start_time = clock::now();
+    auto elapsed_time = start_time - last_time;
+    last_time = start_time;
+    lag += elapsed_time;
+
+    double dt {std::chrono::duration<double>{elapsed_time}/1s};
+
+    window.poll_events();
+    render(dt);
     window.swap_buffers();
   }
 
