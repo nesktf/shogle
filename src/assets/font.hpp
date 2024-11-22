@@ -1,41 +1,43 @@
 #pragma once
 
-#include "./common.hpp"
+#include "./assets.hpp"
 #include "../render/render.hpp"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include <vector>
-
 namespace ntf {
 
+struct basic_font_data {
+  glyph_map glyphs;
+};
+
 template<typename Font>
-struct font_data {
+class freetype2_loader {
 public:
+  using resource_type = Font;
+  using data_type = basic_font_data;
+
+private:
   using font_type = Font;
 
 public:
-  struct loader {
-    font_type operator()(font_data data) {
-      return font_type{std::move(data.glyphs)};
-    }
-    font_type operator()(std::string path) {
-      return (*this)(font_data{path});
-    }
-  };
+  // TODO: Pass custom allocator
+  bool resource_load(std::string_view path, uint8_t count = 128, uint pixel_size = 48);
+  void resource_unload(bool overwrite);
+
+  std::optional<resource_type> make_resource() const;
 
 public:
-  font_data(std::string_view path);
-
-public:
-  std::map<uint8_t, std::pair<uint8_t*, font_glyph>> glyphs;
+  const data_type& data() const { return _data; }
+  data_type& data() { return _data; }
 
 private:
-  std::vector<std::unique_ptr<uint8_t[]>> _temp_glyphs;
-  FT_Face _ft_face;
-  FT_Library _ft_lib;
+  data_type _data;
 };
+
+template<typename T, typename Loader = freetype2_loader<T>>
+using font_data = resource_data<T, Loader>;
 
 } // namespace ntf
 

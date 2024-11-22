@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./common.hpp"
+#include "./assets.hpp"
 #include "./texture.hpp"
 
 #include <queue>
