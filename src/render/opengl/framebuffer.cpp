@@ -34,7 +34,8 @@ void gl_framebuffer::unload() {
     return;
   }
 
-  SHOGLE_LOG(verbose, "[ntf::gl_framebuffer] Destroyed (id: {}, tex: {})", _fbo, _texture.id());
+  SHOGLE_LOG(verbose, "[ntf::gl_framebuffer] Framebuffer destroyed (id: {}, tex: {})",
+             _fbo, _texture.id());
   glDeleteFramebuffers(1, &_fbo);
   glDeleteBuffers(1, &_rbo);
 
@@ -73,8 +74,16 @@ void gl_framebuffer::_load(std::size_t w, std::size_t h, gl_tex_params params) {
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  if (_fbo) {
+    SHOGLE_LOG(verbose, "[ntf::gl_framebuffer] Framebuffer overwritten (id: {}, tex: {})",
+               _fbo, _texture.id());
+    glDeleteFramebuffers(1, &_fbo);
+    glDeleteBuffers(1, &_rbo);
+  } else {
+    SHOGLE_LOG(verbose, "[ntf::gl_framebuffer] Framebuffer created (id: {}, tex: {})",
+               fbo, tex.id());
+  }
 
-  SHOGLE_LOG(verbose, "[ntf::gl_framebuffer] Created (id: {}, tex: {})", fbo, tex.id());
   _fbo = fbo;
   _rbo = rbo;
   _texture = std::move(tex);

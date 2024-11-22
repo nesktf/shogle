@@ -43,7 +43,7 @@ void gl_texture<faces>::unload() {
     return;
   }
 
-  SHOGLE_LOG(verbose, "[ntf::gl_texture] Texture unloaded (id: {})", _id);
+  SHOGLE_LOG(verbose, "[ntf::gl_texture] Texture destroyed (id: {})", _id);
   glDeleteTextures(1, &_id);
 
   _reset();
@@ -78,7 +78,7 @@ void gl_texture<faces>::_load(data_type data, dim_type dim, tex_format format,
     SHOGLE_LOG(verbose, "[ntf::gl_texture] Texture overwritten ({} -> {})", _id, id);
     glDeleteTextures(1, &_id);
   } else {
-    SHOGLE_LOG(verbose, "[ntf::gl_texture] Texture loaded (id: {}, faces: {})", _id, face_count);
+    SHOGLE_LOG(verbose, "[ntf::gl_texture] Texture created (id: {}, faces: {})", _id, face_count);
   }
 
   _id = id;

@@ -58,6 +58,7 @@ private:
 
   template<typename Proc>
   bool init(Proc proc) {
+    NTF_ASSERT(!valid());
     if (!gladLoadGLLoader((GLADloadproc)proc)) {
       _glad_proc = (GLADloadproc)proc;
       return false;
@@ -69,8 +70,8 @@ private:
   void destroy();
 
 public:
-  mesh make_quad(mesh_buffer vert_buff, mesh_buffer ind_buff);
-  mesh make_cube(mesh_buffer vert_buff, mesh_buffer ind_buff);
+  mesh make_quad(mesh_buffer vert_buff, mesh_buffer ind_buff) const;
+  mesh make_cube(mesh_buffer vert_buff, mesh_buffer ind_buff) const;
 
 public:
   void draw(mesh_primitive prim, const mesh& mesh, std::size_t offset = 0, uint count = 0) const;
@@ -84,20 +85,35 @@ public:
     glBindTexture(gl_texture<faces>::gltype, tex.id());
   }
 
+  void draw_text(const font& font, vec2 pos, float scale, std::string_view text) const;
+  void draw_text(const font& font, std::string_view text) const;
+
+  template<typename... Args>
+  void draw_text(const font& font, vec2 pos, float scale, fmt::format_string<Args...> fmt,
+                 Args&&... args) const {
+    std::string str = fmt::format(fmt, std::forward<Args>(args)...);
+    draw_text(font, pos, scale, str);
+  }
+
+  template<typename... Args>
+  void draw_text(const font& font, fmt::format_string<Args...> fmt, Args&&... args) const {
+    draw_text(font, vec2{0.f}, 0.f, fmt, std::forward<Args>(args)...);
+  }
+
 public:
-  void set_viewport(std::size_t w, std::size_t h);
-  void set_viewport(ivec2 sz);
-  void set_viewport(std::size_t x, std::size_t y, std::size_t w, std::size_t h);
-  void set_viewport(ivec2 pos, ivec2 sz);
+  void set_viewport(std::size_t w, std::size_t h) const;
+  void set_viewport(ivec2 sz) const;
+  void set_viewport(std::size_t x, std::size_t y, std::size_t w, std::size_t h) const;
+  void set_viewport(ivec2 pos, ivec2 sz) const;
 
-  void clear_viewport(color4 color, clear flag = clear::none);
-  void clear_viewport(color3 color, clear flag = clear::none);
+  void clear_viewport(color4 color, clear flag = clear::none) const;
+  void clear_viewport(color3 color, clear flag = clear::none) const;
 
-  void set_stencil_test(bool flag);
-  void set_depth_test(bool flag);
-  void set_blending(bool flag);
+  void set_stencil_test(bool flag) const;
+  void set_depth_test(bool flag) const;
+  void set_blending(bool flag) const;
 
-  void set_depth_fun(depth_fun fun);
+  void set_depth_fun(depth_fun fun) const;
 
 public:
   bool valid() const { return _glad_proc != nullptr; }

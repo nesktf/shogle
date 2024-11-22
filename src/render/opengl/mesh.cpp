@@ -21,7 +21,7 @@ void gl_mesh::unload() {
   if (!_vao) {
     return;
   }
-  SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh unloaded (id: {})", _vao);
+  SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh destroyed (id: {})", _vao);
   glDeleteVertexArrays(1, &_vao);
   if (_vbo) {
     glDeleteBuffers(1, &_vbo);
@@ -47,9 +47,9 @@ void gl_mesh::_set_indices(const uint* indices, std::size_t sz, mesh_buffer buff
   glBindVertexArray(0);
   _ebo_sz = sz;
 
-  if (valid()) {
-    SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh created (id: {})", _vao);
-  }
+  // if (valid()) {
+  //   SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh created (id: {})", _vao);
+  // }
 }
 
 void gl_mesh::_set_indices(const uint* indices, std::size_t sz, std::size_t offset) {

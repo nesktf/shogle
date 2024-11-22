@@ -1,115 +1,146 @@
 #include "./font.hpp"
 
 namespace ntf {
-void gl_font::load(const glyph_map& chara) {
-  NTF_ASSERT(_vao == 0 && _vbo == 0, "gl_font already initialized");
-  NTF_ASSERT(chara.size() > 0, "Can't load 0 fonts in gl_font!");
 
-  glGenVertexArrays(1, &_vao);
-  glGenBuffers(1, &_vbo);
+gl_font::gl_font(const glyph_map& chara, tex_filter filter) {
+  _load(chara, filter);
+}
 
-  glBindVertexArray(_vao);
-  glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float)*6*4, nullptr, GL_DYNAMIC_DRAW);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
+gl_font& gl_font::load(const glyph_map& chara, tex_filter filter) & {
+  _load(chara, filter);
+  return *this;
+}
 
-  glBindVertexArray(0);
+gl_font&& gl_font::load(const glyph_map& chara, tex_filter filter) && {
+  _load(chara, filter);
+  return std::move(*this);
+}
 
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-  GLuint tex;
-  for (auto& [c, pair] : chara) {
-    auto& [buf, ch] = pair;
-
-    glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, ch.size.x, ch.size.y, 0, GL_RED, GL_UNSIGNED_BYTE, buf);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    _atlas.insert(std::make_pair(c, std::make_pair(tex, ch)));
-  }
-  glBindTexture(GL_TEXTURE_2D, 0);
-
-  SHOGLE_LOG(verbose, "[ntf::gl_font] Font loaded (ids: {}-{}, glyphs: {})",
-             tex-_atlas.size()+1, tex, _atlas.size());
+gl_font& gl_font::fliter(tex_filter filter) & {
+  _set_filter(filter);
+  return *this;
 }
 
 void gl_font::unload() {
-  if (valid()) {
-    [[maybe_unused]] GLuint last_tex;
-    for (auto& [_, pair] : _atlas) {
-      auto& [tex, ch] = pair;
-      last_tex = tex;
-      glDeleteTextures(1, &tex);
-    }
-    SHOGLE_LOG(verbose, "[ntf::gl_font] Font destroyed (ids: {}-{})",
-               last_tex-_atlas.size()+1, last_tex);
+  if (!valid()) {
+    return;
   }
+
+  [[maybe_unused]] GLuint last_tex;
+  for (auto& [_, pair] : _atlas) {
+    auto& [tex, ch] = pair;
+    last_tex = tex;
+    glDeleteTextures(1, &tex);
+  }
+
+  SHOGLE_LOG(verbose, "[ntf::gl_font] Font destroyed (vao: {}, ids: {}-{})",
+             _vao, last_tex-_atlas.size()+1, last_tex);
+
+  glDeleteVertexArrays(1, &_vao);
+  glDeleteBuffers(1, &_vbo);
 }
 
 ivec2 gl_font::text_size(std::string_view text) const {
   NTF_ASSERT(valid(), "Invalid gl_font");
 
   ivec2 dim {0, 0};
+  for (const auto c : text) {
+    GLuint tex;
+    font_glyph glyph;
 
-  for (auto c = text.cbegin(); c != text.cend(); ++c) {
-    auto [tex, ch] = _atlas.at(*c);
-    dim.x += (ch.advance >> 6);
-    // TODO: do the same with y
+    if (_atlas.find(c) != _atlas.end()) {
+      std::tie(tex, glyph) = _atlas.at(c);
+    } else {
+      std::tie(tex, glyph) = _atlas.at('?');
+    }
+
+    dim.x += (glyph.advance >> 6);
+    dim.y = std::max(glyph.size.y, dim.y);
   }
 
   return dim;
 }
 
-void gl_font::draw_text(vec2 pos, float scale, std::string_view text) const {
-  NTF_ASSERT(valid(), "Invalid gl_font");
 
-  glBindVertexArray(_vao);
+void gl_font::_load(const glyph_map& chara, tex_filter filter) {
+  if (!_vao) {
+    GLuint vao{}, vbo{};
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
 
-  float x = pos.x, y = pos.y;
-  std::string_view::const_iterator c;
-  for (c = text.begin(); c != text.end(); ++c) {
-    auto [tex, ch] = _atlas.at(*c);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*6*4, nullptr, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
 
-    float xpos = x + ch.bearing.x*scale;
-    float ypos = y - ch.bearing.y*scale;
+    glBindVertexArray(0);
 
-    float w = ch.size.x*scale;
-    float h = ch.size.y*scale;
+    _vao = vao;
+    _vbo = vbo;
+  }
 
-    float vert[6][4] {
-      { xpos,     ypos + h, 0.0f, 1.0f },
-      { xpos,     ypos,     0.0f, 0.0f },
-      { xpos + w, ypos,     1.0f, 0.0f },
+  GLint prev_align{};
+  glGetIntegerv(GL_UNPACK_ALIGNMENT, &prev_align);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-      { xpos,     ypos + h, 0.0f, 1.0f },
-      { xpos + w, ypos,     1.0f, 0.0f },
-      { xpos + w, ypos + h, 1.0f, 1.0f }
-    };
+  GLuint tex{};
+  font_atlas atlas;
+  for (auto& [c, pair] : chara) {
+    auto& [buf, glyph] = pair;
+
+    glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
 
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vert), vert);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, glyph.size.x, glyph.size.y, 0, GL_RED, 
+                 GL_UNSIGNED_BYTE, buf);
 
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    const auto glfilter = enumtogl(filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, glfilter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, glfilter);
 
-    x += (ch.advance >> 6)*scale;
+    atlas.insert(std::make_pair(c, std::make_pair(tex, glyph)));
   }
-  glBindVertexArray(0);
+  glBindTexture(GL_TEXTURE_2D, 0);
+
+  glPixelStorei(GL_UNPACK_ALIGNMENT, prev_align);
+
+  if (_atlas.size() > 0) {
+    SHOGLE_LOG(warning, "[ntf::gl_font] Font atlas overwritten (vao: {}, glyphs: {} -> {})",
+               _vao, _atlas.size(), atlas.size());
+  } else {
+    SHOGLE_LOG(verbose, "[ntf::gl_font] Font loaded (vao: {}, ids: {}-{}, glyps: {})",
+               _vao, tex-atlas.size()+1, tex, atlas.size());
+  }
+  _atlas = std::move(atlas);
+}
+
+void gl_font::_set_filter(tex_filter filter) {
+  NTF_ASSERT(valid());
+  const auto glfilter = enumtogl(filter);
+  for (auto& [ch, pair] : _atlas) {
+    auto tex = pair.first;
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, glfilter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, glfilter);
+  }
   glBindTexture(GL_TEXTURE_2D, 0);
 }
+
+void gl_font::_reset() {
+  _vao = 0;
+  _vbo = 0;
+  _atlas.clear();
+}
+
 
 gl_font::~gl_font() noexcept { unload(); }
 
 gl_font::gl_font(gl_font&& f) noexcept :
   _vao(std::move(f._vao)), _vbo(std::move(f._vbo)),
-  _atlas(std::move(f._atlas)) { f._vao = 0; f._vbo = 0; }
+  _atlas(std::move(f._atlas)) { f._reset(); }
 
 auto gl_font::operator=(gl_font&& f) noexcept -> gl_font& {
   unload();
@@ -118,8 +149,7 @@ auto gl_font::operator=(gl_font&& f) noexcept -> gl_font& {
   _vbo = std::move(f._vbo);
   _atlas = std::move(f._atlas);
 
-  f._vao = 0;
-  f._vbo = 0;
+  f._reset();
 
   return *this;
 }
