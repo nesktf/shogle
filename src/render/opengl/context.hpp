@@ -54,6 +54,8 @@ public:
 #endif
 
 private:
+  gl_context() = default;
+
   template<typename Proc>
   bool init(Proc proc) {
     if (!gladLoadGLLoader((GLADloadproc)proc)) {

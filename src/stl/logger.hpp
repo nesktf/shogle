@@ -22,13 +22,13 @@ enum class log_level : uint8_t {
 class logger {
 public:
   static inline void set_level(log_level new_level) {
-    log_level = new_level;
+    _log_level = new_level;
   }
 
   template<typename... Args>
   static inline void _log(log_level level, const std::string& prefix, const std::string& str_color,
                           fmt::format_string<Args...> format, Args&&... args) {
-    if (log_level < level) {
+    if (_log_level < level) {
       return;
     }
 
@@ -79,7 +79,7 @@ public:
   }
 
 private:
-  static inline log_level log_level {log_level::info};
+  static inline log_level _log_level {log_level::info};
 };
 
 } // namespace ntf

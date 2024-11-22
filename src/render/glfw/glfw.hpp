@@ -206,7 +206,7 @@ public:
   template<is_forwarding<glfw_hints> Hints>
   static void apply_hints(Hints&& hints) {
     NTF_ASSERT(_inited);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, static_cast<int>(hints.gl_profile));
+    glfwWindowHint(GLFW_OPENGL_PROFILE, static_cast<int>(hints.profile));
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, static_cast<int>(hints.context_ver_maj));
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, static_cast<int>(hints.context_ver_min));
     glfwWindowHintString(GLFW_X11_CLASS_NAME, hints.x11_class_name.data());

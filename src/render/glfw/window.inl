@@ -151,17 +151,21 @@ template<typename RenderContext>
 void glfw_window<RenderContext>::poll_events() {
   NTF_ASSERT(_handle, "Invalid glfw_window");
   glfwPollEvents();
+#ifdef SHOGLE_ENABLE_IMGUI
   if constexpr (imgui_enabled) {
     imgui_start_frame<imgui_impl>();
   }
+#endif
 }
 
 template<typename RenderContext>
 void glfw_window<RenderContext>::swap_buffers() {
   NTF_ASSERT(_handle, "Invalid glfw_window");
+#ifdef SHOGLE_ENABLE_IMGUI
   if constexpr (imgui_enabled) {
     imgui_end_frame<imgui_impl>();
   }
+#endif
   glfwSwapBuffers(_handle);
 }
 
