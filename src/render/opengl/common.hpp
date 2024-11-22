@@ -115,6 +115,8 @@ static constexpr GLint enumtogl(shader_category type) {
       return GL_FRAGMENT_SHADER;
     case shader_category::geometry:
       return GL_GEOMETRY_SHADER;
+    case shader_category::none:
+      return 0;
   }
   return 0; // shutup gcc
 }

@@ -58,7 +58,8 @@ enum class tex_wrap {
 };
 
 enum class shader_category {
-  vertex = 0,
+  none = 0,
+  vertex,
   fragment,
   geometry
 };

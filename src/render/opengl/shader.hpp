@@ -11,26 +11,29 @@ public:
 public:
   gl_shader() = default;
 
-  gl_shader(GLuint id, shader_category type) :
-    _id(id), _type(type) {}
-
-  gl_shader(std::string_view src, shader_category type)
-    { load(src, type); }
+  gl_shader(std::string_view src, shader_category type);
 
 public:
-  void load(std::string_view src, shader_category type);
+  gl_shader& compile(std::string_view src, shader_category type) &;
+  gl_shader&& compile(std::string_view src, shader_category type) &&;
+
   void unload();
 
 public:
-  shader_category type() const { return _type; }
+  GLuint id() const { return _id; }
+  
   bool compiled() const { return _id != 0; }
-  GLuint& id() { return _id; } // Not const;
+  shader_category type() const { return _type; }
   
   explicit operator bool() const { return compiled(); }
 
 private:
+  void _compile(std::string_view src, shader_category type);
+  void _reset();
+
+private:
   GLuint _id{0};
-  shader_category _type;
+  shader_category _type{shader_category::none};
 
 public:
   NTF_DECLARE_MOVE_ONLY(gl_shader);
@@ -46,27 +49,39 @@ public:
 public:
   gl_shader_program() = default;
 
-  gl_shader_program(GLuint id) :
-    _id(id) {}
+  template<is_forwarding<gl_shader> Vert, is_forwarding<gl_shader> Frag>
+  gl_shader_program(Vert&& vert, Frag&& frag);
 
-  gl_shader_program(std::string_view vert_src, std::string_view frag_src)
-    { load(vert_src, frag_src); }
+  template<is_forwarding<gl_shader> Vert, is_forwarding<gl_shader> Frag,
+    is_forwarding<gl_shader> Geom>
+  gl_shader_program(Vert&& vert, Frag&& frag, Geom&& geom);
 
+  gl_shader_program(std::string_view vert_src, std::string_view frag_src);
   gl_shader_program(std::string_view vert_src, std::string_view frag_src,
-                    std::string_view geom_src)
-    { load(vert_src, frag_src, geom_src); }
-
-  gl_shader_program(shader_type vert, shader_type frag)
-    { load(std::move(vert), std::move(frag)); }
-
-  gl_shader_program(shader_type vert, shader_type frag, shader_type geom)
-    { load(std::move(vert), std::move(frag), std::move(geom)); }
+                    std::string_view geom_src);
 
 public:
-  void load(std::string_view vert_src, std::string_view frag_src);
-  void load(std::string_view vert_src, std::string_view frag_src, std::string_view geom_src);
-  void load(shader_type vert, shader_type frag);
-  void load(shader_type vert, shader_type frag, shader_type geom);
+  template<is_forwarding<gl_shader> Vert, is_forwarding<gl_shader> Frag>
+  gl_shader_program& link(Vert&& vert, Frag&& frag) &;
+
+  template<is_forwarding<gl_shader> Vert, is_forwarding<gl_shader> Frag>
+  gl_shader_program&& link(Vert&& vert, Frag&& frag) &&;
+
+  template<is_forwarding<gl_shader> Vert, is_forwarding<gl_shader> Frag,
+    is_forwarding<gl_shader> Geom>
+  gl_shader_program& link(Vert&& vert, Frag&& frag, Geom&& geom) &;
+
+  template<is_forwarding<gl_shader> Vert, is_forwarding<gl_shader> Frag,
+    is_forwarding<gl_shader> Geom>
+  gl_shader_program&& link(Vert&& vert, Frag&& frag, Geom&& geom) &&;
+
+  gl_shader_program& link(std::string_view vert_src, std::string_view frag_src) &;
+  gl_shader_program&& link(std::string_view vert_src, std::string_view frag_src) &&;
+
+  gl_shader_program& link(std::string_view vert_src, std::string_view frag_src,
+                          std::string_view geom_src) &;
+  gl_shader_program&& link(std::string_view vert_src, std::string_view frag_src,
+                          std::string_view geom_src) &&;
 
   void unload();
 
@@ -81,23 +96,29 @@ public:
   void set_uniform(uniform_type location, const mat4& val) const;
 
   template<typename T>
-  bool set_uniform(std::string_view name, const T& val) const {
-    uniform_type location = uniform_location(name);
-    if (!gl_validate_uniform(location)) {
-      return false;
-    }
-
-    set_uniform(location, val);
-    return true;
-  }
+  requires(uniform_traits<T>::is_uniform)
+  bool set_uniform(std::string_view name, const T& val) const;
 
   uniform_type uniform_location(std::string_view name) const;
 
 public:
+  GLuint id() const { return _id; }
   bool linked() const { return _id != 0; }
-  GLuint& id() { return _id; } // Not const
 
   explicit operator bool() const { return linked(); }
+
+private:
+  template<is_forwarding<gl_shader> Vert, is_forwarding<gl_shader> Frag>
+  void _link(Vert&& vert, Frag&& frag);
+
+  template<is_forwarding<gl_shader> Vert, is_forwarding<gl_shader> Frag,
+    is_forwarding<gl_shader> Geom>
+  void _link(Vert&& vert, Frag&& frag, Geom&& geom);
+
+  void _link(std::string_view vert_src, std::string_view frag_src);
+  void _link(std::string_view vert_src, std::string_view frag_src, std::string_view geom_src);
+
+  void _reset();
 
 private:
   GLuint _id{0};
@@ -107,3 +128,7 @@ public:
 };
 
 } // namespace ntf
+
+#ifndef SHOGLE_RENDER_OPENGL_SHADER_INL
+#include "./shader.inl"
+#endif
