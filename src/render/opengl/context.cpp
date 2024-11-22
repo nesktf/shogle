@@ -108,7 +108,7 @@ auto gl_context::make_cube(mesh_buffer vert_buff, mesh_buffer) -> mesh {
     );
 }
 
-void gl_context::draw(mesh_primitive prim, const mesh& mesh, std::size_t offset, uint count) {
+void gl_context::draw(mesh_primitive prim, const mesh& mesh, std::size_t offset, uint count) const{
   NTF_ASSERT(mesh.valid());
   const auto glprim = enumtogl(prim);
 
@@ -125,7 +125,7 @@ void gl_context::draw(mesh_primitive prim, const mesh& mesh, std::size_t offset,
 }
 
 void gl_context::draw_instanced(mesh_primitive prim, const mesh& mesh, uint primcount,
-                               std::size_t offset, uint count) {
+                               std::size_t offset, uint count) const {
   NTF_ASSERT(mesh.valid());
 
   const auto glprim = enumtogl(prim);

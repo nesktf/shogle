@@ -4,6 +4,12 @@
 
 namespace ntf {
 
+struct gl_tex_params {
+  tex_filter filter = tex_filter::nearest;
+  tex_wrap wrap = tex_wrap::repeat;
+  bool gen_mipmaps = true;
+};
+
 template<std::size_t faces>
 class gl_texture {
 public:
@@ -12,52 +18,38 @@ public:
   using dim_type = typename gl_texture_traits<faces>::dim_type;
 
   static constexpr std::size_t face_count = faces;
-
-  struct loader {
-    gl_texture operator()(data_type data, dim_type dim, tex_format format) {
-      return gl_texture{data, dim, format};
-    }
-
-    gl_texture operator()(data_type data, dim_type dim, tex_format format,
-                       tex_filter filter, tex_wrap wrap) {
-      gl_texture tex{data, dim, format};
-      tex.set_wrap(wrap);
-      tex.set_filter(filter);
-      return tex;
-    }
-  };
+  static constexpr GLint gltype = gl_texture_traits<faces>::gltype;
 
 public:
   gl_texture() = default;
 
-  gl_texture(GLuint id, dim_type dim) :
-    _id(id), _dim(dim) {}
-
-  gl_texture(data_type data, dim_type dim, tex_format format) 
-    { load(std::move(data), dim, format); }
+  gl_texture(data_type data, dim_type dim, tex_format format, gl_tex_params params = {});
 
 public:
-  void load(data_type data, dim_type dim, tex_format format);
+  gl_texture& load(data_type data, dim_type dim, tex_format format, gl_tex_params params = {}) &;
+  gl_texture&& load(data_type data, dim_type dim, tex_format format, gl_tex_params params = {}) &&;
+
+  gl_texture& filter(tex_filter filter) &;
+  gl_texture& wrap(tex_wrap wrap) &;
+
   void unload();
 
-  gl_texture& set_filter(tex_filter filter);
-  gl_texture& set_wrap(tex_wrap wrap);
-
-  void bind_sampler(std::size_t sampler) const;
-
 public:
-  GLuint& id() { return _id; } // Not const
+  GLuint id() const { return _id; }
   dim_type dim() const { return _dim; }
   bool valid() const { return _id != 0; }
 
   explicit operator bool() const { return valid(); }
 
 private:
-  static constexpr GLint gltype = gl_texture_traits<faces>::gltype;
-
-private:
   GLuint _id{0};
   dim_type _dim{};
+
+private:
+  void _load(data_type data, dim_type dim, tex_format format, gl_tex_params params);
+  void _set_filter(tex_filter filter, bool bind);
+  void _set_wrap(tex_wrap wrap, bool bind);
+  void _reset();
 
 public:
   NTF_DECLARE_MOVE_ONLY(gl_texture);
