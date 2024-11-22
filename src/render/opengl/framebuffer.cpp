@@ -2,63 +2,98 @@
 
 namespace ntf {
 
-void gl_framebuffer::load(ivec2 sz) { load(sz.x, sz.y); }
+gl_framebuffer::gl_framebuffer(std::size_t w, std::size_t h, gl_tex_params params) {
+  _load(w, h, params);
+}
 
-void gl_framebuffer::load(std::size_t w, std::size_t h) {
-  NTF_ASSERT(_fbo == 0 && _rbo == 0 && !_texture.valid(), "gl_framebuffer already initialized");
+gl_framebuffer::gl_framebuffer(ivec2 sz, gl_tex_params params) :
+  gl_framebuffer(sz.x, sz.y, params) {}
 
-  _texture.load(nullptr, ivec2{w, h}, tex_format::rgb);
-  if (!_texture.valid()) {
+gl_framebuffer& gl_framebuffer::load(std::size_t w, std::size_t h, gl_tex_params params) & {
+  _load(w, h, params);
+  return *this;
+}
+
+gl_framebuffer&& gl_framebuffer::load(std::size_t w, std::size_t h, gl_tex_params params) && {
+  _load(w, h, params);
+  return std::move(*this);
+}
+
+gl_framebuffer& gl_framebuffer::load(ivec2 sz, gl_tex_params params) & {
+  _load(sz.x, sz.y, params);
+  return *this;
+}
+
+gl_framebuffer&& gl_framebuffer::load(ivec2 sz, gl_tex_params params) && {
+  _load(sz.x, sz.y, params);
+  return std::move(*this);
+}
+
+void gl_framebuffer::unload() {
+  if (!valid()) {
     return;
   }
 
-  glGenFramebuffers(1, &_fbo);
-  glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
+  SHOGLE_LOG(verbose, "[ntf::gl_framebuffer] Destroyed (id: {}, tex: {})", _fbo, _texture.id());
+  glDeleteFramebuffers(1, &_fbo);
+  glDeleteBuffers(1, &_rbo);
 
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _texture.id(), 0);
+  _reset();
+}
 
-  glGenRenderbuffers(1, &_rbo);
-  glBindRenderbuffer(GL_RENDERBUFFER, _rbo);
+
+void gl_framebuffer::_load(std::size_t w, std::size_t h, gl_tex_params params) {
+  auto tex = texture_type{}.load(nullptr, ivec2{w, h}, tex_format::rgb, params);
+  if (!_texture.valid()) {
+    SHOGLE_LOG(error, "[ntf::framebuffer] Failed to create texture");
+    return;
+  }
+
+  GLuint fbo{}, rbo{};
+  glGenFramebuffers(1, &fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex.id(), 0);
+
+  glGenRenderbuffers(1, &rbo);
+  glBindRenderbuffer(GL_RENDERBUFFER, rbo);
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
   glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _rbo);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    SHOGLE_LOG(error, "[ntf::gl_framebuffer] Failed to create framebuffer (incomplete) (id: {})",
+               fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDeleteFramebuffers(1, &_fbo);
-    glDeleteRenderbuffers(1, &_rbo);
-    _texture.unload();
-    SHOGLE_LOG(error, "[ntf::gl_framebuffer] Failed to create, incomplete (id: {})", _fbo);
-    _fbo = 0;
-    _rbo = 0;
+    glDeleteFramebuffers(1, &fbo);
+    glDeleteRenderbuffers(1, &rbo);
+    tex.unload();
     return;
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-  SHOGLE_LOG(verbose, "[ntf::gl_framebuffer] Created (id: {}, tex: {})",_fbo, _texture.id());
+  SHOGLE_LOG(verbose, "[ntf::gl_framebuffer] Created (id: {}, tex: {})", fbo, tex.id());
+  _fbo = fbo;
+  _rbo = rbo;
+  _texture = std::move(tex);
+  _dim = ivec2{w, h};
 }
 
-void gl_framebuffer::unload() {
-  if (_fbo && _rbo) {
-    SHOGLE_LOG(verbose, "[ntf::gl_framebuffer] Destroyed (id: {}, tex: {})", _fbo, _texture.id());
-    glDeleteFramebuffers(1, &_fbo);
-    glDeleteBuffers(1, &_rbo);
-    _fbo = 0;
-    _rbo = 0;
-    _texture.unload();
-  }
+void gl_framebuffer::_reset() {
+  _fbo = 0;
+  _rbo = 0;
+  _texture.unload();
+  _dim = ivec2{0,0};
 }
+
 
 gl_framebuffer::~gl_framebuffer() noexcept { unload(); }
 
 gl_framebuffer::gl_framebuffer(gl_framebuffer&& f) noexcept :
   _fbo(std::move(f._fbo)), _rbo(std::move(f._rbo)), 
-  _texture(std::move(f._texture)), _dim(std::move(f._dim)) {
-  f._fbo = 0;
-  f._rbo = 0;
-}
+  _texture(std::move(f._texture)), _dim(std::move(f._dim)) { f._reset(); }
 
 auto gl_framebuffer::operator=(gl_framebuffer&& f) noexcept -> gl_framebuffer& {
   unload();
@@ -68,8 +103,7 @@ auto gl_framebuffer::operator=(gl_framebuffer&& f) noexcept -> gl_framebuffer& {
   _rbo = std::move(f._rbo);
   _dim = std::move(f._dim);
 
-  f._fbo = 0;
-  f._rbo = 0;
+  f._reset();
 
   return *this;
 }

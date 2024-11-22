@@ -168,4 +168,7 @@ struct uniform_traits<mat4> {
   static constexpr std::size_t size = sizeof(mat4);
 };
 
+template<typename F>
+concept framebuffer_func = std::invocable<F>;
+
 } // namespace ntf

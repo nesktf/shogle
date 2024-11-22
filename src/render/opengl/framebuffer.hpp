@@ -13,54 +13,58 @@ public:
 public:
   gl_framebuffer() = default;
 
-  gl_framebuffer(GLuint fbo, GLuint rbo, GLuint texture, std::size_t w, std::size_t h) :
-    _fbo(fbo), _rbo(rbo), _texture(texture, ivec2{w, h}) {};
-
-  gl_framebuffer(ivec2 sz) 
-    { load(sz); }
-
-  gl_framebuffer(std::size_t w, std::size_t h)
-    { load(w, h); }
+  gl_framebuffer(std::size_t w, std::size_t h, gl_tex_params params = {});
+  gl_framebuffer(ivec2 sz, gl_tex_params params = {});
 
 public:
-  void load(ivec2 sz);
-  void load(std::size_t w, std::size_t h);
+  gl_framebuffer& load(std::size_t w, std::size_t h, gl_tex_params params = {}) &;
+  gl_framebuffer&& load(std::size_t w, std::size_t h, gl_tex_params params = {}) &&;
+  gl_framebuffer& load(ivec2 sz, gl_tex_params params = {}) &; 
+  gl_framebuffer&& load(ivec2 sz, gl_tex_params params = {}) &&; 
 
   void unload();
 
-  template<typename Renderer>
-  void bind (ivec2 vp_sz, Renderer&& renderer) {
-    assert(valid() && "Invalid gl_framebuffer");
-    glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
-    glViewport(0, 0, _dim.x, _dim.y);
-    renderer();
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, vp_sz.x, vp_sz.y);
-  }
+  template<framebuffer_func F>
+  gl_framebuffer& bind(std::size_t vp_w, std::size_t vp_h, F&& func) &;
 
-  template<typename Renderer>
-  void bind(std::size_t viewport_w, std::size_t viewport_h, Renderer&& renderer) {
-    bind(ivec2{static_cast<int>(viewport_w), static_cast<int>(viewport_h)},
-         std::forward<Renderer>(renderer));
-  }
+  template<framebuffer_func F>
+  gl_framebuffer&& bind(std::size_t vp_w, std::size_t vp_h, F&& func) &&;
+
+  template<framebuffer_func F>
+  gl_framebuffer& bind(ivec2 vp_sz, F&& func) &;
+
+  template<framebuffer_func F>
+  gl_framebuffer&& bind(ivec2 vp_sz, F&& func) &&;
 
 public:
-  texture_type& tex() { return _texture; }
-  const texture_type& tex() const { return _texture; }
+  texture_type& tex() & { return _texture; }
+  const texture_type& tex() const& { return _texture; }
 
-  GLuint& id() { return _fbo; } // Not const
+  GLuint id() const { return _fbo; }
+  GLuint rbo() const { return _rbo; }
   ivec2 size() const { return _dim; }
   bool valid() const { return _fbo != 0 && _fbo != 0 && _texture.valid(); }
 
   explicit operator bool() const { return valid(); }
 
 private:
-  GLuint _fbo{}, _rbo{};
+  GLuint _fbo{0}, _rbo{0};
   texture_type _texture{};
-  ivec2 _dim{};
+  ivec2 _dim{0,0};
+
+private:
+  void _load(std::size_t w, std::size_t h, gl_tex_params params);
+  void _reset();
+
+  template<framebuffer_func F>
+  void _bind(std::size_t vp_w, std::size_t vp_h, F&& func);
 
 public:
   NTF_DECLARE_MOVE_ONLY(gl_framebuffer);
 };
 
 } // namespace ntf
+
+#ifndef SHOGLE_RENDER_OPENGL_FRAMEBUFFER_INL
+#include "./framebuffer.inl"
+#endif
