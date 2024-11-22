@@ -34,22 +34,21 @@ void gl_mesh::unload() {
 
 
 void gl_mesh::_set_indices(const uint* indices, std::size_t sz, mesh_buffer buff) {
+  NTF_ASSERT(!_ebo);
   if (!_vao) {
     glGenVertexArrays(1, &_vao);
   }
-  if (!_ebo) {
-    glGenBuffers(1, &_ebo);
-  }
 
+  glGenBuffers(1, &_ebo);
   glBindVertexArray(_vao);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sz, indices, enumtogl(buff));
   glBindVertexArray(0);
   _ebo_sz = sz;
 
-  // if (valid()) {
-  //   SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh created (id: {})", _vao);
-  // }
+  if (valid()) {
+    SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh created (id: {})", _vao);
+  }
 }
 
 void gl_mesh::_set_indices(const uint* indices, std::size_t sz, std::size_t offset) {

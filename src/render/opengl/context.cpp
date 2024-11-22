@@ -126,7 +126,7 @@ void gl_context::draw(mesh_primitive prim, const mesh& mesh, std::size_t offset,
   NTF_ASSERT(valid());
 
   if (!mesh.valid()) {
-    SHOGLE_LOG(warning, "[gl_context::draw_instanced] Attempted to draw empty mesh");
+    SHOGLE_LOG(warning, "[ntf::gl_context::draw_instanced] Attempted to draw empty mesh");
     return;
   }
 
@@ -148,7 +148,7 @@ void gl_context::draw_instanced(mesh_primitive prim, const mesh& mesh, uint prim
   NTF_ASSERT(valid());
 
   if (!mesh.valid()) {
-    SHOGLE_LOG(warning, "[gl_context::draw_instanced] Attempted to draw empty mesh");
+    SHOGLE_LOG(warning, "[ntf::gl_context::draw_instanced] Attempted to draw empty mesh");
     return;
   }
 
@@ -169,7 +169,8 @@ void gl_context::draw_text(const font& font, vec2 pos, float scale, std::string_
   NTF_ASSERT(valid());
 
   if (!font.valid() || font.empty()) {
-    SHOGLE_LOG(warning, "[gl_context::draw_text] Attempted to draw \"{}\" with empty font", text);
+    SHOGLE_LOG(warning, "[ntf::gl_context::draw_text] Attempted to draw \"{}\" with empty font", 
+               text);
     return;
   }
 

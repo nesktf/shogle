@@ -49,7 +49,7 @@ void gl_shader::_compile(std::string_view src, shader_category type) {
   }
 
   if (_id) {
-    SHOGLE_LOG(verbose, "[ntf::gl_shader] Shader overwritten ({} -> {})", _id, id);
+    SHOGLE_LOG(warning, "[ntf::gl_shader] Shader overwritten ({} -> {})", _id, id);
     glDeleteShader(_id);
   } else {
     SHOGLE_LOG(verbose, "[ntf::gl_shader] Shader compiled (id: {})", id);

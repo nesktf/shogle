@@ -110,10 +110,10 @@ void gl_font::_load(const glyph_map& chara, tex_filter filter) {
   if (_atlas.size() > 0) {
     SHOGLE_LOG(warning, "[ntf::gl_font] Font atlas overwritten (vao: {}, glyphs: {} -> {})",
                _vao, _atlas.size(), atlas.size());
-  } else {
-    SHOGLE_LOG(verbose, "[ntf::gl_font] Font loaded (vao: {}, ids: {}-{}, glyps: {})",
-               _vao, tex-atlas.size()+1, tex, atlas.size());
   }
+
+  SHOGLE_LOG(verbose, "[ntf::gl_font] Font loaded (vao: {}, ids: {}-{}, glyps: {})",
+             _vao, tex-atlas.size()+1, tex, atlas.size());
   _atlas = std::move(atlas);
 }
 

@@ -103,7 +103,7 @@ void gl_shader_program::_link(Vert&& vert, Frag&& frag) {
   }
 
   if (_id) {
-    SHOGLE_LOG(verbose, "[ntf::gl_shader_program] Shader program overwritten ({} -> {})", _id, id);
+    SHOGLE_LOG(warning, "[ntf::gl_shader_program] Shader program overwritten ({} -> {})", _id, id);
     glDeleteShader(_id);
   } else {
     SHOGLE_LOG(verbose, "[ntf::gl_shader_program] Shader program linked (id: {})", id);
@@ -138,7 +138,7 @@ void gl_shader_program::_link(Vert&& vert, Frag&& frag, Geom&& geom) {
   }
 
   if (_id) {
-    SHOGLE_LOG(verbose, "[ntf::gl_shader_program] Shader program overwritten ({} -> {})", _id, id);
+    SHOGLE_LOG(warning, "[ntf::gl_shader_program] Shader program overwritten ({} -> {})", _id, id);
     glDeleteShader(_id);
   } else {
     SHOGLE_LOG(verbose, "[ntf::gl_shader_program] Shader program linked (id: {})", id);

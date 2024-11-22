@@ -75,7 +75,7 @@ void gl_texture<faces>::_load(data_type data, dim_type dim, tex_format format,
   glBindTexture(gltype, 0);
 
   if (_id) {
-    SHOGLE_LOG(verbose, "[ntf::gl_texture] Texture overwritten ({} -> {})", _id, id);
+    SHOGLE_LOG(warning, "[ntf::gl_texture] Texture overwritten ({} -> {})", _id, id);
     glDeleteTextures(1, &_id);
   } else {
     SHOGLE_LOG(verbose, "[ntf::gl_texture] Texture created (id: {}, faces: {})", _id, face_count);

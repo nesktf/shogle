@@ -80,7 +80,11 @@ public:
 
   template<std::size_t faces>
   void bind_sampler(const gl_texture<faces>& tex, uint sampler) const {
-    NTF_ASSERT(tex.valid(), "Invalid gl_texture");
+    if (!tex.valid()) {
+      SHOGLE_LOG(warning, "[ntf::gl_context::draw_text] Attempted to bind empty texture");
+      return;
+    }
+
     glActiveTexture(GL_TEXTURE0+sampler);
     glBindTexture(gl_texture<faces>::gltype, tex.id());
   }
