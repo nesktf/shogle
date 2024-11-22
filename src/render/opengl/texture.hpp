@@ -16,6 +16,7 @@ public:
   using context_type = gl_context;
   using data_type = typename gl_texture_traits<faces>::data_type;
   using dim_type = typename gl_texture_traits<faces>::dim_type;
+  using params_type = gl_tex_params;
 
   static constexpr std::size_t face_count = faces;
   static constexpr GLint gltype = gl_texture_traits<faces>::gltype;

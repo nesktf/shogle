@@ -9,20 +9,8 @@
 namespace ntf {
 
 template<typename Texture>
-auto texture_data<Texture>::loader::operator()(texture_data data) -> texture_type {
-  typename texture_type::loader tex_loader;
-  return tex_loader(data.pixels, data.dim, data.format, data.filter, data.wrap);
-}
-
-template<typename Texture>
-auto texture_data<Texture>::loader::operator()(std::string path, tex_filter filter,
-                                               tex_wrap wrap) -> texture_type {
-  return (*this)(texture_data{path, filter, wrap});
-}
-
-template<typename Texture>
-texture_data<Texture>::texture_data(std::string_view path_, tex_filter filter_, tex_wrap wrap_) :
-  filter(filter_), wrap(wrap_) {
+auto stb_image_loader<Texture>::_load_data(std::string_view path, params_type params)
+                                                                    -> std::optional<data_type> {
   auto toenum = [](int channels) -> tex_format {
     switch (channels) {
       case 1:
@@ -34,84 +22,160 @@ texture_data<Texture>::texture_data(std::string_view path_, tex_filter filter_, 
     }
   };
 
-  if constexpr (texture_type::face_count > 1) {
+  data_type out;
+  constexpr auto faces = texture_type::face_count;
+  if constexpr (faces > 1u) {
     using json = nlohmann::json;
 
-    std::ifstream f{path_.data()};
+    std::ifstream f{path.data()};
     json data = json::parse(f);
     auto content = data["content"];
-    assert(content.size() == texture_type::face_count && "Invalid json data");
+    if (content.size() != faces) {
+      SHOGLE_LOG(error, "[ntf::stb_image_loader] Invalid cubemap data in file \"{}\"", path);
+      return std::nullopt;
+    }
 
     int w, h, ch;
-    for (size_t i = 0; i < content.size(); ++i) {
+    uint8_t* pixels[faces];
+    for (std::size_t i = 0; i < content.size(); ++i) {
       auto& curr = content[i];
-      std::string path = file_dir(path_.data())+"/"+curr["path"].get<std::string>();
-      pixels[i] = stbi_load(path.c_str(), &w, &h, &ch, 0);
+      std::string face_path = file_dir(path.data())+"/"+curr["path"].get<std::string>();
+      pixels[i] = stbi_load(face_path.c_str(), &w, &h, &ch, 0);
       if (!pixels[i]) {
-        throw ntf::error{"[ntf::texture_data] Error loading cubemap texture: {}, n: {}", path, i};
+        for (int j = static_cast<int>(i)-1; j >= 0; --j) {
+          stbi_image_free(pixels[j]);
+        }
+        SHOGLE_LOG(error, "[ntf::stb_image_loader] Failed to load cubemap texture \"{}\" (n: {})",
+                   path, i);
+        return std::nullopt;
       }
     }
 
-    dim = static_cast<size_t>(w);
-    format = toenum(ch);
+    for (std::size_t i = 0; i < faces; ++i) {
+      out.pixels[i] = pixels[i];
+    }
+    out.dim = static_cast<std::size_t>(w);
+    out.format = toenum(ch);
   } else {
     int w, h, ch;
-    pixels = stbi_load(path_.data(), &w, &h, &ch, 0);
+    uint8_t* pixels = stbi_load(path.data(), &w, &h, &ch, 0);
     if (!pixels) {
-      throw ntf::error{"[ntf::texture_data] Error loading texture: {}", path_};
+      SHOGLE_LOG(error, "[ntf::stb_image_loader] Failed to load texture \"{}\"", path);
+      return std::nullopt;
     }
-    dim = ivec2{w, h};
-    format = toenum(ch);
+    out.pixels = pixels;
+    out.dim = ivec2{w, h};
+    out.format = toenum(ch);
   }
+  out.params = params;
+
+  return {std::move(out)};
 }
 
 template<typename Texture>
-texture_data<Texture>::~texture_data() noexcept { unload(); }
-
-template<typename Texture>
-texture_data<Texture>::texture_data(texture_data&& d) noexcept :
-  pixels(std::move(d.pixels)), dim(std::move(d.dim)), format(std::move(d.format)),
-  filter(std::move(d.filter)), wrap(std::move(d.wrap)) { d.invalidate(); }
-
-template<typename Texture>
-auto texture_data<Texture>::operator=(texture_data&& d) noexcept -> texture_data& {
-  unload();
-
-  pixels = std::move(d.pixels);
-  dim = std::move(d.dim);
-  format = std::move(d.format);
-  filter = std::move(d.filter);
-  wrap = std::move(d.wrap);
-
-  d.invalidate();
-
-  return *this;
-}
-
-template<typename Texture>
-void texture_data<Texture>::unload() {
-  if constexpr (texture_type::face_count > 1) {
-    for (auto& face : pixels) {
+void stb_image_loader<Texture>::_unload_data(data_type& data) {
+  constexpr auto faces = texture_type::face_count;
+  if constexpr (faces > 1u) {
+    for (auto& face : data.pixels) {
       if (face) {
         stbi_image_free(face);
       }
     }
   } else {
-    if (pixels) {
-      stbi_image_free(pixels);
+    if (data.pixels) {
+      stbi_image_free(data.pixels);
     }
   }
 }
 
-template<typename Texture>
-void texture_data<Texture>::invalidate() {
-  if constexpr (texture_type::face_count > 1) {
-    for (auto& face : pixels) {
-      face = nullptr;
-    }
-  } else {
-    pixels = nullptr;
+
+template<typename Texture, typename Loader>
+template<typename... Args>
+texture_data<Texture, Loader>::texture_data(Args&&... args) {
+  _load(std::forward<Args>(args)...);
+}
+
+template<typename Texture, typename Loader>
+template<typename... Args>
+auto texture_data<Texture, Loader>::load(Args&&... args) & -> texture_data& {
+  _load(std::forward<Args>(args)...);
+  return *this;
+}
+
+template<typename Texture, typename Loader>
+template<typename... Args>
+auto texture_data<Texture, Loader>::load(Args&&... args) && -> texture_data&& {
+  _load(std::forward<Args>(args)...);
+  return std::move(*this);
+}
+
+template<typename Texture, typename Loader>
+auto texture_data<Texture, Loader>::load_resource() -> std::optional<texture_type> {
+  if (!has_data()) {
+    return std::nullopt;
   }
+
+  auto texture = texture_type{_data.pixels, _data.dim, _data.format, _data.params};
+  if (!texture) {
+    return std::nullopt;
+  }
+
+  return {std::move(texture)};
+}
+
+template<typename Texture, typename Loader>
+void texture_data<Texture, Loader>::unload() {
+  if (!has_data()) {
+    return;
+  }
+
+  this->_unload_data(_data);
+
+  _reset();
+}
+
+
+template<typename Texture, typename Loader>
+template<typename... Args>
+void texture_data<Texture, Loader>::_load(Args&&... args) {
+  auto data = this->_load_data(std::forward<Args>(args)...);
+  if (!data) {
+    return;
+  }
+  _data = std::move(data.value());
+  _has_data = true;
+}
+
+
+template<typename Texture, typename Loader>
+void texture_data<Texture, Loader>::_reset() {
+  // _data.pixels = {};
+  // _data.dim = {};
+  // _data.format = {};
+  // _data.params = {};
+  _has_data = false;
+}
+
+
+template<typename Texture, typename Loader>
+texture_data<Texture, Loader>::~texture_data() noexcept { unload(); }
+
+template<typename Texture, typename Loader>
+texture_data<Texture, Loader>::texture_data(texture_data&& d) noexcept :
+  _data(std::move(d._data)), _has_data(d._has_data) { d._reset(); }
+
+template<typename Texture, typename Loader>
+auto texture_data<Texture, Loader>::operator=(texture_data&& d) noexcept -> texture_data& {
+  unload();
+
+  _has_data = std::move(d._has_data);
+  if (_has_data) {
+    _data = std::move(d._data);
+  }
+
+  d._reset();
+
+  return *this;
 }
 
 } // namespace ntf

@@ -86,6 +86,7 @@ void gl_font::_load(const glyph_map& chara, tex_filter filter) {
 
   GLuint tex{};
   font_atlas atlas;
+  const auto glfilter = enumtogl(filter);
   for (auto& [c, pair] : chara) {
     auto& [buf, glyph] = pair;
 
@@ -95,7 +96,6 @@ void gl_font::_load(const glyph_map& chara, tex_filter filter) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, glyph.size.x, glyph.size.y, 0, GL_RED, 
                  GL_UNSIGNED_BYTE, buf);
 
-    const auto glfilter = enumtogl(filter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, glfilter);
