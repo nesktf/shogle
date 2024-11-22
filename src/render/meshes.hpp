@@ -2,7 +2,7 @@
 
 namespace ntf {
 
-static constexpr float cube_vertices[] {
+constexpr inline float cube_vertices[] {
   // coord               // normal             // texcoord
   -0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
    0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   1.0f, 0.0f,
@@ -47,7 +47,7 @@ static constexpr float cube_vertices[] {
   -0.5f,  0.5f, -0.5f,   0.0f,  1.0f,  0.0f,   0.0f, 1.0f
 };
 
-static constexpr float quad_vertices[] {
+constexpr inline float quad_vertices[] {
   // coord              //normals           // texcoord   // inv texcoord
   -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   /* 0.0f, 1.0f, // + vec2{0.0f, 1.0f} */
    0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 0.0f,   /* 1.0f, 1.0f, // + vec2{0.0f, 1.0f} */
@@ -55,7 +55,7 @@ static constexpr float quad_vertices[] {
   -0.5f,  0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 1.0f,   /* 0.0f, 0.0f, // + vec2{0.0f, -1.0f} */
 };
 
-static constexpr unsigned int quad_indices[] {
+constexpr inline unsigned int quad_indices[] {
   0, 1, 2, // bottom right triangle
   0, 2, 3  // top left triangle
 };

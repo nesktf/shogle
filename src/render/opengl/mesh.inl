@@ -5,69 +5,115 @@
 namespace ntf {
 
 template<typename T, is_shader_attribute... Attribs>
-void gl_mesh::load(mesh_primitive primitive, T* vertices, std::size_t vert_sz,
-                   mesh_buffer vert_buff, Attribs... attrib) {
-  static_assert(sizeof...(Attribs) > 0, "Invalid attributes");
-  NTF_ASSERT(!valid(), "gl_mesh already initialized");
-  _primitive = primitive;
-
-  glGenVertexArrays(1, &_vao);
-  glGenBuffers(1, &_vbo);
-
-  glBindVertexArray(_vao);
-  glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-  glBufferData(GL_ARRAY_BUFFER, vert_sz, vertices, enumtogl(vert_buff));
-
-  const constexpr auto stride = stride_sum<Attribs...>::value;
-  _setup_vertex_attrib<stride>(attrib...);
-  _draw_count = vert_sz / stride;
-  _attrib_count = sizeof...(Attribs);
-
-  glBindVertexArray(0);
-
-  SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh loaded (id: {})", _vao);
+gl_mesh::gl_mesh(const T* vert, std::size_t sz, mesh_buffer buff, Attribs... attr) {
+  _set_vertices(vert, sz, buff);
+  _set_attributes(attr...);
 }
 
 template<typename T, is_shader_attribute... Attribs>
-void gl_mesh::load(mesh_primitive primitive, T* vertices, std::size_t vert_sz,
-                   mesh_buffer vert_buff, uint* indices, std::size_t ind_sz,
-                   mesh_buffer ind_buff, Attribs... attrib) {
-  static_assert(sizeof...(Attribs) > 0, "Invalid attributes");
-  NTF_ASSERT(!valid(), "gl_mesh already initialized");
-  _primitive = primitive;
+gl_mesh::gl_mesh(gl_indices_t, const T* vert, std::size_t vert_sz, mesh_buffer vert_buff,
+          const uint* ind, std::size_t ind_sz, mesh_buffer ind_buff, Attribs... attr) {
+  _set_vertices(vert, vert_sz, vert_buff);
+  _set_indices(ind, ind_sz, ind_buff);
+  _set_attributes(attr...);
+}
 
-  glGenVertexArrays(1, &_vao);
-  glGenBuffers(1, &_vbo);
-  glGenBuffers(1, &_ebo);
+
+template<typename T>
+gl_mesh& gl_mesh::vertices(const T* vert, std::size_t sz, mesh_buffer buff) & {
+  _set_vertices(vert, sz, buff);
+  return *this;
+}
+
+template<typename T>
+gl_mesh&& gl_mesh::vertices(const T* vert, std::size_t sz, mesh_buffer buff) && {
+  _set_vertices(vert, sz, buff);
+  return std::move(*this);
+}
+
+template<typename T>
+gl_mesh& gl_mesh::vertices(const T* vert, std::size_t sz, std::size_t offset) & {
+  _set_vertices(vert, sz, offset);
+  return *this;
+}
+
+template<is_shader_attribute... Attribs>
+gl_mesh& gl_mesh::attributes(Attribs... attr) & {
+  _set_attributes(attr...);
+  return *this;
+}
+
+template<is_shader_attribute... Attribs>
+gl_mesh&& gl_mesh::attributes(Attribs... attr) && {
+  _set_attributes(attr...);
+  return std::move(*this);
+}
+
+
+template<typename T>
+void gl_mesh::_set_vertices(const T* vertices, std::size_t sz, mesh_buffer buff) {
+  if (!_vao) {
+    glGenVertexArrays(1, &_vao);
+  }
+  if (!_vbo) {
+    glGenBuffers(1, &_vbo);
+  }
 
   glBindVertexArray(_vao);
   glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-  glBufferData(GL_ARRAY_BUFFER, vert_sz, vertices, enumtogl(vert_buff));
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, ind_sz, indices, enumtogl(ind_buff));
-
-  const constexpr auto stride = stride_sum<Attribs...>::value;
-  _draw_count = ind_sz/sizeof(uint);
-  _attrib_count = sizeof...(Attribs);
-
-  _setup_vertex_attrib<stride>(attrib...);
-
+  glBufferData(GL_ARRAY_BUFFER, sz, vertices, enumtogl(buff));
   glBindVertexArray(0);
+  _vbo_sz = sz;
 
-  SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh loaded (id: {})", _vao);
+  if (valid()) {
+    SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh created (id: {})", _vao);
+  }
 }
 
-template<std::size_t total_size, std::size_t next_stride,
-  typename CurrAttrib, typename... Attribs>
+template<typename T>
+void gl_mesh::_set_vertices(const T* vertices, std::size_t sz, std::size_t offset) {
+  NTF_ASSERT(_vbo);
+  NTF_ASSERT(offset+sz <= _vbo_sz);
+
+  glBindVertexArray(_vao);
+  glBindBuffer(GL_ARRAY_BUFFER, _ebo);
+  glBufferSubData(GL_ARRAY_BUFFER, offset, sz, vertices);
+  glBindVertexArray(0);
+}
+
+template<is_shader_attribute... Attribs>
+void gl_mesh::_set_attributes(Attribs... attr) {
+  static_assert(sizeof...(Attribs) > 0);
+  if (!_vao) {
+    glGenVertexArrays(1, &_vao);
+  }
+
+  glBindVertexArray(_vao);
+  if (_attrib_count > 0) {
+    // Will overwrite attributes
+    for (std::size_t i = 0; i < _attrib_count; ++i) {
+      glDisableVertexAttribArray(i);
+    }
+  }
+
+  constexpr auto stride = stride_sum<Attribs...>::value;
+  _setup_vertex_attrib<stride>(attr...);
+  _attrib_count = sizeof...(Attribs);
+  _stride_sz = stride;
+  glBindVertexArray(0);
+
+  if (valid()) {
+    SHOGLE_LOG(verbose, "[ntf::gl_mesh] Mesh created (id: {})", _vao);
+  }
+}
+
+template<std::size_t total_size, std::size_t next_stride, typename CurrAttrib, typename... Attribs>
 void gl_mesh::_setup_vertex_attrib(CurrAttrib, Attribs... attrib) {
-  constexpr auto curr_stride = next_stride;
-  constexpr auto float_count = CurrAttrib::stride / sizeof(float);
-
   glEnableVertexAttribArray(CurrAttrib::index);
-  glVertexAttribPointer(CurrAttrib::index, float_count, GL_FLOAT, GL_FALSE,
-                        total_size, (void*)curr_stride);
+  glVertexAttribPointer(CurrAttrib::index, CurrAttrib::stride / sizeof(float), GL_FLOAT,
+                        GL_FALSE, total_size, reinterpret_cast<void*>(next_stride));
 
-  _setup_vertex_attrib<total_size,curr_stride+CurrAttrib::stride>(attrib...);
+  _setup_vertex_attrib<total_size, next_stride+CurrAttrib::stride>(attrib...);
 }
 
 } // namespace ntf

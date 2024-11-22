@@ -91,25 +91,54 @@ void gl_context::set_depth_fun(depth_fun fun) {
   }
 }
 
-auto gl_context::make_quad() -> mesh {
-  mesh out;
-  // out.load(
-  //   mesh_primitive::triangles,
-  //   ntf::quad_vertices, sizeof(ntf::quad_vertices), mesh_buffer::static_draw,
-  //   ntf::quad_indices, sizeof(ntf::quad_indices), mesh_buffer::static_draw,
-  //   shader_attribute<0, vec3>{}, shader_attribute<1, vec3>{}, shader_attribute<2, vec3>{}
-  // );
-  return out;
+auto gl_context::make_quad(mesh_buffer vert_buff, mesh_buffer ind_buff) -> mesh {
+  return mesh{}
+    .vertices(&ntf::quad_vertices[0], sizeof(ntf::quad_vertices), vert_buff)
+    .indices(&ntf::quad_indices[0], sizeof(ntf::quad_indices), ind_buff)
+    .attributes(
+      shader_attribute<0, vec3>{}, shader_attribute<1, vec3>{}, shader_attribute<2, vec3>{}
+    );
 }
 
-auto gl_context::make_cube() -> mesh {
-  mesh out;
-  out.load(
-    mesh_primitive::triangles,
-    ntf::cube_vertices, sizeof(ntf::cube_vertices), mesh_buffer::static_draw,
-    shader_attribute<0, vec3>{}, shader_attribute<1, vec3>{}, shader_attribute<2, vec3>{}
-  );
-  return out;
+auto gl_context::make_cube(mesh_buffer vert_buff, mesh_buffer) -> mesh {
+  return mesh{}
+    .vertices(&ntf::cube_vertices[0], sizeof(ntf::cube_vertices), vert_buff)
+    .attributes(
+      shader_attribute<0, vec3>{}, shader_attribute<1, vec3>{}, shader_attribute<2, vec3>{}
+    );
+}
+
+void gl_context::draw(mesh_primitive prim, const mesh& mesh, std::size_t offset, uint count) {
+  NTF_ASSERT(mesh.valid());
+  const auto glprim = enumtogl(prim);
+
+  glBindVertexArray(mesh.vao());
+  if (mesh.has_indices()) {
+    // indices in glDrawElements is an offset in the current EBO
+    // it advances offset*sizeof(unsigned int) in the buffer
+    glDrawElements(glprim, count > 0 ? count : mesh.elem_count(), GL_UNSIGNED_INT,
+                   reinterpret_cast<void*>(offset));
+  } else {
+    glDrawArrays(glprim, offset, count > 0 ? count : mesh.elem_count());
+  }
+  glBindVertexArray(0);
+}
+
+void gl_context::draw_instanced(mesh_primitive prim, const mesh& mesh, uint primcount,
+                               std::size_t offset, uint count) {
+  NTF_ASSERT(mesh.valid());
+
+  const auto glprim = enumtogl(prim);
+  glBindVertexArray(mesh.vao());
+  if (mesh.has_indices()) {
+    // indices in glDrawElementsInstanced is also an offset in the current EBO
+    // it advances offset*sizeof(unsigned int) in the buffer
+    glDrawElementsInstanced(glprim, count > 0 ? count : mesh.elem_count(), GL_UNSIGNED_INT,
+                            reinterpret_cast<void*>(offset), primcount);
+  } else {
+    glDrawArraysInstanced(glprim, offset, count > 0 ? count : mesh.elem_count(), primcount);
+  }
+  glBindVertexArray(0);
 }
 
 } // namespace ntf

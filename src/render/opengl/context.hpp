@@ -67,8 +67,13 @@ private:
   void destroy();
 
 public:
-  mesh make_quad();
-  mesh make_cube();
+  mesh make_quad(mesh_buffer vert_buff, mesh_buffer ind_buff);
+  mesh make_cube(mesh_buffer vert_buff, mesh_buffer ind_buff);
+
+public:
+  void draw(mesh_primitive prim, const mesh& mesh, std::size_t offset = 0, uint count = 0);
+  void draw_instanced(mesh_primitive prim, const mesh& mesh, uint primcount,
+                      std::size_t offset = 0, uint count = 0);
 
 public:
   void set_viewport(std::size_t w, std::size_t h);

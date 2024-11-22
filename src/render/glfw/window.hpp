@@ -87,6 +87,7 @@ public:
   bool poll_key(glfw_keycode key, glfw_keystate state) const;
   ivec2 size() const;
   bool valid() const { return _handle != nullptr; }
+  context_type& context() { return _render_ctx; }
 
   explicit operator bool() const { return valid(); }
 
