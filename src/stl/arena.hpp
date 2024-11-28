@@ -4,15 +4,13 @@
 
 namespace ntf {
 
-namespace impl {
-
 template<typename P>
 class basic_memory_arena {
 public:
   template<typename T>
   using bind_adaptor = allocator_adaptor<T, P>;
 
-private:
+protected:
   struct arena_block {
     arena_block* next;
     std::size_t size;
@@ -23,10 +21,10 @@ private:
 
 public:
   basic_memory_arena() = default;
-  basic_memory_arena(std::size_t initial_block_size) noexcept { init(initial_block_size); }
+  basic_memory_arena(std::size_t block) noexcept { init(block); }
 
 public:
-  void init(std::size_t size) noexcept;
+  void init(std::size_t block) noexcept;
   void deallocate(void*, std::size_t) noexcept {}
   void clear(bool reallocate = false) noexcept;
 
@@ -41,6 +39,8 @@ public:
 protected:
   arena_block* _insert_block(std::size_t size) noexcept;
   void _clear_pages() noexcept;
+  void _reset() noexcept;
+  void* _block_mem(arena_block* block, std::size_t required, std::size_t adjustment) noexcept;
 
 protected:
   arena_block* _block{nullptr};
@@ -52,10 +52,8 @@ public:
   NTF_DECLARE_MOVE_ONLY(basic_memory_arena);
 };
 
-} // namespace impl
 
-
-class memory_arena : public impl::basic_memory_arena<memory_arena> {
+class memory_arena final : public basic_memory_arena<memory_arena> {
 public:
   using basic_memory_arena<memory_arena>::basic_memory_arena;
 
@@ -64,14 +62,16 @@ public:
 };
 
 
-class memory_stack : public impl::basic_memory_arena<memory_stack> {
+class memory_stack final : public basic_memory_arena<memory_stack> {
 private:
   static constexpr std::size_t DEFAULT_ALLOC_LIMIT = 4096;
 
 public:
   memory_stack() = default;
   memory_stack(std::size_t alloc_limit) noexcept :
-    basic_memory_arena(alloc_limit), _alloc_limit(alloc_limit) {}
+    basic_memory_arena<memory_stack>(), _alloc_limit(alloc_limit) {}
+  memory_stack(std::size_t alloc_limit, std::size_t block) noexcept :
+    basic_memory_arena<memory_stack>(block), _alloc_limit(alloc_limit) {}
 
 public:
   [[nodiscard]] void* allocate(std::size_t size, std::size_t align) noexcept;
