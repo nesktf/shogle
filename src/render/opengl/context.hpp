@@ -6,11 +6,70 @@
 #include "./framebuffer.hpp"
 #include "./font.hpp"
 
+#include "buffer.hpp"
+
 #ifdef SHOGLE_ENABLE_IMGUI
 #include <imgui_impl_opengl3.h>
 #endif
 
+#include <optional>
+#include <vector>
+
 namespace ntf {
+
+using gl_handle = uint32_t;
+using gl_id = GLuint;
+
+class gl_context {
+private:
+
+  struct gl_buffer {
+    gl_id id;
+  };
+
+  struct gl_mesh {
+    gl_id vao;
+  };
+
+  struct gl_shader {
+    gl_id id;
+  };
+  
+  struct gl_pipeline {
+    gl_id id;
+  };
+
+  struct gl_texture {
+    gl_id id;
+  };
+
+
+public:
+  gl_context() = default;
+
+public:
+  bool init(GLADloadproc proc);
+
+  void destroy();
+
+  void update_viewport(std::size_t w, std::size_t h);
+  void update_viewport(std::size_t x, std::size_t y, std::size_t w, std::size_t h);
+
+  void stencil_test(bool flag);
+  void depth_test(bool flag);
+  void blending(bool flag);
+
+  void clear(color4 color, clear flag);
+
+public:
+  std::vector<gl_buffer> _buffers;
+  std::vector<gl_mesh> _meshes;
+  std::vector<gl_shader> _shaders;
+  std::vector<gl_pipeline> _pipelines;
+  std::vector<gl_texture> _texture;
+
+
+};
 
 template<typename RenderContext>
 class glfw_window;
@@ -32,6 +91,9 @@ public:
   using mesh = gl_mesh;
 
   using framebuffer = gl_framebuffer;
+
+  using vertex_buffer = ::ntf::vertex_buffer<gl_context>;
+  using index_buffer  = ::ntf::index_buffer<gl_context>;
 
 #ifdef SHOGLE_ENABLE_IMGUI
   struct imgui_impl {
@@ -119,6 +181,14 @@ public:
 
   void set_depth_fun(depth_fun fun) const;
 
+
+public:
+  std::optional<vertex_buffer> make_vertex_buffer(void* data, std::size_t size,
+                                                  const std::vector<shader_data_type>& attribs);
+
+  std::optional<index_buffer> make_index_buffer(void* data, std::size_t size);
+
+
 public:
   bool valid() const { return _glad_proc != nullptr; }
   GLADloadproc proc() const { return _glad_proc; }
@@ -134,6 +204,9 @@ private:
 
 private:
   GLADloadproc _glad_proc{nullptr};
+
+  std::vector<gl_buffer> _buffers;
+  std::vector<gl_vertex_array> _vaos;
 
 public:
   NTF_DECLARE_NO_MOVE_NO_COPY(gl_context);

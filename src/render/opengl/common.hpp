@@ -10,6 +10,51 @@ namespace ntf {
 
 class gl_context;
 
+enum class gl_type {
+  none = GL_NONE,
+
+  s8  = GL_BYTE,
+  u8  = GL_UNSIGNED_BYTE,
+
+  s16 = GL_SHORT,
+  u16 = GL_UNSIGNED_SHORT,
+
+  s32 = GL_INT,
+  u32 = GL_UNSIGNED_INT,
+
+  f16 = GL_HALF_FLOAT,
+  f32 = GL_FLOAT,
+  f64 = GL_DOUBLE,
+};
+
+static inline gl_type gl_attrib_type(r_attrib_type type) {
+  switch (type) {
+    case r_attrib_type::f32:   [[fallthrough]];
+    case r_attrib_type::vec2:  [[fallthrough]];
+    case r_attrib_type::vec3:  [[fallthrough]];
+    case r_attrib_type::vec4:  [[fallthrough]];
+    case r_attrib_type::mat3:  [[fallthrough]];
+    case r_attrib_type::mat4:  return gl_type::f32;
+
+    case r_attrib_type::f64:   [[fallthrough]];
+    case r_attrib_type::dvec2: [[fallthrough]];
+    case r_attrib_type::dvec3: [[fallthrough]];
+    case r_attrib_type::dvec4: [[fallthrough]];
+    case r_attrib_type::dmat3: [[fallthrough]];
+    case r_attrib_type::dmat4: return gl_type::f64;
+
+    case r_attrib_type::i32:   [[fallthrough]];
+    case r_attrib_type::ivec2: [[fallthrough]];
+    case r_attrib_type::ivec3: [[fallthrough]];
+    case r_attrib_type::ivec4: return gl_type::s32;
+
+    case r_attrib_type::none:  break;
+  };
+
+  return gl_type::none;
+}
+
+
 template<std::size_t faces>
 struct gl_texture_traits; // yes please give me a texture with UINT_MAX faces
 

@@ -81,6 +81,44 @@
   __type& operator=(__type&&) = default; \
   __type& operator=(const __type&) = default
 
+#define NTF_DEFINE_ENUM_CLASS_FLAG_OPS(__type) \
+  constexpr inline __type operator|(__type a, __type b) { \
+    return static_cast<__type>( \
+      static_cast<std::underlying_type_t<__type>>(a) | \
+      static_cast<std::underlying_type_t<__type>>(b)); \
+  } \
+  constexpr inline __type operator&(__type a, __type b) { \
+    return static_cast<__type>( \
+      static_cast<std::underlying_type_t<__type>>(a) & \
+      static_cast<std::underlying_type_t<__type>>(b)); \
+  } \
+  constexpr inline __type operator^(__type a, __type b) { \
+    return static_cast<__type>( \
+      static_cast<std::underlying_type_t<__type>>(a) ^ \
+      static_cast<std::underlying_type_t<__type>>(b)); \
+  } \
+  constexpr inline __type operator~(__type a) { \
+    return static_cast<__type>( \
+      ~static_cast<std::underlying_type_t<__type>>(a)); \
+  } \
+  constexpr inline __type& operator|=(__type& a, __type b) { \
+    return a = static_cast<__type>( \
+      static_cast<std::underlying_type_t<__type>>(a) | \
+      static_cast<std::underlying_type_t<__type>>(b)); \
+  } \
+  constexpr inline __type& operator&=(__type& a, __type b) { \
+    return a = static_cast<__type>( \
+      static_cast<std::underlying_type_t<__type>>(a) & \
+      static_cast<std::underlying_type_t<__type>>(b)); \
+  } \
+  constexpr inline __type& operator^=(__type& a, __type b) { \
+    return a = static_cast<__type>( \
+      static_cast<std::underlying_type_t<__type>>(a) ^ \
+      static_cast<std::underlying_type_t<__type>>(b)); \
+  } \
+  constexpr inline bool operator+(__type a) { \
+    return static_cast<std::underlying_type_t<__type>>(a); \
+  }
 
 #include "./config.hpp"
 
