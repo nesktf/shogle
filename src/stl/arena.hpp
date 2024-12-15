@@ -85,6 +85,140 @@ private:
   std::size_t _alloc_limit{DEFAULT_ALLOC_LIMIT};
 };
 
+
+constexpr inline uint64_t kibs(uint64_t count) { return count << 10; }
+constexpr inline uint64_t mibs(uint64_t count) { return count << 20; }
+constexpr inline uint64_t gibs(uint64_t count) { return count << 30; }
+constexpr inline uint64_t tibs(uint64_t count) { return count << 40; }
+
+class mem_arena {
+public:
+  mem_arena() = default;
+  explicit mem_arena(std::uint64_t reserve) noexcept;
+
+public:
+  void init(std::uint64_t reserve) noexcept;
+
+public:
+  template<typename T>
+  T* allocate(std::uint32_t count) noexcept {
+    return reinterpret_cast<T*>(allocate(count*sizeof(T), alignof(T)));
+  }
+
+  void* allocate(std::size_t size, std::size_t align) noexcept;
+  void deallocate(void*) noexcept {}
+
+  void reset() noexcept;
+  void set_alloc(std::size_t size) noexcept;
+  void decrease_alloc(std::size_t size) noexcept;
+
+public:
+  std::size_t allocated() const { return _allocated; }
+
+private:
+  void* _base{nullptr};
+  std::uint64_t _max_size{0};
+  std::size_t _allocated{0};
+
+public:
+  ~mem_arena() noexcept;
+  mem_arena(const mem_arena&) = delete;
+  mem_arena(mem_arena&&) = delete;
+  mem_arena& operator=(const mem_arena&) = delete;
+  mem_arena& operator=(mem_arena&&) = delete;
+};
+
+template<typename T>
+class mem_pool {
+private:
+  struct node_type {
+    node_type() : dummy(), next(nullptr), prev(nullptr) {}
+
+    template<typename... Args>
+    void construct(Args&&... args) {
+      new (&obj) T{std::forward<Args>(args)...};
+    }
+
+    void destroy() {
+      obj.~T();
+    }
+
+    union {
+      T obj;
+      uint8_t dummy;
+    };
+    node_type *next, *prev;
+  };
+
+  class handle {
+  private:
+    handle(mem_pool& pool, std::size_t pos) :
+      _pool(&pool), _pos(pos) {}
+      
+  public:
+    T& operator*() {
+
+    }
+
+  private:
+    mem_pool* _pool;
+    std::size_t _pos;
+
+  private:
+    friend class mem_pool;
+  };
+
+public:
+  mem_pool() = default;
+  explicit mem_pool(std::uint64_t reserve) noexcept { init(reserve); }
+
+public:
+  void init(std::uint64_t reserve) noexcept {
+    _arena.init(reserve);
+  }
+
+  template<typename... Args>
+  T* construct(Args&&... args) noexcept {
+    if (_free_list) {
+      node_type* node = _free_list;
+
+      if (node->next) {
+        node->next->prev = nullptr;
+      }
+      _free_list = node->next;
+      node->next = nullptr;
+      node->prev = nullptr;
+
+      node->construct(std::forward<Args>(args)...);
+      return &node->obj;
+    }
+
+    node_type* node = _arena.allocate<node_type>(1);
+    new (node) node_type{};
+    node->construct(std::forward<Args>(args)...);
+    return &node->obj;
+  }
+
+  void destroy(T* obj) noexcept {
+    node_type* node = reinterpret_cast<node_type*>(obj);
+    node->destroy();
+
+    node->prev = nullptr;
+    node->next = _free_list;
+    if (node->next) {
+      node->next->prev = node;
+    }
+    _free_list = node;
+  }
+
+public:
+  std::size_t allocated() const { return _arena.allocated(); }
+
+private:
+  mem_arena _arena{};
+  node_type* _free_list{nullptr};
+};
+
 } // namespace ntf
 
 #ifndef SHOGLE_STL_ARENA_INL

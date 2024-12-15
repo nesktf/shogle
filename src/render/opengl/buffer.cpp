@@ -102,10 +102,10 @@ void gl_vertex_array::_setup_attribs(const std::vector<r_attrib_type>& attribs) 
     const uint type_count = r_attrib_dim(attrib);
     NTF_ASSERT(type_count <= 4 && type_count >= 1);
 
-    const gl_type type = gl_attrib_type(attrib);
-    NTF_ASSERT(type != gl_type::none);
+    const gl_builtin_type type = gl_attrib_type(attrib);
+    NTF_ASSERT(type != gl_builtin_type::none);
 
-    if (type == gl_type::f64) {
+    if (type == gl_builtin_type::f64) {
       glVertexAttribLPointer(
         i,
         type_count,

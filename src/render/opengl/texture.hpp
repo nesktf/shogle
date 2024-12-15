@@ -4,60 +4,48 @@
 
 namespace ntf {
 
-struct gl_tex_params {
-  tex_filter filter = tex_filter::nearest;
-  tex_wrap wrap = tex_wrap::repeat;
-  bool gen_mipmaps = true;
-};
-
-template<std::size_t faces>
 class gl_texture {
-public:
-  using context_type = gl_context;
-  using data_type = typename gl_texture_traits<faces>::data_type;
-  using dim_type = typename gl_texture_traits<faces>::dim_type;
-  using params_type = gl_tex_params;
+protected:
+  gl_texture(gl_context& ctx) :
+    _ctx(&ctx) {}
 
-  static constexpr std::size_t face_count = faces;
-  static constexpr GLint gltype = gl_texture_traits<faces>::gltype;
-
-public:
-  gl_texture() = default;
-
-  gl_texture(data_type data, dim_type dim, tex_format format, gl_tex_params params = {});
-
-public:
-  gl_texture& load(data_type data, dim_type dim, tex_format format, gl_tex_params params = {}) &;
-  gl_texture&& load(data_type data, dim_type dim, tex_format format, gl_tex_params params = {}) &&;
-
-  gl_texture& filter(tex_filter filter) &;
-  gl_texture& wrap(tex_wrap wrap) &;
-
+  bool load(const uint8** data, uint32 count, uint32 mipmaps, ivec3 dim, r_texture_type type,
+            r_texture_format format, r_texture_sampler sampler, r_texture_address address);
   void unload();
 
 public:
-  GLuint id() const { return _id; }
-  dim_type dim() const { return _dim; }
-  bool valid() const { return _id != 0; }
-
-  explicit operator bool() const { return valid(); }
-
-private:
-  GLuint _id{0};
-  dim_type _dim{};
-
-private:
-  void _load(data_type data, dim_type dim, tex_format format, gl_tex_params params);
-  void _set_filter(tex_filter filter, bool bind);
-  void _set_wrap(tex_wrap wrap, bool bind);
-  void _reset();
+  void data(const uint8* data, uint32 index, size_t offset);
+  void sampler(r_texture_sampler sampler);
+  void addressing(r_texture_address address);
 
 public:
-  NTF_DECLARE_MOVE_ONLY(gl_texture);
+  ivec3 dim() const { return _dim; }
+  r_texture_type type() const { return _type; }
+  r_texture_sampler sampler() const { return _sampler; }
+  r_texture_address addressing() const { return _addressing; }
+  uint32 count() const { return _count; }
+  bool is_array() const { return _count > 1 && _type != r_texture_type::cubemap; }
+
+public:
+  gl_context* _ctx{nullptr};
+  GLuint _id{0};
+  ivec3 _dim{0, 0, 0};
+  r_texture_type _type{r_texture_type::none};
+  r_texture_address _addressing{r_texture_address::none};
+  r_texture_sampler _sampler{r_texture_sampler::none};
+  uint32 _count{0};
+
+public:
+  NTF_DISABLE_MOVE_COPY(gl_texture); // Managed by the context
+
+private:
+  friend class gl_context;
 };
 
-} // namespace ntf
+uint32 gl_texture_type(r_texture_type type, uint32 count);
+uint32 gl_texture_format(r_texture_format format);
+uint32 gl_texture_sampler(r_texture_sampler sampler, bool mipmaps,
+                          bool lin_level, bool lin_levels);
+uint32 gl_texture_address(r_texture_address address);
 
-#ifndef SHOGLE_RENDER_OPENGL_TEXTURE_INL
-#include "./texture.inl"
-#endif
+} // namespace ntf
