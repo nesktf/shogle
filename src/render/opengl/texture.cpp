@@ -7,7 +7,7 @@ uint32 gl_texture_type(r_texture_type type, uint32 count) {
     case r_texture_type::texture1d: return count > 1 ? GL_TEXTURE_1D_ARRAY : GL_TEXTURE_1D;
     case r_texture_type::texture2d: return count > 1 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
     case r_texture_type::texture3d: return GL_TEXTURE_3D;
-    case r_texture_type::cubemap:   return GL_TEXTURE_CUBE_MAP_POSITIVE_X;
+    case r_texture_type::cubemap:   return GL_TEXTURE_CUBE_MAP;
 
     case r_texture_type::none:      return 0;
   };
@@ -124,19 +124,30 @@ bool gl_texture::load(const uint8** data, uint32 count, uint32 mipmaps, uvec3 di
     case r_texture_type::cubemap: {
       for (uint32 i = 0; i < count; ++i) {
         const uint8* texels = data[i];
-        glTexImage2D(glformat+i, mipmaps, glformat, dim.x, dim.y, 0, glformat,
-                     GL_UNSIGNED_BYTE, texels);
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, mipmaps, glformat, dim.x, dim.y, 0,
+                     glformat, GL_UNSIGNED_BYTE, texels);
       }
       break;
     }
-    case r_texture_type::none:
+    case r_texture_type::none: {
       NTF_UNREACHABLE();
+      break;
+    }
   };
 
-  const uint32 glsampler = gl_texture_sampler(sampler, (mipmaps > 0));
+  if (mipmaps > 0) {
+    glGenerateMipmap(gltype);
+  }
+
+  const uint32 glsamplermin = gl_texture_sampler(sampler, (mipmaps > 0));
+  const uint32 glsamplermag = gl_texture_sampler(sampler, false); // magnification doesn't use mips
+  NTF_ASSERT(glsamplermin && glsamplermag);
+
   const uint32 gladdress = gl_texture_address(address);
-  glTexParameteri(gltype, GL_TEXTURE_MAG_FILTER, glsampler);
-  glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glsampler);
+  NTF_ASSERT(gladdress);
+
+  glTexParameteri(gltype, GL_TEXTURE_MAG_FILTER, glsamplermag);
+  glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glsamplermin);
 
   glTexParameteri(gltype, GL_TEXTURE_WRAP_S, gladdress); // U
   if (type != r_texture_type::texture1d) {
@@ -144,10 +155,6 @@ bool gl_texture::load(const uint8** data, uint32 count, uint32 mipmaps, uvec3 di
     if (type != r_texture_type::texture2d) {
       glTexParameteri(gltype, GL_TEXTURE_WRAP_R, gladdress); // W?
     }
-  }
-
-  if (mipmaps > 0) {
-    glGenerateMipmap(gltype);
   }
 
   glBindTexture(gltype, 0);
@@ -165,7 +172,9 @@ bool gl_texture::load(const uint8** data, uint32 count, uint32 mipmaps, uvec3 di
 
 void gl_texture::unload() {
   NTF_ASSERT(_id);
+
   glDeleteTextures(1, &_id);
+
   _id = 0;
   _dim = uvec3{0, 0, 0};
   _type = r_texture_type::none;
@@ -180,12 +189,14 @@ void gl_texture::sampler(r_texture_sampler sampler) {
 
   const uint32 gltype = gl_texture_type(_type, _count);
   NTF_ASSERT(gltype);
-  const uint32 glsampler = gl_texture_sampler(sampler, (_mipmaps > 0));
-  NTF_ASSERT(glsampler);
+
+  const uint32 glsamplermin = gl_texture_sampler(sampler, (_mipmaps > 0));
+  const uint32 glsamplermag = gl_texture_sampler(sampler, false); // magnification doesn't use mips
+  NTF_ASSERT(glsamplermag && glsamplermin);
 
   glBindTexture(gltype, _id);
-  glTexParameteri(gltype, GL_TEXTURE_MAG_FILTER, glsampler);
-  glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glsampler);
+  glTexParameteri(gltype, GL_TEXTURE_MAG_FILTER, glsamplermag);
+  glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glsamplermin);
   glBindTexture(gltype, 0);
 
   _sampler = sampler;
@@ -196,6 +207,7 @@ void gl_texture::addressing(r_texture_address address) {
 
   const uint32 gltype = gl_texture_type(_type, _count);
   NTF_ASSERT(gltype);
+
   const uint32 gladdress = gl_texture_address(address);
   NTF_ASSERT(gladdress);
 
