@@ -61,23 +61,148 @@ uint32 gl_texture_address(r_texture_address address) {
   NTF_UNREACHABLE();
 };
 
-bool gl_texture::load(const uint8** texels, uint32 count, uint32 mipmaps, uvec3 dim,
-                      r_texture_type type, r_texture_format format,
-                      r_texture_sampler sampler, r_texture_address address) {
+GLuint gl_texture::_allocate(uint32 gltype, uint32 glformat, uint32 count, 
+                             uint32 mipmaps, uvec3 dim) {
+  GLuint id;
+  glGenTextures(1, &id);
+  glBindTexture(gltype, id);
+
+  switch (gltype) {
+    case GL_TEXTURE_1D_ARRAY: {
+      NTF_ASSERT(dim.x > 0);
+      NTF_ASSERT(count > 0);
+      glTexStorage2D(gltype, mipmaps, glformat, dim.x, count);
+      break;
+    }
+
+    case GL_TEXTURE_1D: {
+      NTF_ASSERT(dim.x > 0);
+      glTexStorage1D(gltype, mipmaps, glformat, dim.x);
+      break;
+    }
+
+    case GL_TEXTURE_2D_ARRAY: {
+      NTF_ASSERT(dim.x > 0 && dim.y > 0);
+      NTF_ASSERT(count > 0);
+      glTexStorage3D(gltype, mipmaps, glformat, dim.x, dim.y, count);
+      break;
+    }
+
+    case GL_TEXTURE_CUBE_MAP: {
+      NTF_ASSERT(dim.x == dim.y);
+      [[fallthrough]];
+    }
+    case GL_TEXTURE_2D: {
+      NTF_ASSERT(dim.x > 0 && dim.y > 0);
+      glTexStorage2D(gltype, mipmaps, glformat, dim.x, dim.y);
+      break;
+    }
+
+    case GL_TEXTURE_3D: {
+      NTF_ASSERT(dim.x > 0 && dim.y > 0 && dim.z > 0);
+      glTexStorage3D(gltype, mipmaps, glformat, dim.x, dim.y, dim.z);
+      break;
+    };
+
+    default: {
+      NTF_UNREACHABLE();
+      break;
+    }
+  };
+
+  return id;
+}
+
+void gl_texture::_upload(uint32 gltype, uint32 glformat,
+                         const uint8* texels, uint32 mipmap, uint32 index, uvec3 offset) {
+  switch (gltype) {
+    case GL_TEXTURE_1D_ARRAY: {
+      NTF_ASSERT(offset.x < _dim.x);
+      NTF_ASSERT(index < _count);
+      glTexSubImage2D(gltype, mipmap, offset.x, index, _dim.x, _count, glformat,
+                      GL_UNSIGNED_BYTE, texels);
+      break;
+    }
+
+    case GL_TEXTURE_1D: {
+      NTF_ASSERT(offset.x < _dim.x);
+      glTexSubImage1D(gltype, mipmap, offset.x, _dim.x, glformat,
+                      GL_UNSIGNED_BYTE, texels);
+      break;
+    }
+
+    case GL_TEXTURE_2D_ARRAY: {
+      NTF_ASSERT(offset.x < _dim.x && offset.y < _dim.y);
+      NTF_ASSERT(index < _count);
+      glTexSubImage3D(gltype, mipmap, offset.x, offset.y, index, _dim.x, _dim.y, _count, glformat,
+                      GL_UNSIGNED_BYTE, texels);
+      break;
+    }
+
+    case GL_TEXTURE_2D: {
+      NTF_ASSERT(offset.x < _dim.x && offset.y < _dim.y);
+      glTexSubImage2D(gltype, mipmap, offset.x, offset.y, _dim.x, _dim.y, glformat,
+                      GL_UNSIGNED_BYTE, texels);
+      break;
+    }
+    
+    case GL_TEXTURE_CUBE_MAP: {
+      NTF_ASSERT(offset.x < _dim.x);
+      const uint32 glface = GL_TEXTURE_CUBE_MAP_POSITIVE_X+index; 
+      glTexSubImage2D(glface, mipmap, offset.x, offset.y, _dim.x, _dim.y, glformat,
+                      GL_UNSIGNED_BYTE, texels);
+      break;
+    }
+
+    case GL_TEXTURE_3D: {
+      NTF_ASSERT(offset.x < _dim.x && offset.y < _dim.y && offset.z < _dim.z);
+      glTexSubImage3D(gltype, mipmap, offset.x, offset.y, offset.z, _dim.x, _dim.y, _dim.z,
+                      glformat, GL_UNSIGNED_BYTE, texels);
+      break;
+    }
+
+    default: {
+      NTF_UNREACHABLE();
+      break;
+    }
+  }
+}
+
+void gl_texture::_set_sampler(uint32 gltype, uint32 glsamplermin, uint32 glsamplermag) {
+  glTexParameteri(gltype, GL_TEXTURE_MAG_FILTER, glsamplermag);
+  glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glsamplermin);
+}
+
+void gl_texture::_set_addressing(uint32 gltype, uint32 gladdress) {
+  glTexParameteri(gltype, GL_TEXTURE_WRAP_S, gladdress); // U
+  if (gltype != GL_TEXTURE_1D || gltype != GL_TEXTURE_1D_ARRAY) {
+    glTexParameteri(gltype, GL_TEXTURE_WRAP_T, gladdress); // V
+    if (gltype == GL_TEXTURE_3D || gltype == GL_TEXTURE_CUBE_MAP) {
+      glTexParameteri(gltype, GL_TEXTURE_WRAP_R, gladdress); // W (?)
+    }
+  }
+}
+
+
+void gl_texture::load(r_texture_type type, r_texture_format format,
+                      r_texture_sampler sampler, r_texture_address addressing,
+                      const uint8** texels, uint32 mipmaps, uint32 count, uvec3 dim) {
   NTF_ASSERT(!_id);
 
   // TODO: Move the checks to the context
-  if (!texels || !count) {
-    return false;
+  if (!count) {
+    return;
   }
 
   if (count > 1 && type == r_texture_type::texture3d) {
-    return false;
+    return;
   }
 
   if (count != 6 && type == r_texture_type::cubemap) {
-    return false;
+    return;
   }
+
+  // TODO: Validate dimensions
 
   const uint32 gltype = gl_texture_type(type, count);
   NTF_ASSERT(gltype);
@@ -85,117 +210,38 @@ bool gl_texture::load(const uint8** texels, uint32 count, uint32 mipmaps, uvec3 
   const uint32 glformat = gl_texture_format(format);
   NTF_ASSERT(glformat);
 
-  GLuint id;
-  glGenTextures(1, &id);
-  glBindTexture(gltype, id);
-
-  switch (type) {
-    case r_texture_type::texture1d: {
-      if (count > 1) {
-        glTexStorage2D(gltype, mipmaps, glformat, dim.x, count);
-        for (uint32 i = 0; i < count; ++i) {
-          if (!texels[i]) {
-            continue; // just allocate
-          }
-          glTexSubImage2D(gltype, mipmaps, 0, i, dim.x, count, glformat,
-                          GL_UNSIGNED_BYTE, texels[i]);
-        }
-        break;
-      }
-
-      glTexStorage1D(gltype, mipmaps, glformat, dim.x);
-      if (!texels[0]) {
-        break; // just allocate
-      }
-      glTexSubImage1D(gltype, mipmaps, 0, dim.x, glformat,
-                      GL_UNSIGNED_BYTE, texels[0]);
-      break;
-    };
-    case r_texture_type::texture2d: {
-      if (count > 1) {
-        glTexStorage3D(gltype, mipmaps, glformat, dim.x, dim.y, count);
-        for (uint32 i = 0; i < count; ++i) {
-          if (!texels[i]) {
-            continue; // just allocate
-          }
-          glTexSubImage3D(gltype, mipmaps, 0, 0, i, dim.x, dim.y, count, glformat,
-                          GL_UNSIGNED_BYTE, texels[i]);
-        }
-        break;
-      }
-
-      glTexStorage2D(gltype, mipmaps, glformat, dim.x, dim.y);
-      if (!texels[0]) {
-        break; // just allocate
-      }
-      glTexSubImage2D(gltype, mipmaps, 0, 0, dim.x, dim.y, glformat,
-                      GL_UNSIGNED_BYTE, texels[0]);
-      break;
-    };
-    case r_texture_type::texture3d: {
-      glTexStorage3D(gltype, mipmaps, glformat, dim.x, dim.y, dim.z);
-      if (!texels[0]) {
-        break; // just allocate
-      }
-      glTexSubImage3D(gltype, mipmaps, 0, 0, 0, dim.x, dim.y, dim.z, glformat,
-                      GL_UNSIGNED_BYTE, texels[0]);
-      break;
-    };
-    case r_texture_type::cubemap: {
-      glTexStorage2D(gltype, mipmaps, glformat, dim.x, dim.y);
-      for (uint32 face = 0; face < count; ++face) {
-        if (!texels[face]) {
-          continue; // just allocate
-        }
-
-        const uint32 glface = GL_TEXTURE_CUBE_MAP_POSITIVE_X+face; 
-        glTexSubImage2D(glface, mipmaps, 0, 0, dim.x, dim.y, glformat,
-                        GL_UNSIGNED_BYTE, texels[face]);
-        // glTexSubImage3D(gltype, mipmaps, 0, 0, face, dim.x, dim.y, 1, glformat,
-                        // GL_UNSIGNED_BYTE, data[face]);
-      }
-      break;
-    }
-    case r_texture_type::none: {
-      NTF_UNREACHABLE();
-      break;
-    }
-  };
-
-  if (mipmaps > 0) {
-    glGenerateMipmap(gltype);
-  }
-
   const uint32 glsamplermin = gl_texture_sampler(sampler, (mipmaps > 0));
   const uint32 glsamplermag = gl_texture_sampler(sampler, false); // magnification doesn't use mips
   NTF_ASSERT(glsamplermin && glsamplermag);
 
-  const uint32 gladdress = gl_texture_address(address);
+  const uint32 gladdress = gl_texture_address(addressing);
   NTF_ASSERT(gladdress);
 
-  glTexParameteri(gltype, GL_TEXTURE_MAG_FILTER, glsamplermag);
-  glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glsamplermin);
+  if (!(_id = _allocate(gltype, glformat, count, mipmaps, dim))) { // binds the texture
+    glBindTexture(gltype, 0);
+    return;
+  }
 
-  glTexParameteri(gltype, GL_TEXTURE_WRAP_S, gladdress); // U
-  if (type != r_texture_type::texture1d) {
-    glTexParameteri(gltype, GL_TEXTURE_WRAP_T, gladdress); // V
-    if (type != r_texture_type::texture2d) {
-      glTexParameteri(gltype, GL_TEXTURE_WRAP_R, gladdress); // W?
+  _mipmaps = mipmaps;
+  _count = count;
+  _dim = dim;
+  _type = type;
+  _addressing = addressing;
+  _sampler = sampler;
+  _format = format; // internal format
+
+  _set_sampler(gltype, glsamplermin, glsamplermag);
+  _set_addressing(gltype, gladdress);
+  if (texels) {
+    for (uint32 i = 0; i < count; ++i) {
+      _upload(gltype, glformat, texels[i], 0, i, uvec3{0, 0, 0});
+    }
+    if (_mipmaps > 0) {
+      glGenerateMipmap(gltype);
     }
   }
 
   glBindTexture(gltype, 0);
-
-  _id = id;
-  _dim = dim;
-  _type = type;
-  _addressing = address;
-  _sampler = sampler;
-  _format = format; // internal format
-  _count = count;
-  _mipmaps = mipmaps;
-
-  return true;
 }
 
 void gl_texture::unload() {
@@ -224,8 +270,7 @@ void gl_texture::sampler(r_texture_sampler sampler) {
   NTF_ASSERT(glsamplermag && glsamplermin);
 
   glBindTexture(gltype, _id);
-  glTexParameteri(gltype, GL_TEXTURE_MAG_FILTER, glsamplermag);
-  glTexParameteri(gltype, GL_TEXTURE_MIN_FILTER, glsamplermin);
+  _set_sampler(gltype, glsamplermin, glsamplermag);
   glBindTexture(gltype, 0);
 
   _sampler = sampler;
@@ -241,21 +286,14 @@ void gl_texture::addressing(r_texture_address address) {
   NTF_ASSERT(gladdress);
 
   glBindTexture(gltype, _id);
-  glTexParameteri(gltype, GL_TEXTURE_WRAP_S, gladdress); // U
-  if (_type != r_texture_type::texture1d) {
-    glTexParameteri(gltype, GL_TEXTURE_WRAP_T, gladdress); // V
-    if (_type != r_texture_type::texture2d) {
-      glTexParameteri(gltype, GL_TEXTURE_WRAP_R, gladdress); // W?
-    }
-  }
+  _set_addressing(gltype, gladdress);
   glBindTexture(gltype, 0);
 
   _addressing = address;
 }
 
-void gl_texture::data(const uint8* texels, uint32 index, uvec3 offset, r_texture_format format) {
+void gl_texture::data(r_texture_format format, const uint8* texels, uint32 index, uvec3 offset) {
   NTF_ASSERT(_id);
-  NTF_ASSERT(index < _count);
 
   const uint32 gltype = gl_texture_type(_type, _count);
   NTF_ASSERT(gltype);
@@ -264,56 +302,10 @@ void gl_texture::data(const uint8* texels, uint32 index, uvec3 offset, r_texture
   NTF_ASSERT(glformat);
 
   glBindTexture(gltype, _id);
-
-  switch (_type) {
-    case r_texture_type::texture1d: {
-      if (_count > 1) {
-        glTexSubImage2D(gltype, _mipmaps, offset.x, index, _dim.x, _count, glformat,
-                        GL_UNSIGNED_BYTE, texels);
-        break;
-      }
-
-      glTexSubImage1D(gltype, _mipmaps, offset.x, _dim.x, glformat, GL_UNSIGNED_BYTE, texels);
-      break;
-    }
-
-    case r_texture_type::texture2d: {
-      if (_count > 1) {
-        glTexSubImage3D(gltype, _mipmaps, offset.x, offset.y, index, _dim.x, _dim.y, _count,
-                        glformat, GL_UNSIGNED_BYTE, texels);
-        break;
-      }
-
-      glTexSubImage2D(gltype, _mipmaps, offset.x, offset.y, _dim.x, _dim.y, glformat,
-                      GL_UNSIGNED_BYTE, texels);
-      break;
-    }
-
-    case r_texture_type::texture3d: {
-      glTexSubImage3D(gltype, _mipmaps, offset.x, offset.y, offset.z, _dim.x, _dim.y, _dim.z,
-                      glformat, GL_UNSIGNED_BYTE, texels);
-      break;
-    }
-
-    case r_texture_type::cubemap: {
-      const uint32 glface = GL_TEXTURE_CUBE_MAP_POSITIVE_X+index;
-      glTexSubImage2D(glface, _mipmaps, offset.x, offset.y, _dim.x, _dim.y, glformat,
-                      GL_UNSIGNED_BYTE, texels);
-      // glTexSubImage3D(gltype, _mipmaps, offset.x, offset.y, index, _dim.x, _dim.y, 1,
-                      // glformat, GL_UNSIGNED_BYTE, texels);
-      break;
-    }
-
-    case r_texture_type::none: {
-      NTF_UNREACHABLE();
-      break;
-    }
-  }
-
+  _upload(gltype, glformat, texels, 0, index, offset);
   if (_mipmaps > 0) {
     glGenerateMipmap(gltype);
   }
-
   glBindTexture(gltype, 0);
 }
 
