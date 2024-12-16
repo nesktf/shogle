@@ -61,13 +61,13 @@ uint32 gl_texture_address(r_texture_address address) {
   NTF_UNREACHABLE();
 };
 
-bool gl_texture::load(const uint8** data, uint32 count, uint32 mipmaps, uvec3 dim,
+bool gl_texture::load(const uint8** texels, uint32 count, uint32 mipmaps, uvec3 dim,
                       r_texture_type type, r_texture_format format,
                       r_texture_sampler sampler, r_texture_address address) {
   NTF_ASSERT(!_id);
 
   // TODO: Move the checks to the context
-  if (!data || !count) {
+  if (!texels || !count) {
     return false;
   }
 
@@ -94,38 +94,65 @@ bool gl_texture::load(const uint8** data, uint32 count, uint32 mipmaps, uvec3 di
       if (count > 1) {
         glTexStorage2D(gltype, mipmaps, glformat, dim.x, count);
         for (uint32 i = 0; i < count; ++i) {
+          if (!texels[i]) {
+            continue; // just allocate
+          }
           glTexSubImage2D(gltype, mipmaps, 0, i, dim.x, count, glformat,
-                          GL_UNSIGNED_BYTE, data[i]);
+                          GL_UNSIGNED_BYTE, texels[i]);
         }
-      } else {
-        glTexImage1D(gltype, mipmaps, glformat, dim.x, 0, glformat,
-                     GL_UNSIGNED_BYTE, data[0]);
+        break;
       }
+
+      glTexStorage1D(gltype, mipmaps, glformat, dim.x);
+      if (!texels[0]) {
+        break; // just allocate
+      }
+      glTexSubImage1D(gltype, mipmaps, 0, dim.x, glformat,
+                      GL_UNSIGNED_BYTE, texels[0]);
       break;
     };
     case r_texture_type::texture2d: {
       if (count > 1) {
         glTexStorage3D(gltype, mipmaps, glformat, dim.x, dim.y, count);
         for (uint32 i = 0; i < count; ++i) {
+          if (!texels[i]) {
+            continue; // just allocate
+          }
           glTexSubImage3D(gltype, mipmaps, 0, 0, i, dim.x, dim.y, count, glformat,
-                          GL_UNSIGNED_BYTE, data[i]);
+                          GL_UNSIGNED_BYTE, texels[i]);
         }
-      } else {
-        glTexImage2D(gltype, mipmaps, glformat, dim.x, dim.y, 0, glformat,
-                     GL_UNSIGNED_BYTE, data[0]);
+        break;
       }
+
+      glTexStorage2D(gltype, mipmaps, glformat, dim.x, dim.y);
+      if (!texels[0]) {
+        break; // just allocate
+      }
+      glTexSubImage2D(gltype, mipmaps, 0, 0, dim.x, dim.y, glformat,
+                      GL_UNSIGNED_BYTE, texels[0]);
       break;
     };
     case r_texture_type::texture3d: {
-      glTexImage3D(gltype, mipmaps, glformat, dim.x, dim.y, dim.z, 0, glformat,
-                   GL_UNSIGNED_BYTE, data[0]);
+      glTexStorage3D(gltype, mipmaps, glformat, dim.x, dim.y, dim.z);
+      if (!texels[0]) {
+        break; // just allocate
+      }
+      glTexSubImage3D(gltype, mipmaps, 0, 0, 0, dim.x, dim.y, dim.z, glformat,
+                      GL_UNSIGNED_BYTE, texels[0]);
       break;
     };
     case r_texture_type::cubemap: {
-      for (uint32 i = 0; i < count; ++i) {
-        const uint8* texels = data[i];
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, mipmaps, glformat, dim.x, dim.y, 0,
-                     glformat, GL_UNSIGNED_BYTE, texels);
+      glTexStorage2D(gltype, mipmaps, glformat, dim.x, dim.y);
+      for (uint32 face = 0; face < count; ++face) {
+        if (!texels[face]) {
+          continue; // just allocate
+        }
+
+        const uint32 glface = GL_TEXTURE_CUBE_MAP_POSITIVE_X+face; 
+        glTexSubImage2D(glface, mipmaps, 0, 0, dim.x, dim.y, glformat,
+                        GL_UNSIGNED_BYTE, texels[face]);
+        // glTexSubImage3D(gltype, mipmaps, 0, 0, face, dim.x, dim.y, 1, glformat,
+                        // GL_UNSIGNED_BYTE, data[face]);
       }
       break;
     }
@@ -164,6 +191,7 @@ bool gl_texture::load(const uint8** data, uint32 count, uint32 mipmaps, uvec3 di
   _type = type;
   _addressing = address;
   _sampler = sampler;
+  _format = format; // internal format
   _count = count;
   _mipmaps = mipmaps;
 
@@ -180,6 +208,7 @@ void gl_texture::unload() {
   _type = r_texture_type::none;
   _addressing = r_texture_address::none;
   _sampler = r_texture_sampler::none;
+  _format = r_texture_format::none;
   _count = 0;
   _mipmaps = 0;
 }
@@ -222,6 +251,70 @@ void gl_texture::addressing(r_texture_address address) {
   glBindTexture(gltype, 0);
 
   _addressing = address;
+}
+
+void gl_texture::data(const uint8* texels, uint32 index, uvec3 offset, r_texture_format format) {
+  NTF_ASSERT(_id);
+  NTF_ASSERT(index < _count);
+
+  const uint32 gltype = gl_texture_type(_type, _count);
+  NTF_ASSERT(gltype);
+
+  const uint32 glformat = gl_texture_format(format);
+  NTF_ASSERT(glformat);
+
+  glBindTexture(gltype, _id);
+
+  switch (_type) {
+    case r_texture_type::texture1d: {
+      if (_count > 1) {
+        glTexSubImage2D(gltype, _mipmaps, offset.x, index, _dim.x, _count, glformat,
+                        GL_UNSIGNED_BYTE, texels);
+        break;
+      }
+
+      glTexSubImage1D(gltype, _mipmaps, offset.x, _dim.x, glformat, GL_UNSIGNED_BYTE, texels);
+      break;
+    }
+
+    case r_texture_type::texture2d: {
+      if (_count > 1) {
+        glTexSubImage3D(gltype, _mipmaps, offset.x, offset.y, index, _dim.x, _dim.y, _count,
+                        glformat, GL_UNSIGNED_BYTE, texels);
+        break;
+      }
+
+      glTexSubImage2D(gltype, _mipmaps, offset.x, offset.y, _dim.x, _dim.y, glformat,
+                      GL_UNSIGNED_BYTE, texels);
+      break;
+    }
+
+    case r_texture_type::texture3d: {
+      glTexSubImage3D(gltype, _mipmaps, offset.x, offset.y, offset.z, _dim.x, _dim.y, _dim.z,
+                      glformat, GL_UNSIGNED_BYTE, texels);
+      break;
+    }
+
+    case r_texture_type::cubemap: {
+      const uint32 glface = GL_TEXTURE_CUBE_MAP_POSITIVE_X+index;
+      glTexSubImage2D(glface, _mipmaps, offset.x, offset.y, _dim.x, _dim.y, glformat,
+                      GL_UNSIGNED_BYTE, texels);
+      // glTexSubImage3D(gltype, _mipmaps, offset.x, offset.y, index, _dim.x, _dim.y, 1,
+                      // glformat, GL_UNSIGNED_BYTE, texels);
+      break;
+    }
+
+    case r_texture_type::none: {
+      NTF_UNREACHABLE();
+      break;
+    }
+  }
+
+  if (_mipmaps > 0) {
+    glGenerateMipmap(gltype);
+  }
+
+  glBindTexture(gltype, 0);
 }
 
 } // namespace ntf
