@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./common.hpp"
+#include "./opengl.hpp"
 
 namespace ntf {
 
@@ -15,11 +15,11 @@ protected:
   void unload();
 
 protected:
-  GLuint _allocate(uint32 gltype, uint32 glformat, uint32 count, uint32 mipmaps, uvec3 dim);
-  void _upload(uint32 gltype, uint32 glformat,
+  GLuint _allocate(GLenum gltype, GLenum glformat, uint32 count, uint32 mipmaps, uvec3 dim);
+  void _upload(GLenum gltype, GLenum glformat,
                const uint8* texels, uint32 mipmap, uint32 index, uvec3 offset);
-  void _set_sampler(uint32 gltype, uint32 glsamplermin, uint32 gladdressmag);
-  void _set_addressing(uint32 gltype, uint32 gladdress);
+  void _set_sampler(GLenum gltype, GLenum glsamplermin, GLenum gladdressmag);
+  void _set_addressing(GLenum gltype, GLenum gladdress);
 
 public:
   void data(r_texture_format format, const uint8* texels, uint32 index, uvec3 offset);
@@ -64,9 +64,9 @@ private:
   friend class gl_context;
 };
 
-uint32 gl_texture_type(r_texture_type type, uint32 count);
-uint32 gl_texture_format(r_texture_format format);
-uint32 gl_texture_sampler(r_texture_sampler sampler, bool mipmaps);
-uint32 gl_texture_address(r_texture_address address);
+GLenum gl_texture_type_cast(r_texture_type type, bool array);
+GLenum gl_texture_format_cast(r_texture_format format);
+GLenum gl_texture_sampler_cast(r_texture_sampler sampler, bool mipmaps);
+GLenum gl_texture_address_cast(r_texture_address address);
 
 } // namespace ntf

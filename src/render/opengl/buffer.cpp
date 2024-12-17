@@ -2,132 +2,81 @@
 
 namespace ntf {
 
-void gl_buffer::load(void* data, std::size_t size, buffer_type buffer, storage_type storage) {
-  NTF_ASSERT(buffer != buffer_type::none);
-  NTF_ASSERT(storage != storage_type::none);
+void gl_buffer::load(r_buffer_type type, const void* data, size_t size) {
   NTF_ASSERT(!_id);
 
-  glGenBuffers(1, &_id);
+  const GLenum gltype = gl_buffer_type_cast(type);
+  NTF_ASSERT(gltype);
 
-  GLenum buff = static_cast<GLenum>(buffer);
-  glBindBuffer(buff, _id);
-  glBufferData(buff, size, data, static_cast<GLint>(storage));
-  glBindBuffer(buff, 0);
+  const GLbitfield glflags = GL_DYNAMIC_STORAGE_BIT;
+  NTF_ASSERT(glflags);
 
-  if (_id) {
-    _buffer = buffer;
-    _storage = storage;
-    _size = size;
+  GLuint id;
+  glGenBuffers(1, &id);
+  glBindBuffer(gltype, _id);
+  glBufferStorage(gltype, size, nullptr, glflags);
+  if (data) {
+    glBufferSubData(gltype, 0, size, data);
   }
+  glBindBuffer(gltype, 0);
+
+  _id = id;
+  _type = type;
+  _size = size;
+  _alloc_flags = glflags;
 }
 
-void gl_buffer::update(void* data, std::size_t size, std::size_t offset) {
-  NTF_ASSERT(_id);
-
-  GLenum buff = static_cast<GLenum>(_buffer);
-  glBindBuffer(buff, _id);
-  glBufferSubData(buff, offset, size, data);
-  glBindBuffer(buff, 0);
-}
-
-void gl_buffer::destroy() {
+void gl_buffer::unload() {
   NTF_ASSERT(_id);
 
   glDeleteBuffers(1, &_id);
+
   _id = 0;
+  _type = r_buffer_type::none;
   _size = 0;
-  _buffer = buffer_type::none;
-  _storage = storage_type::none;
+  _alloc_flags = 0;
 }
 
-void gl_vertex_array::load(gl_buffer& vertex, const std::vector<r_attrib_type>& attribs) {
-  NTF_ASSERT(!_id);
-  NTF_ASSERT(vertex.id() && vertex.buffer() == gl_buffer::buffer_type::vertex);
-
-  glGenVertexArrays(1, &_id);
-
-  glBindVertexArray(_id);
-  glBindBuffer(static_cast<GLenum>(vertex.buffer()), vertex.id());
-
-  _setup_attribs(attribs);
-
-  glBindVertexArray(0);
-
-  if (_id) {
-    _vertex = vertex.id();
-  }
-}
-
-void gl_vertex_array::load(gl_buffer& vertex, gl_buffer& index, 
-                           const std::vector<r_attrib_type>& attribs) {
-  NTF_ASSERT(!_id);
-  NTF_ASSERT(vertex.id() && vertex.buffer() == gl_buffer::buffer_type::vertex);
-  NTF_ASSERT(index.id() && index.buffer() == gl_buffer::buffer_type::index);
-
-  glGenVertexArrays(1, &_id);
-
-  glBindVertexArray(_id);
-  glBindBuffer(static_cast<GLenum>(vertex.buffer()), vertex.id());
-  glBindBuffer(static_cast<GLenum>(index.buffer()), index.id());
-
-  _setup_attribs(attribs);
-
-  glBindVertexArray(0);
-
-  if (_id) {
-    _vertex = vertex.id();
-    _index = index.id();
-  }
-}
-
-void gl_vertex_array::destroy() {
+void gl_buffer::data(const void* data, size_t size, size_t offset) {
   NTF_ASSERT(_id);
+  NTF_ASSERT(_alloc_flags & GL_DYNAMIC_STORAGE_BIT);
+  NTF_ASSERT(offset+size <= _size);
 
-  glDeleteVertexArrays(1, &_id);
-  _id = 0;
-  _vertex = 0;
-  _index = 0;
+  const GLenum gltype = gl_buffer_type_cast(_type);
+  NTF_ASSERT(gltype);
+
+  glBindBuffer(gltype, _id);
+  glBufferSubData(gltype, offset, size, data);
+  glBindBuffer(gltype, 0);
 }
 
-void gl_vertex_array::_setup_attribs(const std::vector<r_attrib_type>& attribs) {
-  NTF_ASSERT(attribs.size());
+// enum class storage_type {
+//   none          = GL_NONE,
+//   static_draw   = GL_STATIC_DRAW,
+//   dynamic_draw  = GL_DYNAMIC_DRAW,
+//   stream_draw   = GL_STREAM_DRAW,
+// };
+//
+// enum class alloc_flags : uint32 {
+//   none = 0,
+//   dynamic_storage = GL_DYNAMIC_STORAGE_BIT,
+//   map_read        = GL_MAP_READ_BIT,
+//   map_write       = GL_MAP_WRITE_BIT,
+//   map_persistent  = GL_MAP_PERSISTENT_BIT,
+//   map_coherent    = GL_MAP_COHERENT_BIT,
+//   client_storage  = GL_CLIENT_STORAGE_BIT,
+// };
+// NTF_DEFINE_ENUM_CLASS_FLAG_OPS(gl_buffer::alloc_flags);
 
-  std::size_t attrib_stride = 0;
-  for (const auto& attrib : attribs) {
-    attrib_stride += r_attrib_size(attrib);
-  }
+GLenum gl_buffer_type_cast(r_buffer_type type) {
+  switch(type) {
+    case r_buffer_type::index:    return GL_ARRAY_BUFFER;
+    case r_buffer_type::vertex:   return GL_ELEMENT_ARRAY_BUFFER;
+    case r_buffer_type::uniform:  return GL_UNIFORM_BUFFER;
 
-  std::size_t i = 0, offset = 0;
-  for (const auto& attrib : attribs) {
-    const uint type_count = r_attrib_dim(attrib);
-    NTF_ASSERT(type_count <= 4 && type_count >= 1);
-
-    const gl_builtin_type type = gl_attrib_type(attrib);
-    NTF_ASSERT(type != gl_builtin_type::none);
-
-    if (type == gl_builtin_type::f64) {
-      glVertexAttribLPointer(
-        i,
-        type_count,
-        static_cast<GLenum>(type), // GL_DOUBLE
-        attrib_stride,
-        reinterpret_cast<void*>(offset)
-      );
-    } else {
-      glVertexAttribPointer(
-        i,
-        type_count,
-        static_cast<GLenum>(type), // GL_FLOAT or GL_INT
-        GL_FALSE, // normalize it yourself before submitting
-        attrib_stride,
-        reinterpret_cast<void*>(offset)
-      );
-    }
-
-    offset += type_count*r_attrib_size(attrib);
-    glEnableVertexAttribArray(i++);
-  }
-  NTF_ASSERT(offset == attrib_stride);
+    case r_buffer_type::none:     return 0;
+  };
+  NTF_UNREACHABLE();
 }
 
 } // namespace ntf

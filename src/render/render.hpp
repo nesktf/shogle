@@ -41,7 +41,7 @@ enum class r_attrib_type : uint32 {
 };
 
 constexpr inline size_t r_attrib_size(r_attrib_type type) {
-  constexpr size_t int_sz = sizeof(int32_t);
+  constexpr size_t int_sz = sizeof(int32);
   constexpr size_t float_sz = sizeof(float);
   constexpr size_t double_sz = sizeof(double);
 

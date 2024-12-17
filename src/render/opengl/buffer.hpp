@@ -1,66 +1,40 @@
 #pragma once
 
-#include "common.hpp"
+#include "opengl.hpp"
 
 namespace ntf {
 
 class gl_buffer {
-public:
-  enum class buffer_type {
-    none    = GL_NONE,
-    vertex  = GL_ARRAY_BUFFER,
-    index   = GL_ELEMENT_ARRAY_BUFFER,
-    uniform = GL_UNIFORM_BUFFER,
-  };
-
-  enum class storage_type {
-    none          = GL_NONE,
-    static_draw   = GL_STATIC_DRAW,
-    dynamic_draw  = GL_DYNAMIC_DRAW,
-    stream_draw   = GL_STREAM_DRAW,
-  };
-
-public:
-  gl_buffer() = default;
-
-public:
-  void load(void* data, std::size_t size, buffer_type buffer, storage_type storage);
-  void update(void* data, std::size_t size, std::size_t offset);
-  void destroy();
-
-public:
-  buffer_type buffer() const { return _buffer; }
-  storage_type storage() const { return _storage; }
-  GLuint id() const { return _id; }
-  std::size_t size() const { return _size; }
+private:
+  gl_buffer(gl_context& ctx) :
+    _ctx(ctx) {}
 
 private:
-  buffer_type _buffer{buffer_type::none};
-  storage_type _storage{storage_type::none};
+  void load(r_buffer_type type, const void* data, size_t size);
+  void unload();
+
+public:
+  void data(const void* data, size_t size, size_t offset);
+
+public:
+  r_buffer_type type() const { return _type; }
+  size_t size() const { return _size; }
+
+private:
+  gl_context& _ctx;
+
   GLuint _id{0};
-  std::size_t _size{0};
+  r_buffer_type _type{r_buffer_type::none};
+  size_t _size{0};
+  GLbitfield _alloc_flags{0};
+
+public:
+  NTF_DISABLE_MOVE_COPY(gl_buffer);
+
+private:
+  friend class gl_context;
 };
 
-class gl_vertex_array {
-public:
-  gl_vertex_array() = default;
-
-public:
-  void load(gl_buffer& vertex, const std::vector<r_attrib_type>& attribs);
-  void load(gl_buffer& vertex, gl_buffer& index, const std::vector<r_attrib_type>& attribs);
-  void destroy();
-
-private:
-  void _setup_attribs(const std::vector<r_attrib_type>& attribs);
-
-public:
-  GLuint vertex() const { return _vertex; }
-  GLuint index() const { return _index; }
-  GLuint id() const { return _index; }
-
-private:
-  GLuint _vertex{0}, _index{0};
-  GLuint _id{0};
-};
+GLenum gl_buffer_type_cast(r_buffer_type type);
 
 } // namespace ntf
