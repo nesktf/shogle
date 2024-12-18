@@ -40,7 +40,7 @@ enum class r_attrib_type : uint32 {
   i32, ivec2, ivec3, ivec4,
 };
 
-constexpr inline size_t r_attrib_size(r_attrib_type type) {
+constexpr inline size_t r_attrib_type_size(r_attrib_type type) {
   constexpr size_t int_sz = sizeof(int32);
   constexpr size_t float_sz = sizeof(float);
   constexpr size_t double_sz = sizeof(double);
@@ -71,7 +71,7 @@ constexpr inline size_t r_attrib_size(r_attrib_type type) {
   return 0;
 };
 
-constexpr inline uint32 r_attrib_dim(r_attrib_type type) {
+constexpr inline uint32 r_attrib_type_dim(r_attrib_type type) {
   switch (type) {
     case r_attrib_type::i32:   [[fallthrough]];
     case r_attrib_type::f32:   [[fallthrough]];
@@ -109,12 +109,13 @@ struct r_attrib_info {
 };
 
 enum class r_shader_type : uint8 {
-  none        = 0,
-  vertex      = 1 << 0,
-  fragment    = 1 << 1,
-  geometry    = 1 << 2,
-  tesselation = 1 << 3,
-  compute     = 1 << 4,
+  none                = 0,
+  vertex              = 1 << 0,
+  fragment            = 1 << 1,
+  geometry            = 1 << 2,
+  tesselation_eval    = 1 << 3,
+  tesselation_control = 1 << 4,
+  compute             = 1 << 5,
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_shader_type)
 

@@ -2,46 +2,6 @@
 
 namespace ntf {
 
-GLenum gl_attrib_type_underlying_cast(r_attrib_type type) {
-  switch (type) {
-    case r_attrib_type::f32:   [[fallthrough]];
-    case r_attrib_type::vec2:  [[fallthrough]];
-    case r_attrib_type::vec3:  [[fallthrough]];
-    case r_attrib_type::vec4:  [[fallthrough]];
-    case r_attrib_type::mat3:  [[fallthrough]];
-    case r_attrib_type::mat4:  return GL_FLOAT;
-
-    case r_attrib_type::f64:   [[fallthrough]];
-    case r_attrib_type::dvec2: [[fallthrough]];
-    case r_attrib_type::dvec3: [[fallthrough]];
-    case r_attrib_type::dvec4: [[fallthrough]];
-    case r_attrib_type::dmat3: [[fallthrough]];
-    case r_attrib_type::dmat4: return GL_DOUBLE;
-
-    case r_attrib_type::i32:   [[fallthrough]];
-    case r_attrib_type::ivec2: [[fallthrough]];
-    case r_attrib_type::ivec3: [[fallthrough]];
-    case r_attrib_type::ivec4: return GL_INT;
-
-    case r_attrib_type::none:  return 0;
-  }
-  NTF_UNREACHABLE();
-}
-
-GLenum gl_primitive_cast(r_primitive prim) {
-  switch (prim) {
-    case r_primitive::points:         return GL_POINTS;
-    case r_primitive::triangles:      return GL_TRIANGLES;
-    case r_primitive::triangle_fan:   return GL_TRIANGLE_FAN;
-    case r_primitive::lines:          return GL_LINES;
-    case r_primitive::line_strip:     return GL_LINE_STRIP;
-    case r_primitive::triangle_strip: return GL_TRIANGLE_STRIP;
-
-    case r_primitive::none:           return 0;
-  }
-  NTF_UNREACHABLE();
-}
-
 GLenum gl_check_error(const char* file, int line) {
   GLenum err{};
   while ((err = glGetError()) != GL_NO_ERROR) {
