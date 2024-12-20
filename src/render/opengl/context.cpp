@@ -158,9 +158,8 @@ void gl_context::draw_frame() {
     uvec4 vp = viewport();
 
     if (cmd.target) {
-      NTF_ASSERT(cmd.target.api() == RENDER_API);
-      NTF_ASSERT(cmd.target.type() == r_resource_type::target);
-      auto& fb = _framebuffers[cmd.target.handle()];
+      NTF_ASSERT(cmd.target.api == RENDER_API);
+      auto& fb = _framebuffers[cmd.target.handle];
       fbo = fb._fbo;
       vp = fb.viewport();
     }
@@ -173,18 +172,16 @@ void gl_context::draw_frame() {
 
     bool rebind_attributes = false;
 
-    NTF_ASSERT(cmd.pipeline && cmd.pipeline.api() == RENDER_API);
-    NTF_ASSERT(cmd.pipeline.type() == r_resource_type::pipeline);
-    auto& pipeline = _pipelines[cmd.pipeline.handle()];
+    NTF_ASSERT(cmd.pipeline && cmd.pipeline.api == RENDER_API);
+    auto& pipeline = _pipelines[cmd.pipeline.handle];
     if (_glstate.program != pipeline._program_id) {
       glUseProgram(pipeline._program_id);
       _glstate.program = pipeline._program_id;
       rebind_attributes = true;
     }
 
-    NTF_ASSERT(cmd.vertex_buffer && cmd.vertex_buffer.api() == RENDER_API);
-    NTF_ASSERT(cmd.vertex_buffer.type() == r_resource_type::buffer);
-    auto& vbo = _buffers[cmd.vertex_buffer.handle()];
+    NTF_ASSERT(cmd.vertex_buffer && cmd.vertex_buffer.api == RENDER_API);
+    auto& vbo = _buffers[cmd.vertex_buffer.handle];
     if (_glstate.vbo != vbo._id) {
       glBindBuffer(GL_ARRAY_BUFFER, vbo._id);
       _glstate.vbo = vbo._id;
@@ -193,9 +190,8 @@ void gl_context::draw_frame() {
 
     bool use_indices = cmd.index_buffer.valid();
     if (use_indices) {
-      NTF_ASSERT(cmd.index_buffer.api() == RENDER_API);
-      NTF_ASSERT(cmd.index_buffer.type() == r_resource_type::buffer);
-      auto& ebo = _buffers[cmd.index_buffer.handle()];
+      NTF_ASSERT(cmd.index_buffer.api == RENDER_API);
+      auto& ebo = _buffers[cmd.index_buffer.handle];
       if (_glstate.ebo != ebo._id) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo._id);
         _glstate.ebo = ebo._id;
@@ -225,7 +221,7 @@ void gl_context::draw_frame() {
     if (cmd.textures) {
       _glstate.enabled_tex = 0;
       for (uint32 i = 0; i < cmd.texture_count; ++i) {
-        auto& tex = _textures[cmd.textures[i].handle()];
+        auto& tex = _textures[cmd.textures[i].handle];
         const GLenum gltype = gl_texture_type_cast(tex.type(), tex.is_array());
         NTF_ASSERT(gltype);
 
@@ -303,35 +299,63 @@ std::string_view gl_context::version() const {
   return reinterpret_cast<const char*>(glGetString(GL_VERSION));
 }
 
-expected<r_texture<gl_context>, r_texture_err> gl_context::create_texture(r_texture_info texture) {
+auto gl_context::make_texture(r_texture_descriptor desc)
+                                            -> expected<gl_resource<gl_texture>, gl_texture_err> {
+  _textures.emplace_back(gl_texture{*this});
+  r_handle pos = _textures.size()-1;
+  auto& tex = _textures.back();
+  tex.load(desc.type, desc.format, desc.sampler, desc.addressing, desc.texels,
+           desc.mipmap_level, desc.count, desc.extent);
+  if (!tex.complete()) {
+    return unexpected<gl_texture_err>{gl_texture_err::none}; // ?
+  }
+  return gl_resource<gl_texture>{*this, pos};
+}
+
+auto gl_context::make_buffer(r_buffer_descriptor desc) 
+                                              -> expected<gl_resource<gl_buffer>, gl_buffer_err> {
 
 }
 
-void gl_context::destroy_texture(r_texture<gl_context>& texture) {
+auto gl_context::make_pipeline(r_pipeline_descriptor desc) 
+                                          -> expected<gl_resource<gl_pipeline>, gl_pipeline_err> {
+  if (!desc.stages || desc.stage_count < 2) {
+    return unexpected<gl_pipeline_err>{gl_pipeline_err::none};
+  }
+
+  _pipelines.emplace_back(gl_pipeline{*this});
+  r_handle pos = _pipelines.size()-1;
+  auto& pip = _pipelines.back();
+  return gl_resource<gl_pipeline>{*this, pos};
+}
+
+auto gl_context::make_shader(r_shader_descriptor desc)
+                                              -> expected<gl_resource<gl_shader>, gl_shader_err> {
 
 }
 
-expected<r_buffer<gl_context>, r_buffer_err> gl_context::create_buffer(r_buffer_info buffer) {
+auto gl_context::make_target(r_target_descriptor desc)
+                                    -> expected<gl_resource<gl_framebuffer>, gl_framebuffer_err> {
 
 }
 
-void gl_context::destroy_buffer(r_buffer<gl_context>& buffer) {
+void gl_context::destroy_texture(gl_resource<gl_texture> texture) {
 
 }
 
-expected<r_pipeline<gl_context>, r_pipeline_err> gl_context::create_pipeline(r_pipeline_info pip) {
+void gl_context::destroy_buffer(gl_resource<gl_buffer> buffer) {
 
 }
 
-void gl_context::destroy_pipeline(r_pipeline<gl_context>& pipeline) {
+void gl_context::destroy_pipeline(gl_resource<gl_pipeline> pipeline) {
 
 }
 
-expected<r_shader<gl_context>, r_shader_err> gl_context::create_shader(r_shader_info shader) {
+void gl_context::destroy_shader(gl_resource<gl_shader> shader) {
 
 }
 
-void gl_context::destroy_shader(r_shader<gl_context>& shader) {
+void gl_context::destroy_target(gl_resource<gl_framebuffer> target) {
 
 }
 

@@ -13,6 +13,9 @@ class gl_context;
 GLenum gl_check_error(const char* file, int line);
 void gl_clear_bits(r_clear clear, const color4& color);
 
+template<typename T>
+class gl_resource;
+
 constexpr inline GLenum gl_attrib_underlying_type_cast(r_attrib_type type) {
   switch (type) {
     case r_attrib_type::f32:   [[fallthrough]];

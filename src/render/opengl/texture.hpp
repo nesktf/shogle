@@ -10,6 +10,7 @@ private:
   gl_texture(gl_context& ctx) :
     _ctx(ctx) {}
 
+private:
   void load(r_texture_type type, r_texture_format format,
             r_texture_sampler sampler, r_texture_address addressing,
             const uint8** texels, uint32 mipmaps, uint32 count, uvec3 dim);
@@ -46,7 +47,7 @@ public:
 private:
   bool complete() const { return _id != 0; }
 
-public:
+private:
   gl_context& _ctx;
 
   GLuint _id{0};
@@ -57,9 +58,6 @@ public:
   r_texture_format _format{r_texture_format::none};
   uint32 _count{0};
   uint32 _mipmaps{0};
-
-public:
-  NTF_DISABLE_MOVE_COPY(gl_texture); // Managed by the context
 
 private:
   friend class gl_context;

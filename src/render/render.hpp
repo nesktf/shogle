@@ -2,9 +2,24 @@
 
 #include "../math/alg.hpp"
 
+#include <optional>
 #include <limits>
 #include <map>
 #include <vector>
+
+#define SHOGLE_DECLARE_RENDER_HANDLE(__name) \
+struct __name { \
+public: \
+  __name() = default; \
+  __name(r_handle handle_, r_api api_) : \
+    handle(handle_), api(api_) {} \
+public: \
+  bool valid() const { return handle != r_handle_tombstone && api != r_api::none; } \
+  explicit operator bool() const { return valid(); } \
+public: \
+  r_handle handle{r_handle_tombstone}; \
+  r_api api{r_api::none}; \
+}
 
 namespace ntf {
 
@@ -30,60 +45,15 @@ enum class r_resource_type : uint8 {
   target,
 };
 
-template<typename RenderCtx>
-class r_buffer;
+using r_handle = uint64;
+constexpr r_handle r_handle_tombstone = std::numeric_limits<r_handle>::max();
 
-template<typename RenderCtx>
-class r_texture;
+SHOGLE_DECLARE_RENDER_HANDLE(r_buffer);
+SHOGLE_DECLARE_RENDER_HANDLE(r_texture);
+SHOGLE_DECLARE_RENDER_HANDLE(r_pipeline);
+SHOGLE_DECLARE_RENDER_HANDLE(r_shader);
+SHOGLE_DECLARE_RENDER_HANDLE(r_target);
 
-template<typename RenderCtx>
-class r_pipeline;
-
-template<typename RenderCtx>
-class r_shader;
-
-template<typename RenderCtx>
-class r_target;
-
-constexpr uint64 r_handle_tombstone = std::numeric_limits<uint64>::max();
-
-class r_resource_view {
-public:
-  r_resource_view() = default;
-
-private:
-  r_resource_view(r_api api, r_resource_type type, uint64 handle) :
-    _api(api), _type(type), _handle(handle) {}
-
-public:
-  r_api api() const { return _api; }
-  r_resource_type type() const { return _type; }
-  uint64 handle() const { return _handle; }
-
-  bool valid() const { return _type != r_resource_type::none; }
-  explicit operator bool() const { return valid(); }
-
-private:
-  r_api _api{r_api::none};
-  r_resource_type _type{r_resource_type::none};
-  uint64 _handle{r_handle_tombstone};
-
-private:
-  template<typename RenderCtx>
-  friend class r_buffer;
-
-  template<typename RenderCtx>
-  friend class r_texture;
-
-  template<typename RenderCtx>
-  friend class r_pipeline;
-
-  template<typename RenderCtx>
-  friend class r_shader;
-
-  template<typename RenderCtx>
-  friend class r_target;
-};
 
 enum class r_attrib_type : uint32 {
   none = 0,
@@ -153,14 +123,14 @@ constexpr inline uint32 r_attrib_type_dim(r_attrib_type type) {
   return 0;
 }
 
-struct r_attrib_info {
+struct r_attrib_descriptor {
   uint32        binding{0};
   uint32        location{0};
   size_t        offset{0};
   r_attrib_type type{r_attrib_type::none};
 };
 
-struct r_uniform_info {
+struct r_uniform_descriptor {
   uint32        location{0};
   r_attrib_type type{r_attrib_type::none};
   const void*   data{nullptr};
@@ -177,7 +147,7 @@ enum class r_shader_type : uint8 {
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_shader_type)
 
-struct r_shader_info {
+struct r_shader_descriptor {
   std::string_view  source{};
   r_shader_type     type{r_shader_type::none};
 };
@@ -212,7 +182,7 @@ enum class r_texture_address : uint8 {
   clamp_border,
 };
 
-struct r_texture_info {
+struct r_texture_descriptor {
   const uint8**     texels{nullptr};
   uint32            count{0};
   uint32            mipmap_level{0};
@@ -230,7 +200,7 @@ enum class r_buffer_type : uint8 {
   uniform,
 };
 
-struct r_buffer_info {
+struct r_buffer_descriptor {
   const void*   data{nullptr};
   size_t        size{0};
   r_buffer_type type{r_buffer_type::none};
@@ -253,10 +223,14 @@ enum class r_polygon_mode : uint8 {
   fill,
 };
 
-struct r_pipeline_info {
-  const r_resource_view*    stages{nullptr};
+struct r_target_descriptor {
+
+};
+
+struct r_pipeline_descriptor {
+  const r_shader*           stages{nullptr};
   uint32                    stage_count{0};
-  const r_attrib_info*      attribs{nullptr};
+  const r_attrib_descriptor*      attribs{nullptr};
   uint32                    attrib_count{0};
   r_primitive               primitive{r_primitive::none};
   r_polygon_mode            poly_mode{r_polygon_mode::none};
@@ -272,36 +246,20 @@ enum class r_clear : uint8 {
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear)
 
 struct r_draw_cmd {
-  r_resource_view vertex_buffer{};
-  r_resource_view index_buffer{};
-  r_resource_view pipeline{};
-  r_resource_view target{};
+  r_buffer vertex_buffer{};
+  r_buffer index_buffer{};
+  r_pipeline pipeline{};
+  r_target target{};
 
-  const r_resource_view* textures{nullptr};
+  const r_texture* textures{nullptr};
   uint32 texture_count{0};
-  const r_uniform_info* uniforms{nullptr};
+  const r_uniform_descriptor* uniforms{nullptr};
   uint32 uniform_count{0};
 
   r_primitive primitive{r_primitive::none};
   uint32 draw_count{0};
   uint32 draw_offset{0};
   uint32 instance_count{0};
-};
-
-enum class r_texture_err {
-  none = 0,
-};
-
-enum class r_buffer_err {
-  none = 0,
-};
-
-enum class r_pipeline_err {
-  none = 0,
-};
-
-enum class r_shader_err {
-  none = 0,
 };
 
 //
@@ -447,3 +405,5 @@ enum class r_shader_err {
 // concept framebuffer_func = std::invocable<F>;
 //
 } // namespace ntf
+
+#undef SHOGLE_DECLARE_RENDER_HANDLE

@@ -21,23 +21,22 @@
 #include <vector>
 #include <queue>
 
-#define SHOGLE_DEFINE_GL_HANDLE(__name, __type, __store, __tag) \
+#define SHOGLE_DEFINE_GL_RESOURCE(__type, __handle_type, __store) \
 template<> \
-class __name<gl_context> {\
+class gl_resource<__type> {\
 private: \
-  __name(gl_context& ctx, uint64 handle) : _ctx(&ctx), _handle(handle) {} \
+  gl_resource(gl_context& ctx, r_handle handle) : _ctx(&ctx), _handle(handle) {} \
 public: \
   const __type& get() const { return _ctx->__store[_handle]; } \
   __type& get() { return _ctx->__store[_handle]; } \
-  const __type& operator->() const { return get(); } \
-  __type& operator->() { return get(); } \
+  const __type* operator->() const { return &get(); } \
+  __type* operator->() { return &get(); } \
   const __type& operator*() const { return get(); } \
   __type& operator*() { return get(); } \
-  r_resource_view view() const { return {r_api::opengl, __tag, _handle}; } \
-  explicit operator r_resource_view() const { return view(); } \
+  operator __handle_type() const { return {_handle, r_api::opengl}; } \
 private: \
   gl_context* _ctx; \
-  uint64 _handle; \
+  r_handle _handle; \
 private: \
   friend class gl_context; \
 }
@@ -46,6 +45,26 @@ namespace ntf {
 
 template<typename RenderContext>
 class glfw_window;
+
+enum class gl_texture_err {
+  none = 0,
+};
+
+enum class gl_buffer_err {
+  none = 0,
+};
+
+enum class gl_pipeline_err {
+  none = 0,
+};
+
+enum class gl_shader_err {
+  none = 0,
+};
+
+enum class gl_framebuffer_err {
+  none = 0,
+};
 
 class gl_context {
 public:
@@ -60,17 +79,17 @@ public:
   void draw_frame();
 
 public:
-  ntf::expected<r_texture<gl_context>, r_texture_err> create_texture(r_texture_info texture);
-  void destroy_texture(r_texture<gl_context>& texture);
+  expected<gl_resource<gl_texture>, gl_texture_err> make_texture(r_texture_descriptor desc);
+  expected<gl_resource<gl_buffer>, gl_buffer_err> make_buffer(r_buffer_descriptor desc);
+  expected<gl_resource<gl_pipeline>, gl_pipeline_err> make_pipeline(r_pipeline_descriptor desc);
+  expected<gl_resource<gl_shader>, gl_shader_err> make_shader(r_shader_descriptor desc);
+  expected<gl_resource<gl_framebuffer>, gl_framebuffer_err> make_target(r_target_descriptor desc);
 
-  ntf::expected<r_buffer<gl_context>, r_buffer_err> create_buffer(r_buffer_info buffer);
-  void destroy_buffer(r_buffer<gl_context>& buffer);
-
-  ntf::expected<r_pipeline<gl_context>, r_pipeline_err> create_pipeline(r_pipeline_info pipeline);
-  void destroy_pipeline(r_pipeline<gl_context>& pipeline);
-
-  ntf::expected<r_shader<gl_context>, r_shader_err> create_shader(r_shader_info shader);
-  void destroy_shader(r_shader<gl_context>& shader);
+  void destroy_texture(gl_resource<gl_texture> texture);
+  void destroy_buffer(gl_resource<gl_buffer> buffer);
+  void destroy_pipeline(gl_resource<gl_pipeline> pipeline);
+  void destroy_shader(gl_resource<gl_shader> shader);
+  void destroy_target(gl_resource<gl_framebuffer> target);
 
 public:
   void viewport(uint32 x, uint32 y, uint32 w, uint32 h);
@@ -136,19 +155,16 @@ public:
 private:
   friend class glfw_window<gl_context>;
 
-  friend class r_buffer<gl_context>;
-  friend class r_texture<gl_context>;
-  friend class r_pipeline<gl_context>;
-  friend class r_shader<gl_context>;
-  friend class r_target<gl_context>;
+  template<typename T>
+  friend class gl_resource;
 };
 
-SHOGLE_DEFINE_GL_HANDLE(r_buffer, gl_buffer, _buffers, r_resource_type::buffer);
-SHOGLE_DEFINE_GL_HANDLE(r_texture, gl_texture, _textures, r_resource_type::texture);
-SHOGLE_DEFINE_GL_HANDLE(r_pipeline, gl_pipeline, _pipelines, r_resource_type::pipeline);
-SHOGLE_DEFINE_GL_HANDLE(r_shader, gl_shader, _shaders, r_resource_type::shader);
-SHOGLE_DEFINE_GL_HANDLE(r_target, gl_framebuffer, _framebuffers, r_resource_type::target);
+SHOGLE_DEFINE_GL_RESOURCE(gl_buffer, r_buffer, _buffers);
+SHOGLE_DEFINE_GL_RESOURCE(gl_texture, r_texture, _textures);
+SHOGLE_DEFINE_GL_RESOURCE(gl_pipeline, r_pipeline, _pipelines);
+SHOGLE_DEFINE_GL_RESOURCE(gl_shader, r_shader, _shaders);
+SHOGLE_DEFINE_GL_RESOURCE(gl_framebuffer, r_target, _framebuffers);
 
 } // namespace ntf
 
-#undef SHOGLE_DEFINE_GL_HANDLE
+#undef SHOGLE_DEFINE_GL_RESOURCE

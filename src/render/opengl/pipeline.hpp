@@ -13,7 +13,7 @@ private:
 
 private:
   void load(const gl_shader** shaders, uint32 shader_count,
-            const r_attrib_info* attribs, uint32 attrib_count);
+            const r_attrib_descriptor* attribs, uint32 attrib_count);
   void unload();
 
 private:
@@ -31,11 +31,8 @@ private:
 
   GLuint _program_id{0};
   r_shader_type _enabled_shaders{r_shader_type::none};
-  std::vector<r_attrib_info> _attribs;
+  std::vector<r_attrib_descriptor> _attribs;
   size_t _stride{0};
-
-public:
-  NTF_DISABLE_MOVE_COPY(gl_pipeline);
 
 private:
   friend class gl_context;
