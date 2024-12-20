@@ -6,11 +6,6 @@
 
 namespace ntf {
 
-struct gl_attrib_info {
-  std::vector<r_attrib_info> attribs;
-  size_t stride{0};
-};
-
 class gl_pipeline {
 private:
   gl_pipeline(gl_context& ctx) :

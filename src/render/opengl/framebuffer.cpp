@@ -46,6 +46,7 @@ void gl_framebuffer::unload() {
 
   glDeleteFramebuffers(1, &_fbo);
   glDeleteBuffers(1, &_rbo);
+  _tex.unload();
 
   _fbo = 0;
   _rbo = 0;
@@ -65,6 +66,8 @@ void gl_framebuffer::viewport(uint32 x, uint32 y, uint32 w, uint32 h) {
   if (!rebuild) {
     return;
   }
+
+  NTF_ASSERT(_fbo);
 
   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
 
