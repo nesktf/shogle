@@ -14,7 +14,7 @@ enum class w_backend : uint8 {
   sdl2, // ?
 };
 
-enum class r_backend : uint8 {
+enum class r_api : uint8 {
   none = 0,
   software,
   opengl,
@@ -247,6 +247,7 @@ struct r_draw_cmd {
   r_resource_handle vertex_buffer{r_resource_tombstone};
   r_resource_handle index_buffer{r_resource_tombstone};
   r_resource_handle pipeline{r_resource_tombstone};
+  r_resource_handle target{r_resource_tombstone};
 
   const r_resource_handle* textures{nullptr};
   uint32 texture_count{0};

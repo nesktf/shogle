@@ -21,6 +21,9 @@ public:
   size_t size() const { return _size; }
 
 private:
+  bool complete() const { return _id != 0; }
+
+private:
   gl_context& _ctx;
 
   GLuint _id{0};

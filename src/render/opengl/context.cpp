@@ -61,8 +61,8 @@ void gl_context::init(GLADloadproc proc) {
 
   glEnable(GL_DEBUG_OUTPUT);
   glDebugMessageCallback(gl_context::_debug_callback, this);
-  glGenVertexArrays(1, &_state.vao);
-  glBindVertexArray(_state.vao);
+  glGenVertexArrays(1, &_glstate.vao);
+  glBindVertexArray(_glstate.vao);
 
   glEnable(GL_DEPTH_TEST); // ?
 
@@ -71,11 +71,59 @@ void gl_context::init(GLADloadproc proc) {
 
 void gl_context::destroy() {
   glBindVertexArray(0);
-  glDeleteVertexArrays(1, &_state.vao);
-  _state.vao = 0;
+  glDeleteVertexArrays(1, &_glstate.vao);
+  _glstate.vao = 0;
 
   glUseProgram(0);
-  _state.program = 0;
+  _glstate.program = 0;
+
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  _glstate.vbo = 0;
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  _glstate.ebo = 0;
+
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  _glstate.fbo = 0;
+
+  _glstate.viewport = uvec4{0, 0, 0, 0};
+  _glstate.clear_flags = r_clear::none;
+  _glstate.clear_color = color4{.3f, .3f, .3f, 1.f};
+
+  for (auto& buffer : _buffers) {
+    if (buffer.complete()) {
+      buffer.unload();
+    }
+  }
+
+  for (auto& texture : _textures) {
+    if (texture.complete()) {
+      texture.unload();
+    }
+  }
+
+  for (auto& shader : _shaders) {
+    if (shader.complete()) {
+      shader.unload();
+    }
+  }
+
+  for (auto& pipeline : _pipelines) {
+    if (pipeline.complete()) {
+      pipeline.unload();
+    }
+  }
+
+  for (auto& framebuffer : _framebuffers) {
+    if (framebuffer.complete()) {
+      framebuffer.unload();
+    }
+  }
+
+  _attribs.clear();
+  _cmds = {};
+
+  _proc_fun = nullptr;
 }
 
 void gl_context::enqueue(r_draw_cmd cmd) {
@@ -83,20 +131,35 @@ void gl_context::enqueue(r_draw_cmd cmd) {
 }
 
 void gl_context::draw_frame() {
-  gl_clear_bits(_state.clears, _state.clear_color);
+  gl_clear_bits(_glstate.clear_flags, _glstate.clear_color);
 
   while (!_cmds.empty()) {
     r_draw_cmd cmd = _cmds.front();
     _cmds.pop();
 
+    uint32 fbo = 0;
+    uvec4 vp = viewport();
+
+    if (cmd.target != r_resource_tombstone) {
+      auto& fb = _framebuffers[cmd.target];
+      fbo = fb._fbo;
+      vp = fb.viewport();
+    }
+
+    if (_glstate.fbo != fbo) {
+      glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+      glViewport(vp.x, vp.y, vp.z, vp.w);
+      _glstate.fbo = fbo;
+    }
+
     auto& pipeline = _pipelines[cmd.pipeline];
-    if (_state.program != pipeline._program_id) {
+    if (_glstate.program != pipeline._program_id) {
       glUseProgram(pipeline._program_id);
-      _state.program = pipeline._program_id;
+      _glstate.program = pipeline._program_id;
     }
 
     auto& vbo = _buffers[cmd.vertex_buffer];
-    if (_state.vbo != vbo._id) {
+    if (_glstate.vbo != vbo._id) {
       glBindBuffer(GL_ARRAY_BUFFER, vbo._id);
 
       // HAS to be reconfigured each time the vertex buffer is rebound
@@ -105,7 +168,7 @@ void gl_context::draw_frame() {
         const uint32 type_dim = r_attrib_type_dim(attrib.type);
         NTF_ASSERT(type_dim);
 
-        const GLenum gl_underlying_type = gl_attrib_type_underlying_cast(attrib.type);
+        const GLenum gl_underlying_type = gl_attrib_underlying_type_cast(attrib.type);
         NTF_ASSERT(gl_underlying_type);
 
         glVertexAttribPointer(
@@ -119,11 +182,11 @@ void gl_context::draw_frame() {
         glEnableVertexAttribArray(attrib.location);
       }
 
-      _state.vbo = vbo._id;
+      _glstate.vbo = vbo._id;
     }
 
     if (cmd.textures) {
-      _state.enabled_tex = 0;
+      _glstate.enabled_tex = 0;
       for (uint32 i = 0; i < cmd.texture_count; ++i) {
         auto& tex = _textures[cmd.textures[i]];
         const uint32 gltype = gl_texture_type_cast(tex.type(), tex.is_array());
@@ -131,7 +194,7 @@ void gl_context::draw_frame() {
 
         glActiveTexture(GL_TEXTURE0+i);
         glBindTexture(gltype, tex._id);
-        _state.enabled_tex |= 1 << i;
+        _glstate.enabled_tex |= 1 << i;
       }
     }
 
@@ -149,9 +212,9 @@ void gl_context::draw_frame() {
     }
 
     auto& ebo = _buffers[cmd.index_buffer];
-    if (_state.ebo != ebo._id) {
+    if (_glstate.ebo != ebo._id) {
       glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo._id);
-      _state.ebo = ebo._id;
+      _glstate.ebo = ebo._id;
     }
     glDrawElements(glprim, cmd.draw_count, GL_UNSIGNED_INT,
                    reinterpret_cast<void*>(cmd.draw_offset*sizeof(uint32)));
@@ -159,25 +222,46 @@ void gl_context::draw_frame() {
 }
 
 void gl_context::viewport(uint32 x, uint32 y, uint32 w, uint32 h) {
-  glViewport(x, y, w, h);
-  _state.viewport.x = x;
-  _state.viewport.y = y;
-  _state.viewport.z = w;
-  _state.viewport.w = h;
+  // glViewport(x, y, w, h);
+  _glstate.viewport.x = x;
+  _glstate.viewport.y = y;
+  _glstate.viewport.z = w;
+  _glstate.viewport.w = h;
 }
 
 void gl_context::viewport(uint32 w, uint32 h) {
-  glViewport(_state.viewport.x, _state.viewport.y, w, h);
-  _state.viewport.z = w,
-  _state.viewport.w = h;
+  viewport(_glstate.viewport.x, _glstate.viewport.y, w, h);
 }
 
-void gl_context::toggle_clear(r_clear clear) {
-  _state.clears ^= clear;
+void gl_context::viewport(uvec2 pos, uvec2 size) {
+  viewport(pos.x, pos.y, size.x, size.y);
+}
+
+void gl_context::viewport(uvec2 size) {
+  viewport(size.x, size.y);
+}
+
+void gl_context::clear_color(float32 r, float32 g, float32 b, float32 a) {
+  _glstate.clear_color.r = r;
+  _glstate.clear_color.g = g;
+  _glstate.clear_color.b = b;
+  _glstate.clear_color.a = a;
+}
+
+void gl_context::clear_color(float32 r, float32 g, float32 b) {
+  clear_color(r, g, b, _glstate.clear_color.a);
 }
 
 void gl_context::clear_color(color4 color) {
-  _state.clear_color = color;
+  clear_color(color.r, color.g, color.b, color. a);
+}
+
+void gl_context::clear_color(color3 color) {
+  clear_color(color.r, color.g, color.b);
+}
+
+void gl_context::clear_flags(r_clear clear) {
+  _glstate.clear_flags = clear;
 }
 
 std::string_view gl_context::name() const {
@@ -192,20 +276,38 @@ std::string_view gl_context::version() const {
   return reinterpret_cast<const char*>(glGetString(GL_VERSION));
 }
 
-auto gl_context::create_texture(r_texture_info info) -> expected<texture_handle, r_texture_err> {
-}
-
-auto gl_context::create_buffer(r_buffer_info info) -> expected<buffer_handle, r_buffer_err> {
+expected<r_texture<gl_context>, r_texture_err> gl_context::create_texture(r_texture_info texture) {
 
 }
 
-auto gl_context::create_pipeline(r_pipeline_info info) -> expected<pipeline_handle, r_pipeline_err> {
+void gl_context::destroy_texture(r_texture<gl_context>& texture) {
 
 }
 
-auto gl_context::create_shader(r_shader_info info) -> expected<shader_handle, r_shader_err> {
+expected<r_buffer<gl_context>, r_buffer_err> gl_context::create_buffer(r_buffer_info buffer) {
 
 }
+
+void gl_context::destroy_buffer(r_buffer<gl_context>& buffer) {
+
+}
+
+expected<r_pipeline<gl_context>, r_pipeline_err> gl_context::create_pipeline(r_pipeline_info pip) {
+
+}
+
+void gl_context::destroy_pipeline(r_pipeline<gl_context>& pipeline) {
+
+}
+
+expected<r_shader<gl_context>, r_shader_err> gl_context::create_shader(r_shader_info shader) {
+
+}
+
+void gl_context::destroy_shader(r_shader<gl_context>& shader) {
+
+}
+
 //
 // gl_context& gl_context::current_context() {
 //   NTF_ASSERT(_current_context, "Current gl_context is invalid");

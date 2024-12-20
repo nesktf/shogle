@@ -33,11 +33,14 @@ public:
   const gl_texture& tex() const { return _tex; }
 
   uvec4 viewport() const { return _viewport; }
-  uvec2 viewport_sz() const { return uvec2{_viewport.z, _viewport.w}; }
+  uvec2 viewport_size() const { return uvec2{_viewport.z, _viewport.w}; }
   uvec2 viewport_pos() const { return uvec2{_viewport.x, _viewport.y}; }
 
   r_clear clear_flags() const { return _clear; }
   color4 clear_color() const { return _clear_color; }
+
+private:
+  bool complete() const { return _fbo != 0; }
 
 private:
   gl_context& _ctx;

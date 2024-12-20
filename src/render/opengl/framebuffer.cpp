@@ -94,7 +94,7 @@ void gl_framebuffer::viewport(uvec2 pos, uvec2 size) {
 }
 
 void gl_framebuffer::viewport(uvec2 size) {
-  viewport(_viewport.x, _viewport.y, size.x, size.y);
+  viewport(size.x, size.y);
 }
 
 void gl_framebuffer::clear_color(float32 r, float32 g, float32 b, float32 a) {
@@ -113,7 +113,7 @@ void gl_framebuffer::clear_color(color4 color) {
 }
 
 void gl_framebuffer::clear_color(color3 color) {
-  clear_color(color.r, color.g, color.b, _clear_color.a);
+  clear_color(color.r, color.g, color.b);
 }
 
 void gl_framebuffer::clear_flags(r_clear clear) {

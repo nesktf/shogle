@@ -23,6 +23,9 @@ public:
   std::optional<uint32> uniform_location(std::string_view name) const;
 
 private:
+  bool complete() const { return _program_id != 0; }
+
+private:
   gl_context& _ctx;
 
   GLuint _program_id{0};
