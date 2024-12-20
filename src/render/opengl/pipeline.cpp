@@ -4,7 +4,8 @@
 
 namespace ntf {
 
-void gl_pipeline::load(const gl_shader** shaders, uint32 shader_count, r_resource_handle attrib) {
+void gl_pipeline::load(const gl_shader** shaders, uint32 shader_count, 
+                       const r_attrib_info* attribs, uint32 attrib_count) {
   NTF_ASSERT(!_program_id);
 
   NTF_ASSERT(shaders && shader_count > 0);
@@ -16,11 +17,11 @@ void gl_pipeline::load(const gl_shader** shaders, uint32 shader_count, r_resourc
     shader_flags &= shader._type;
   }
 
-  // size_t stride{0};
-  // for (uint32 i = 0; i < attrib_count; ++i) {
-  //   r_attrib_info attrib = attribs[i];
-  //   stride += r_attrib_type_size(attrib.type);
-  // }
+  size_t stride{0};
+  for (uint32 i = 0; i < attrib_count; ++i) {
+    r_attrib_info attrib = attribs[i];
+    stride += r_attrib_type_size(attrib.type);
+  }
 
   int succ;
   GLuint id = glCreateProgram();
@@ -38,8 +39,12 @@ void gl_pipeline::load(const gl_shader** shaders, uint32 shader_count, r_resourc
     return;
   }
 
+  _attribs.reserve(attrib_count);
+  for (uint32 i = 0; i < attrib_count; ++i) {
+    _attribs.emplace_back(attribs[i]);
+  }
   _program_id = id;
-  _attrib_handle = attrib;
+  _stride = stride;
   _enabled_shaders = shader_flags;
 }
 
@@ -50,7 +55,8 @@ void gl_pipeline::unload() {
 
   _program_id = 0;
   _enabled_shaders = r_shader_type::none;
-  _attrib_handle = r_resource_tombstone;
+  _attribs.clear();
+  _stride = 0;
 }
 
 std::optional<uint32> gl_pipeline::uniform_location(std::string_view name) const {

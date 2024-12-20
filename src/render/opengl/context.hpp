@@ -21,6 +21,27 @@
 #include <vector>
 #include <queue>
 
+#define SHOGLE_DEFINE_GL_HANDLE(__name, __type, __store, __tag) \
+template<> \
+class __name<gl_context> {\
+private: \
+  __name(gl_context& ctx, uint64 handle) : _ctx(&ctx), _handle(handle) {} \
+public: \
+  const __type& get() const { return _ctx->__store[_handle]; } \
+  __type& get() { return _ctx->__store[_handle]; } \
+  const __type& operator->() const { return get(); } \
+  __type& operator->() { return get(); } \
+  const __type& operator*() const { return get(); } \
+  __type& operator*() { return get(); } \
+  r_resource_view view() const { return {r_api::opengl, __tag, _handle}; } \
+  explicit operator r_resource_view() const { return view(); } \
+private: \
+  gl_context* _ctx; \
+  uint64 _handle; \
+private: \
+  friend class gl_context; \
+}
+
 namespace ntf {
 
 template<typename RenderContext>
@@ -84,7 +105,7 @@ private:
                                          GLsizei len, const GLchar* msg, const void* user_ptr);
 
 public:
-  static constexpr r_api render_api = r_api::opengl;
+  static constexpr r_api RENDER_API = r_api::opengl;
 
 private:
   GLADloadproc _proc_fun{nullptr};
@@ -92,7 +113,6 @@ private:
   std::vector<gl_texture> _textures;
   std::vector<gl_buffer> _buffers;
   std::vector<gl_shader> _shaders;
-  std::vector<std::pair<std::vector<r_attrib_info>, size_t>> _attribs;
   std::vector<gl_pipeline> _pipelines;
   std::vector<gl_framebuffer> _framebuffers;
 
@@ -115,41 +135,20 @@ public:
 
 private:
   friend class glfw_window<gl_context>;
+
+  friend class r_buffer<gl_context>;
+  friend class r_texture<gl_context>;
+  friend class r_pipeline<gl_context>;
+  friend class r_shader<gl_context>;
+  friend class r_target<gl_context>;
 };
 
-// template<typename F>
-// void gl_framebuffer::bind(F&& func) {
-//   NTF_ASSERT(_fbo);
-//
-//   uvec4 main_vp = _ctx.viewport();
-//   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
-//   glViewport(_viewport.x, _viewport.y, _viewport.z, _viewport.w);
-//
-//   gl_clear_bits(_clear, _clear_color);
-//   func();
-//
-//   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//   glViewport(main_vp.x, main_vp.y, main_vp.z, main_vp.w);
-// }
-
-template<>
-class r_texture<gl_context> {
-
-};
-
-template<>
-class r_buffer<gl_context> {
-
-};
-
-template<>
-class r_pipeline<gl_context> {
-
-};
-
-template<>
-class r_shader<gl_context> {
-
-};
+SHOGLE_DEFINE_GL_HANDLE(r_buffer, gl_buffer, _buffers, r_resource_type::buffer);
+SHOGLE_DEFINE_GL_HANDLE(r_texture, gl_texture, _textures, r_resource_type::texture);
+SHOGLE_DEFINE_GL_HANDLE(r_pipeline, gl_pipeline, _pipelines, r_resource_type::pipeline);
+SHOGLE_DEFINE_GL_HANDLE(r_shader, gl_shader, _shaders, r_resource_type::shader);
+SHOGLE_DEFINE_GL_HANDLE(r_target, gl_framebuffer, _framebuffers, r_resource_type::target);
 
 } // namespace ntf
+
+#undef SHOGLE_DEFINE_GL_HANDLE

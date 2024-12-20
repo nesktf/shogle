@@ -8,12 +8,6 @@
 
 namespace ntf {
 
-enum class w_backend : uint8 {
-  none = 0,
-  glfw,
-  sdl2, // ?
-};
-
 enum class r_api : uint8 {
   none = 0,
   software,
@@ -21,18 +15,74 @@ enum class r_api : uint8 {
   vulkan,
 };
 
-using r_resource_handle = uint64;
-constexpr r_resource_handle r_resource_tombstone = std::numeric_limits<r_resource_handle>::max();
-
-struct r_extent_2D {
-  uint32 width{0};
-  uint32 height{0};
+enum class r_win_api : uint8 {
+  none = 0,
+  glfw,
+  sdl2, // ?
 };
 
-struct r_extent_3D {
-  uint32 width{0};
-  uint32 height{0};
-  uint32 depth{0};
+enum class r_resource_type : uint8 {
+  none = 0,
+  buffer,
+  texture,
+  pipeline,
+  shader,
+  target,
+};
+
+template<typename RenderCtx>
+class r_buffer;
+
+template<typename RenderCtx>
+class r_texture;
+
+template<typename RenderCtx>
+class r_pipeline;
+
+template<typename RenderCtx>
+class r_shader;
+
+template<typename RenderCtx>
+class r_target;
+
+constexpr uint64 r_handle_tombstone = std::numeric_limits<uint64>::max();
+
+class r_resource_view {
+public:
+  r_resource_view() = default;
+
+private:
+  r_resource_view(r_api api, r_resource_type type, uint64 handle) :
+    _api(api), _type(type), _handle(handle) {}
+
+public:
+  r_api api() const { return _api; }
+  r_resource_type type() const { return _type; }
+  uint64 handle() const { return _handle; }
+
+  bool valid() const { return _type != r_resource_type::none; }
+  explicit operator bool() const { return valid(); }
+
+private:
+  r_api _api{r_api::none};
+  r_resource_type _type{r_resource_type::none};
+  uint64 _handle{r_handle_tombstone};
+
+private:
+  template<typename RenderCtx>
+  friend class r_buffer;
+
+  template<typename RenderCtx>
+  friend class r_texture;
+
+  template<typename RenderCtx>
+  friend class r_pipeline;
+
+  template<typename RenderCtx>
+  friend class r_shader;
+
+  template<typename RenderCtx>
+  friend class r_target;
 };
 
 enum class r_attrib_type : uint32 {
@@ -132,9 +182,6 @@ struct r_shader_info {
   r_shader_type     type{r_shader_type::none};
 };
 
-template<typename RenderContext>
-class r_shader;
-
 enum class r_texture_type : uint8 {
   none = 0,
   texture1d,
@@ -169,15 +216,12 @@ struct r_texture_info {
   const uint8**     texels{nullptr};
   uint32            count{0};
   uint32            mipmap_level{0};
-  r_extent_3D       extent{};
+  uvec3             extent{};
   r_texture_type    type{r_texture_type::none};
   r_texture_format  format{r_texture_format::none};
   r_texture_sampler sampler{r_texture_sampler::none};
   r_texture_address addressing{r_texture_address::none};
 };
-
-template<typename RenderContext>
-class r_texture;
 
 enum class r_buffer_type : uint8 {
   none = 0,
@@ -191,9 +235,6 @@ struct r_buffer_info {
   size_t        size{0};
   r_buffer_type type{r_buffer_type::none};
 };
-
-template<typename RenderContext>
-class r_buffer;
 
 enum class r_primitive : uint8 {
   none = 0,
@@ -213,24 +254,13 @@ enum class r_polygon_mode : uint8 {
 };
 
 struct r_pipeline_info {
-  const r_resource_handle*  stages{nullptr};
+  const r_resource_view*    stages{nullptr};
   uint32                    stage_count{0};
   const r_attrib_info*      attribs{nullptr};
   uint32                    attrib_count{0};
   r_primitive               primitive{r_primitive::none};
   r_polygon_mode            poly_mode{r_polygon_mode::none};
 };
-
-template<typename RenderContext>
-class r_pipeline;
-
-
-struct r_mesh_info {
-
-};
-
-template<typename RenderContext>
-class r_mesh;
 
 
 enum class r_clear : uint8 {
@@ -242,20 +272,20 @@ enum class r_clear : uint8 {
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear)
 
 struct r_draw_cmd {
-  r_primitive primitive{r_primitive::none};
+  r_resource_view vertex_buffer{};
+  r_resource_view index_buffer{};
+  r_resource_view pipeline{};
+  r_resource_view target{};
 
-  r_resource_handle vertex_buffer{r_resource_tombstone};
-  r_resource_handle index_buffer{r_resource_tombstone};
-  r_resource_handle pipeline{r_resource_tombstone};
-  r_resource_handle target{r_resource_tombstone};
-
-  const r_resource_handle* textures{nullptr};
+  const r_resource_view* textures{nullptr};
   uint32 texture_count{0};
   const r_uniform_info* uniforms{nullptr};
   uint32 uniform_count{0};
 
+  r_primitive primitive{r_primitive::none};
   uint32 draw_count{0};
   uint32 draw_offset{0};
+  uint32 instance_count{0};
 };
 
 enum class r_texture_err {

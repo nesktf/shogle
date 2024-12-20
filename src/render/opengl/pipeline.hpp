@@ -12,7 +12,8 @@ private:
     _ctx(ctx) {}
 
 private:
-  void load(const gl_shader** shaders, uint32 shader_count, r_resource_handle attrib);
+  void load(const gl_shader** shaders, uint32 shader_count,
+            const r_attrib_info* attribs, uint32 attrib_count);
   void unload();
 
 private:
@@ -30,7 +31,8 @@ private:
 
   GLuint _program_id{0};
   r_shader_type _enabled_shaders{r_shader_type::none};
-  r_resource_handle _attrib_handle{r_resource_tombstone};
+  std::vector<r_attrib_info> _attribs;
+  size_t _stride{0};
 
 public:
   NTF_DISABLE_MOVE_COPY(gl_pipeline);

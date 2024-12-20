@@ -120,7 +120,6 @@ void gl_context::destroy() {
     }
   }
 
-  _attribs.clear();
   _cmds = {};
 
   _proc_fun = nullptr;
@@ -133,6 +132,24 @@ void gl_context::enqueue(r_draw_cmd cmd) {
 void gl_context::draw_frame() {
   gl_clear_bits(_glstate.clear_flags, _glstate.clear_color);
 
+  auto draw_things = [](GLenum prim, uint32 offset, uint32 count, uint32 instances, bool indices) {
+    if (indices) {
+      if (instances > 1) {
+        glDrawArraysInstanced(prim, offset, count, instances);
+      } else {
+        glDrawArrays(prim, offset, count);
+      }
+    } else {
+      if (instances > 1) {
+        glDrawElementsInstanced(prim, count, GL_UNSIGNED_INT,
+                                reinterpret_cast<void*>(offset*sizeof(uint32)), instances);
+      } else {
+        glDrawElements(prim, count, GL_UNSIGNED_INT,
+                       reinterpret_cast<void*>(offset*sizeof(uint32)));
+      }
+    }
+  };
+
   while (!_cmds.empty()) {
     r_draw_cmd cmd = _cmds.front();
     _cmds.pop();
@@ -140,8 +157,10 @@ void gl_context::draw_frame() {
     uint32 fbo = 0;
     uvec4 vp = viewport();
 
-    if (cmd.target != r_resource_tombstone) {
-      auto& fb = _framebuffers[cmd.target];
+    if (cmd.target) {
+      NTF_ASSERT(cmd.target.api() == RENDER_API);
+      NTF_ASSERT(cmd.target.type() == r_resource_type::target);
+      auto& fb = _framebuffers[cmd.target.handle()];
       fbo = fb._fbo;
       vp = fb.viewport();
     }
@@ -152,19 +171,39 @@ void gl_context::draw_frame() {
       _glstate.fbo = fbo;
     }
 
-    auto& pipeline = _pipelines[cmd.pipeline];
+    bool rebind_attributes = false;
+
+    NTF_ASSERT(cmd.pipeline && cmd.pipeline.api() == RENDER_API);
+    NTF_ASSERT(cmd.pipeline.type() == r_resource_type::pipeline);
+    auto& pipeline = _pipelines[cmd.pipeline.handle()];
     if (_glstate.program != pipeline._program_id) {
       glUseProgram(pipeline._program_id);
       _glstate.program = pipeline._program_id;
+      rebind_attributes = true;
     }
 
-    auto& vbo = _buffers[cmd.vertex_buffer];
+    NTF_ASSERT(cmd.vertex_buffer && cmd.vertex_buffer.api() == RENDER_API);
+    NTF_ASSERT(cmd.vertex_buffer.type() == r_resource_type::buffer);
+    auto& vbo = _buffers[cmd.vertex_buffer.handle()];
     if (_glstate.vbo != vbo._id) {
       glBindBuffer(GL_ARRAY_BUFFER, vbo._id);
+      _glstate.vbo = vbo._id;
+      rebind_attributes = true; // HAS to be reconfigured each time the vertex buffer is rebound
+    }
 
-      // HAS to be reconfigured each time the vertex buffer is rebound
-      const auto& [attribs, stride] = _attribs[pipeline._attrib_handle];
-      for (const auto& attrib : attribs) {
+    bool use_indices = cmd.index_buffer.valid();
+    if (use_indices) {
+      NTF_ASSERT(cmd.index_buffer.api() == RENDER_API);
+      NTF_ASSERT(cmd.index_buffer.type() == r_resource_type::buffer);
+      auto& ebo = _buffers[cmd.index_buffer.handle()];
+      if (_glstate.ebo != ebo._id) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo._id);
+        _glstate.ebo = ebo._id;
+      }
+    }
+
+    if (rebind_attributes) {
+      for (const auto& attrib : pipeline._attribs) {
         const uint32 type_dim = r_attrib_type_dim(attrib.type);
         NTF_ASSERT(type_dim);
 
@@ -176,20 +215,18 @@ void gl_context::draw_frame() {
           type_dim,
           gl_underlying_type,
           GL_FALSE, // Don't normalize,
-          stride,
+          pipeline._stride,
           reinterpret_cast<void*>(attrib.offset)
         );
         glEnableVertexAttribArray(attrib.location);
       }
-
-      _glstate.vbo = vbo._id;
     }
 
     if (cmd.textures) {
       _glstate.enabled_tex = 0;
       for (uint32 i = 0; i < cmd.texture_count; ++i) {
-        auto& tex = _textures[cmd.textures[i]];
-        const uint32 gltype = gl_texture_type_cast(tex.type(), tex.is_array());
+        auto& tex = _textures[cmd.textures[i].handle()];
+        const GLenum gltype = gl_texture_type_cast(tex.type(), tex.is_array());
         NTF_ASSERT(gltype);
 
         glActiveTexture(GL_TEXTURE0+i);
@@ -205,19 +242,9 @@ void gl_context::draw_frame() {
       }
     }
 
-    const uint32 glprim = gl_primitive_cast(cmd.primitive);
-    if (cmd.index_buffer == r_resource_tombstone) {
-      glDrawArrays(glprim, cmd.draw_offset, cmd.draw_count);
-      continue;
-    }
-
-    auto& ebo = _buffers[cmd.index_buffer];
-    if (_glstate.ebo != ebo._id) {
-      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo._id);
-      _glstate.ebo = ebo._id;
-    }
-    glDrawElements(glprim, cmd.draw_count, GL_UNSIGNED_INT,
-                   reinterpret_cast<void*>(cmd.draw_offset*sizeof(uint32)));
+    const GLenum glprim = gl_primitive_cast(cmd.primitive);
+    NTF_ASSERT(glprim);
+    draw_things(glprim, cmd.draw_offset, cmd.draw_count, cmd.instance_count, use_indices);
   }
 }
 
