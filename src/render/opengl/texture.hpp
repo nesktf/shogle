@@ -3,6 +3,7 @@
 #include "./opengl.hpp"
 
 namespace ntf {
+class gl_framebuffer;
 
 class gl_texture {
 private:
@@ -62,6 +63,7 @@ public:
 
 private:
   friend class gl_context;
+  friend class gl_framebuffer;
 };
 
 constexpr inline GLenum gl_texture_type_cast(r_texture_type type, bool array) {

@@ -22,4 +22,21 @@ GLenum gl_check_error(const char* file, int line) {
   return err;
 }
 
+void gl_clear_bits(r_clear clear, const color4& color) {
+  GLbitfield clear_bits{0};
+  if (+(clear & r_clear::color)) {
+    glClearColor(color.r, color.g, color.b, color.a);
+    clear_bits |= GL_COLOR_BUFFER_BIT;
+  }
+  if (+(clear & r_clear::depth)) {
+    clear_bits |= GL_DEPTH_BUFFER_BIT;
+  }
+  if (+(clear & r_clear::stencil)) {
+    clear_bits |= GL_STENCIL_BUFFER_BIT;
+  }
+  if (clear_bits != 0) {
+    glClear(clear_bits);
+  }
+}
+
 } // namespace ntf

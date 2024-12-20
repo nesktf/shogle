@@ -2,6 +2,7 @@
 
 #include "../math/alg.hpp"
 
+#include <limits>
 #include <map>
 #include <vector>
 
@@ -21,6 +22,7 @@ enum class r_backend : uint8 {
 };
 
 using r_resource_handle = uint64;
+constexpr r_resource_handle r_resource_tombstone = std::numeric_limits<r_resource_handle>::max();
 
 struct r_extent_2D {
   uint32 width{0};
@@ -106,6 +108,12 @@ struct r_attrib_info {
   uint32        location{0};
   size_t        offset{0};
   r_attrib_type type{r_attrib_type::none};
+};
+
+struct r_uniform_info {
+  uint32        location{0};
+  r_attrib_type type{r_attrib_type::none};
+  const void*   data{nullptr};
 };
 
 enum class r_shader_type : uint8 {
@@ -233,7 +241,37 @@ enum class r_clear : uint8 {
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear)
 
+struct r_draw_cmd {
+  r_primitive primitive{r_primitive::none};
 
+  r_resource_handle vertex_buffer{r_resource_tombstone};
+  r_resource_handle index_buffer{r_resource_tombstone};
+  r_resource_handle pipeline{r_resource_tombstone};
+
+  const r_resource_handle* textures{nullptr};
+  uint32 texture_count{0};
+  const r_uniform_info* uniforms{nullptr};
+  uint32 uniform_count{0};
+
+  uint32 draw_count{0};
+  uint32 draw_offset{0};
+};
+
+enum class r_texture_err {
+  none = 0,
+};
+
+enum class r_buffer_err {
+  none = 0,
+};
+
+enum class r_pipeline_err {
+  none = 0,
+};
+
+enum class r_shader_err {
+  none = 0,
+};
 
 //
 // enum class depth_fun {

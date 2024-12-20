@@ -8,7 +8,9 @@
 
 #include "buffer.hpp"
 #include "texture.hpp"
-#include <queue>
+#include "shader.hpp"
+#include "pipeline.hpp"
+#include "framebuffer.hpp"
 
 #ifdef SHOGLE_ENABLE_IMGUI
 #include <imgui_impl_opengl3.h>
@@ -16,33 +18,13 @@
 
 #include "stl/expected.hpp"
 
-#include <optional>
 #include <vector>
+#include <queue>
 
 namespace ntf {
 
 template<typename RenderContext>
 class glfw_window;
-
-struct r_draw_cmd {
-
-};
-
-enum class r_texture_error {
-  none = 0,
-};
-
-enum class r_buffer_error {
-  none = 0,
-};
-
-enum class r_pipeline_error {
-  none = 0,
-};
-
-enum class r_shader_error {
-  none = 0,
-};
 
 class gl_context {
 public:
@@ -51,15 +33,11 @@ public:
   using pipeline_handle = r_pipeline<gl_context>;
   using shader_handle = r_shader<gl_context>;
 
-  enum class init_err {
-    none = 0,
-  };
-
-private:
+public:
   gl_context() = default;
 
 private:
-  init_err init(GLADloadproc proc);
+  void init(GLADloadproc proc);
   void destroy();
 
 public:
@@ -67,33 +45,36 @@ public:
   void draw_frame();
 
 public:
-  ntf::expected<texture_handle, r_texture_error> create_texture(r_texture_info info);
+  ntf::expected<texture_handle, r_texture_err> create_texture(r_texture_info info);
   void destroy_texture(texture_handle& texture);
 
-  ntf::expected<buffer_handle, r_buffer_error> create_buffer(r_buffer_info info);
+  ntf::expected<buffer_handle, r_buffer_err> create_buffer(r_buffer_info info);
   void destroy_buffer(buffer_handle& buffer);
 
-  ntf::expected<pipeline_handle, r_pipeline_error> create_pipeline(r_pipeline_info info);
+  ntf::expected<pipeline_handle, r_pipeline_err> create_pipeline(r_pipeline_info info);
   void destroy_pipeline(pipeline_handle& pipeline);
 
-  ntf::expected<shader_handle, r_shader_error> create_shader(r_shader_info info);
+  ntf::expected<shader_handle, r_shader_err> create_shader(r_shader_info info);
   void destroy_shader(shader_handle& shader);
 
 public:
   void viewport(uint32 x, uint32 y, uint32 w, uint32 h);
-  void viewport(uvec2 pos, uvec2 sz);
   void viewport(uint32 w, uint32 h);
-  void viewport(uvec2 sz);
 
+  void toggle_clear(r_clear clear);
   void clear_color(color4 color);
 
 public:
-  uvec4 viewport() const { return _viewport; }
-  color4 clear_color() const { return _clear_color; }
+  uvec4 viewport() const { return _state.viewport; }
+  uvec2 viewport_pos() const { return uvec2{_state.viewport.x, _state.viewport.y}; }
+  uvec2 viewport_sz() const { return uvec2{_state.viewport.z, _state.viewport.w}; }
+  color4 clear_color() const { return _state.clear_color; }
 
-  // const char* name() const { return (const char*)glGetString(GL_RENDERER); }
-  // const char* vendor() const { return (const char*)glGetString(GL_VENDOR); }
-  // const char* version() const{ return (const char*)glGetString(GL_VERSION); }
+  bool valid() const { return _proc_fun != nullptr; }
+
+  std::string_view name() const;
+  std::string_view vendor() const;
+  std::string_view version() const;
 
 private:
   static GLAPIENTRY void _debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity,
@@ -104,11 +85,13 @@ public:
 
 private:
   GLADloadproc _proc_fun{nullptr};
-  uvec4 _viewport{0, 0, 0, 0};
-  color4 _clear_color{.3f, .3f, .3f, 1.f};
 
   std::vector<gl_texture> _textures;
   std::vector<gl_buffer> _buffers;
+  std::vector<gl_shader> _shaders;
+  std::vector<std::pair<std::vector<r_attrib_info>, size_t>> _attribs;
+  std::vector<gl_pipeline> _pipelines;
+  std::vector<gl_framebuffer> _framebuffers;
 
   std::queue<r_draw_cmd> _cmds;
 
@@ -116,7 +99,10 @@ private:
     GLuint vao{0};
     GLuint vbo{0}, ebo{0}, ubo{0};
     GLuint program{0};
-    GLuint texture{0};
+    uint32 enabled_tex{0};
+    uvec4 viewport{0, 0, 0, 0};
+    color4 clear_color{.3f, .3f, .3f, 1.f};
+    r_clear clears{r_clear::none};
   } _state;
 
 public:
@@ -124,6 +110,41 @@ public:
 
 private:
   friend class glfw_window<gl_context>;
+};
+
+// template<typename F>
+// void gl_framebuffer::bind(F&& func) {
+//   NTF_ASSERT(_fbo);
+//
+//   uvec4 main_vp = _ctx.viewport();
+//   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
+//   glViewport(_viewport.x, _viewport.y, _viewport.z, _viewport.w);
+//
+//   gl_clear_bits(_clear, _clear_color);
+//   func();
+//
+//   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//   glViewport(main_vp.x, main_vp.y, main_vp.z, main_vp.w);
+// }
+
+template<>
+class r_texture<gl_context> {
+
+};
+
+template<>
+class r_buffer<gl_context> {
+
+};
+
+template<>
+class r_pipeline<gl_context> {
+
+};
+
+template<>
+class r_shader<gl_context> {
+
 };
 
 } // namespace ntf

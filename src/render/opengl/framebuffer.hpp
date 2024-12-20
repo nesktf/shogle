@@ -1,70 +1,58 @@
 #pragma once
 
-#include "./common.hpp"
+#include "./opengl.hpp"
 #include "./texture.hpp"
 
 namespace ntf {
 
 class gl_framebuffer {
-public:
-  using context_type = gl_context;
-  using texture_type = gl_texture<1u>;
+private:
+  gl_framebuffer(gl_context& ctx) :
+    _ctx(ctx), _tex(ctx) {}
 
-public:
-  gl_framebuffer() = default;
-
-  gl_framebuffer(std::size_t w, std::size_t h, gl_tex_params params = {});
-  gl_framebuffer(ivec2 sz, gl_tex_params params = {});
-
-public:
-  gl_framebuffer& load(std::size_t w, std::size_t h, gl_tex_params params = {}) &;
-  gl_framebuffer&& load(std::size_t w, std::size_t h, gl_tex_params params = {}) &&;
-  gl_framebuffer& load(ivec2 sz, gl_tex_params params = {}) &; 
-  gl_framebuffer&& load(ivec2 sz, gl_tex_params params = {}) &&; 
-
+private:
+  void load(uint32 x, uint32 y, uint32 w, uint32 h,
+            r_texture_sampler sampler, r_texture_address addressing);
   void unload();
 
-  template<framebuffer_func F>
-  gl_framebuffer& bind(std::size_t vp_w, std::size_t vp_h, F&& func) &;
+public:
+  void viewport(uint32 x, uint32 y, uint32 w, uint32 h);
+  void viewport(uint32 w, uint32 h);
+  void viewport(uvec2 pos, uvec2 size);
+  void viewport(uvec2 size);
 
-  template<framebuffer_func F>
-  gl_framebuffer&& bind(std::size_t vp_w, std::size_t vp_h, F&& func) &&;
+  void clear_color(float32 r, float32 g, float32 b, float32 a);
+  void clear_color(float32 r, float32 g, float32 b);
+  void clear_color(color4 color);
+  void clear_color(color3 color);
 
-  template<framebuffer_func F>
-  gl_framebuffer& bind(ivec2 vp_sz, F&& func) &;
-
-  template<framebuffer_func F>
-  gl_framebuffer&& bind(ivec2 vp_sz, F&& func) &&;
+  void clear_flags(r_clear clear);
 
 public:
-  texture_type& tex() & { return _texture; }
-  const texture_type& tex() const& { return _texture; }
+  gl_texture& tex() { return _tex; }
+  const gl_texture& tex() const { return _tex; }
 
-  GLuint id() const { return _fbo; }
-  GLuint rbo() const { return _rbo; }
-  ivec2 size() const { return _dim; }
-  bool valid() const { return _fbo != 0 && _fbo != 0 && _texture.valid(); }
+  uvec4 viewport() const { return _viewport; }
+  uvec2 viewport_sz() const { return uvec2{_viewport.z, _viewport.w}; }
+  uvec2 viewport_pos() const { return uvec2{_viewport.x, _viewport.y}; }
 
-  explicit operator bool() const { return valid(); }
+  r_clear clear_flags() const { return _clear; }
+  color4 clear_color() const { return _clear_color; }
 
 private:
+  gl_context& _ctx;
+  gl_texture _tex;
+
   GLuint _fbo{0}, _rbo{0};
-  texture_type _texture{};
-  ivec2 _dim{0,0};
-
-private:
-  void _load(std::size_t w, std::size_t h, gl_tex_params params);
-  void _reset();
-
-  template<framebuffer_func F>
-  void _bind(std::size_t vp_w, std::size_t vp_h, F&& func);
+  uvec4 _viewport{0, 0, 0, 0};
+  r_clear _clear{r_clear::none};
+  color4 _clear_color{.3f, .3f, .3f, 1.f};
 
 public:
-  NTF_DECLARE_MOVE_ONLY(gl_framebuffer);
+  NTF_DISABLE_MOVE_COPY(gl_framebuffer);
+
+private:
+  friend class gl_context;
 };
 
 } // namespace ntf
-
-#ifndef SHOGLE_RENDER_OPENGL_FRAMEBUFFER_INL
-#include "./framebuffer.inl"
-#endif

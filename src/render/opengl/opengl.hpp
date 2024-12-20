@@ -11,6 +11,7 @@ namespace ntf {
 class gl_context;
 
 GLenum gl_check_error(const char* file, int line);
+void gl_clear_bits(r_clear clear, const color4& color);
 
 constexpr inline GLenum gl_attrib_type_underlying_cast(r_attrib_type type) {
   switch (type) {
