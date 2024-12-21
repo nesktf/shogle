@@ -126,23 +126,8 @@ void gl_texture::_set_addressing(GLenum gltype, GLenum gladdress) {
 
 void gl_texture::load(r_texture_type type, r_texture_format format,
                       r_texture_sampler sampler, r_texture_address addressing,
-                      const uint8** texels, uint32 mipmaps, uint32 count, uvec3 dim) {
+                      const uint8* const* texels, uint32 mipmaps, uint32 count, uvec3 dim) {
   NTF_ASSERT(!_id);
-
-  // TODO: Move the checks to the context
-  if (!count) {
-    return;
-  }
-
-  if (count > 1 && type == r_texture_type::texture3d) {
-    return;
-  }
-
-  if (count != 6 && type == r_texture_type::cubemap) {
-    return;
-  }
-
-  // TODO: Validate dimensions
 
   const GLenum gltype = gl_texture_type_cast(type, (count > 1));
   NTF_ASSERT(gltype);

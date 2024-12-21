@@ -183,14 +183,14 @@ enum class r_texture_address : uint8 {
 };
 
 struct r_texture_descriptor {
-  const uint8**     texels{nullptr};
-  uint32            count{0};
-  uint32            mipmap_level{0};
-  uvec3             extent{};
-  r_texture_type    type{r_texture_type::none};
-  r_texture_format  format{r_texture_format::none};
-  r_texture_sampler sampler{r_texture_sampler::none};
-  r_texture_address addressing{r_texture_address::none};
+  const uint8* const* texels{nullptr};
+  uint32              count{0};
+  uint32              mipmap_level{0};
+  uvec3               extent{};
+  r_texture_type      type{r_texture_type::none};
+  r_texture_format    format{r_texture_format::none};
+  r_texture_sampler   sampler{r_texture_sampler::none};
+  r_texture_address   addressing{r_texture_address::none};
 };
 
 enum class r_buffer_type : uint8 {
@@ -230,12 +230,12 @@ struct r_framebuffer_descriptor {
 };
 
 struct r_pipeline_descriptor {
-  const r_shader*           stages{nullptr};
-  uint32                    stage_count{0};
-  const r_attrib_descriptor*      attribs{nullptr};
-  uint32                    attrib_count{0};
-  r_primitive               primitive{r_primitive::none};
-  r_polygon_mode            poly_mode{r_polygon_mode::none};
+  const r_shader*             stages{nullptr};
+  uint32                      stage_count{0};
+  const r_attrib_descriptor*  attribs{nullptr};
+  uint32                      attrib_count{0};
+  r_primitive                 primitive{r_primitive::none};
+  r_polygon_mode              poly_mode{r_polygon_mode::none};
 };
 
 
@@ -248,20 +248,20 @@ enum class r_clear : uint8 {
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear)
 
 struct r_draw_cmd {
-  r_buffer vertex_buffer{};
-  r_buffer index_buffer{};
-  r_pipeline pipeline{};
-  r_framebuffer framebuffer{};
+  r_buffer                    vertex_buffer{};
+  r_buffer                    index_buffer{};
+  r_pipeline                  pipeline{};
+  r_framebuffer               framebuffer{};
 
-  const r_texture* textures{nullptr};
-  uint32 texture_count{0};
+  const r_texture*            textures{nullptr};
+  uint32                      texture_count{0};
   const r_uniform_descriptor* uniforms{nullptr};
-  uint32 uniform_count{0};
+  uint32                      uniform_count{0};
 
-  r_primitive primitive{r_primitive::none};
-  uint32 draw_count{0};
-  uint32 draw_offset{0};
-  uint32 instance_count{0};
+  r_primitive                 primitive{r_primitive::none};
+  uint32                      draw_count{0};
+  uint32                      draw_offset{0};
+  uint32                      instance_count{0};
 };
 
 } // namespace ntf

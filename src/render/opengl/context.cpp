@@ -274,7 +274,11 @@ std::string_view gl_context::version() const {
   return reinterpret_cast<const char*>(glGetString(GL_VERSION));
 }
 
-expected<r_texture, gl_texture_err>  gl_context::make_texture(r_texture_descriptor desc) {
+expected<r_texture, gl_texture_err> gl_context::make_texture(r_texture_descriptor desc) {
+  if (!gl_validate_descriptor(desc)) {
+    return unexpected<gl_texture_err>{gl_texture_err::none}; // ?
+  }
+
   r_handle handle = _textures.acquire(*this);
   auto& tex = _textures.get(handle);
 
@@ -289,6 +293,10 @@ expected<r_texture, gl_texture_err>  gl_context::make_texture(r_texture_descript
 }
 
 expected<r_buffer, gl_buffer_err> gl_context::make_buffer(r_buffer_descriptor desc) {
+  if (!gl_validate_descriptor(desc)) {
+    return unexpected<gl_buffer_err>{gl_buffer_err::none};
+  }
+
   r_handle handle = _buffers.acquire(*this);
   auto& buff = _buffers.get(handle);
 
@@ -302,7 +310,7 @@ expected<r_buffer, gl_buffer_err> gl_context::make_buffer(r_buffer_descriptor de
 }
 
 expected<r_pipeline, gl_pipeline_err> gl_context::make_pipeline(r_pipeline_descriptor desc) {
-  if (!desc.stages || desc.stage_count < 2) {
+  if (!gl_validate_descriptor(desc)) {
     return unexpected<gl_pipeline_err>{gl_pipeline_err::none};
   }
 
@@ -324,6 +332,10 @@ expected<r_pipeline, gl_pipeline_err> gl_context::make_pipeline(r_pipeline_descr
 }
 
 expected<r_shader, gl_shader_err> gl_context::make_shader(r_shader_descriptor desc) {
+  if (!gl_validate_descriptor(desc)) {
+    return unexpected<gl_shader_err>{gl_shader_err::none};
+  }
+
   r_handle handle = _shaders.acquire(*this);
   auto& shader = _shaders.get(handle);
 
@@ -338,6 +350,10 @@ expected<r_shader, gl_shader_err> gl_context::make_shader(r_shader_descriptor de
 
 auto gl_context::make_framebuffer(r_framebuffer_descriptor desc) 
                                                    -> expected<r_framebuffer, gl_framebuffer_err> {
+  if (!gl_validate_descriptor(desc)) {
+    return unexpected<gl_framebuffer_err>{gl_framebuffer_err::none};
+  }
+
   r_handle handle = _framebuffers.acquire(*this);
   auto& fbo = _framebuffers.get(handle);
 

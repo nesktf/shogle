@@ -13,7 +13,7 @@ private:
 private:
   void load(r_texture_type type, r_texture_format format,
             r_texture_sampler sampler, r_texture_address addressing,
-            const uint8** texels, uint32 mipmaps, uint32 count, uvec3 dim);
+            const uint8* const* texels, uint32 mipmaps, uint32 count, uvec3 dim);
   void unload();
 
 private:

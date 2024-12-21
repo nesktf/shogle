@@ -53,4 +53,33 @@ constexpr inline GLenum gl_primitive_cast(r_primitive primitive) {
   return 0;
 }
 
+constexpr inline bool gl_validate_descriptor(const r_attrib_descriptor& desc) {
+  return true;
+}
+
+constexpr inline bool gl_validate_descriptor(const r_texture_descriptor& desc) {
+  // TODO: Validate dimensions
+  return 
+    desc.count > 0 &&
+    desc.type != r_texture_type::none &&
+    !(desc.count > 1 && desc.type == r_texture_type::texture3d) &&
+    !(desc.count != 6 && desc.type == r_texture_type::cubemap);
+}
+
+constexpr inline bool gl_validate_descriptor(const r_buffer_descriptor& desc) {
+  return true;
+}
+
+constexpr inline bool gl_validate_descriptor(const r_pipeline_descriptor& desc) {
+  return !(!desc.stages || desc.stage_count < 2);
+}
+
+constexpr inline bool gl_validate_descriptor(const r_shader_descriptor& desc) {
+  return true;
+}
+
+constexpr inline bool gl_validate_descriptor(const r_framebuffer_descriptor& desc) {
+  return true;
+}
+
 } // namespace ntf
