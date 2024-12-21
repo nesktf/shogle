@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../math/alg.hpp"
+#include "math/vector.hpp"
 
 #include <optional>
 #include <limits>
@@ -23,6 +23,9 @@ public: \
 
 namespace ntf {
 
+using color3 = vec3;
+using color4 = vec4;
+
 enum class r_api : uint8 {
   none = 0,
   software,
@@ -35,6 +38,7 @@ enum class r_win_api : uint8 {
   glfw,
   sdl2, // ?
 };
+class r_window;
 
 enum class r_resource_type : uint8 {
   none = 0,
@@ -262,6 +266,14 @@ struct r_draw_cmd {
   uint32                      draw_count{0};
   uint32                      draw_offset{0};
   uint32                      instance_count{0};
+};
+
+template<typename T>
+concept render_context_object = requires(T ctx) {
+  { ctx.start_frame() } -> std::convertible_to<void>;
+  { ctx.end_frame() } -> std::convertible_to<void>;
+  { ctx.enqueue(r_draw_cmd{}) } -> std::convertible_to<void>;
+  { ctx.device_wait() } -> std::convertible_to<void>;
 };
 
 } // namespace ntf

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./alg.hpp"
+#include "common.hpp"
 
 namespace ntf {
 

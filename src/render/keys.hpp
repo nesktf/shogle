@@ -1,12 +1,15 @@
 #pragma once
 
-#include "../../math/alg.hpp"
+#include "stl/common.hpp"
 
+#ifdef SHOGLE_USE_GLFW
 #include <GLFW/glfw3.h>
+#endif
 
 namespace ntf {
 
-enum class glfw_keycode : int {
+#ifdef SHOGLE_USE_GLFW
+enum class keycode : int {
   key_unknown = GLFW_KEY_UNKNOWN,
   key_space = GLFW_KEY_SPACE,
   key_apostrophe = GLFW_KEY_APOSTROPHE,
@@ -129,16 +132,16 @@ enum class glfw_keycode : int {
   key_menu = GLFW_KEY_MENU,
 };
 
-enum class glfw_keystate : int {
+enum class keystate : int {
   press = GLFW_PRESS,
   release = GLFW_RELEASE,
   repeat = GLFW_REPEAT,
 };
 
 
-using glfw_scancode = int;
+using scancode = int;
 
-enum class glfw_keymod : int {
+enum class keymod : int {
   mod_shift = GLFW_MOD_SHIFT,
   mod_ctrl = GLFW_MOD_CONTROL,
   mod_alt = GLFW_MOD_ALT,
@@ -147,7 +150,7 @@ enum class glfw_keymod : int {
   mod_numlock = GLFW_MOD_NUM_LOCK,
 };
 
-enum class glfw_mousebutton : int {
+enum class mousebutton : int {
   mouse_1 = GLFW_MOUSE_BUTTON_1,
   mouse_2 = GLFW_MOUSE_BUTTON_2,
   mouse_3 = GLFW_MOUSE_BUTTON_3,
@@ -163,81 +166,6 @@ enum class glfw_mousebutton : int {
 };
 
 // TODO: Add gamepad things
-
-enum class glfw_profile {
-  any = GLFW_OPENGL_ANY_PROFILE,
-  compat = GLFW_OPENGL_COMPAT_PROFILE,
-  core = GLFW_OPENGL_CORE_PROFILE,
-};
-
-struct glfw_hints {
-  glfw_profile profile = glfw_profile::core;
-  int context_ver_maj = 3;
-  int context_ver_min = 3;
-  std::string_view x11_class_name = "";
-  std::string_view x11_instance_name = "";
-};
-
-class glfw_lib {
-public:
-  using keycode = glfw_keycode;
-  using scancode = glfw_scancode;
-  using keystate = glfw_keystate;
-  using keymod = glfw_keymod;
-
-private:
-  glfw_lib(bool succ) noexcept 
-    { _inited = succ; }
-
-public:
-  ~glfw_lib() noexcept {
-    if (_inited) {
-      glfwTerminate();
-      _inited = false;
-    }
-  }
-
-public:
-  static void set_swap_interval(uint interval) {
-    NTF_ASSERT(_inited);
-    glfwSwapInterval(static_cast<int>(interval));
-  }
-
-  template<is_forwarding<glfw_hints> Hints>
-  static void apply_hints(Hints&& hints) {
-    NTF_ASSERT(_inited);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, static_cast<int>(hints.profile));
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, static_cast<int>(hints.context_ver_maj));
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, static_cast<int>(hints.context_ver_min));
-    glfwWindowHintString(GLFW_X11_CLASS_NAME, hints.x11_class_name.data());
-    glfwWindowHintString(GLFW_X11_INSTANCE_NAME, hints.x11_instance_name.data());
-  }
-
-  static std::string_view error() {
-    const char* err;
-    if (glfwGetError(&err) == GLFW_NO_ERROR) {
-      return std::string_view{};
-    }
-    return std::string_view{err};
-  }
-
-public:
-  bool valid() const { return _inited; }
-  explicit operator bool() const { return valid(); }
-
-private:
-  static inline bool _inited{false};
-
-public:
-  NTF_DISABLE_MOVE_COPY(glfw_lib);
-
-private:
-  friend glfw_lib glfw_init();
-};
-
-[[nodiscard]] inline glfw_lib glfw_init() {
-  NTF_ASSERT(!glfw_lib::_inited);
-  return glfw_lib{glfwInit() == GLFW_TRUE};
-}
+#endif
 
 } // namespace ntf

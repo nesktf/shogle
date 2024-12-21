@@ -31,3 +31,7 @@
 #include <stl/singleton.hpp>
 #include <stl/task.hpp>
 #include <stl/threadpool.hpp>
+
+#ifdef SHOGLE_ENABLE_IMGUI
+#include <imgui.h>
+#endif

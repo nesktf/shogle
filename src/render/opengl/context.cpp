@@ -54,10 +54,10 @@ void gl_context::_debug_callback(GLenum src, GLenum type, GLuint id, GLenum seve
              severity_msg, type_msg, src_msg, id, msg);
 }
 
-void gl_context::init(GLADloadproc proc) {
-  if (!gladLoadGLLoader(proc)) {
-    return;
-  }
+void gl_context::_init_state() {
+#ifdef SHOGLE_ENABLE_IMGUI
+  ImGui_ImplOpenGL3_Init("#version 130");
+#endif
 
   glEnable(GL_DEBUG_OUTPUT);
   glDebugMessageCallback(gl_context::_debug_callback, this);
@@ -65,8 +65,6 @@ void gl_context::init(GLADloadproc proc) {
   glBindVertexArray(_glstate.vao);
 
   glEnable(GL_DEPTH_TEST); // ?
-
-  _proc_fun = proc;
 }
 
 void gl_context::destroy() {
@@ -98,13 +96,25 @@ void gl_context::destroy() {
   _cmds = {};
 
   _proc_fun = nullptr;
+  _swap_buffers = {};
+
+#ifdef SHOGLE_ENABLE_IMGUI
+  ImGui_ImplOpenGL3_Shutdown();
+#endif
 }
 
 void gl_context::enqueue(r_draw_cmd cmd) {
   _cmds.emplace(cmd);
 }
 
-void gl_context::draw_frame() {
+void gl_context::start_frame() {
+#ifdef SHOGLE_ENABLE_IMGUI
+  ImGui_ImplOpenGL3_NewFrame();
+  ImGui::NewFrame();
+#endif
+}
+
+void gl_context::end_frame() {
   gl_clear_bits(_glstate.clear_flags, _glstate.clear_color);
 
   auto draw_things = [](GLenum prim, uint32 offset, uint32 count, uint32 instances, bool indices) {
@@ -217,6 +227,13 @@ void gl_context::draw_frame() {
     NTF_ASSERT(glprim);
     draw_things(glprim, cmd.draw_offset, cmd.draw_count, cmd.instance_count, use_indices);
   }
+
+#ifdef SHOGLE_ENABLE_IMGUI
+  ImGui::Render();
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#endif
+
+  _swap_buffers();
 }
 
 void gl_context::viewport(uint32 x, uint32 y, uint32 w, uint32 h) {
@@ -262,15 +279,15 @@ void gl_context::clear_flags(r_clear clear) {
   _glstate.clear_flags = clear;
 }
 
-std::string_view gl_context::name() const {
+std::string_view gl_context::name_str() const {
   return reinterpret_cast<const char*>(glGetString(GL_RENDERER));
 }
 
-std::string_view gl_context::vendor() const {
+std::string_view gl_context::vendor_str() const {
   return reinterpret_cast<const char*>(glGetString(GL_VENDOR));
 }
 
-std::string_view gl_context::version() const {
+std::string_view gl_context::version_str() const {
   return reinterpret_cast<const char*>(glGetString(GL_VERSION));
 }
 

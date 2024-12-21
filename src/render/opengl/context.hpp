@@ -1,30 +1,23 @@
 #pragma once
 
-// #include "./texture.hpp"
-// #include "./shader.hpp"
-// #include "./mesh.hpp"
-// #include "./framebuffer.hpp"
-// #include "./font.hpp"
-
+#include "opengl.hpp"
 #include "buffer.hpp"
 #include "texture.hpp"
 #include "shader.hpp"
 #include "pipeline.hpp"
 #include "framebuffer.hpp"
 
-#ifdef SHOGLE_ENABLE_IMGUI
-#include <imgui_impl_opengl3.h>
-#endif
-
+#include "stl/function.hpp"
 #include "stl/expected.hpp"
+
+#ifdef SHOGLE_ENABLE_IMGUI
+#include <imgui_impl_opengl3.h> // Should work fine with OGL 4.x
+#endif
 
 #include <vector>
 #include <queue>
 
 namespace ntf {
-
-template<typename RenderContext>
-class glfw_window;
 
 // TODO: Define proper errors lol
 enum class gl_texture_err {
@@ -96,15 +89,29 @@ private:
   };
 
 public:
-  gl_context() = default;
+  gl_context(uint32 major, uint32 minor) :
+    _major(major), _minor(minor) {}
 
 private:
-  void init(GLADloadproc proc);
+  template<typename Proc>
+  void init(Proc proc, ntf::inplace_function<void()> swap_buffers_fun) {
+    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(proc))) {
+      return;
+    }
+    _proc_fun = reinterpret_cast<GLADloadproc>(proc);
+    _swap_buffers = std::move(swap_buffers_fun);
+    _init_state();
+  }
   void destroy();
 
+private:
+  void _init_state();
+
 public:
+  void start_frame();
   void enqueue(r_draw_cmd cmd);
-  void draw_frame();
+  void end_frame();
+  void device_wait() {}
 
 public:
   expected<r_texture, gl_texture_err> make_texture(r_texture_descriptor desc);
@@ -156,9 +163,10 @@ public:
   bool valid() const { return _proc_fun != nullptr; }
   explicit operator bool() const { return valid(); }
 
-  std::string_view name() const;
-  std::string_view vendor() const;
-  std::string_view version() const;
+  std::string_view name_str() const;
+  std::string_view vendor_str() const;
+  std::string_view version_str() const;
+  std::pair<uint32, uint32> version() const { return std::make_pair(_major, _minor); }
 
 private:
   static GLAPIENTRY void _debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity,
@@ -168,7 +176,9 @@ public:
   static constexpr r_api RENDER_API = r_api::opengl;
 
 private:
+  uint32 _major, _minor; // Core only
   GLADloadproc _proc_fun{nullptr};
+  ntf::inplace_function<void()> _swap_buffers;
 
   res_container<gl_texture> _textures;
   res_container<gl_buffer> _buffers;
@@ -194,7 +204,7 @@ public:
   NTF_DISABLE_MOVE_COPY(gl_context);
 
 private:
-  friend class glfw_window<gl_context>;
+  friend class r_window;
 };
 
 } // namespace ntf

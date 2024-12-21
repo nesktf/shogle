@@ -1,10 +1,10 @@
 #pragma once
 
-#include "./alg.hpp"
+#include "vector.hpp"
 
 namespace ntf {
 
-inline bool collision2d(vec2 pos1, vec2 size1, vec2 pos2, vec2 size2) {
+constexpr inline bool collision2d(vec2 pos1, vec2 size1, vec2 pos2, vec2 size2) {
   // AABB assumes pos is the lower left corner
   // Normalize scale, since obj.pos it's the quad's center
   vec2 normsize1 = size1 / 2.0f;
@@ -20,7 +20,7 @@ inline bool collision2d(vec2 pos1, vec2 size1, vec2 pos2, vec2 size2) {
   return col_x && col_y;
 }
 
-inline bool collision2d(vec2 pos1, vec2 size1, vec2 pos2, float rad2) {
+constexpr inline bool collision2d(vec2 pos1, vec2 size1, vec2 pos2, float rad2) {
   // No need to normalize pos1 to be the center
   float sq_rad = rad2*rad2; // mult is cheaper than sqrt?
   vec2 half_rect = size1 / 2.0f;
@@ -35,11 +35,11 @@ inline bool collision2d(vec2 pos1, vec2 size1, vec2 pos2, float rad2) {
   return sq_len < sq_rad;
 }
 
-inline bool collision2d(vec2 pos1, float rad1, vec2 pos2, vec2 size2) {
+constexpr inline bool collision2d(vec2 pos1, float rad1, vec2 pos2, vec2 size2) {
   return collision2d(pos2, size2, pos1, rad1);
 }
 
-inline bool collision2d(vec2 pos1, float rad1, vec2 pos2, float rad2) {
+constexpr inline bool collision2d(vec2 pos1, float rad1, vec2 pos2, float rad2) {
   vec2 diff = pos2 - pos1;
 
   float sq_sum = (rad1+rad2)*(rad1+rad2); // maybe it is
