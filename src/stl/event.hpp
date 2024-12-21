@@ -16,9 +16,7 @@
 
 #pragma once
 
-#include <algorithm>
-#include <functional>
-#include <list>
+#include "./types.hpp"
 
 namespace ntf {
 

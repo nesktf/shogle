@@ -1,18 +1,18 @@
 #pragma once
 
-#include "./common.hpp"
+#include "./types.hpp"
 
 namespace ntf {
 
 namespace impl {
 
-inline std::size_t align_fw_adjust(void* ptr, std::size_t align) noexcept {
-  std::uintptr_t iptr = reinterpret_cast<uintptr_t>(ptr);
+inline size_t align_fw_adjust(void* ptr, size_t align) noexcept {
+  uintptr_t iptr = reinterpret_cast<uintptr_t>(ptr);
   // return ((iptr - 1u + align) & -align) - iptr;
   return align - (iptr & (align - 1u));
 }
 
-inline void* ptr_add(void* p, std::uintptr_t sz) noexcept {
+inline void* ptr_add(void* p, uintptr_t sz) noexcept {
   return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(p) + sz);
 }
 
@@ -51,11 +51,11 @@ public:
     _pool(other._pool) {}
 
 public:
-  [[nodiscard]] pointer allocate(std::size_t n) {
+  [[nodiscard]] pointer allocate(size_t n) {
     return reinterpret_cast<pointer>(_pool.allocate(n*sizeof(T), alignof(T)));
   }
   
-  void deallocate(pointer ptr, std::size_t n) {
+  void deallocate(pointer ptr, size_t n) {
     _pool.deallocate(ptr, n);
   }
 
@@ -93,11 +93,11 @@ public:
   allocator_adaptor(allocator_adaptor<U, P>&) {}
 
 public:
-  [[nodiscard]] pointer allocate(std::size_t n) {
+  [[nodiscard]] pointer allocate(size_t n) {
     return reinterpret_cast<pointer>(pool_type{}.allocate(n*sizeof(T), alignof(T)));
   }
 
-  void deallocate(pointer ptr, std::size_t n) {
+  void deallocate(pointer ptr, size_t n) {
     pool_type{}.deallocate(ptr, n);
   }
 

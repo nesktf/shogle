@@ -1,7 +1,7 @@
 #pragma once
 
-#include "math/matrix.hpp"
-#include "math/complex.hpp"
+#include "../math/matrix.hpp"
+#include "../math/complex.hpp"
 
 #define SHOGLE_CAMERA_DECL_SETTER(signature) \
 T& signature &;\

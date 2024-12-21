@@ -1,11 +1,10 @@
 #pragma once
 
-#include "math/vector.hpp"
+#include "../math/matrix.hpp"
 
-#include <optional>
-#include <limits>
-#include <map>
-#include <vector>
+#ifdef SHOGLE_ENABLE_IMGUI
+#include <imgui.h>
+#endif
 
 #define SHOGLE_DECLARE_RENDER_HANDLE(__name) \
 struct __name { \

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "stl/common.hpp"
+#include "../stl/types.hpp"
 
 #ifdef SHOGLE_USE_GLFW
 #include <GLFW/glfw3.h>

@@ -1,5 +1,5 @@
-#include "render/opengl/context.hpp"
-#include "window.hpp"
+#include "./opengl/context.hpp"
+#include "./window.hpp"
 
 namespace ntf {
 

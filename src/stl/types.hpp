@@ -4,14 +4,25 @@
 
 #include <fmt/format.h>
 
-// To add:
-// - std::vector
-// - std::list
-// - std::queue
-// - std::array
-// - std::function
-// - std::map/std::unordered_map
-// - std::string?
+#include <vector>
+#include <exception>
+#include <functional>
+#include <queue>
+#include <memory>
+#include <utility>
+#include <initializer_list>
+#include <algorithm>
+#include <functional>
+#include <list>
+#include <string>
+#include <chrono>
+#include <condition_variable>
+#include <limits>
+#include <fstream>
+#include <sstream>
+
+#include <cstring>
+#include <cstdlib>
 
 namespace ntf {
 

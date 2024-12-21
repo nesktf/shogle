@@ -1,7 +1,6 @@
 #pragma once
 
-#include "core.hpp"
-#include "stl/common.hpp"
+#include "../stl/types.hpp"
 
 #ifdef SHOGLE_USE_GLM
 #include <glm/glm.hpp>

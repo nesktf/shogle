@@ -1,8 +1,10 @@
 #pragma once
 
+#include "../stl/types.hpp"
+
 namespace ntf {
 
-constexpr inline float cube_vertices[] {
+constexpr inline float32 cube_vertices[] {
   // coord               // normal             // texcoord
   -0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
    0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   1.0f, 0.0f,
@@ -47,7 +49,7 @@ constexpr inline float cube_vertices[] {
   -0.5f,  0.5f, -0.5f,   0.0f,  1.0f,  0.0f,   0.0f, 1.0f
 };
 
-constexpr inline float quad_vertices[] {
+constexpr inline float32 quad_vertices[] {
   // coord              //normals           // texcoord   // inv texcoord
   -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   /* 0.0f, 1.0f, // + vec2{0.0f, 1.0f} */
    0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 0.0f,   /* 1.0f, 1.0f, // + vec2{0.0f, 1.0f} */
@@ -55,7 +57,7 @@ constexpr inline float quad_vertices[] {
   -0.5f,  0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 1.0f,   /* 0.0f, 0.0f, // + vec2{0.0f, -1.0f} */
 };
 
-constexpr inline unsigned int quad_indices[] {
+constexpr inline uint32 quad_indices[] {
   0, 1, 2, // bottom right triangle
   0, 2, 3  // top left triangle
 };

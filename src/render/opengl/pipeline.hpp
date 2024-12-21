@@ -1,8 +1,7 @@
 #pragma once
 
 #include "./shader.hpp"
-
-#include <optional>
+#include "../../stl/optional.hpp"
 
 namespace ntf {
 
@@ -21,7 +20,7 @@ private:
 
 public:
   r_shader_type enabled_shaders() const { return _enabled_shaders; }
-  std::optional<uint32> uniform_location(std::string_view name) const;
+  optional<uint32> uniform_location(std::string_view name) const;
 
 private:
   bool complete() const { return _program_id != 0; }

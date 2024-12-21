@@ -3,7 +3,6 @@
 #define NTF_ENABLE 1
 #define NTF_DISABLE 0
 
-
 #ifndef SHOGLE_USE_CUSTOM_ASSERT
 #define SHOGLE_USE_CUSTOM_ASSERT NTF_ENABLE
 #endif
@@ -12,12 +11,8 @@
 #define SHOGLE_ENABLE_INTERNAL_LOGS NTF_ENABLE
 #endif
 
-#ifndef SHOGLE_GL_RAII_UNLOAD
-#define SHOGLE_GL_RAII_UNLOAD NTF_ENABLE
-#endif
-
-// Might replace glm at some point (?)
-#ifndef SHOGLE_USE_GLM
+// Library things
+#ifndef SHOGLE_USE_GLM // Might replace glm at some point (?)
 #define SHOGLE_USE_GLM NTF_ENABLE
 #endif
 
@@ -25,10 +20,15 @@
 #define SHOGLE_USE_GLFW NTF_ENABLE
 #endif
 
-#ifndef SHOGLE_USE_STL_COMPLEX
-#define SHOGLE_USE_STL_COMPLEX NTF_ENABLE
-#endif
-
 #ifndef SHOGLE_ENABLE_IMGUI
 #define SHOGLE_ENABLE_IMGUI NTF_DISABLE
+#endif
+
+// STL things
+#ifndef SHOGLE_USE_STL_OPTIONAL
+#define SHOGLE_USE_STL_OPTIONAL NTF_ENABLE
+#endif
+
+#ifndef SHOGLE_USE_STL_COMPLEX
+#define SHOGLE_USE_STL_COMPLEX NTF_ENABLE
 #endif

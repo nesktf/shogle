@@ -1,11 +1,7 @@
-#include "arena.hpp"
+#include "./arena.hpp"
 
 #include <sys/mman.h>
 #include <unistd.h>
-
-#include <cstring>
-#include <cstdlib>
-#include <cmath>
 
 static const std::size_t page_size = static_cast<std::size_t>(sysconf(_SC_PAGE_SIZE));
 static constexpr int mem_pflag = PROT_READ | PROT_WRITE;
@@ -16,13 +12,13 @@ static constexpr int mem_type = MAP_PRIVATE | MAP_ANONYMOUS;
 // }
 
 static std::size_t align_fw_adjust(void* ptr, std::size_t align) noexcept {
-  std::uintptr_t iptr = reinterpret_cast<std::uintptr_t>(ptr);
+  uintptr_t iptr = reinterpret_cast<uintptr_t>(ptr);
   return align - (iptr & (align - 1u));
   // return ((iptr - 1u + align) & -align) - iptr;
 }
 
-static void* ptr_add(void* p, std::uintptr_t sz) noexcept {
-  return reinterpret_cast<void*>(reinterpret_cast<std::uintptr_t>(p) + sz);
+static void* ptr_add(void* p, uintptr_t sz) noexcept {
+  return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(p) + sz);
 }
 
 namespace ntf {

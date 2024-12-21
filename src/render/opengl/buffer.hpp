@@ -1,6 +1,6 @@
 #pragma once
 
-#include "opengl.hpp"
+#include "./opengl.hpp"
 
 namespace ntf {
 

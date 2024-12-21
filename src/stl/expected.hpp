@@ -1,10 +1,6 @@
 #pragma once
 
-#include "./common.hpp"
-
-#include <memory>
-#include <utility>
-#include <initializer_list>
+#include "./types.hpp"
 
 namespace ntf {
 

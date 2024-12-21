@@ -1,10 +1,8 @@
 #pragma once
 
-#include "math/matrix.hpp"
-#include "math/quaternion.hpp"
-#include "math/complex.hpp"
-
-#include <vector>
+#include "../math/matrix.hpp"
+#include "../math/quaternion.hpp"
+#include "../math/complex.hpp"
 
 #define SHOGLE_TRANSFORM_DECL_SETTER(signature) \
 T& signature &;\

@@ -1,7 +1,5 @@
 #include "./pipeline.hpp"
 
-#include <array>
-
 namespace ntf {
 
 void gl_pipeline::load(const gl_shader* const* shaders, uint32 shader_count, 
@@ -59,7 +57,7 @@ void gl_pipeline::unload() {
   _stride = 0;
 }
 
-std::optional<uint32> gl_pipeline::uniform_location(std::string_view name) const {
+optional<uint32> gl_pipeline::uniform_location(std::string_view name) const {
   NTF_ASSERT(_program_id);
   const GLint loc = glGetUniformLocation(_program_id, name.data());
   if (loc < 0) {

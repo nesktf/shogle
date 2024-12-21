@@ -1,13 +1,21 @@
 #pragma once
 
-#include "./common.hpp"
+#include "./types.hpp"
 
-#include <memory>
-#include <utility>
-#include <initializer_list>
+#if SHOGLE_USE_STL_OPTIONAL
+#include <optional>
+#endif
 
 namespace ntf {
 
+#if SHOGLE_USE_STL_OPTIONAL
+template<typename T>
+using optional = std::optional<T>;
+
+using nullopt_t = std::nullopt_t;
+constexpr nullopt_t nullopt = std::nullopt;
+
+#else
 namespace impl {
 
 template<ntf::not_void T,
@@ -257,5 +265,6 @@ public:
   const T* operator->() const noexcept { return std::addressof(this->get()); }
   T* operator->() noexcept { return std::addressof(this->get()); }
 };
+#endif
 
 } // namespace ntf

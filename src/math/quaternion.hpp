@@ -1,6 +1,6 @@
 #pragma once
 
-#include "matrix.hpp"
+#include "./matrix.hpp"
 
 #if SHOGLE_USE_GLM
 #include <glm/gtc/quaternion.hpp>

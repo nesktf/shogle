@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vector.hpp"
+#include "./vector.hpp"
 
 #if SHOGLE_USE_STL_COMPLEX
 #include <complex>

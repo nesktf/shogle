@@ -1,21 +1,17 @@
 #pragma once
 
-#include "opengl.hpp"
-#include "buffer.hpp"
-#include "texture.hpp"
-#include "shader.hpp"
-#include "pipeline.hpp"
-#include "framebuffer.hpp"
+#include "./buffer.hpp"
+#include "./texture.hpp"
+#include "./shader.hpp"
+#include "./pipeline.hpp"
+#include "./framebuffer.hpp"
 
-#include "stl/function.hpp"
-#include "stl/expected.hpp"
+#include "../../stl/function.hpp"
+#include "../../stl/expected.hpp"
 
 #ifdef SHOGLE_ENABLE_IMGUI
 #include <imgui_impl_opengl3.h> // Should work fine with OGL 4.x
 #endif
-
-#include <vector>
-#include <queue>
 
 namespace ntf {
 

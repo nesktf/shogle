@@ -1,15 +1,12 @@
 #pragma once
 
-#include "render/render.hpp"
-#include "stl/function.hpp"
-
-#include "keys.hpp"
+#include "./render.hpp"
+#include "./keys.hpp"
+#include "../stl/function.hpp"
 
 #if SHOGLE_ENABLE_IMGUI
 #include <imgui_impl_glfw.h>
 #endif
-
-#include <chrono>
 
 namespace ntf {
 

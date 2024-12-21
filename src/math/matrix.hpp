@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vector.hpp"
+#include "./vector.hpp"
 
 #if SHOGLE_USE_GLM
 #include <glm/gtc/matrix_transform.hpp>
