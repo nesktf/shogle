@@ -51,9 +51,6 @@ private:
   r_clear _clear{r_clear::none};
   color4 _clear_color{.3f, .3f, .3f, 1.f};
 
-public:
-  NTF_DISABLE_MOVE_COPY(gl_framebuffer);
-
 private:
   friend class gl_context;
 };

@@ -4,8 +4,8 @@
 
 namespace ntf {
 
-void gl_pipeline::load(const gl_shader** shaders, uint32 shader_count, 
-                       const r_attrib_info* attribs, uint32 attrib_count) {
+void gl_pipeline::load(const gl_shader* const* shaders, uint32 shader_count, 
+                       const r_attrib_descriptor* attribs, uint32 attrib_count) {
   NTF_ASSERT(!_program_id);
 
   NTF_ASSERT(shaders && shader_count > 0);
@@ -19,7 +19,7 @@ void gl_pipeline::load(const gl_shader** shaders, uint32 shader_count,
 
   size_t stride{0};
   for (uint32 i = 0; i < attrib_count; ++i) {
-    r_attrib_info attrib = attribs[i];
+    r_attrib_descriptor attrib = attribs[i];
     stride += r_attrib_type_size(attrib.type);
   }
 

@@ -31,9 +31,6 @@ private:
   size_t _size{0};
   GLbitfield _alloc_flags{0};
 
-public:
-  NTF_DISABLE_MOVE_COPY(gl_buffer);
-
 private:
   friend class gl_context;
 };

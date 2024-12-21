@@ -90,36 +90,11 @@ void gl_context::destroy() {
   _glstate.clear_flags = r_clear::none;
   _glstate.clear_color = color4{.3f, .3f, .3f, 1.f};
 
-  for (auto& buffer : _buffers) {
-    if (buffer.complete()) {
-      buffer.unload();
-    }
-  }
-
-  for (auto& texture : _textures) {
-    if (texture.complete()) {
-      texture.unload();
-    }
-  }
-
-  for (auto& shader : _shaders) {
-    if (shader.complete()) {
-      shader.unload();
-    }
-  }
-
-  for (auto& pipeline : _pipelines) {
-    if (pipeline.complete()) {
-      pipeline.unload();
-    }
-  }
-
-  for (auto& framebuffer : _framebuffers) {
-    if (framebuffer.complete()) {
-      framebuffer.unload();
-    }
-  }
-
+  _textures.clear();
+  _buffers.clear();
+  _pipelines.clear();
+  _shaders.clear();
+  _framebuffers.clear();
   _cmds = {};
 
   _proc_fun = nullptr;
@@ -157,9 +132,9 @@ void gl_context::draw_frame() {
     uint32 fbo = 0;
     uvec4 vp = viewport();
 
-    if (cmd.target) {
-      NTF_ASSERT(cmd.target.api == RENDER_API);
-      auto& fb = _framebuffers[cmd.target.handle];
+    if (cmd.framebuffer) {
+      NTF_ASSERT(cmd.framebuffer.api == RENDER_API);
+      auto& fb = resource(cmd.framebuffer);
       fbo = fb._fbo;
       vp = fb.viewport();
     }
@@ -173,7 +148,7 @@ void gl_context::draw_frame() {
     bool rebind_attributes = false;
 
     NTF_ASSERT(cmd.pipeline && cmd.pipeline.api == RENDER_API);
-    auto& pipeline = _pipelines[cmd.pipeline.handle];
+    auto& pipeline = resource(cmd.pipeline);
     if (_glstate.program != pipeline._program_id) {
       glUseProgram(pipeline._program_id);
       _glstate.program = pipeline._program_id;
@@ -181,7 +156,7 @@ void gl_context::draw_frame() {
     }
 
     NTF_ASSERT(cmd.vertex_buffer && cmd.vertex_buffer.api == RENDER_API);
-    auto& vbo = _buffers[cmd.vertex_buffer.handle];
+    auto& vbo = resource(cmd.vertex_buffer);
     if (_glstate.vbo != vbo._id) {
       glBindBuffer(GL_ARRAY_BUFFER, vbo._id);
       _glstate.vbo = vbo._id;
@@ -191,7 +166,7 @@ void gl_context::draw_frame() {
     bool use_indices = cmd.index_buffer.valid();
     if (use_indices) {
       NTF_ASSERT(cmd.index_buffer.api == RENDER_API);
-      auto& ebo = _buffers[cmd.index_buffer.handle];
+      auto& ebo = resource(cmd.index_buffer);
       if (_glstate.ebo != ebo._id) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo._id);
         _glstate.ebo = ebo._id;
@@ -221,7 +196,7 @@ void gl_context::draw_frame() {
     if (cmd.textures) {
       _glstate.enabled_tex = 0;
       for (uint32 i = 0; i < cmd.texture_count; ++i) {
-        auto& tex = _textures[cmd.textures[i].handle];
+        auto& tex = resource(cmd.textures[i]);
         const GLenum gltype = gl_texture_type_cast(tex.type(), tex.is_array());
         NTF_ASSERT(gltype);
 
@@ -299,227 +274,163 @@ std::string_view gl_context::version() const {
   return reinterpret_cast<const char*>(glGetString(GL_VERSION));
 }
 
-auto gl_context::make_texture(r_texture_descriptor desc)
-                                            -> expected<gl_resource<gl_texture>, gl_texture_err> {
-  _textures.emplace_back(gl_texture{*this});
-  r_handle pos = _textures.size()-1;
-  auto& tex = _textures.back();
+expected<r_texture, gl_texture_err>  gl_context::make_texture(r_texture_descriptor desc) {
+  r_handle handle = _textures.acquire(*this);
+  auto& tex = _textures.get(handle);
+
   tex.load(desc.type, desc.format, desc.sampler, desc.addressing, desc.texels,
            desc.mipmap_level, desc.count, desc.extent);
   if (!tex.complete()) {
+    _buffers.push(handle);
     return unexpected<gl_texture_err>{gl_texture_err::none}; // ?
   }
-  return gl_resource<gl_texture>{*this, pos};
+
+  return r_texture{RENDER_API, handle};
 }
 
-auto gl_context::make_buffer(r_buffer_descriptor desc) 
-                                              -> expected<gl_resource<gl_buffer>, gl_buffer_err> {
+expected<r_buffer, gl_buffer_err> gl_context::make_buffer(r_buffer_descriptor desc) {
+  r_handle handle = _buffers.acquire(*this);
+  auto& buff = _buffers.get(handle);
 
+  buff.load(desc.type, desc.data, desc.size);
+  if (!buff.complete()) {
+    _buffers.push(handle);
+    return unexpected<gl_buffer_err>{gl_buffer_err::none};
+  }
+
+  return r_buffer{RENDER_API, handle};
 }
 
-auto gl_context::make_pipeline(r_pipeline_descriptor desc) 
-                                          -> expected<gl_resource<gl_pipeline>, gl_pipeline_err> {
+expected<r_pipeline, gl_pipeline_err> gl_context::make_pipeline(r_pipeline_descriptor desc) {
   if (!desc.stages || desc.stage_count < 2) {
     return unexpected<gl_pipeline_err>{gl_pipeline_err::none};
   }
 
-  _pipelines.emplace_back(gl_pipeline{*this});
-  r_handle pos = _pipelines.size()-1;
-  auto& pip = _pipelines.back();
-  return gl_resource<gl_pipeline>{*this, pos};
+  r_handle handle = _pipelines.acquire(*this);
+  auto& pipeline = _pipelines.get(handle);
+
+  std::vector<gl_shader*> stages(desc.stage_count);
+  for (uint32 i = 0; i < desc.stage_count; ++i) {
+    stages[i] = &_shaders.get(desc.stages[i].handle);
+  }
+
+  pipeline.load(stages.data(), desc.stage_count, desc.attribs, desc.attrib_count);
+  if (!pipeline.complete()) {
+    _pipelines.push(handle);
+    return unexpected<gl_pipeline_err>{gl_pipeline_err::none};
+  }
+
+  return r_pipeline{RENDER_API, handle};
 }
 
-auto gl_context::make_shader(r_shader_descriptor desc)
-                                              -> expected<gl_resource<gl_shader>, gl_shader_err> {
+expected<r_shader, gl_shader_err> gl_context::make_shader(r_shader_descriptor desc) {
+  r_handle handle = _shaders.acquire(*this);
+  auto& shader = _shaders.get(handle);
 
+  shader.load(desc.type, desc.source);
+  if (!shader.complete()) {
+    _shaders.push(handle);
+    return unexpected<gl_shader_err>{gl_shader_err::none};
+  }
+
+  return r_shader{RENDER_API, handle};
 }
 
-auto gl_context::make_target(r_target_descriptor desc)
-                                    -> expected<gl_resource<gl_framebuffer>, gl_framebuffer_err> {
+auto gl_context::make_framebuffer(r_framebuffer_descriptor desc) 
+                                                   -> expected<r_framebuffer, gl_framebuffer_err> {
+  r_handle handle = _framebuffers.acquire(*this);
+  auto& fbo = _framebuffers.get(handle);
 
+  const uvec4& vp = desc.viewport;
+  fbo.load(vp.x, vp.y, vp.z, vp.w, desc.sampler, desc.addressing);
+  if (!fbo.complete()) {
+    _framebuffers.push(handle);
+    return unexpected<gl_framebuffer_err>{gl_framebuffer_err::none};
+  }
+
+  return r_framebuffer{RENDER_API, handle};
 }
 
-void gl_context::destroy_texture(gl_resource<gl_texture> texture) {
-
+void gl_context::destroy(r_texture texture) {
+  auto& tex = resource(texture);
+  tex.unload();
+  _textures.push(texture.handle);
 }
 
-void gl_context::destroy_buffer(gl_resource<gl_buffer> buffer) {
-
+void gl_context::destroy(r_buffer buffer) {
+  auto& buff = resource(buffer);
+  buff.unload();
+  _buffers.push(buffer.handle);
 }
 
-void gl_context::destroy_pipeline(gl_resource<gl_pipeline> pipeline) {
-
+void gl_context::destroy(r_pipeline pipeline) {
+  auto& pip = resource(pipeline);
+  pip.unload();
+  _pipelines.push(pipeline.handle);
 }
 
-void gl_context::destroy_shader(gl_resource<gl_shader> shader) {
-
+void gl_context::destroy(r_shader shader) {
+  auto& shad = resource(shader);
+  shad.unload();
+  _shaders.push(shader.handle);
 }
 
-void gl_context::destroy_target(gl_resource<gl_framebuffer> target) {
-
+void gl_context::destroy(r_framebuffer framebuffer) {
+  auto& fbo = resource(framebuffer);
+  fbo.unload();
+  _framebuffers.push(framebuffer.handle);
 }
 
-//
-// gl_context& gl_context::current_context() {
-//   NTF_ASSERT(_current_context, "Current gl_context is invalid");
-//   return *_current_context;
-// }
-//
-// void gl_context::set_current_context(gl_context& ctx) {
-//   _current_context = &ctx;
-// }
-//
-// void gl_context::destroy() {
-//   NTF_ASSERT(valid());
-//   if (this == _current_context) {
-//     _current_context = nullptr;
-//   }
-// }
-//
-// void gl_context::set_state.viewport(std::size_t w, std::size_t h) const {
-//   NTF_ASSERT(valid());
-//   glViewport(0, 0, w, h);
-// }
-//
-// void gl_context::set_state.viewport(ivec2 sz) const {
-//   NTF_ASSERT(valid());
-//   glViewport(0, 0, sz.x, sz.y);
-// }
-//
-// void gl_context::set_state.viewport(std::size_t x, std::size_t y, std::size_t w, std::size_t h) const {
-//   NTF_ASSERT(valid());
-//   glViewport(x, y, w, h);
-// }
-//
-// void gl_context::set_state.viewport(ivec2 pos, ivec2 sz) const {
-//   NTF_ASSERT(valid());
-//   glViewport(pos.x, pos.y, sz.x, sz.y);
-// }
-//
-// void gl_context::clear_state.viewport(color4 color, clear flag) const {
-//   NTF_ASSERT(valid());
-//   GLbitfield mask = GL_COLOR_BUFFER_BIT;
-//   if ((flag & clear::depth) != clear::none) {
-//     mask |= GL_DEPTH_BUFFER_BIT;
-//   }
-//   if ((flag & clear::stencil) != clear::none) {
-//     mask |= GL_STENCIL_BUFFER_BIT;
-//   }
-//   glClearColor(color.r, color.g, color.b, color.a);
-//   glClear(mask);
-// }
-//
-// void gl_context::clear_state.viewport(color3 color, clear flag) const {
-//   clear_state.viewport(color4{color, 1.0f}, flag);
-// }
-//
-// void gl_context::set_stencil_test(bool flag) const {
-//   NTF_ASSERT(valid());
-//   if (flag) {
-//     glEnable(GL_STENCIL_TEST);
-//   } else {
-//     glDisable(GL_STENCIL_TEST);
-//   }
-// }
-//
-// void gl_context::set_depth_test(bool flag) const {
-//   NTF_ASSERT(valid());
-//   if (flag) {
-//     glEnable(GL_DEPTH_TEST);
-//   } else {
-//     glDisable(GL_DEPTH_TEST);
-//   }
-// }
-//
-// void gl_context::set_blending(bool flag) const {
-//   NTF_ASSERT(valid());
-//   if (flag) {
-//     glEnable(GL_BLEND);
-//     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); //TODO: set_blending_fun
-//   } else {
-//     glDisable(GL_BLEND);
-//   }
-// }
-//
-// void gl_context::set_depth_fun(depth_fun fun) const {
-//   NTF_ASSERT(valid());
-//   //TODO: More funcs
-//   switch (fun) {
-//     case depth_fun::less: {
-//       glDepthFunc(GL_LESS);
-//       break;
-//     }
-//     case depth_fun::lequal: {
-//       glDepthFunc(GL_LEQUAL);
-//       break;
-//     }
-//   }
-// }
-//
-// auto gl_context::make_quad(mesh_buffer vert_buff, mesh_buffer ind_buff) const -> mesh {
-//   NTF_ASSERT(valid());
-//   auto quad = mesh{}
-//     .vertices(&ntf::quad_vertices[0], sizeof(ntf::quad_vertices), vert_buff)
-//     .indices(&ntf::quad_indices[0], sizeof(ntf::quad_indices), ind_buff)
-//     .attributes(
-//       shader_attribute<0, vec3>{}, shader_attribute<1, vec3>{}, shader_attribute<2, vec2>{}
-//     );
-//   return quad;
-// }
-//
-// auto gl_context::make_cube(mesh_buffer vert_buff, mesh_buffer) const -> mesh {
-//   NTF_ASSERT(valid());
-//   auto cube = mesh{}
-//     .vertices(&ntf::cube_vertices[0], sizeof(ntf::cube_vertices), vert_buff)
-//     .attributes(
-//       shader_attribute<0, vec3>{}, shader_attribute<1, vec3>{}, shader_attribute<2, vec2>{}
-//     );
-//   return cube;
-// }
-//
-// void gl_context::draw(mesh_primitive prim, const mesh& mesh, std::size_t offset, uint count) const{
-//   NTF_ASSERT(valid());
-//
-//   if (!mesh.valid()) {
-//     SHOGLE_LOG(warning, "[ntf::gl_context::draw_instanced] Attempted to draw empty mesh");
-//     return;
-//   }
-//
-//   const auto glprim = enumtogl(prim);
-//   glBindVertexArray(mesh.vao());
-//   if (mesh.has_indices()) {
-//     // indices in glDrawElements is an offset in the current EBO
-//     // it advances offset*sizeof(unsigned int) in the buffer
-//     glDrawElements(glprim, count > 0 ? count : mesh.elem_count(), GL_UNSIGNED_INT,
-//                    reinterpret_cast<void*>(offset));
-//   } else {
-//     glDrawArrays(glprim, offset, count > 0 ? count : mesh.elem_count());
-//   }
-//   glBindVertexArray(0);
-// }
-//
-// void gl_context::draw_instanced(mesh_primitive prim, const mesh& mesh, uint primcount,
-//                                std::size_t offset, uint count) const {
-//   NTF_ASSERT(valid());
-//
-//   if (!mesh.valid()) {
-//     SHOGLE_LOG(warning, "[ntf::gl_context::draw_instanced] Attempted to draw empty mesh");
-//     return;
-//   }
-//
-//   const auto glprim = enumtogl(prim);
-//   glBindVertexArray(mesh.vao());
-//   if (mesh.has_indices()) {
-//     // indices in glDrawElementsInstanced is also an offset in the current EBO
-//     // it advances offset*sizeof(unsigned int) in the buffer
-//     glDrawElementsInstanced(glprim, count > 0 ? count : mesh.elem_count(), GL_UNSIGNED_INT,
-//                             reinterpret_cast<void*>(offset), primcount);
-//   } else {
-//     glDrawArraysInstanced(glprim, offset, count > 0 ? count : mesh.elem_count(), primcount);
-//   }
-//   glBindVertexArray(0);
-// }
-//
+const gl_texture& gl_context::resource(r_texture texture) const {
+  NTF_ASSERT(texture.valid() && texture.api == RENDER_API);
+  return _textures.get(texture.handle);
+}
+
+gl_texture& gl_context::resource(r_texture texture) {
+  NTF_ASSERT(texture.valid() && texture.api == RENDER_API);
+  return _textures.get(texture.handle);
+}
+
+const gl_buffer& gl_context::resource(r_buffer buffer) const {
+  NTF_ASSERT(buffer.valid() && buffer.api == RENDER_API);
+  return _buffers.get(buffer.handle);
+}
+
+gl_buffer& gl_context::resource(r_buffer buffer) {
+  NTF_ASSERT(buffer.valid() && buffer.api == RENDER_API);
+  return _buffers.get(buffer.handle);
+}
+
+const gl_pipeline& gl_context::resource(r_pipeline pipeline) const {
+  NTF_ASSERT(pipeline.valid() && pipeline.api == RENDER_API);
+  return _pipelines.get(pipeline.handle);
+}
+
+gl_pipeline& gl_context::resource(r_pipeline pipeline) {
+  NTF_ASSERT(pipeline.valid() && pipeline.api == RENDER_API);
+  return _pipelines.get(pipeline.handle);
+}
+
+const gl_shader& gl_context::resource(r_shader shader) const {
+  NTF_ASSERT(shader.valid() && shader.api == RENDER_API);
+  return _shaders.get(shader.handle);
+}
+
+gl_shader& gl_context::resource(r_shader shader) {
+  NTF_ASSERT(shader.valid() && shader.api == RENDER_API);
+  return _shaders.get(shader.handle);
+}
+
+const gl_framebuffer& gl_context::resource(r_framebuffer framebuffer) const {
+  NTF_ASSERT(framebuffer.valid() && framebuffer.api == RENDER_API);
+  return _framebuffers.get(framebuffer.handle);
+}
+
+gl_framebuffer& gl_context::resource(r_framebuffer framebuffer) {
+  NTF_ASSERT(framebuffer.valid() && framebuffer.api == RENDER_API);
+  return _framebuffers.get(framebuffer.handle);
+}
+
 // void gl_context::draw_text(const font& font, vec2 pos, float scale, std::string_view text) const {
 //   NTF_ASSERT(valid());
 //
@@ -569,9 +480,5 @@ void gl_context::destroy_target(gl_resource<gl_framebuffer> target) {
 //   glBindVertexArray(0);
 //   glBindTexture(GL_TEXTURE_2D, 0);
 // }
-//
-// void gl_context::draw_text(const font& font, std::string_view text) const {
-//   draw_text(font, vec2{0.f}, 0.f, text);
-// }
-//
+
 } // namespace ntf

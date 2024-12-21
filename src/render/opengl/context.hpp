@@ -21,31 +21,12 @@
 #include <vector>
 #include <queue>
 
-#define SHOGLE_DEFINE_GL_RESOURCE(__type, __handle_type, __store) \
-template<> \
-class gl_resource<__type> {\
-private: \
-  gl_resource(gl_context& ctx, r_handle handle) : _ctx(&ctx), _handle(handle) {} \
-public: \
-  const __type& get() const { return _ctx->__store[_handle]; } \
-  __type& get() { return _ctx->__store[_handle]; } \
-  const __type* operator->() const { return &get(); } \
-  __type* operator->() { return &get(); } \
-  const __type& operator*() const { return get(); } \
-  __type& operator*() { return get(); } \
-  operator __handle_type() const { return {_handle, r_api::opengl}; } \
-private: \
-  gl_context* _ctx; \
-  r_handle _handle; \
-private: \
-  friend class gl_context; \
-}
-
 namespace ntf {
 
 template<typename RenderContext>
 class glfw_window;
 
+// TODO: Define proper errors lol
 enum class gl_texture_err {
   none = 0,
 };
@@ -67,6 +48,53 @@ enum class gl_framebuffer_err {
 };
 
 class gl_context {
+private:
+  template<typename T>
+  class res_container {
+  public:
+    res_container() = default;
+
+  public:
+    void clear() {
+      for (auto& res : _res) {
+        if (res.complete()) {
+          res.unload();
+        }
+      }
+      _res.clear();
+      _free = {};
+    }
+
+    r_handle acquire(gl_context& ctx) {
+      if (!_free.empty()) {
+        r_handle pos = _free.front();
+        _free.pop();
+        return pos;
+      }
+      _res.emplace_back(T{ctx});
+      return _res.size()-1;
+    }
+
+    void push(r_handle pos) {
+      NTF_ASSERT(pos < _res.size());
+      _free.push(pos);
+    }
+
+    T& get(r_handle pos) {
+      NTF_ASSERT(pos < _res.size());
+      return _res[pos];
+    }
+
+    const T& get(r_handle pos) const {
+      NTF_ASSERT(pos < _res.size());
+      return _res[pos];
+    }
+
+  private:
+    std::vector<T> _res;
+    std::queue<r_handle> _free;
+  };
+
 public:
   gl_context() = default;
 
@@ -79,17 +107,30 @@ public:
   void draw_frame();
 
 public:
-  expected<gl_resource<gl_texture>, gl_texture_err> make_texture(r_texture_descriptor desc);
-  expected<gl_resource<gl_buffer>, gl_buffer_err> make_buffer(r_buffer_descriptor desc);
-  expected<gl_resource<gl_pipeline>, gl_pipeline_err> make_pipeline(r_pipeline_descriptor desc);
-  expected<gl_resource<gl_shader>, gl_shader_err> make_shader(r_shader_descriptor desc);
-  expected<gl_resource<gl_framebuffer>, gl_framebuffer_err> make_target(r_target_descriptor desc);
+  expected<r_texture, gl_texture_err> make_texture(r_texture_descriptor desc);
+  void destroy(r_texture texture);
+  const gl_texture& resource(r_texture texture) const;
+  gl_texture& resource(r_texture texture);
 
-  void destroy_texture(gl_resource<gl_texture> texture);
-  void destroy_buffer(gl_resource<gl_buffer> buffer);
-  void destroy_pipeline(gl_resource<gl_pipeline> pipeline);
-  void destroy_shader(gl_resource<gl_shader> shader);
-  void destroy_target(gl_resource<gl_framebuffer> target);
+  expected<r_buffer, gl_buffer_err> make_buffer(r_buffer_descriptor desc);
+  void destroy(r_buffer buffer);
+  const gl_buffer& resource(r_buffer buffer) const;
+  gl_buffer& resource(r_buffer buffer);
+
+  expected<r_pipeline, gl_pipeline_err> make_pipeline(r_pipeline_descriptor desc);
+  void destroy(r_pipeline pipeline);
+  const gl_pipeline& resource(r_pipeline pipeline) const;
+  gl_pipeline& resource(r_pipeline pipeline);
+
+  expected<r_shader, gl_shader_err> make_shader(r_shader_descriptor desc);
+  void destroy(r_shader shader);
+  const gl_shader& resource(r_shader shader) const;
+  gl_shader& resource(r_shader shader);
+
+  expected<r_framebuffer, gl_framebuffer_err> make_framebuffer(r_framebuffer_descriptor desc);
+  void destroy(r_framebuffer framebuffer);
+  const gl_framebuffer& resource(r_framebuffer framebuffer) const;
+  gl_framebuffer& resource(r_framebuffer framebuffer);
 
 public:
   void viewport(uint32 x, uint32 y, uint32 w, uint32 h);
@@ -129,11 +170,11 @@ public:
 private:
   GLADloadproc _proc_fun{nullptr};
 
-  std::vector<gl_texture> _textures;
-  std::vector<gl_buffer> _buffers;
-  std::vector<gl_shader> _shaders;
-  std::vector<gl_pipeline> _pipelines;
-  std::vector<gl_framebuffer> _framebuffers;
+  res_container<gl_texture> _textures;
+  res_container<gl_buffer> _buffers;
+  res_container<gl_pipeline> _pipelines;
+  res_container<gl_shader> _shaders;
+  res_container<gl_framebuffer> _framebuffers;
 
   std::queue<r_draw_cmd> _cmds;
 
@@ -154,17 +195,6 @@ public:
 
 private:
   friend class glfw_window<gl_context>;
-
-  template<typename T>
-  friend class gl_resource;
 };
 
-SHOGLE_DEFINE_GL_RESOURCE(gl_buffer, r_buffer, _buffers);
-SHOGLE_DEFINE_GL_RESOURCE(gl_texture, r_texture, _textures);
-SHOGLE_DEFINE_GL_RESOURCE(gl_pipeline, r_pipeline, _pipelines);
-SHOGLE_DEFINE_GL_RESOURCE(gl_shader, r_shader, _shaders);
-SHOGLE_DEFINE_GL_RESOURCE(gl_framebuffer, r_target, _framebuffers);
-
 } // namespace ntf
-
-#undef SHOGLE_DEFINE_GL_RESOURCE

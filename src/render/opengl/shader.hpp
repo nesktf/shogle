@@ -24,9 +24,6 @@ private:
   GLuint _id{0};
   r_shader_type _type{r_shader_type::none};
 
-public:
-  NTF_DISABLE_MOVE_COPY(gl_shader);
-
 private:
   friend class gl_context;
   friend class gl_pipeline;

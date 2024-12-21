@@ -12,7 +12,7 @@ private:
     _ctx(ctx) {}
 
 private:
-  void load(const gl_shader** shaders, uint32 shader_count,
+  void load(const gl_shader* const* shaders, uint32 shader_count,
             const r_attrib_descriptor* attribs, uint32 attrib_count);
   void unload();
 
