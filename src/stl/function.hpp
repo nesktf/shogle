@@ -84,7 +84,7 @@ void inplace_function<R(Args...), buffer>::function_helper<T>::destroy(T* obj) {
 template<std::size_t buffer, typename R, typename... Args>
 template<typename T>
 R inplace_function<R(Args...), buffer>::function_helper<T>::invoke(T* obj, Args... args) {
-  return std::invoke(obj, std::forward<Args>(args)...);
+  return std::invoke(*obj, std::forward<Args>(args)...);
 }
 
 
@@ -113,7 +113,7 @@ auto inplace_function<R(Args...), buffer>::operator=(T&& callable)
   static_assert(sizeof(T) <= buffer_size, "Size is not enough!");
 
   if (valid()) {
-    std::invoke(_buf);
+    std::invoke(_destroy, _buf);
   }
 
   _destroy = reinterpret_cast<destroy_ptr>(function_helper<T>::destroy);
@@ -148,7 +148,7 @@ void inplace_function<R(Args...), buffer>::_create_inplace(T&& callable) {
 template<std::size_t buffer, typename R, typename... Args>
 inplace_function<R(Args...), buffer>::~inplace_function() noexcept {
   if (valid()) {
-    std::invoke(_buf);
+    std::invoke(_destroy, _buf);
   }
 }
 
@@ -180,7 +180,7 @@ template<std::size_t buffer, typename R, typename... Args>
 auto inplace_function<R(Args...), buffer>::operator=(const inplace_function& f) noexcept
                                                                              -> inplace_function& {
   if (valid()) {
-    std::invoke(_buf);
+    std::invoke(_destroy, _buf);
   }
 
   _destroy = f._destroy;
@@ -200,7 +200,7 @@ template<std::size_t buffer, typename R, typename... Args>
 auto inplace_function<R(Args...), buffer>::operator=(inplace_function&& f) noexcept
                                                                              -> inplace_function& {
   if (valid()) {
-    std::invoke(_buf);
+    std::invoke(_destroy, _buf);
   }
 
   _destroy = std::move(f._destroy);

@@ -53,7 +53,7 @@ void gl_context::_debug_callback(GLenum src, GLenum type, GLuint id, GLenum seve
              severity_msg, type_msg, src_msg, id, msg);
 }
 
-void gl_context::_init_state() {
+bool gl_context::_init_state() {
 #ifdef SHOGLE_ENABLE_IMGUI
   ImGui_ImplOpenGL3_Init("#version 130");
 #endif
@@ -64,6 +64,7 @@ void gl_context::_init_state() {
   glBindVertexArray(_glstate.vao);
 
   glEnable(GL_DEPTH_TEST); // ?
+  return true;
 }
 
 void gl_context::destroy() {

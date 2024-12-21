@@ -90,18 +90,18 @@ public:
 
 private:
   template<typename Proc>
-  void init(Proc proc, ntf::inplace_function<void()> swap_buffers_fun) {
+  bool init(Proc proc, ntf::inplace_function<void()> swap_buffers_fun) {
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(proc))) {
-      return;
+      return false;
     }
     _proc_fun = reinterpret_cast<GLADloadproc>(proc);
     _swap_buffers = std::move(swap_buffers_fun);
-    _init_state();
+    return _init_state();
   }
   void destroy();
 
 private:
-  void _init_state();
+  bool _init_state();
 
 public:
   void start_frame();

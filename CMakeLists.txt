@@ -53,7 +53,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 target_include_directories(${PROJECT_NAME} PUBLIC
   ${SHOGLE_INCLUDE} ${EXTERN_INCLUDE} "${PROJECT_BINARY_DIR}/src")
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERN_LINK})
-target_compile_definitions(${PROJECT_NAME} PRIVATE ${SHOGLE_DEFS})
+target_compile_definitions(${PROJECT_NAME} PUBLIC ${SHOGLE_DEFS})
 
 
 if (SHOGLE_BUILD_TESTS)

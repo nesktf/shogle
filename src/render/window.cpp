@@ -70,6 +70,10 @@ void r_window::scroll_event(scroll_fun callback) {
   _scroll_event = std::move(callback);
 }
 
+void r_window::close() {
+  glfwSetWindowShouldClose(_handle, 1);
+}
+
 bool r_window::should_close() const {
   NTF_ASSERT(_handle);
   return glfwWindowShouldClose(_handle);

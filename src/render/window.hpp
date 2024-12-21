@@ -13,6 +13,7 @@ namespace ntf {
 struct r_window_hints {
   std::string_view x11_class_name{};
   std::string_view x11_instance_name{};
+  uint32 swap_interval{0};
 };
 
 class r_window {
@@ -60,6 +61,13 @@ public:
       glfwMakeContextCurrent(win);
     }
 
+    glfwSetWindowUserPointer(win, this);
+
+    glfwSetFramebufferSizeCallback(win, r_window::fb_callback);
+    glfwSetKeyCallback(win, r_window::key_callback);
+    glfwSetCursorPosCallback(win, r_window::cursor_callback);
+    glfwSetScrollCallback(win, r_window::scroll_callback);
+
 #if SHOGLE_ENABLE_IMGUI
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -84,14 +92,8 @@ public:
         SHOGLE_LOG(error, "[ntf::r_window] Failed to initialize OpenGL context");
         return;
       }
+      glfwSwapInterval(hints.swap_interval);
     }
-
-    glfwSetWindowUserPointer(win, this);
-
-    glfwSetFramebufferSizeCallback(win, r_window::fb_callback);
-    glfwSetKeyCallback(win, r_window::key_callback);
-    glfwSetCursorPosCallback(win, r_window::cursor_callback);
-    glfwSetScrollCallback(win, r_window::scroll_callback);
 
     _handle = win;
     _ctx = reinterpret_cast<void*>(&ctx);
