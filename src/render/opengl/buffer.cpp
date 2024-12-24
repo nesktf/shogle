@@ -13,8 +13,9 @@ void gl_buffer::load(r_buffer_type type, const void* data, size_t size) {
 
   GLuint id;
   glGenBuffers(1, &id);
-  glBindBuffer(gltype, _id);
+  glBindBuffer(gltype, id);
   glBufferStorage(gltype, size, nullptr, glflags);
+  glCheckError();
   if (data) {
     glBufferSubData(gltype, 0, size, data);
   }

@@ -37,8 +37,8 @@ private:
 
 constexpr inline GLenum gl_buffer_type_cast(r_buffer_type type) {
     switch(type) {
-    case r_buffer_type::index:    return GL_ARRAY_BUFFER;
-    case r_buffer_type::vertex:   return GL_ELEMENT_ARRAY_BUFFER;
+    case r_buffer_type::vertex:   return GL_ARRAY_BUFFER;
+    case r_buffer_type::index:    return GL_ELEMENT_ARRAY_BUFFER;
     case r_buffer_type::uniform:  return GL_UNIFORM_BUFFER;
 
     case r_buffer_type::none:     return 0;

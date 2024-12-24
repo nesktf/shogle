@@ -49,8 +49,16 @@ void gl_context::_debug_callback(GLenum src, GLenum type, GLuint id, GLenum seve
     return "UNKNOWN_SOURCE";
   }();
 
-  SHOGLE_LOG(debug, "[ntf::gl_context][{}][{}][{}][{}] {}",
-             severity_msg, type_msg, src_msg, id, msg);
+  if (type == GL_DEBUG_TYPE_ERROR) {
+    SHOGLE_LOG(error, "[ntf::gl_context][{}][{}][{}][{}] {}",
+               severity_msg, type_msg, src_msg, id, msg);
+  } else if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
+    SHOGLE_LOG(verbose, "[ntf::gl_context][{}][{}][{}][{}] {}",
+               severity_msg, type_msg, src_msg, id, msg);
+  } else {
+    SHOGLE_LOG(debug, "[ntf::gl_context][{}][{}][{}][{}] {}",
+               severity_msg, type_msg, src_msg, id, msg);
+  }
 }
 
 bool gl_context::_init_state() {
@@ -118,7 +126,7 @@ void gl_context::end_frame() {
   gl_clear_bits(_glstate.clear_flags, _glstate.clear_color);
 
   auto draw_things = [](GLenum prim, uint32 offset, uint32 count, uint32 instances, bool indices) {
-    if (indices) {
+    if (!indices) {
       if (instances > 1) {
         glDrawArraysInstanced(prim, offset, count, instances);
       } else {
