@@ -152,7 +152,7 @@ void gl_context::end_frame() {
 
     if (cmd.framebuffer) {
       NTF_ASSERT(cmd.framebuffer.api == RENDER_API);
-      auto& fb = resource(cmd.framebuffer);
+      auto& fb = resource<gl_framebuffer>({}, cmd.framebuffer.handle);
       fbo = fb._fbo;
       vp = fb.viewport();
     }
@@ -166,7 +166,7 @@ void gl_context::end_frame() {
     bool rebind_attributes = false;
 
     NTF_ASSERT(cmd.pipeline && cmd.pipeline.api == RENDER_API);
-    auto& pipeline = resource(cmd.pipeline);
+    auto& pipeline = resource<gl_pipeline>({}, cmd.pipeline.handle);
     if (_glstate.program != pipeline._program_id) {
       glUseProgram(pipeline._program_id);
       _glstate.program = pipeline._program_id;
@@ -174,17 +174,17 @@ void gl_context::end_frame() {
     }
 
     NTF_ASSERT(cmd.vertex_buffer && cmd.vertex_buffer.api == RENDER_API);
-    auto& vbo = resource(cmd.vertex_buffer);
+    auto& vbo = resource<gl_buffer>({}, cmd.vertex_buffer.handle);
     if (_glstate.vbo != vbo._id) {
       glBindBuffer(GL_ARRAY_BUFFER, vbo._id);
       _glstate.vbo = vbo._id;
       rebind_attributes = true; // HAS to be reconfigured each time the vertex buffer is rebound
     }
 
-    bool use_indices = cmd.index_buffer.valid();
+    bool use_indices = bool{cmd.index_buffer};
     if (use_indices) {
       NTF_ASSERT(cmd.index_buffer.api == RENDER_API);
-      auto& ebo = resource(cmd.index_buffer);
+      auto& ebo = resource<gl_buffer>({}, cmd.index_buffer.handle);
       if (_glstate.ebo != ebo._id) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo._id);
         _glstate.ebo = ebo._id;
@@ -214,7 +214,7 @@ void gl_context::end_frame() {
     if (cmd.textures) {
       _glstate.enabled_tex = 0;
       for (uint32 i = 0; i < cmd.texture_count; ++i) {
-        auto& tex = resource(cmd.textures[i]);
+        auto& tex = resource<gl_texture>({}, cmd.textures[i].handle);
         const GLenum gltype = gl_texture_type_cast(tex.type(), tex.is_array());
         NTF_ASSERT(gltype);
 
@@ -299,12 +299,13 @@ std::string_view gl_context::version_str() const {
   return reinterpret_cast<const char*>(glGetString(GL_VERSION));
 }
 
-expected<r_texture, gl_texture_err> gl_context::make_texture(r_texture_descriptor desc) {
+auto gl_context::make_texture(r_texture_descriptor desc)
+                                                      -> expected<texture_handle, gl_texture_err> {
   if (!gl_validate_descriptor(desc)) {
     return unexpected<gl_texture_err>{gl_texture_err::none}; // ?
   }
 
-  r_handle handle = _textures.acquire(*this);
+  r_handle_value handle = _textures.acquire(*this);
   auto& tex = _textures.get(handle);
 
   tex.load(desc.type, desc.format, desc.sampler, desc.addressing, desc.texels,
@@ -314,15 +315,16 @@ expected<r_texture, gl_texture_err> gl_context::make_texture(r_texture_descripto
     return unexpected<gl_texture_err>{gl_texture_err::none}; // ?
   }
 
-  return r_texture{RENDER_API, handle};
+  return texture_handle{*this, handle};
 }
 
-expected<r_buffer, gl_buffer_err> gl_context::make_buffer(r_buffer_descriptor desc) {
+auto gl_context::make_buffer(r_buffer_descriptor desc) 
+                                                        -> expected<buffer_handle, gl_buffer_err> {
   if (!gl_validate_descriptor(desc)) {
     return unexpected<gl_buffer_err>{gl_buffer_err::none};
   }
 
-  r_handle handle = _buffers.acquire(*this);
+  r_handle_value handle = _buffers.acquire(*this);
   auto& buff = _buffers.get(handle);
 
   buff.load(desc.type, desc.data, desc.size);
@@ -331,15 +333,16 @@ expected<r_buffer, gl_buffer_err> gl_context::make_buffer(r_buffer_descriptor de
     return unexpected<gl_buffer_err>{gl_buffer_err::none};
   }
 
-  return r_buffer{RENDER_API, handle};
+  return buffer_handle{*this, handle};
 }
 
-expected<r_pipeline, gl_pipeline_err> gl_context::make_pipeline(r_pipeline_descriptor desc) {
+auto gl_context::make_pipeline(r_pipeline_descriptor desc) 
+                                                    -> expected<pipeline_handle, gl_pipeline_err> {
   if (!gl_validate_descriptor(desc)) {
     return unexpected<gl_pipeline_err>{gl_pipeline_err::none};
   }
 
-  r_handle handle = _pipelines.acquire(*this);
+  r_handle_value handle = _pipelines.acquire(*this);
   auto& pipeline = _pipelines.get(handle);
 
   std::vector<gl_shader*> stages(desc.stage_count);
@@ -353,15 +356,16 @@ expected<r_pipeline, gl_pipeline_err> gl_context::make_pipeline(r_pipeline_descr
     return unexpected<gl_pipeline_err>{gl_pipeline_err::none};
   }
 
-  return r_pipeline{RENDER_API, handle};
+  return pipeline_handle{*this, handle};
 }
 
-expected<r_shader, gl_shader_err> gl_context::make_shader(r_shader_descriptor desc) {
+auto gl_context::make_shader(r_shader_descriptor desc)
+                                                        -> expected<shader_handle, gl_shader_err> {
   if (!gl_validate_descriptor(desc)) {
     return unexpected<gl_shader_err>{gl_shader_err::none};
   }
 
-  r_handle handle = _shaders.acquire(*this);
+  r_handle_value handle = _shaders.acquire(*this);
   auto& shader = _shaders.get(handle);
 
   shader.load(desc.type, desc.source);
@@ -370,16 +374,16 @@ expected<r_shader, gl_shader_err> gl_context::make_shader(r_shader_descriptor de
     return unexpected<gl_shader_err>{gl_shader_err::none};
   }
 
-  return r_shader{RENDER_API, handle};
+  return shader_handle{*this, handle};
 }
 
 auto gl_context::make_framebuffer(r_framebuffer_descriptor desc) 
-                                                   -> expected<r_framebuffer, gl_framebuffer_err> {
+                                              -> expected<framebuffer_handle, gl_framebuffer_err> {
   if (!gl_validate_descriptor(desc)) {
     return unexpected<gl_framebuffer_err>{gl_framebuffer_err::none};
   }
 
-  r_handle handle = _framebuffers.acquire(*this);
+  r_handle_value handle = _framebuffers.acquire(*this);
   auto& fbo = _framebuffers.get(handle);
 
   const uvec4& vp = desc.viewport;
@@ -389,88 +393,9 @@ auto gl_context::make_framebuffer(r_framebuffer_descriptor desc)
     return unexpected<gl_framebuffer_err>{gl_framebuffer_err::none};
   }
 
-  return r_framebuffer{RENDER_API, handle};
+  return framebuffer_handle{*this, handle};
 }
 
-void gl_context::destroy(r_texture texture) {
-  auto& tex = resource(texture);
-  tex.unload();
-  _textures.push(texture.handle);
-}
-
-void gl_context::destroy(r_buffer buffer) {
-  auto& buff = resource(buffer);
-  buff.unload();
-  _buffers.push(buffer.handle);
-}
-
-void gl_context::destroy(r_pipeline pipeline) {
-  auto& pip = resource(pipeline);
-  pip.unload();
-  _pipelines.push(pipeline.handle);
-}
-
-void gl_context::destroy(r_shader shader) {
-  auto& shad = resource(shader);
-  shad.unload();
-  _shaders.push(shader.handle);
-}
-
-void gl_context::destroy(r_framebuffer framebuffer) {
-  auto& fbo = resource(framebuffer);
-  fbo.unload();
-  _framebuffers.push(framebuffer.handle);
-}
-
-const gl_texture& gl_context::resource(r_texture texture) const {
-  NTF_ASSERT(texture.valid() && texture.api == RENDER_API);
-  return _textures.get(texture.handle);
-}
-
-gl_texture& gl_context::resource(r_texture texture) {
-  NTF_ASSERT(texture.valid() && texture.api == RENDER_API);
-  return _textures.get(texture.handle);
-}
-
-const gl_buffer& gl_context::resource(r_buffer buffer) const {
-  NTF_ASSERT(buffer.valid() && buffer.api == RENDER_API);
-  return _buffers.get(buffer.handle);
-}
-
-gl_buffer& gl_context::resource(r_buffer buffer) {
-  NTF_ASSERT(buffer.valid() && buffer.api == RENDER_API);
-  return _buffers.get(buffer.handle);
-}
-
-const gl_pipeline& gl_context::resource(r_pipeline pipeline) const {
-  NTF_ASSERT(pipeline.valid() && pipeline.api == RENDER_API);
-  return _pipelines.get(pipeline.handle);
-}
-
-gl_pipeline& gl_context::resource(r_pipeline pipeline) {
-  NTF_ASSERT(pipeline.valid() && pipeline.api == RENDER_API);
-  return _pipelines.get(pipeline.handle);
-}
-
-const gl_shader& gl_context::resource(r_shader shader) const {
-  NTF_ASSERT(shader.valid() && shader.api == RENDER_API);
-  return _shaders.get(shader.handle);
-}
-
-gl_shader& gl_context::resource(r_shader shader) {
-  NTF_ASSERT(shader.valid() && shader.api == RENDER_API);
-  return _shaders.get(shader.handle);
-}
-
-const gl_framebuffer& gl_context::resource(r_framebuffer framebuffer) const {
-  NTF_ASSERT(framebuffer.valid() && framebuffer.api == RENDER_API);
-  return _framebuffers.get(framebuffer.handle);
-}
-
-gl_framebuffer& gl_context::resource(r_framebuffer framebuffer) {
-  NTF_ASSERT(framebuffer.valid() && framebuffer.api == RENDER_API);
-  return _framebuffers.get(framebuffer.handle);
-}
 
 // void gl_context::draw_text(const font& font, vec2 pos, float scale, std::string_view text) const {
 //   NTF_ASSERT(valid());

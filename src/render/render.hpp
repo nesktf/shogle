@@ -10,14 +10,13 @@
 struct __name { \
 public: \
   __name() = default; \
-  __name(r_api api_, r_handle handle_) : \
+  __name(r_api api_, r_handle_value handle_) : \
     api(api_), handle(handle_) {} \
 public: \
-  bool valid() const { return handle != r_handle_tombstone && api != r_api::none; } \
-  explicit operator bool() const { return valid(); } \
+  explicit operator bool() const { return handle != r_handle_tombstone && api != r_api::none; } \
 public: \
   r_api api{r_api::none}; \
-  r_handle handle{r_handle_tombstone}; \
+  r_handle_value handle{r_handle_tombstone}; \
 }
 
 namespace ntf {
@@ -48,14 +47,81 @@ enum class r_resource_type : uint8 {
   framebuffer,
 };
 
-using r_handle = uint64;
-constexpr r_handle r_handle_tombstone = std::numeric_limits<r_handle>::max();
+using r_handle_value = uint64;
+constexpr r_handle_value r_handle_tombstone = std::numeric_limits<r_handle_value>::max();
 
-SHOGLE_DECLARE_RENDER_HANDLE(r_buffer);
-SHOGLE_DECLARE_RENDER_HANDLE(r_texture);
-SHOGLE_DECLARE_RENDER_HANDLE(r_pipeline);
-SHOGLE_DECLARE_RENDER_HANDLE(r_shader);
-SHOGLE_DECLARE_RENDER_HANDLE(r_framebuffer);
+SHOGLE_DECLARE_RENDER_HANDLE(r_buffer_view);
+SHOGLE_DECLARE_RENDER_HANDLE(r_texture_view);
+SHOGLE_DECLARE_RENDER_HANDLE(r_pipeline_view);
+SHOGLE_DECLARE_RENDER_HANDLE(r_shader_view);
+SHOGLE_DECLARE_RENDER_HANDLE(r_framebuffer_view);
+
+template<typename RenderCtx, typename T, typename HandleView>
+class r_handle {
+public:
+  r_handle() = default;
+
+private:
+  r_handle(RenderCtx& ctx, r_handle_value handle) :
+    _ctx(&ctx), _handle(handle) {};
+
+public:
+  const T& get() const { 
+    NTF_ASSERT(_ctx);
+    return _ctx->resource(std::type_identity<T>{}, _handle);
+  }
+
+  T& get() {
+    NTF_ASSERT(_ctx);
+    return _ctx->resource(std::type_identity<T>{}, _handle);
+  }
+
+  r_handle_value handle() const { return _handle; }
+
+  T& operator*() { return get(); }
+  const T& operator*() const { return get(); }
+  T* operator->() { return &get(); }
+  const T* operator->() const { return &get(); }
+
+  explicit operator bool() const { return _ctx != nullptr && _handle != r_handle_tombstone; }
+  operator HandleView() const { return HandleView{RenderCtx::RENDER_API, _handle}; }
+
+private:
+  RenderCtx* _ctx{nullptr};
+  r_handle_value _handle{r_handle_tombstone};
+
+public:
+  ~r_handle() noexcept {
+    if (_ctx) {
+      _ctx->destroy(std::type_identity<T>{}, _handle);
+    }
+  }
+
+  r_handle(const r_handle&) = delete;
+  r_handle& operator=(const r_handle&) = delete;
+
+  r_handle(r_handle&& h) noexcept :
+    _ctx(std::move(h._ctx)), _handle(std::move(h._handle)) { h._ctx = nullptr; }
+  r_handle& operator=(r_handle&& h) noexcept {
+    if (std::addressof(h) == this) {
+      return *this;
+    }
+
+    if (_ctx) {
+      _ctx->destroy(_handle);
+    }
+
+    _ctx = std::move(h._ctx);
+    _handle = std::move(h._handle);
+
+    h._ctx = nullptr;
+
+    return *this;
+  }
+
+private:
+  friend RenderCtx;
+};
 
 
 enum class r_attrib_type : uint32 {
@@ -243,7 +309,7 @@ struct r_framebuffer_descriptor {
 };
 
 struct r_pipeline_descriptor {
-  const r_shader*             stages{nullptr};
+  const r_shader_view*        stages{nullptr};
   uint32                      stage_count{0};
   const r_attrib_descriptor*  attribs{nullptr};
   uint32                      attrib_count{0};
@@ -261,12 +327,12 @@ enum class r_clear : uint8 {
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear)
 
 struct r_draw_cmd {
-  r_buffer                    vertex_buffer{};
-  r_buffer                    index_buffer{};
-  r_pipeline                  pipeline{};
-  r_framebuffer               framebuffer{};
+  r_buffer_view               vertex_buffer{};
+  r_buffer_view               index_buffer{};
+  r_pipeline_view             pipeline{};
+  r_framebuffer_view          framebuffer{};
 
-  const r_texture*            textures{nullptr};
+  const r_texture_view*       textures{nullptr};
   uint32                      texture_count{0};
   const r_uniform_descriptor* uniforms{nullptr};
   uint32                      uniform_count{0};

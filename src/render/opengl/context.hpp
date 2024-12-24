@@ -37,6 +37,13 @@ enum class gl_framebuffer_err {
 };
 
 class gl_context {
+public:
+  using buffer_handle = r_handle<gl_context, gl_buffer, r_buffer_view>;
+  using texture_handle = r_handle<gl_context, gl_texture, r_texture_view>;
+  using pipeline_handle = r_handle<gl_context, gl_pipeline, r_pipeline_view>;
+  using shader_handle = r_handle<gl_context, gl_shader, r_shader_view>;
+  using framebuffer_handle = r_handle<gl_context, gl_framebuffer, r_framebuffer_view>;
+
 private:
   template<typename T>
   class res_container {
@@ -54,9 +61,9 @@ private:
       _free = {};
     }
 
-    r_handle acquire(gl_context& ctx) {
+    r_handle_value acquire(gl_context& ctx) {
       if (!_free.empty()) {
-        r_handle pos = _free.front();
+        r_handle_value pos = _free.front();
         _free.pop();
         return pos;
       }
@@ -64,24 +71,24 @@ private:
       return _res.size()-1;
     }
 
-    void push(r_handle pos) {
+    void push(r_handle_value pos) {
       NTF_ASSERT(pos < _res.size());
       _free.push(pos);
     }
 
-    T& get(r_handle pos) {
+    T& get(r_handle_value pos) {
       NTF_ASSERT(pos < _res.size());
       return _res[pos];
     }
 
-    const T& get(r_handle pos) const {
+    const T& get(r_handle_value pos) const {
       NTF_ASSERT(pos < _res.size());
       return _res[pos];
     }
 
   private:
     std::vector<T> _res;
-    std::queue<r_handle> _free;
+    std::queue<r_handle_value> _free;
   };
 
 public:
@@ -110,30 +117,63 @@ public:
   void device_wait() {}
 
 public:
-  expected<r_texture, gl_texture_err> make_texture(r_texture_descriptor desc);
-  void destroy(r_texture texture);
-  const gl_texture& resource(r_texture texture) const;
-  gl_texture& resource(r_texture texture);
+  expected<buffer_handle, gl_buffer_err> make_buffer(r_buffer_descriptor desc);
+  expected<texture_handle, gl_texture_err> make_texture(r_texture_descriptor desc);
+  expected<pipeline_handle, gl_pipeline_err> make_pipeline(r_pipeline_descriptor desc);
+  expected<shader_handle, gl_shader_err> make_shader(r_shader_descriptor desc);
+  expected<framebuffer_handle, gl_framebuffer_err> make_framebuffer(r_framebuffer_descriptor desc);
 
-  expected<r_buffer, gl_buffer_err> make_buffer(r_buffer_descriptor desc);
-  void destroy(r_buffer buffer);
-  const gl_buffer& resource(r_buffer buffer) const;
-  gl_buffer& resource(r_buffer buffer);
+public:
+  template<typename T>
+  T& resource(std::type_identity<T>, r_handle_value handle) {
+    NTF_ASSERT(handle != r_handle_tombstone);
+    if constexpr (std::same_as<T, gl_buffer>) {
+      return _buffers.get(handle);
+    } else if constexpr (std::same_as<T, gl_texture>) {
+      return _textures.get(handle);
+    } else if constexpr (std::same_as<T, gl_pipeline>) {
+      return _pipelines.get(handle);
+    } else if constexpr (std::same_as<T, gl_shader>) {
+      return _shaders.get(handle);
+    } else if constexpr (std::same_as<T, gl_framebuffer>) {
+      return _framebuffers.get(handle);
+    }
+    NTF_UNREACHABLE();
+  }
 
-  expected<r_pipeline, gl_pipeline_err> make_pipeline(r_pipeline_descriptor desc);
-  void destroy(r_pipeline pipeline);
-  const gl_pipeline& resource(r_pipeline pipeline) const;
-  gl_pipeline& resource(r_pipeline pipeline);
+  template<typename T>
+  const T& resource(std::type_identity<T>, r_handle_value handle) const {
+    NTF_ASSERT(handle != r_handle_tombstone);
+    if constexpr (std::same_as<T, gl_buffer>) {
+      return _buffers.get(handle);
+    } else if constexpr (std::same_as<T, gl_texture>) {
+      return _textures.get(handle);
+    } else if constexpr (std::same_as<T, gl_pipeline>) {
+      return _pipelines.get(handle);
+    } else if constexpr (std::same_as<T, gl_shader>) {
+      return _shaders.get(handle);
+    } else if constexpr (std::same_as<T, gl_framebuffer>) {
+      return _framebuffers.get(handle);
+    }
+    NTF_UNREACHABLE();
+  }
 
-  expected<r_shader, gl_shader_err> make_shader(r_shader_descriptor desc);
-  void destroy(r_shader shader);
-  const gl_shader& resource(r_shader shader) const;
-  gl_shader& resource(r_shader shader);
-
-  expected<r_framebuffer, gl_framebuffer_err> make_framebuffer(r_framebuffer_descriptor desc);
-  void destroy(r_framebuffer framebuffer);
-  const gl_framebuffer& resource(r_framebuffer framebuffer) const;
-  gl_framebuffer& resource(r_framebuffer framebuffer);
+  template<typename T>
+  void destroy(std::type_identity<T> tag, r_handle_value handle) {
+    auto& obj = resource(tag, handle);
+    obj.unload();
+    if constexpr (std::same_as<T, gl_buffer>) {
+      _buffers.push(handle);
+    } else if constexpr (std::same_as<T, gl_texture>) {
+      _textures.push(handle);
+    } else if constexpr (std::same_as<T, gl_pipeline>) {
+      _pipelines.push(handle);
+    } else if constexpr (std::same_as<T, gl_shader>) {
+      _shaders.push(handle);
+    } else if constexpr (std::same_as<T, gl_framebuffer>) {
+      _framebuffers.push(handle);
+    }
+  }
 
 public:
   void viewport(uint32 x, uint32 y, uint32 w, uint32 h);
