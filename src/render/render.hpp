@@ -185,6 +185,16 @@ enum class r_texture_address : uint8 {
   clamp_border,
 };
 
+enum class r_cubemap_face {
+  positive_x = 0,
+  negative_x,
+  positive_y,
+  negative_y,
+  positive_z,
+  negative_z,
+  count,
+};
+
 struct r_texture_descriptor {
   const uint8* const* texels{nullptr};
   uint32              count{0};

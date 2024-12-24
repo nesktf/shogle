@@ -35,7 +35,7 @@ GLuint gl_texture::_allocate(GLenum gltype, GLenum glformat, uint32 count,
     }
     case GL_TEXTURE_2D: {
       NTF_ASSERT(dim.x > 0 && dim.y > 0);
-      glTexStorage2D(gltype, mipmaps, glformat, dim.x, dim.y);
+      glTexStorage2D(gltype, mipmaps, GL_RGB8, dim.x, dim.y);
       break;
     }
 
@@ -135,7 +135,7 @@ void gl_texture::load(r_texture_type type, r_texture_format format,
   const GLenum glformat = gl_texture_format_cast(format);
   NTF_ASSERT(glformat);
 
-  const GLenum glsamplermin = gl_texture_sampler_cast(sampler, (mipmaps > 0));
+  const GLenum glsamplermin = gl_texture_sampler_cast(sampler, (mipmaps > 1));
   // magnification doesn't use mipmaps
   const GLenum glsamplermag = gl_texture_sampler_cast(sampler, false);
   NTF_ASSERT(glsamplermin && glsamplermag);
@@ -162,7 +162,7 @@ void gl_texture::load(r_texture_type type, r_texture_format format,
     for (uint32 i = 0; i < count; ++i) {
       _upload(gltype, glformat, texels[i], 0, i, uvec3{0, 0, 0});
     }
-    if (_mipmaps > 0) {
+    if (_mipmaps > 1) {
       glGenerateMipmap(gltype);
     }
   }
@@ -191,7 +191,7 @@ void gl_texture::sampler(r_texture_sampler sampler) {
   const GLenum gltype = gl_texture_type_cast(_type, is_array());
   NTF_ASSERT(gltype);
 
-  const GLenum glsamplermin = gl_texture_sampler_cast(sampler, (_mipmaps > 0));
+  const GLenum glsamplermin = gl_texture_sampler_cast(sampler, (_mipmaps > 1));
   // magnification doesn't use mipmaps
   const GLenum glsamplermag = gl_texture_sampler_cast(sampler, false); 
   NTF_ASSERT(glsamplermag && glsamplermin);
@@ -230,7 +230,7 @@ void gl_texture::data(r_texture_format format, const uint8* texels, uint32 index
 
   glBindTexture(gltype, _id);
   _upload(gltype, glformat, texels, 0, index, offset);
-  if (_mipmaps > 0) {
+  if (_mipmaps > 1) {
     glGenerateMipmap(gltype);
   }
   glBindTexture(gltype, 0);
