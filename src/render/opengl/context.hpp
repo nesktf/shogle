@@ -8,6 +8,7 @@
 
 #include "../../stl/function.hpp"
 #include "../../stl/expected.hpp"
+#include "../../stl/arena.hpp"
 
 #ifdef SHOGLE_ENABLE_IMGUI
 #include <imgui_impl_opengl3.h> // Should work fine with OGL 4.x
@@ -97,18 +98,18 @@ public:
 
 private:
   template<typename Proc>
-  bool init(Proc proc, ntf::inplace_function<void()> swap_buffers_fun) {
+  bool init(Proc proc, ntf::inplace_function<void()> swap_buffers_fun, uvec4 vp) {
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(proc))) {
       return false;
     }
     _proc_fun = reinterpret_cast<GLADloadproc>(proc);
     _swap_buffers = std::move(swap_buffers_fun);
-    return _init_state();
+    return _init_state(vp);
   }
   void destroy();
 
 private:
-  bool _init_state();
+  bool _init_state(uvec4 vp);
 
 public:
   void start_frame();
@@ -222,7 +223,8 @@ private:
   res_container<gl_shader> _shaders;
   res_container<gl_framebuffer> _framebuffers;
 
-  std::queue<r_draw_cmd> _cmds;
+  std::unordered_map<r_handle_value, std::vector<r_draw_cmd*>> _fb_cmds;
+  ntf::mem_arena _cmd_arena;
 
   struct {
     GLuint vao{0};

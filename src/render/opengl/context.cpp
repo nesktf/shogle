@@ -61,7 +61,7 @@ void gl_context::_debug_callback(GLenum src, GLenum type, GLuint id, GLenum seve
   }
 }
 
-bool gl_context::_init_state() {
+bool gl_context::_init_state(uvec4 vp) {
 #ifdef SHOGLE_ENABLE_IMGUI
   ImGui_ImplOpenGL3_Init("#version 130");
 #endif
@@ -72,6 +72,12 @@ bool gl_context::_init_state() {
   glBindVertexArray(_glstate.vao);
 
   glEnable(GL_DEPTH_TEST); // ?
+
+  glViewport(vp.x, vp.y, vp.z, vp.w);
+  _glstate.viewport = vp;
+
+  _cmd_arena.init(0x100000000); // 4GiB (?)
+
   return true;
 }
 
@@ -101,7 +107,8 @@ void gl_context::destroy() {
   _pipelines.clear();
   _shaders.clear();
   _framebuffers.clear();
-  _cmds = {};
+  _fb_cmds.clear();
+  _cmd_arena.reset();
 
   _proc_fun = nullptr;
   _swap_buffers = {};
@@ -112,7 +119,16 @@ void gl_context::destroy() {
 }
 
 void gl_context::enqueue(r_draw_cmd cmd) {
-  _cmds.emplace(cmd);
+  auto* alloc_ptr = _cmd_arena.allocate<r_draw_cmd>(1);
+  std::construct_at(alloc_ptr, cmd);
+  if (cmd.framebuffer) {
+    NTF_ASSERT(cmd.framebuffer.api == r_api::opengl);
+    auto& cmds = _fb_cmds[cmd.framebuffer.handle]; // May create one
+    cmds.emplace_back(alloc_ptr);
+  } else {
+    auto& cmds = _fb_cmds[r_handle_tombstone]; // default fbo
+    cmds.emplace_back(alloc_ptr);
+  }
 }
 
 void gl_context::start_frame() {
@@ -120,11 +136,13 @@ void gl_context::start_frame() {
   ImGui_ImplOpenGL3_NewFrame();
   ImGui::NewFrame();
 #endif
+  for(auto& [_,cmds] : _fb_cmds) {
+    cmds.clear();
+  }
+  _cmd_arena.reset();
 }
 
 void gl_context::end_frame() {
-  gl_clear_bits(_glstate.clear_flags, _glstate.clear_color);
-
   auto draw_things = [](GLenum prim, uint32 offset, uint32 count, uint32 instances, bool indices) {
     if (!indices) {
       if (instances > 1) {
@@ -143,97 +161,106 @@ void gl_context::end_frame() {
     }
   };
 
-  while (!_cmds.empty()) {
-    r_draw_cmd cmd = _cmds.front();
-    _cmds.pop();
+  for (auto& [handle, cmds] : _fb_cmds) {
+    GLenum fbo = 0;
+    r_clear clear = _glstate.clear_flags;
+    uvec4 vp = _glstate.viewport;
+    vec4 color = _glstate.clear_color;
 
-    uint32 fbo = 0;
-    uvec4 vp = viewport();
-
-    if (cmd.framebuffer) {
-      NTF_ASSERT(cmd.framebuffer.api == RENDER_API);
-      auto& fb = resource<gl_framebuffer>({}, cmd.framebuffer.handle);
+    if (handle != r_handle_tombstone) {
+      auto& fb = resource<gl_framebuffer>({}, handle);
       fbo = fb._fbo;
       vp = fb.viewport();
+      clear = fb.clear_flags();
+      color = fb.clear_color();
     }
 
-    if (_glstate.fbo != fbo) {
-      glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-      glViewport(vp.x, vp.y, vp.z, vp.w);
-      _glstate.fbo = fbo;
-    }
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    _glstate.fbo = fbo;
+    glViewport(vp.x, vp.y, vp.z, vp.w);
+    gl_clear_bits(clear, color);
 
-    bool rebind_attributes = false;
+    for (auto* cmd_ptr : cmds) {
+      auto& cmd = *cmd_ptr;
+      bool rebind_attributes = false;
 
-    NTF_ASSERT(cmd.pipeline && cmd.pipeline.api == RENDER_API);
-    auto& pipeline = resource<gl_pipeline>({}, cmd.pipeline.handle);
-    if (_glstate.program != pipeline._program_id) {
-      glUseProgram(pipeline._program_id);
-      _glstate.program = pipeline._program_id;
-      rebind_attributes = true;
-    }
-
-    NTF_ASSERT(cmd.vertex_buffer && cmd.vertex_buffer.api == RENDER_API);
-    auto& vbo = resource<gl_buffer>({}, cmd.vertex_buffer.handle);
-    if (_glstate.vbo != vbo._id) {
-      glBindBuffer(GL_ARRAY_BUFFER, vbo._id);
-      _glstate.vbo = vbo._id;
-      rebind_attributes = true; // HAS to be reconfigured each time the vertex buffer is rebound
-    }
-
-    bool use_indices = bool{cmd.index_buffer};
-    if (use_indices) {
-      NTF_ASSERT(cmd.index_buffer.api == RENDER_API);
-      auto& ebo = resource<gl_buffer>({}, cmd.index_buffer.handle);
-      if (_glstate.ebo != ebo._id) {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo._id);
-        _glstate.ebo = ebo._id;
+      NTF_ASSERT(cmd.pipeline && cmd.pipeline.api == RENDER_API);
+      auto& pipeline = resource<gl_pipeline>({}, cmd.pipeline.handle);
+      if (_glstate.program != pipeline._program_id) {
+        glUseProgram(pipeline._program_id);
+        _glstate.program = pipeline._program_id;
+        rebind_attributes = true;
       }
-    }
 
-    if (rebind_attributes) {
-      for (const auto& attrib : pipeline._attribs) {
-        const uint32 type_dim = r_attrib_type_dim(attrib.type);
-        NTF_ASSERT(type_dim);
-
-        const GLenum gl_underlying_type = gl_attrib_underlying_type_cast(attrib.type);
-        NTF_ASSERT(gl_underlying_type);
-
-        glVertexAttribPointer(
-          attrib.location,
-          type_dim,
-          gl_underlying_type,
-          GL_FALSE, // Don't normalize,
-          pipeline._stride,
-          reinterpret_cast<void*>(attrib.offset)
-        );
-        glEnableVertexAttribArray(attrib.location);
+      NTF_ASSERT(cmd.vertex_buffer && cmd.vertex_buffer.api == RENDER_API);
+      auto& vbo = resource<gl_buffer>({}, cmd.vertex_buffer.handle);
+      if (_glstate.vbo != vbo._id) {
+        glBindBuffer(GL_ARRAY_BUFFER, vbo._id);
+        _glstate.vbo = vbo._id;
+        rebind_attributes = true; // HAS to be reconfigured each time the vertex buffer is rebound
       }
-    }
 
-    if (cmd.textures) {
-      _glstate.enabled_tex = 0;
-      for (uint32 i = 0; i < cmd.texture_count; ++i) {
-        auto& tex = resource<gl_texture>({}, cmd.textures[i].handle);
-        const GLenum gltype = gl_texture_type_cast(tex.type(), tex.is_array());
-        NTF_ASSERT(gltype);
-
-        glActiveTexture(GL_TEXTURE0+i);
-        glBindTexture(gltype, tex._id);
-        _glstate.enabled_tex |= 1 << i;
+      bool use_indices = bool{cmd.index_buffer};
+      if (use_indices) {
+        NTF_ASSERT(cmd.index_buffer.api == RENDER_API);
+        auto& ebo = resource<gl_buffer>({}, cmd.index_buffer.handle);
+        if (_glstate.ebo != ebo._id) {
+          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo._id);
+          _glstate.ebo = ebo._id;
+        }
       }
-    }
 
-    if (cmd.uniforms) {
-      for (uint32 i = 0; i < cmd.uniform_count; ++i) {
-        auto& unif = cmd.uniforms[i];
-        gl_pipeline::push_uniform(unif.location, unif.type, unif.data);
+      if (rebind_attributes) {
+        for (const auto& attrib : pipeline._attribs) {
+          const uint32 type_dim = r_attrib_type_dim(attrib.type);
+          NTF_ASSERT(type_dim);
+
+          const GLenum gl_underlying_type = gl_attrib_underlying_type_cast(attrib.type);
+          NTF_ASSERT(gl_underlying_type);
+
+          glVertexAttribPointer(
+            attrib.location,
+            type_dim,
+            gl_underlying_type,
+            GL_FALSE, // Don't normalize,
+            pipeline._stride,
+            reinterpret_cast<void*>(attrib.offset)
+          );
+          glEnableVertexAttribArray(attrib.location);
+        }
       }
-    }
 
-    const GLenum glprim = gl_primitive_cast(cmd.primitive);
-    NTF_ASSERT(glprim);
-    draw_things(glprim, cmd.draw_offset, cmd.draw_count, cmd.instance_count, use_indices);
+      if (cmd.textures) {
+        _glstate.enabled_tex = 0;
+        for (uint32 i = 0; i < cmd.texture_count; ++i) {
+          auto& tex = resource<gl_texture>({}, cmd.textures[i].handle);
+          const GLenum gltype = gl_texture_type_cast(tex.type(), tex.is_array());
+          NTF_ASSERT(gltype);
+
+          glActiveTexture(GL_TEXTURE0+i);
+          glBindTexture(gltype, tex._id);
+          _glstate.enabled_tex |= 1 << i;
+        }
+      }
+
+      if (cmd.uniforms) {
+        for (uint32 i = 0; i < cmd.uniform_count; ++i) {
+          auto& unif = cmd.uniforms[i];
+          gl_pipeline::push_uniform(unif.location, unif.type, unif.data);
+        }
+      }
+
+      const GLenum glprim = gl_primitive_cast(cmd.primitive);
+      NTF_ASSERT(glprim);
+      draw_things(glprim, cmd.draw_offset, cmd.draw_count, cmd.instance_count, use_indices);
+
+    }
+  }
+  if (_glstate.fbo) {
+    auto& vp = _glstate.viewport;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(vp.x, vp.y, vp.z, vp.w);
+    _glstate.fbo = 0;
   }
 
 #ifdef SHOGLE_ENABLE_IMGUI

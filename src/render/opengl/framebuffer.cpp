@@ -1,4 +1,5 @@
 #include "./framebuffer.hpp"
+#include "./context.hpp"
 
 namespace ntf {
 
@@ -6,14 +7,25 @@ void gl_framebuffer::load(uint32 x, uint32 y, uint32 w, uint32 h,
                           r_texture_sampler sampler, r_texture_address address) {
   NTF_ASSERT(!_fbo);
 
-  _tex.load(r_texture_type::texture2d, r_texture_format::rgb, sampler, address, 
-            nullptr, 0, 1, uvec3{w, h, 0});
+  auto tex = _ctx.make_texture(r_texture_descriptor{
+    .texels = nullptr,
+    .count = 1,
+    .mipmap_level = 1,
+    .extent = uvec3{w, h, 0},
+    .type = r_texture_type::texture2d,
+    .format = r_texture_format::rgb,
+    .sampler = sampler,
+    .addressing = address,
+  });
+  if (!tex) {
+    return;
+  }
 
   GLuint fbo, rbo;
   glGenFramebuffers(1, &fbo);
   glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _tex._id, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, (**tex)._id, 0);
 
   glGenRenderbuffers(1, &rbo);
   glBindRenderbuffer(GL_RENDERBUFFER, rbo);
@@ -26,13 +38,13 @@ void gl_framebuffer::load(uint32 x, uint32 y, uint32 w, uint32 h,
     SHOGLE_LOG(error, "[ntf::gl_framebuffer] Failed to create framebuffer (id: {})", fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDeleteFramebuffers(1, &fbo);
-    glDeleteRenderbuffers(1, &rbo),
-    _tex.unload();
+    glDeleteRenderbuffers(1, &rbo);
     return;
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+  _tex = std::move(*tex);
   _fbo = fbo;
   _rbo = rbo;
   _viewport.x = x;
@@ -46,8 +58,8 @@ void gl_framebuffer::unload() {
 
   glDeleteFramebuffers(1, &_fbo);
   glDeleteBuffers(1, &_rbo);
-  _tex.unload();
 
+  _tex.reset();
   _fbo = 0;
   _rbo = 0;
   _viewport = uvec4{0, 0, 0, 0};
@@ -69,20 +81,31 @@ void gl_framebuffer::viewport(uint32 x, uint32 y, uint32 w, uint32 h) {
 
   NTF_ASSERT(_fbo);
 
+  auto tex = _ctx.make_texture(r_texture_descriptor{
+    .texels = nullptr,
+    .count = 1,
+    .mipmap_level = 1,
+    .extent = uvec3{w, h, 0},
+    .type = r_texture_type::texture2d,
+    .format = r_texture_format::rgb,
+    .sampler = _tex->sampler(),
+    .addressing = _tex->addressing(),
+  });
+  if (!tex) {
+    return;
+  }
+
   glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
 
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
-  auto sampler = _tex.sampler();
-  auto address = _tex.addressing();
 
   // TODO: Copy the old texture pixels to the new one?
-  _tex.unload();
-  _tex.load(r_texture_type::texture2d, r_texture_format::rgb, sampler, address, 
-            nullptr, 0, 1, uvec3{w, h, 0});
-
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _tex._id, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, (**tex)._id, 0);
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  _tex = std::move(*tex);
+
 }
 
 void gl_framebuffer::viewport(uint32 w, uint32 h) {

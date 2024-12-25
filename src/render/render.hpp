@@ -76,6 +76,14 @@ public:
     return _ctx->resource(std::type_identity<T>{}, _handle);
   }
 
+  void reset() { 
+    if (_ctx) {
+      _ctx->destroy(std::type_identity<T>{}, _handle);
+    }
+    _ctx = nullptr;
+    _handle = r_handle_tombstone;
+  }
+
   r_handle_value handle() const { return _handle; }
 
   T& operator*() { return get(); }
@@ -108,7 +116,7 @@ public:
     }
 
     if (_ctx) {
-      _ctx->destroy(_handle);
+      _ctx->destroy(std::type_identity<T>{}, _handle);
     }
 
     _ctx = std::move(h._ctx);

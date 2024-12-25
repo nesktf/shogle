@@ -7,7 +7,7 @@ namespace ntf {
 class gl_framebuffer {
 private:
   gl_framebuffer(gl_context& ctx) :
-    _ctx(ctx), _tex(ctx) {}
+    _ctx(ctx) {}
 
 private:
   void load(uint32 x, uint32 y, uint32 w, uint32 h,
@@ -28,8 +28,9 @@ public:
   void clear_flags(r_clear clear);
 
 public:
-  gl_texture& tex() { return _tex; }
-  const gl_texture& tex() const { return _tex; }
+  gl_texture& tex() { return _tex.get(); }
+  const gl_texture& tex() const { return _tex.get(); }
+  r_texture_view texview() const {return _tex; }
 
   uvec4 viewport() const { return _viewport; }
   uvec2 viewport_size() const { return uvec2{_viewport.z, _viewport.w}; }
@@ -43,7 +44,8 @@ private:
 
 private:
   gl_context& _ctx;
-  gl_texture _tex;
+  r_handle<gl_context, gl_texture, r_texture_view> _tex{};
+  // gl_texture _tex;
 
   GLuint _fbo{0}, _rbo{0};
   uvec4 _viewport{0, 0, 0, 0};

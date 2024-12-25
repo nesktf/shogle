@@ -86,7 +86,8 @@ public:
     }
 #endif
     if constexpr (ctx_api == r_api::opengl) {
-      if (!ctx.init(glfwGetProcAddress, [win]() { glfwSwapBuffers(win); })) {
+      uvec4 vp{0, 0, w, h};
+      if (!ctx.init(glfwGetProcAddress, [win]() { glfwSwapBuffers(win); }, vp)) {
         glfwDestroyWindow(win);
         glfwTerminate();
         SHOGLE_LOG(error, "[ntf::r_window] Failed to initialize OpenGL context");
