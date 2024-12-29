@@ -5,7 +5,7 @@
 namespace ntf {
 
 // TODO: integrator traits?
-template<typename T, typename Fun>
+template<typename Fun, typename T>
 concept integr_fun = std::is_invocable_r_v<T, Fun, T>;
 // f(T x) -> T
 
@@ -75,7 +75,7 @@ struct integr_simp38 {
 
 
 // TODO: ODE system solvers
-template<typename T, typename Fun>
+template<typename Fun, typename T>
 concept ode_fun = std::is_invocable_r_v<T, Fun, T, T>;
 // f(T x, T y) -> T
 // \phi(x, y, h) = f(x, y)

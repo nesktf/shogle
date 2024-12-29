@@ -6,19 +6,6 @@
 #include <imgui.h>
 #endif
 
-#define SHOGLE_DECLARE_RENDER_HANDLE(__name) \
-struct __name { \
-public: \
-  __name() = default; \
-  __name(r_api api_, r_handle_value handle_) : \
-    api(api_), handle(handle_) {} \
-public: \
-  explicit operator bool() const { return handle != r_handle_tombstone && api != r_api::none; } \
-public: \
-  r_api api{r_api::none}; \
-  r_handle_value handle{r_handle_tombstone}; \
-}
-
 namespace ntf {
 
 using color3 = vec3;
@@ -32,14 +19,12 @@ enum class r_api : uint8 {
 };
 
 enum class r_win_api : uint8 {
-  none = 0,
   glfw,
   sdl2, // ?
 };
 class r_window;
 
 enum class r_resource_type : uint8 {
-  none = 0,
   buffer,
   texture,
   pipeline,
@@ -49,12 +34,6 @@ enum class r_resource_type : uint8 {
 
 using r_handle_value = uint64;
 constexpr r_handle_value r_handle_tombstone = std::numeric_limits<r_handle_value>::max();
-
-SHOGLE_DECLARE_RENDER_HANDLE(r_buffer_view);
-SHOGLE_DECLARE_RENDER_HANDLE(r_texture_view);
-SHOGLE_DECLARE_RENDER_HANDLE(r_pipeline_view);
-SHOGLE_DECLARE_RENDER_HANDLE(r_shader_view);
-SHOGLE_DECLARE_RENDER_HANDLE(r_framebuffer_view);
 
 template<typename RenderCtx, typename T, typename HandleView>
 class r_handle {
@@ -133,7 +112,6 @@ private:
 
 
 enum class r_attrib_type : uint32 {
-  none = 0,
   f32, vec2,  vec3,  vec4,  mat3,  mat4,
   f64, dvec2, dvec3, dvec4, dmat3, dmat4,
   i32, ivec2, ivec3, ivec4,
@@ -163,8 +141,6 @@ constexpr inline size_t r_attrib_type_size(r_attrib_type type) {
     case r_attrib_type::dvec4: return 4*double_sz;
     case r_attrib_type::dmat3: return 9*double_sz;
     case r_attrib_type::dmat4: return 16*double_sz;
-
-    case r_attrib_type::none:  return 0;
   };
 
   return 0;
@@ -193,108 +169,115 @@ constexpr inline uint32 r_attrib_type_dim(r_attrib_type type) {
 
     case r_attrib_type::mat4:  [[fallthrough]];
     case r_attrib_type::dmat4: return 16;
-
-    case r_attrib_type::none:  return 0;
   };
 
   return 0;
 }
 
 struct r_attrib_descriptor {
-  uint32        binding{0};
-  uint32        location{0};
-  size_t        offset{0};
-  r_attrib_type type{r_attrib_type::none};
+  uint32        binding;
+  uint32        location;
+  size_t        offset;
+  r_attrib_type type;
 };
 
 struct r_uniform_descriptor {
-  uint32        location{0};
-  r_attrib_type type{r_attrib_type::none};
-  const void*   data{nullptr};
+  uint32        location;
+  r_attrib_type type;
+  const void*   data;
 };
 
 enum class r_shader_type : uint8 {
-  none                = 0,
-  vertex              = 1 << 0,
-  fragment            = 1 << 1,
-  geometry            = 1 << 2,
-  tesselation_eval    = 1 << 3,
-  tesselation_control = 1 << 4,
-  compute             = 1 << 5,
+  vertex = 0,
+  fragment,
+  geometry,
+  tesselation_eval,
+  tesselation_control,
+  compute,
 };
-NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_shader_type)
+
+enum class r_shader_usage_flag : uint8 {
+  none                = 0,
+  vertex              = 1 << static_cast<uint8>(r_shader_type::vertex),
+  fragment            = 1 << static_cast<uint8>(r_shader_type::fragment),
+  geometry            = 1 << static_cast<uint8>(r_shader_type::geometry),
+  tesselation_eval    = 1 << static_cast<uint8>(r_shader_type::tesselation_eval),
+  tesselation_control = 1 << static_cast<uint8>(r_shader_type::tesselation_control),
+  compute             = 1 << static_cast<uint8>(r_shader_type::compute),
+};
+NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_shader_usage_flag)
 
 struct r_shader_descriptor {
-  std::string_view  source{};
-  r_shader_type     type{r_shader_type::none};
+  std::string_view  source;
+  r_shader_type     type;
 };
 
 enum class r_texture_type : uint8 {
-  none = 0,
-  texture1d,
+  texture1d = 0,
+  texture1d_array,
   texture2d,
+  texture2d_array,
   texture3d,
   cubemap,
 };
+constexpr uint8 r_texture_type_count = 6;
 
 enum class r_texture_format : uint8 {
-  none = 0,
-  mono,
+  mono = 0,
   rgb,
   rgba,
 };
 
 enum class r_texture_sampler : uint8 {
-  none = 0,
-  nearest,
+  nearest = 0,
   linear,
 };
 
 enum class r_texture_address : uint8 {
-  none = 0,
-  repeat,
+  repeat = 0,
   repeat_mirrored,
   clamp_edge,
   clamp_edge_mirrored,
   clamp_border,
 };
 
-enum class r_cubemap_face {
+enum class r_cubemap_face : uint8 {
   positive_x = 0,
   negative_x,
   positive_y,
   negative_y,
   positive_z,
   negative_z,
-  count,
 };
+constexpr uint8 r_cubemap_face_count = 6;
 
 struct r_texture_descriptor {
-  const uint8* const* texels{nullptr};
-  uint32              count{0};
-  uint32              mipmap_level{0};
-  uvec3               extent{};
-  r_texture_type      type{r_texture_type::none};
-  r_texture_format    format{r_texture_format::none};
-  r_texture_sampler   sampler{r_texture_sampler::none};
-  r_texture_address   addressing{r_texture_address::none};
+  const uint8* const* texels;
+  uint32              count;
+  uint32              mipmap_level;
+  uvec3               extent;
+  r_texture_type      type;
+  r_texture_format    format;
+  r_texture_sampler   sampler;
+  r_texture_address   addressing;
 };
 
 enum class r_buffer_type : uint8 {
-  none = 0,
   vertex,
   index,
+  texel,
   uniform,
+  shader_storage,
 };
+constexpr uint8 r_buffer_type_count = 5;
 
 struct r_buffer_descriptor {
-  const void*   data{nullptr};
-  size_t        size{0};
-  r_buffer_type type{r_buffer_type::none};
+  const void*   data;
+  size_t        size;
+  r_buffer_type type;
 };
 
 enum class r_primitive : uint8 {
-  none = 0,
   triangles,
   triangle_strip,
   triangle_fan,
@@ -304,51 +287,49 @@ enum class r_primitive : uint8 {
 };
 
 enum class r_polygon_mode : uint8 {
-  none = 0,
   point,
   line,
   fill,
 };
 
 struct r_framebuffer_descriptor {
-  uvec4 viewport{};
-  r_texture_sampler sampler{r_texture_sampler::none};
-  r_texture_address addressing{r_texture_address::none};
+  uvec4 viewport;
+  r_texture_sampler sampler;
+  r_texture_address addressing;
 };
 
 struct r_pipeline_descriptor {
-  const r_shader_view*        stages{nullptr};
-  uint32                      stage_count{0};
-  const r_attrib_descriptor*  attribs{nullptr};
-  uint32                      attrib_count{0};
-  r_primitive                 primitive{r_primitive::none};
-  r_polygon_mode              poly_mode{r_polygon_mode::none};
+  const r_handle_value*       stages;
+  uint32                      stage_count;
+  const r_attrib_descriptor*  attribs;
+  uint32                      attrib_count;
+  r_primitive                 primitive;
+  r_polygon_mode              poly_mode;
 };
 
 
-enum class r_clear : uint8 {
+enum class r_clear_flag : uint8 {
   none    = 0,
   color   = 1 << 0,
   depth   = 1 << 1,
   stencil = 1 << 2,
 };
-NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear)
+NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear_flag)
 
 struct r_draw_cmd {
-  r_buffer_view               vertex_buffer{};
-  r_buffer_view               index_buffer{};
-  r_pipeline_view             pipeline{};
-  r_framebuffer_view          framebuffer{};
+  r_handle_value vertex_buffer;
+  r_handle_value index_buffer;
+  r_handle_value pipeline;
+  r_handle_value framebuffer;
 
-  const r_texture_view*       textures{nullptr};
-  uint32                      texture_count{0};
-  const r_uniform_descriptor* uniforms{nullptr};
-  uint32                      uniform_count{0};
+  const r_handle_value*       textures;
+  uint32                      texture_count;
+  const r_uniform_descriptor* uniforms;
+  uint32                      uniform_count;
 
-  r_primitive                 primitive{r_primitive::none};
-  uint32                      draw_count{0};
-  uint32                      draw_offset{0};
-  uint32                      instance_count{0};
+  uint32                      draw_count;
+  uint32                      draw_offset;
+  uint32                      instance_count;
 };
 
 template<typename T>
