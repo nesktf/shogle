@@ -1,24 +1,67 @@
-#include "./opengl/context.hpp"
 #include "./window.hpp"
 
 namespace ntf {
 
-#ifdef SHOGLE_USE_GLFW
-r_window::~r_window() noexcept {
+r_window::~r_window() noexcept { reset(); }
+
+bool r_window::init_context(ctx_params_t ctx_params) {
+#if SHOGLE_USE_GLFW
+  if (!glfwInit()) {
+    SHOGLE_LOG(error, "[ntf::r_window] Failed to initialize GLFW");
+    return false;
+  }
+  switch (ctx_params.api) {
+    case r_api::opengl: {
+      glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, ctx_params.gl_maj);
+      glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, ctx_params.gl_min);
+      glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+      break;
+    }
+    default: {
+      glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    }
+  }
+  if (!_init_params.x11_class_name.empty()) {
+    glfwWindowHintString(GLFW_X11_CLASS_NAME, _init_params.x11_class_name.data());
+  }
+
+  if (!_init_params.x11_instance_name.empty()) {
+    glfwWindowHintString(GLFW_X11_INSTANCE_NAME, _init_params.x11_instance_name.data());
+  }
+
+  GLFWwindow* win = glfwCreateWindow(
+    _init_params.width, _init_params.height, _init_params.title.data(), nullptr, nullptr
+  );
+  if (!win) {
+    glfwTerminate();
+    SHOGLE_LOG(error, "[ntf::r_window] Failed to create window");
+    return false;
+  }
+  if (ctx_params.api == r_api::opengl) {
+    glfwMakeContextCurrent(win);
+    glfwSwapInterval(ctx_params.swap_interval.value_or(0));
+  }
+
+  glfwSetWindowUserPointer(win, this);
+
+  glfwSetFramebufferSizeCallback(win, r_window::fb_callback);
+  glfwSetKeyCallback(win, r_window::key_callback);
+  glfwSetCursorPosCallback(win, r_window::cursor_callback);
+  glfwSetScrollCallback(win, r_window::scroll_callback);
+  _handle = win;
+#endif
+
+  return true;
+}
+
+void r_window::reset() {
   if (!valid()) {
     return;
   }
 
-  if (_ctx_api == r_api::opengl) {
-    auto* ctx = reinterpret_cast<gl_context*>(_ctx);
-    ctx->destroy();
-  }
-#ifdef SHOGLE_ENABLE_IMGUI
-  ImGui_ImplGlfw_Shutdown();
-  ImGui::DestroyContext();
-#endif
   glfwDestroyWindow(_handle);
   glfwTerminate();
+  _handle = nullptr;
 }
 
 void r_window::fb_callback(GLFWwindow* handle, int w, int h) {
@@ -100,10 +143,6 @@ uvec2 r_window::fb_size() const {
 
 void r_window::poll_events() {
   glfwPollEvents();
-#ifdef SHOGLE_ENABLE_IMGUI
-  ImGui_ImplGlfw_NewFrame(); // TODO: Move this to the context new frame?
-#endif
 }
-#endif
 
 } // namespace ntf

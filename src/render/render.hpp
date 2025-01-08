@@ -6,17 +6,40 @@
 #include <imgui.h>
 #endif
 
+#define SHOGLE_DECLARE_RENDER_HANDLE(_name) \
+class _name { \
+public: \
+  _name() : _handle{r_handle_tombstone} {} \
+  explicit _name(r_handle_value handle) : _handle{handle} {} \
+public: \
+  r_handle_value value() const { return _handle; } \
+  operator r_handle_value() const { return value(); } \
+  bool valid() const { return _handle == r_handle_tombstone; } \
+  explicit operator bool() const { return valid(); } \
+private: \
+  r_handle_value _handle; \
+}
+
+#define SHOGLE_DECLARE_ATTRIB_TRAIT(_type, _tag) \
+template<> \
+struct r_attrib_traits<_type> { \
+  static constexpr auto tag = _tag; \
+  static constexpr size_t size = r_attrib_type_size(tag); \
+  static constexpr uint32 dim = r_attrib_type_dim(tag); \
+  static constexpr bool is_attrib = true; \
+}
+
 namespace ntf {
 
 using color3 = vec3;
 using color4 = vec4;
 
 enum class r_api : uint8 {
-  none = 0,
   software,
   opengl,
   vulkan,
 };
+class r_context;
 
 enum class r_win_api : uint8 {
   glfw,
@@ -32,8 +55,16 @@ enum class r_resource_type : uint8 {
   framebuffer,
 };
 
-using r_handle_value = uint64;
+using r_handle_value = uint32;
 constexpr r_handle_value r_handle_tombstone = std::numeric_limits<r_handle_value>::max();
+
+SHOGLE_DECLARE_RENDER_HANDLE(r_buffer_handle);
+SHOGLE_DECLARE_RENDER_HANDLE(r_texture_handle);
+SHOGLE_DECLARE_RENDER_HANDLE(r_shader_handle);
+SHOGLE_DECLARE_RENDER_HANDLE(r_pipeline_handle);
+SHOGLE_DECLARE_RENDER_HANDLE(r_framebuffer_handle);
+SHOGLE_DECLARE_RENDER_HANDLE(r_uniform);
+
 
 template<typename RenderCtx, typename T, typename HandleView>
 class r_handle {
@@ -117,6 +148,11 @@ enum class r_attrib_type : uint32 {
   i32, ivec2, ivec3, ivec4,
 };
 
+template<typename T>
+struct r_attrib_traits {
+  static constexpr bool is_attrib = false;
+};
+
 constexpr inline size_t r_attrib_type_size(r_attrib_type type) {
   constexpr size_t int_sz = sizeof(int32);
   constexpr size_t float_sz = sizeof(float);
@@ -174,11 +210,36 @@ constexpr inline uint32 r_attrib_type_dim(r_attrib_type type) {
   return 0;
 }
 
+SHOGLE_DECLARE_ATTRIB_TRAIT(float32, r_attrib_type::f32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(vec2, r_attrib_type::vec2);
+SHOGLE_DECLARE_ATTRIB_TRAIT(vec3, r_attrib_type::vec3);
+SHOGLE_DECLARE_ATTRIB_TRAIT(vec4, r_attrib_type::vec4);
+SHOGLE_DECLARE_ATTRIB_TRAIT(mat3, r_attrib_type::mat3);
+SHOGLE_DECLARE_ATTRIB_TRAIT(mat4, r_attrib_type::mat4);
+
+SHOGLE_DECLARE_ATTRIB_TRAIT(float64, r_attrib_type::f64);
+SHOGLE_DECLARE_ATTRIB_TRAIT(dvec2, r_attrib_type::dvec2);
+SHOGLE_DECLARE_ATTRIB_TRAIT(dvec3, r_attrib_type::dvec3);
+SHOGLE_DECLARE_ATTRIB_TRAIT(dvec4, r_attrib_type::dvec4);
+SHOGLE_DECLARE_ATTRIB_TRAIT(dmat3, r_attrib_type::dmat3);
+SHOGLE_DECLARE_ATTRIB_TRAIT(dmat4, r_attrib_type::dmat4);
+
+SHOGLE_DECLARE_ATTRIB_TRAIT(int32, r_attrib_type::i32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(ivec2, r_attrib_type::ivec2);
+SHOGLE_DECLARE_ATTRIB_TRAIT(ivec3, r_attrib_type::ivec3);
+SHOGLE_DECLARE_ATTRIB_TRAIT(ivec4, r_attrib_type::ivec4);
+
+
 struct r_attrib_descriptor {
   uint32        binding;
   uint32        location;
   size_t        offset;
   r_attrib_type type;
+};
+
+struct r_attributes {
+  std::vector<r_attrib_descriptor> attribs;
+  size_t stride;
 };
 
 struct r_uniform_descriptor {
@@ -314,7 +375,7 @@ enum class r_clear_flag : uint8 {
   depth   = 1 << 1,
   stencil = 1 << 2,
 };
-NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear_flag)
+NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear_flag);
 
 struct r_draw_cmd {
   r_handle_value vertex_buffer;
@@ -332,14 +393,7 @@ struct r_draw_cmd {
   uint32                      instance_count;
 };
 
-template<typename T>
-concept render_context_object = requires(T ctx) {
-  { ctx.start_frame() } -> std::convertible_to<void>;
-  { ctx.end_frame() } -> std::convertible_to<void>;
-  { ctx.enqueue(r_draw_cmd{}) } -> std::convertible_to<void>;
-  { ctx.device_wait() } -> std::convertible_to<void>;
-};
-
 } // namespace ntf
 
+#undef SHOGLE_DECLARE_ATTRIB_TRAIT
 #undef SHOGLE_DECLARE_RENDER_HANDLE

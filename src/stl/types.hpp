@@ -18,11 +18,16 @@
 #include <chrono>
 #include <condition_variable>
 #include <limits>
+#include <variant>
 #include <fstream>
 #include <sstream>
 
 #include <cstring>
 #include <cstdlib>
+
+#define NTF_DECLARE_TAG_TYPE(_name) \
+struct _name##_t {}; \
+constexpr _name##_t _name{}
 
 namespace ntf {
 
@@ -41,20 +46,87 @@ using int64   = std::int64_t;
 using float32 = float;
 using float64 = double;
 
+template<typename T = void>
 class error : public std::exception {
 public:
   template<typename... Args>
-  error(fmt::format_string<Args...> format, Args&&... args) :
-    msg(fmt::format(format, std::forward<Args>(args)...)) {}
+  error(T data, fmt::format_string<Args...> format, Args&&... args)
+    noexcept(std::is_nothrow_move_constructible_v<T>) :
+    _data{std::move(data)}, _msg{fmt::format(format, std::forward<Args>(args)...)} {}
 
 public:
-  const char* what() const noexcept override {
-    return msg.c_str();
-  }
+  const char* what() const noexcept override { return _msg.c_str();  }
+  const std::string& msg() const noexcept { return _msg; }
+  std::string& msg() noexcept { return _msg; }
+  const T& data() const noexcept { return _data; }
+  T& data() noexcept { return _data; }
 
 protected:
-  std::string msg;
+  T _data;
+  std::string _msg;
 };
+
+template<>
+class error<void> : public std::exception {
+public:
+  template<typename... Args>
+  error(fmt::format_string<Args...> format, Args&&... args) noexcept :
+    _msg{fmt::format(format, std::forward<Args>(args)...)} {}
+
+public:
+  const char* what() const noexcept override { return _msg.c_str();  }
+  const std::string& msg() const noexcept { return _msg; }
+  std::string& msg() noexcept { return _msg; }
+
+protected:
+  std::string _msg;
+};
+
+template<typename T>
+class weak_ref {
+public:
+  constexpr weak_ref() noexcept : _ptr{nullptr} {}
+  constexpr weak_ref(T* obj) noexcept : _ptr{obj} {}
+  constexpr weak_ref(T& obj) noexcept : _ptr{std::addressof(obj)} {}
+
+public:
+  constexpr void reset() { _ptr = nullptr; }
+  constexpr void reset(T& obj) { _ptr = std::addressof(obj); }
+
+public:
+  constexpr const T* operator->() const { NTF_ASSERT(_ptr); return _ptr; }
+  constexpr T* operator->() { NTF_ASSERT(_ptr); return _ptr; }
+
+  constexpr const T& operator*() const { NTF_ASSERT(_ptr); return *_ptr; }
+  constexpr T& operator*() { NTF_ASSERT(_ptr); return *_ptr; }
+
+  constexpr const T& get() const { return **this; }
+  constexpr T& get() { return **this; }
+
+  [[nodiscard]] constexpr bool valid() const { return _ptr != nullptr; }
+  constexpr explicit operator bool() const { return valid(); }
+
+private:
+  T* _ptr;
+};
+
+template<typename... Fs>
+struct visitor_overload : Fs... { using Fs::operator()...; };
+
+template<typename... Fs>
+visitor_overload(Fs...) -> visitor_overload<Fs...>;
+
+template<typename... Ts, typename... Fs>
+constexpr decltype(auto) operator|(std::variant<Ts...>& v,
+                                   const visitor_overload<Fs...>& overload) {
+  return std::visit(overload, v);
+}
+
+template<typename... Ts, typename... Fs>
+constexpr decltype(auto) operator|(const std::variant<Ts...>& v,
+                                   const visitor_overload<Fs...>& overload) {
+  return std::visit(overload, v);
+}
 
 template<typename TL, typename... TR>
 concept same_as_any = (... or std::same_as<TL, TR>);

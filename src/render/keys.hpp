@@ -3,6 +3,7 @@
 #include "../stl/types.hpp"
 
 #ifdef SHOGLE_USE_GLFW
+#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #endif
 
