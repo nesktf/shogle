@@ -7,17 +7,27 @@
 #endif
 
 #define SHOGLE_DECLARE_RENDER_HANDLE(_name) \
+namespace ntf { \
 class _name { \
 public: \
-  _name() : _handle{r_handle_tombstone} {} \
-  explicit _name(r_handle_value handle) : _handle{handle} {} \
+  constexpr _name() : _handle{r_handle_tombstone} {} \
+  constexpr explicit _name(r_handle_value handle) : _handle{handle} {} \
 public: \
-  r_handle_value value() const { return _handle; } \
-  operator r_handle_value() const { return value(); } \
-  bool valid() const { return _handle == r_handle_tombstone; } \
-  explicit operator bool() const { return valid(); } \
+  constexpr r_handle_value value() const { return _handle; } \
+  constexpr operator r_handle_value() const { return value(); } \
+  constexpr bool valid() const { return _handle == r_handle_tombstone; } \
+  constexpr explicit operator bool() const { return valid(); } \
 private: \
   r_handle_value _handle; \
+}; \
+} \
+namespace std { \
+template<> \
+struct hash<::ntf::_name> { \
+  std::size_t operator()(const ::ntf::_name& h) const noexcept { \
+    return hash<::ntf::r_handle_value>{}(h.value()); \
+  } \
+}; \
 }
 
 #define SHOGLE_DECLARE_ATTRIB_TRAIT(_type, _tag) \
@@ -47,16 +57,10 @@ enum class r_win_api : uint8 {
 };
 class r_window;
 
-enum class r_resource_type : uint8 {
-  buffer,
-  texture,
-  pipeline,
-  shader,
-  framebuffer,
-};
-
 using r_handle_value = uint32;
 constexpr r_handle_value r_handle_tombstone = std::numeric_limits<r_handle_value>::max();
+
+} // namespace ntf
 
 SHOGLE_DECLARE_RENDER_HANDLE(r_buffer_handle);
 SHOGLE_DECLARE_RENDER_HANDLE(r_texture_handle);
@@ -65,82 +69,7 @@ SHOGLE_DECLARE_RENDER_HANDLE(r_pipeline_handle);
 SHOGLE_DECLARE_RENDER_HANDLE(r_framebuffer_handle);
 SHOGLE_DECLARE_RENDER_HANDLE(r_uniform);
 
-
-template<typename RenderCtx, typename T, typename HandleView>
-class r_handle {
-public:
-  r_handle() = default;
-
-private:
-  r_handle(RenderCtx& ctx, r_handle_value handle) :
-    _ctx(&ctx), _handle(handle) {};
-
-public:
-  const T& get() const { 
-    NTF_ASSERT(_ctx);
-    return _ctx->resource(std::type_identity<T>{}, _handle);
-  }
-
-  T& get() {
-    NTF_ASSERT(_ctx);
-    return _ctx->resource(std::type_identity<T>{}, _handle);
-  }
-
-  void reset() { 
-    if (_ctx) {
-      _ctx->destroy(std::type_identity<T>{}, _handle);
-    }
-    _ctx = nullptr;
-    _handle = r_handle_tombstone;
-  }
-
-  r_handle_value handle() const { return _handle; }
-
-  T& operator*() { return get(); }
-  const T& operator*() const { return get(); }
-  T* operator->() { return &get(); }
-  const T* operator->() const { return &get(); }
-
-  explicit operator bool() const { return _ctx != nullptr && _handle != r_handle_tombstone; }
-  operator HandleView() const { return HandleView{RenderCtx::RENDER_API, _handle}; }
-
-private:
-  RenderCtx* _ctx{nullptr};
-  r_handle_value _handle{r_handle_tombstone};
-
-public:
-  ~r_handle() noexcept {
-    if (_ctx) {
-      _ctx->destroy(std::type_identity<T>{}, _handle);
-    }
-  }
-
-  r_handle(const r_handle&) = delete;
-  r_handle& operator=(const r_handle&) = delete;
-
-  r_handle(r_handle&& h) noexcept :
-    _ctx(std::move(h._ctx)), _handle(std::move(h._handle)) { h._ctx = nullptr; }
-  r_handle& operator=(r_handle&& h) noexcept {
-    if (std::addressof(h) == this) {
-      return *this;
-    }
-
-    if (_ctx) {
-      _ctx->destroy(std::type_identity<T>{}, _handle);
-    }
-
-    _ctx = std::move(h._ctx);
-    _handle = std::move(h._handle);
-
-    h._ctx = nullptr;
-
-    return *this;
-  }
-
-private:
-  friend RenderCtx;
-};
-
+namespace ntf {
 
 enum class r_attrib_type : uint32 {
   f32, vec2,  vec3,  vec4,  mat3,  mat4,
@@ -229,25 +158,6 @@ SHOGLE_DECLARE_ATTRIB_TRAIT(ivec2, r_attrib_type::ivec2);
 SHOGLE_DECLARE_ATTRIB_TRAIT(ivec3, r_attrib_type::ivec3);
 SHOGLE_DECLARE_ATTRIB_TRAIT(ivec4, r_attrib_type::ivec4);
 
-
-struct r_attrib_descriptor {
-  uint32        binding;
-  uint32        location;
-  size_t        offset;
-  r_attrib_type type;
-};
-
-struct r_attributes {
-  std::vector<r_attrib_descriptor> attribs;
-  size_t stride;
-};
-
-struct r_uniform_descriptor {
-  uint32        location;
-  r_attrib_type type;
-  const void*   data;
-};
-
 enum class r_shader_type : uint8 {
   vertex = 0,
   fragment,
@@ -313,9 +223,9 @@ enum class r_cubemap_face : uint8 {
 constexpr uint8 r_cubemap_face_count = 6;
 
 struct r_texture_descriptor {
-  const uint8* const* texels;
+  void const* const*  texels;
   uint32              count;
-  uint32              mipmap_level;
+  uint32              mipmaps;
   uvec3               extent;
   r_texture_type      type;
   r_texture_format    format;
@@ -324,7 +234,7 @@ struct r_texture_descriptor {
 };
 
 enum class r_buffer_type : uint8 {
-  vertex,
+  vertex = 0,
   index,
   texel,
   uniform,
@@ -339,7 +249,7 @@ struct r_buffer_descriptor {
 };
 
 enum class r_primitive : uint8 {
-  triangles,
+  triangles = 0,
   triangle_strip,
   triangle_fan,
   lines,
@@ -348,26 +258,62 @@ enum class r_primitive : uint8 {
 };
 
 enum class r_polygon_mode : uint8 {
+  fill = 0,
   point,
   line,
-  fill,
 };
 
-struct r_framebuffer_descriptor {
-  uvec4 viewport;
-  r_texture_sampler sampler;
-  r_texture_address addressing;
+enum class r_compare_op : uint8 {
+  never = 0,
+  always,
+  less,
+  greater,
+  equal,
+  lequal,
+  gequal,
+  nequal,
+};
+
+enum class r_front_face : uint8 {
+  clockwise = 0,
+  counter_clockwise,
+};
+
+enum class r_cull_mode : uint8 {
+  front = 0,
+  back,
+  front_back,
+};
+
+struct r_attrib_descriptor {
+  uint32        binding;
+  uint32        location;
+  size_t        offset;
+  r_attrib_type type;
 };
 
 struct r_pipeline_descriptor {
-  const r_handle_value*       stages;
+  const r_shader_handle*      stages;
   uint32                      stage_count;
+
   const r_attrib_descriptor*  attribs;
   uint32                      attrib_count;
+  size_t                      stride;
+
   r_primitive                 primitive;
   r_polygon_mode              poly_mode;
+  bool                        depth_test;
+  r_compare_op                depth_compare_op;
+  // bool                        depth_write;
+  r_front_face                front_face;
+  r_cull_mode                 cull_mode;
 };
 
+struct r_framebuffer_descriptor {
+  uvec2 size;
+  const r_texture_handle* attachments;
+  uint32 attachment_count;
+};
 
 enum class r_clear_flag : uint8 {
   none    = 0,
@@ -377,20 +323,10 @@ enum class r_clear_flag : uint8 {
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear_flag);
 
-struct r_draw_cmd {
-  r_handle_value vertex_buffer;
-  r_handle_value index_buffer;
-  r_handle_value pipeline;
-  r_handle_value framebuffer;
-
-  const r_handle_value*       textures;
-  uint32                      texture_count;
-  const r_uniform_descriptor* uniforms;
-  uint32                      uniform_count;
-
-  uint32                      draw_count;
-  uint32                      draw_offset;
-  uint32                      instance_count;
+struct r_draw_opts {
+  uint32 draw_count;
+  uint32 draw_offset;
+  uint32 instance_count;
 };
 
 } // namespace ntf

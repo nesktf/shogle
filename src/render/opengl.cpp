@@ -11,8 +11,14 @@ do { \
 } while(0)
 #endif
 
+#define GL_CHECK(fun) \
+[&]() { \
+  fun; \
+  return gl_check_error(__FILE__, __LINE__); \
+}()
+
 static GLenum gl_check_error(const char* file, int line) noexcept {
-  GLenum err{};
+  GLenum err = GL_NO_ERROR;
   while ((err = glGetError()) != GL_NO_ERROR) {
     const char* err_str;
     switch (err) {
@@ -31,24 +37,22 @@ static GLenum gl_check_error(const char* file, int line) noexcept {
   return err;
 }
 
-static constexpr GLuint GL_NULL_ID = 0;
-
 namespace ntf {
 
 gl_state::gl_state(gl_context& ctx) noexcept :
   _ctx{ctx},
   // _tex_limits{0, 0, 0},
-  _active_tex{0},
   _bound_vao{0},
-  _bound_program{0} {
-  std::memset(_bound_buffers, GL_NULL_ID, BUFFER_TYPE_COUNT*sizeof(GLuint));
-  std::memset(_bound_fbos, GL_NULL_ID, FBO_BIND_COUNT*sizeof(GLuint));
+  _bound_program{0},
+  _active_tex{0} {
+  std::memset(_bound_buffers, NULL_BINDING, BUFFER_TYPE_COUNT*sizeof(GLuint));
+  std::memset(_bound_fbos, DEFAULT_FBO, FBO_BIND_COUNT*sizeof(GLuint));
 }
 
-void gl_state::init() noexcept {
+void gl_state::init(const init_data_t& data) noexcept {
   GLint max_tex;
   GL_CALL(glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &max_tex));
-  _bound_texs.resize(max_tex, std::make_pair(0, 0));
+  _bound_texs.resize(max_tex, std::make_pair(NULL_BINDING, GL_TEXTURE_2D));
 
   GLint max_tex_lay;
   GL_CALL(glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &max_tex_lay));
@@ -65,6 +69,33 @@ void gl_state::init() noexcept {
   // GLint max_fbo_attach;
   // glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &max_fbo_attach);
   // _fbo_max_attachments = max_fbo_attach;
+
+  // State cleanup
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FBO));
+  GL_CALL(glUseProgram(NULL_BINDING));
+  GL_CALL(glBindVertexArray(NULL_BINDING));
+  GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, NULL_BINDING));
+  GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, NULL_BINDING));
+  GL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, NULL_BINDING));
+  GL_CALL(glBindBuffer(GL_TEXTURE_BUFFER, NULL_BINDING));
+  GL_CALL(glBindBuffer(GL_SHADER_STORAGE_BUFFER, NULL_BINDING));
+  for (GLint i = max_tex-1; i >= 0; --i) {
+    // Do it in reverse to end up with GL_TEXTURE0 active
+    GL_CALL(glActiveTexture(GL_TEXTURE0+i));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, NULL_BINDING));
+  }
+
+  // Configure swapchain
+  auto& vp = _swpch.vport;
+  vp = data.vport;
+  _swpch.flag = 0;
+  _swpch.color = color4{.3f, .3f, .3f, 1.f};
+  if (data.dbg) {
+    GL_CALL(glEnable(GL_DEBUG_OUTPUT));
+    GL_CALL(glDebugMessageCallback(data.dbg, &_ctx));
+  }
+  GL_CALL(glViewport(vp.x, vp.y, vp.z, vp.w));
+  GL_CALL(glEnable(GL_DEPTH_TEST)); // (?)
 }
 
 GLenum gl_state::buffer_type_cast(r_buffer_type type) noexcept {
@@ -79,7 +110,7 @@ GLenum gl_state::buffer_type_cast(r_buffer_type type) noexcept {
   NTF_UNREACHABLE();
 }
 
-GLenum& gl_state::_buffer_pos(GLenum type) {
+GLenum& gl_state::buffer_pos(GLenum type) {
   switch (type) {
     case GL_ARRAY_BUFFER:           return _bound_buffers[BUFFER_TYPE_VERTEX];
     case GL_ELEMENT_ARRAY_BUFFER:   return _bound_buffers[BUFFER_TYPE_INDEX];
@@ -96,17 +127,18 @@ auto gl_state::create_buffer(r_buffer_type type, const void* data, size_t size) 
   GL_CALL(glGenBuffers(1, &id));
   const GLenum gltype = buffer_type_cast(type);
 
-  GL_CALL(glBindBuffer(gltype, id));
-  _buffer_pos(gltype) = id;
+  buffer_pos(gltype) = id;
 
-  GLbitfield flags = GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT;
-  if (data) {
-    GL_CALL(glBufferStorage(gltype, size, data, flags));
-    GL_CALL(glBufferSubData(gltype, 0, size, data));
-  } else {
-    flags |= GL_DYNAMIC_STORAGE_BIT;
-    GL_CALL(glBufferStorage(gltype, size, data, flags));
+  GLbitfield flags = GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT | (data ? 0 : GL_DYNAMIC_STORAGE_BIT);
+
+  GLuint last = buffer_pos(gltype);
+  GL_CALL(glBindBuffer(gltype, id));
+  if (auto err = GL_CHECK(glBufferStorage(gltype, size, data, flags)); err != GL_NO_ERROR) {
+    GL_CALL(glBindBuffer(gltype, last));
+    GL_CALL(glDeleteBuffers(1, &id));
+    throw ntf::error<void>{"[ntf::gl_state] Failed to create buffer with size {}", size};
   }
+  buffer_pos(gltype) = id;
 
   buffer_t buff;
   buff.id = id;
@@ -119,22 +151,22 @@ auto gl_state::create_buffer(r_buffer_type type, const void* data, size_t size) 
 void gl_state::destroy_buffer(const buffer_t& buffer) noexcept {
   NTF_ASSERT(buffer.id);
   GLuint id = buffer.id;
-  GLenum& pos = _buffer_pos(buffer.type);
+  GLenum& pos = buffer_pos(buffer.type);
   if (pos == id) {
-    GL_CALL(glBindBuffer(buffer.type, GL_NULL_ID));
-    pos = GL_NULL_ID;
+    GL_CALL(glBindBuffer(buffer.type, NULL_BINDING));
+    pos = NULL_BINDING;
   }
   GL_CALL(glDeleteBuffers(1, &id));
 }
 
-void gl_state::bind_buffer(const buffer_t& buffer) noexcept {
-  NTF_ASSERT(buffer.id);
-  GLenum& pos = _buffer_pos(buffer.type);
-  if (pos == buffer.id) {
-    return;
+bool gl_state::bind_buffer(GLuint id, GLenum type) noexcept {
+  GLenum& pos = buffer_pos(type);
+  if (pos == id) {
+    return false;
   }
-  GL_CALL(glBindBuffer(buffer.type, buffer.id));
-  pos = buffer.id;
+  GL_CALL(glBindBuffer(type, id));
+  pos = id;
+  return true;
 }
 
 void gl_state::update_buffer(const buffer_t& buffer, const void* data,
@@ -142,7 +174,7 @@ void gl_state::update_buffer(const buffer_t& buffer, const void* data,
   NTF_ASSERT(buffer.flags & GL_DYNAMIC_STORAGE_BIT);
   NTF_ASSERT(size+off <= buffer.size);
 
-  bind_buffer(buffer);
+  bind_buffer(buffer.id, buffer.type);
   GL_CALL(glBufferSubData(buffer.type, off, size, data));
 }
 
@@ -154,21 +186,20 @@ auto gl_state::create_vao() noexcept -> vao_t {
   return vao;
 }
 
-void gl_state::bind_vao(const vao_t& vao) noexcept {
-  NTF_ASSERT(vao.id);
-  if (_bound_vao == vao.id) {
+void gl_state::bind_vao(GLuint id) noexcept {
+  if (_bound_vao == id) {
     return;
   }
-  GL_CALL(glBindVertexArray(vao.id));
-  _bound_vao = vao.id;
+  GL_CALL(glBindVertexArray(id));
+  _bound_vao = id;
 }
 
 void gl_state::destroy_vao(const vao_t& vao) noexcept {
   NTF_ASSERT(vao.id);
   GLuint id = vao.id;
   if (_bound_vao == id) {
-    _bound_vao = GL_NULL_ID;
-    GL_CALL(glBindVertexArray(GL_NULL_ID));
+    _bound_vao = NULL_BINDING;
+    GL_CALL(glBindVertexArray(NULL_BINDING));
   }
   GL_CALL(glDeleteVertexArrays(1, &id));
 }
@@ -193,22 +224,27 @@ auto gl_state::create_shader(r_shader_type type, std::string_view src) -> shader
   GL_CALL(id = glCreateShader(gltype));
 
   const char* src_data = src.data();
-  GL_CALL(glShaderSource(id, 1, &src_data, nullptr));
+  const GLint len = src.size();
+  GL_CALL(glShaderSource(id, 1, &src_data, &len));
   GL_CALL(glCompileShader(id));
 
   int succ;
   GL_CALL(glGetShaderiv(id, GL_COMPILE_STATUS, &succ));
   if (!succ) {
-    char msg[1024];
-    GL_CALL(glGetShaderInfoLog(id, 1024, nullptr, msg));
+    GLint err_len = 0; // includes null terminator
+    GL_CALL(glGetShaderiv(id, GL_INFO_LOG_LENGTH, &err_len));
+    std::string log;
+    log.resize(err_len);
+
+    GL_CALL(glGetShaderInfoLog(id, 1024, &err_len, log.data()));
     GL_CALL(glDeleteShader(id));
-    throw ntf::error<void>{"[ntf::gl_state] Failed to compile shader: {}", msg};
+    throw ntf::error<void>{"[ntf::gl_state] Failed to compile shader: {}", log};
   }
 
   shader_t shader;
   shader.id = id;
   shader.type = gltype;
-  return {shader};
+  return shader;
 }
 
 void gl_state::destroy_shader(const shader_t& shader) noexcept {
@@ -216,46 +252,174 @@ void gl_state::destroy_shader(const shader_t& shader) noexcept {
   GL_CALL(glDeleteShader(shader.id));
 }
 
-auto gl_state::create_program(const shader_t* shaders, uint32 count) -> program_t {
+auto gl_state::create_program(shader_t const* const* shaders, uint32 count,
+                              r_primitive primitive) -> program_t {
   GLuint id;
   GL_CALL(id = glCreateProgram());
   for (uint32 i = 0; i < count; ++i) {
     // TODO: Ensure vertex and fragment exist
     // TODO: Check for duplicate shader types
-    GL_CALL(glAttachShader(id, shaders[i].id));
+    GL_CALL(glAttachShader(id, shaders[i]->id));
   }
   GL_CALL(glLinkProgram(id));
 
   int succ;
   GL_CALL(glGetProgramiv(id, GL_LINK_STATUS, &succ));
   if (!succ) {
-    char msg[1024];
-    GL_CALL(glGetShaderInfoLog(shaders[0].id, 1024, nullptr, msg));
+    GLint err_len = 0; // includes null terminator
+    GL_CALL(glGetProgramiv(id, GL_INFO_LOG_LENGTH, &err_len));
+    std::string log;
+    log.resize(err_len);
+
+    GL_CALL(glGetShaderInfoLog(shaders[0]->id, 1024, &err_len, log.data()));
     GL_CALL(glDeleteProgram(id));
-    throw ntf::error<void>{"[ntf::gl_state] Failed to link program: {}", msg};
+    throw ntf::error<void>{"[ntf::gl_state] Failed to link program: {}", log};
+  }
+
+  for (uint32 i = 0; i < count; ++i) {
+    GL_CALL(glDetachShader(id, shaders[i]->id));
   }
 
   program_t prog;
   prog.id = id;
-  return {prog};
+  prog.primitive = primitive_cast(primitive);
+  return prog;
 }
 
 void gl_state::destroy_program(const program_t& prog) noexcept {
   NTF_ASSERT(prog.id);
   if (_bound_program == prog.id) {
-    _bound_program = GL_NULL_ID;
-    GL_CALL(glUseProgram(GL_NULL_ID));
+    _bound_program = NULL_BINDING;
+    GL_CALL(glUseProgram(NULL_BINDING));
   }
   GL_CALL(glDeleteProgram(prog.id));
 }
 
-void gl_state::bind_program(const program_t& prog) noexcept {
-  NTF_ASSERT(prog.id);
-  if (_bound_program == prog.id) {
-    return;
+bool gl_state::bind_program(GLuint id) noexcept {
+  if (_bound_program == id) {
+    return false;
   }
-  GL_CALL(glUseProgram(prog.id));
-  _bound_program = prog.id;
+  GL_CALL(glUseProgram(id));
+  _bound_program = id;
+  return true;
+}
+
+void gl_state::push_uniform(uint32 loc, r_attrib_type type, const void* data) noexcept {
+  NTF_ASSERT(data);
+  switch (type) {
+    case r_attrib_type::f32: {
+      GL_CALL(glUniform1f(
+        loc, *reinterpret_cast<const float32*>(data)
+      ));
+      break;
+    }
+    case r_attrib_type::vec2: {
+      GL_CALL(glUniform2fv(
+        loc, 1, glm::value_ptr(*reinterpret_cast<const vec2*>(data))
+      ));
+      break;
+    }
+    case r_attrib_type::vec3: {
+      GL_CALL(glUniform3fv(
+        loc, 1, glm::value_ptr(*reinterpret_cast<const vec3*>(data))
+      ));
+      break;
+    }
+    case r_attrib_type::vec4: {
+      GL_CALL(glUniform4fv(
+        loc, 1, glm::value_ptr(*reinterpret_cast<const vec4*>(data))
+      ));
+      break;
+    }
+    case r_attrib_type::mat3: {
+      GL_CALL(glUniformMatrix3fv(
+        loc, 1, GL_FALSE, glm::value_ptr(*reinterpret_cast<const mat3*>(data))
+      ));
+      break;
+    } 
+    case r_attrib_type::mat4: {
+      GL_CALL(glUniformMatrix4fv(
+        loc, 1, GL_FALSE, glm::value_ptr(*reinterpret_cast<const mat4*>(data))
+      ));
+      break;
+    }
+
+    case r_attrib_type::f64: {
+      GL_CALL(glUniform1d(
+        loc, *reinterpret_cast<const float64*>(data)
+      ));
+      break;
+    }
+    case r_attrib_type::dvec2: {
+      GL_CALL(glUniform2dv(
+        loc, 1, glm::value_ptr(*reinterpret_cast<const dvec2*>(data))
+      ));
+      break;
+    }
+    case r_attrib_type::dvec3: {
+      GL_CALL(glUniform3dv(
+        loc, 1, glm::value_ptr(*reinterpret_cast<const dvec3*>(data))
+      ));
+      break;
+    }
+    case r_attrib_type::dvec4: {
+      GL_CALL(glUniform4dv(
+        loc, 1, glm::value_ptr(*reinterpret_cast<const dvec4*>(data))
+      ));
+      break;
+    }
+    case r_attrib_type::dmat3: {
+      GL_CALL(glUniformMatrix3dv(
+        loc, 1, GL_FALSE, glm::value_ptr(*reinterpret_cast<const dmat3*>(data))
+      ));
+      break;
+    } 
+    case r_attrib_type::dmat4: {
+      GL_CALL(glUniformMatrix4dv(
+        loc, 1, GL_FALSE, glm::value_ptr(*reinterpret_cast<const dmat4*>(data))
+      ));
+      break;
+    }
+
+    case r_attrib_type::i32: {
+      GL_CALL(glUniform1i(
+        loc, *reinterpret_cast<const int32*>(data)
+      ));
+      break;
+    }
+    case r_attrib_type::ivec2: {
+      GL_CALL(glUniform2iv(
+        loc, 1, glm::value_ptr(*reinterpret_cast<const ivec2*>(data))
+      ));
+      break;
+    }
+    case r_attrib_type::ivec3: {
+      GL_CALL(glUniform3iv(
+        loc, 1, glm::value_ptr(*reinterpret_cast<const ivec3*>(data))
+      ));
+      break;
+    }
+    case r_attrib_type::ivec4: {
+      GL_CALL(glUniform4iv(
+        loc, 1, glm::value_ptr(*reinterpret_cast<const ivec4*>(data))
+      ));
+      break;
+    }
+
+    default: {
+      NTF_UNREACHABLE();
+    }
+  };
+}
+
+r_uniform gl_state::uniform_location(GLuint program, std::string_view name) noexcept {
+  NTF_ASSERT(program);
+  NTF_ASSERT(name.back() == '\0');
+  const GLint loc = glGetUniformLocation(program, name.data());
+  if (loc < 0) {
+    return r_uniform{};
+  }
+  return r_uniform{static_cast<r_handle_value>(loc)};
 }
 
 GLenum gl_state::texture_type_cast(r_texture_type type) noexcept {
@@ -292,22 +456,10 @@ GLenum gl_state::texture_format_underlying_cast(r_texture_format format) noexcep
 }
 
 GLenum gl_state::texture_sampler_cast(r_texture_sampler sampler, bool mipmaps) noexcept {
+  // TODO: Add cases for GL_LINEAR_MIPMAP_NEAREST and GL_NEAREST_MIPMAP_LINEAR?
   switch (sampler) {
     case r_texture_sampler::nearest:  return mipmaps ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST;
     case r_texture_sampler::linear:   return mipmaps ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR;
-    // TODO: change this?
-    // case r_texture_sampler::linear: {
-    //   if (mipmaps) {
-    //     if (lin_lvl) {
-    //       return lin_lvls ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR_MIPMAP_NEAREST;
-    //     } else {
-    //       return lin_lvl ? GL_NEAREST_MIPMAP_LINEAR : GL_NEAREST_MIPMAP_NEAREST;
-    //     }
-    //   } else {
-    //     return GL_LINEAR;
-    //   }
-    //   break;
-    // }
   }
 
   NTF_UNREACHABLE();
@@ -413,35 +565,33 @@ auto gl_state::create_texture(r_texture_type type, r_texture_format format,
   tex.dim = dim;
   tex.level = level;
   tex.array_size = array_size;
-  tex.attached_fbos = 0;
   return tex;
 }
 
 void gl_state::destroy_texture(const texture_t& tex) noexcept {
   NTF_ASSERT(tex.id);
-  NTF_ASSERT(tex.attached_fbos == 0);
   auto& [id, type] = _bound_texs[_active_tex];
   if (id == tex.id) {
     // glActiveTexture(GL_TEXTURE0+_tex_active_index);
-    GL_CALL(glBindTexture(type, GL_NULL_ID));
-    id = GL_NULL_ID;
-    type = GL_NULL_ID;
+    GL_CALL(glBindTexture(type, NULL_BINDING));
+    id = NULL_BINDING;
+    type = NULL_BINDING;
   }
   GLuint texid = tex.id;
   GL_CALL(glDeleteTextures(1, &texid));
 }
 
-void gl_state::bind_texture(const texture_t& tex, uint32 index) noexcept {
-  NTF_ASSERT(tex.id);
+void gl_state::bind_texture(GLuint id, GLenum type, uint32 index) noexcept {
+  NTF_ASSERT(type);
   NTF_ASSERT(index < _bound_texs.size())
-  auto& [id, type] = _bound_texs[index];
-  if (id == tex.id) {
+  auto& [bound, bound_type] = _bound_texs[index];
+  if (bound == id) {
     return;
   }
   GL_CALL(glActiveTexture(GL_TEXTURE0+index));
-  GL_CALL(glBindTexture(tex.type, tex.id));
-  id = tex.id;
-  type = tex.type;
+  GL_CALL(glBindTexture(type, id));
+  bound = id;
+  bound_type = type;
 }
 
 void gl_state::update_texture_data(const texture_t& tex, const void* data, 
@@ -454,7 +604,7 @@ void gl_state::update_texture_data(const texture_t& tex, const void* data,
   const GLenum data_format = texture_format_cast(format);
   const GLenum data_format_ul = texture_format_underlying_cast(format);
 
-  bind_texture(tex, _active_tex);
+  bind_texture(tex.id, tex.type, _active_tex);
   switch (tex.type) {
     case GL_TEXTURE_1D_ARRAY: {
       NTF_ASSERT(offset.x < tex.dim.x);
@@ -536,7 +686,7 @@ void gl_state::update_texture_sampler(texture_t& tex, r_texture_sampler sampler)
     return;
   }
 
-  bind_texture(tex, _active_tex);
+  bind_texture(tex.id, tex.type, _active_tex);
   GL_CALL(glTexParameteri(tex.type, GL_TEXTURE_MAG_FILTER, glsamplermag));
   GL_CALL(glTexParameteri(tex.type, GL_TEXTURE_MIN_FILTER, glsamplermin));
   tex.sampler[0] = glsamplermin;
@@ -550,7 +700,7 @@ void gl_state::update_texture_addressing(texture_t& tex, r_texture_address addre
     return;
   }
 
-  bind_texture(tex, _active_tex);
+  bind_texture(tex.id, tex.type, _active_tex);
   GL_CALL(glTexParameteri(tex.type, GL_TEXTURE_WRAP_S, gladdress)); // U
   if (tex.type != GL_TEXTURE_1D || tex.type != GL_TEXTURE_1D_ARRAY) {
     GL_CALL(glTexParameteri(tex.type, GL_TEXTURE_WRAP_T, gladdress)); // V
@@ -600,7 +750,7 @@ auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
   GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, texture_format_cast(format), w, h));
   GL_CALL(glFramebufferRenderbuffer(fbbind, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbos[1]));
 
-  GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, GL_NULL_ID));
+  GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, NULL_BINDING));
 
   NTF_ASSERT(glCheckFramebufferStatus(fbbind) == GL_FRAMEBUFFER_COMPLETE);
 
@@ -622,7 +772,7 @@ auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
 }
 
 auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
-                                  texture_t** attachments, uint32* levels,
+                                  texture_t** attachments, const uint32* levels,
                                   uint32 att_count) -> framebuffer_t {
   NTF_ASSERT(att_count <= MAX_FBO_ATTACHMENTS);
   NTF_ASSERT(attachments);
@@ -642,13 +792,13 @@ auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
     GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, rbo));
     GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h));
     GL_CALL(glFramebufferRenderbuffer(fbbind, sd_attachment, GL_RENDERBUFFER, rbo));
-    GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, GL_NULL_ID));
+    GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, NULL_BINDING));
   }
 
   for (uint32 i = 0; i < att_count; ++i) {
     NTF_ASSERT(attachments[i]);
     auto& tex = *attachments[i];
-    bind_texture(tex, _active_tex);
+    bind_texture(tex.id, tex.type, _active_tex);
     switch (tex.type) {
       case GL_TEXTURE_1D: {
         NTF_ASSERT(w == tex.dim.x && h == 1);
@@ -673,7 +823,7 @@ auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
 
   framebuffer_t fbo;
   fbo.sd_rbo = rbo;
-  fbo.color_rbo = GL_NULL_ID;
+  fbo.color_rbo = NULL_BINDING;
   fbo.dim.x = w;
   fbo.dim.y = h;
   fbo.clear_flags = 0;
@@ -691,11 +841,11 @@ auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
 void gl_state::destroy_framebuffer(const framebuffer_t& fbo) noexcept {
   NTF_ASSERT(fbo.id);
   if (_bound_fbos[FBO_BIND_WRITE] == fbo.id) {
-    GL_CALL(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, GL_NULL_ID));
-    _bound_fbos[FBO_BIND_WRITE] = GL_NULL_ID;
+    GL_CALL(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, DEFAULT_FBO));
+    _bound_fbos[FBO_BIND_WRITE] = DEFAULT_FBO;
   } else if (_bound_fbos[FBO_BIND_READ] == fbo.id) {
-    GL_CALL(glBindFramebuffer(GL_READ_FRAMEBUFFER, GL_NULL_ID));
-    _bound_fbos[FBO_BIND_READ] = GL_NULL_ID;
+    GL_CALL(glBindFramebuffer(GL_READ_FRAMEBUFFER, DEFAULT_FBO));
+    _bound_fbos[FBO_BIND_READ] = DEFAULT_FBO;
   }
 
   GLuint id = fbo.id;
@@ -710,22 +860,106 @@ void gl_state::destroy_framebuffer(const framebuffer_t& fbo) noexcept {
   }
 }
 
-void gl_state::bind_framebuffer(const framebuffer_t& fbo, fbo_binding binding) noexcept {
-  NTF_ASSERT(fbo.id);
-  if (binding == FBO_BIND_WRITE) {
-    if (_bound_fbos[FBO_BIND_WRITE] == fbo.id) {
-      return;
+void gl_state::bind_framebuffer(GLuint id, fbo_binding binding) noexcept {
+  GLenum fb;
+  switch (binding) {
+    case FBO_BIND_WRITE: {
+      if (_bound_fbos[FBO_BIND_WRITE] == id) {
+        return;
+      }
+      fb = GL_DRAW_FRAMEBUFFER;
+      _bound_fbos[FBO_BIND_WRITE] = id;
+      break;
     }
-    GL_CALL(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo.id));
-  } else if (binding == FBO_BIND_READ) {
-    if (_bound_fbos[FBO_BIND_READ] == fbo.id) {
-      return;
+    case FBO_BIND_READ: {
+      if (_bound_fbos[FBO_BIND_READ] == id) {
+        return;
+      }
+      _bound_fbos[FBO_BIND_READ] = id;
+      fb = GL_READ_FRAMEBUFFER;
+      break;
     }
-    GL_CALL(glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo.id));
-  } else {
-    NTF_UNREACHABLE();
+    case FBO_BIND_BOTH: {
+      if (_bound_fbos[FBO_BIND_READ] == id && _bound_fbos[FBO_BIND_WRITE] == id) {
+        return;
+      }
+      _bound_fbos[FBO_BIND_READ] = id;
+      _bound_fbos[FBO_BIND_WRITE] = id;
+      fb = GL_FRAMEBUFFER;
+      break;
+    }
+    default: {
+      NTF_UNREACHABLE();
+    }
   }
-  _bound_fbos[binding] = fbo.id;
+  GL_CALL(glBindFramebuffer(fb, id));
+}
+
+void gl_state::prepare_draw_target(const framebuffer_t* fb) noexcept {
+  if (!fb) {
+    bind_framebuffer(DEFAULT_FBO, FBO_BIND_WRITE);
+    const auto& vp = _swpch.vport;
+    const auto& col = _swpch.color;
+    GL_CALL(glViewport(vp.x, vp.y, vp.z, vp.w));
+    GL_CALL(glClearColor(col.r, col.g, col.b, col.a));
+    GL_CALL(glClear(_swpch.flag));
+    return;
+  }
+
+  NTF_ASSERT(fb->id);
+  bind_framebuffer(fb->id, FBO_BIND_WRITE);
+  const auto& vp = fb->viewport;
+  const auto& col = fb->color;
+  GL_CALL(glViewport(vp.x, vp.y, vp.z, vp.w));
+  GL_CALL(glClearColor(col.r, col.g, col.b, col.a));
+  GL_CALL(glClear(fb->clear_flags));
+}
+
+void gl_state::update_viewport(uvec4 vp) noexcept {
+  _swpch.vport = vp;
+}
+
+void gl_state::update_color(color4 col) noexcept {
+  _swpch.color = col;
+}
+
+void gl_state::update_flags(r_clear_flag flags) noexcept {
+  GLbitfield clear_bits{0};
+  if (+(flags & r_clear_flag::color)) {
+    clear_bits |= GL_COLOR_BUFFER_BIT;
+  }
+  if (+(flags & r_clear_flag::depth)) {
+    clear_bits |= GL_DEPTH_BUFFER_BIT;
+  }
+  if (+(flags & r_clear_flag::stencil)) {
+    clear_bits |= GL_STENCIL_BUFFER_BIT;
+  }
+  _swpch.flag = clear_bits;
+}
+
+void gl_state::bind_attributes(const r_attrib_descriptor* attrs, uint32 count, 
+                               size_t stride) noexcept {
+  NTF_ASSERT(attrs);
+  NTF_ASSERT(count > 0);
+  NTF_ASSERT(stride > 0);
+  for (uint32 i = 0; i < count; ++i) {
+    const auto& attr = attrs[i];
+    // TODO: Don't re-enable already enabled attribs (and disable others)
+    GL_CALL(glEnableVertexAttribArray(attr.location));
+
+    const uint32 type_dim = r_attrib_type_dim(attr.type);
+    NTF_ASSERT(type_dim);
+    const GLenum gl_underlying_type = gl_state::attrib_underlying_type_cast(attr.type);
+    NTF_ASSERT(gl_underlying_type);
+    GL_CALL(glVertexAttribPointer(
+      attr.location,
+      type_dim,
+      gl_underlying_type,
+      GL_FALSE, // Don't normalize
+      stride,
+      reinterpret_cast<void*>(attr.offset)
+    ));
+  }
 }
 
 GLenum gl_state::attrib_underlying_type_cast(r_attrib_type type) noexcept {
@@ -766,7 +1000,7 @@ GLenum gl_state::primitive_cast(r_primitive primitive) noexcept {
   NTF_UNREACHABLE();
 }
 
-void gl_context::_debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity,
+void gl_context::debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity,
                                  GLsizei, const GLchar* msg, const void*) {
   // auto* ctx = reinterpret_cast<gl_context*>(const_cast<void*>(user_ptr));
 
@@ -831,326 +1065,247 @@ gl_context::gl_context(r_window& win, uint32 major, uint32 minor) :
     throw ntf::error<void>{"[ntf::gl_context] Failed to load GLAD"};
   }
   _proc_fun = win.proc_loader();
-  _viewport = uvec4{0, 0, win.fb_size()};
+  _state.init(gl_state::init_data_t{
+    .dbg = gl_context::debug_callback,
+    .vport = uvec4{0, 0, win.fb_size()},
+  });
 
-  GL_CALL(glEnable(GL_DEBUG_OUTPUT));
-  GL_CALL(glDebugMessageCallback(gl_context::_debug_callback, this));
-
-  GL_CALL(glViewport(_viewport.x, _viewport.y, _viewport.z, _viewport.w));
-
-  _state.init();
   _vao = _state.create_vao();
-  _state.bind_vao(_vao);
+  _state.bind_vao(_vao.id);
 
-  GL_CALL(glEnable(GL_DEPTH_TEST)); // (?)
+  const char *render_str, *vendor_str, *ver_str;
+  GL_CALL(render_str = reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
+  GL_CALL(vendor_str = reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
+  GL_CALL(ver_str = reinterpret_cast<const char*>(glGetString(GL_VERSION)));
+  _name_str = fmt::format("{} {} - {}", render_str, ver_str, vendor_str);
 }
 
 gl_context::~gl_context() noexcept {}
 
-void gl_context::enqueue(r_draw_cmd cmd) {
-  auto* alloc_ptr = _cmd_arena.allocate<r_draw_cmd>(1);
-  std::construct_at(alloc_ptr, cmd);
-  if (cmd.framebuffer) {
-    NTF_ASSERT(cmd.framebuffer.api == r_api::opengl);
-    auto& cmds = _fb_cmds[cmd.framebuffer.handle]; // May create one
-    cmds.emplace_back(alloc_ptr);
-  } else {
-    auto& cmds = _fb_cmds[r_handle_tombstone]; // default fbo
-    cmds.emplace_back(alloc_ptr);
+r_buffer_handle gl_context::create_buffer(const r_context::buffer_create_t& data) {
+  gl_state::buffer_t buffer = _state.create_buffer(data.type, data.data, data.size);
+  NTF_ASSERT(buffer.id);
+  auto handle = _buffers.acquire();
+  _buffers.get(handle) = buffer;
+  return handle;
+}
+
+void gl_context::update_buffer(r_buffer_handle buf, const r_context::buffer_update_t& data) {
+  auto& buffer = _buffers.get(buf);
+  if (data.data) {
+    _state.update_buffer(buffer, data.data, data.size, data.offset);
   }
 }
 
-void gl_context::start_frame() {
-#ifdef SHOGLE_ENABLE_IMGUI
-  ImGui::NewFrame();
-#endif
-  for(auto& [_,cmds] : _fb_cmds) {
-    cmds.clear();
-  }
-  _cmd_arena.reset();
+void gl_context::destroy_buffer(r_buffer_handle buf) {
+  auto& buffer = _buffers.get(buf);
+  _state.destroy_buffer(buffer);
+  _buffers.push(buf);
 }
 
-void gl_context::end_frame() {
-  auto draw_things = [](GLenum prim, uint32 offset, uint32 count, uint32 instances, bool indices) {
-    if (!indices) {
-      if (instances > 1) {
-        glDrawArraysInstanced(prim, offset, count, instances);
-      } else {
-        glDrawArrays(prim, offset, count);
-      }
-    } else {
-      if (instances > 1) {
-        glDrawElementsInstanced(prim, count, GL_UNSIGNED_INT,
-                                reinterpret_cast<void*>(offset*sizeof(uint32)), instances);
-      } else {
-        glDrawElements(prim, count, GL_UNSIGNED_INT,
-                       reinterpret_cast<void*>(offset*sizeof(uint32)));
-      }
+r_texture_handle gl_context::create_texture(const r_context::tex_create_t& data) {
+  gl_state::texture_t texture = _state.create_texture(
+    data.type, data.format, data.sampler, data.addressing,
+    data.dim, data.array_size, data.mipmaps
+  );
+  NTF_ASSERT(texture.id);
+  auto handle = _textures.acquire();
+  _textures.get(handle) = texture;
+  return handle;
+}
+
+void gl_context::update_texture(r_texture_handle tex, const r_context::tex_update_t& data) {
+  auto& texture = _textures.get(tex);
+  if (data.data) {
+    _state.update_texture_data(
+      texture, data.data, data.format, data.offset, data.index, data.level, true
+    );
+  }
+  if (data.addressing) {
+    _state.update_texture_addressing(texture, data.addressing.value());
+  }
+  if (data.sampler) {
+    _state.update_texture_sampler(texture, data.sampler.value());
+  }
+}
+
+void gl_context::destroy_texture(r_texture_handle tex) {
+  auto& texture = _textures.get(tex);
+  _state.destroy_texture(texture);
+  _textures.push(tex);
+}
+
+r_framebuffer_handle gl_context::create_framebuffer(const r_context::fbuff_create_t& data) {
+  r_framebuffer_handle handle;
+  if (data.attachment_count > 0) {
+    std::vector<gl_state::texture_t*> texes(data.attachment_count);
+    for (uint32 i = 0; i < data.attachment_count; ++i) {
+      texes[i] = &_textures.get(data.attachments[i]);
     }
+
+    gl_state::framebuffer_t framebuffer = _state.create_framebuffer(
+      data.w, data.h, data.buffers,
+      texes.data(), data.attachment_levels, data.attachment_count
+    );
+    NTF_ASSERT(framebuffer.id);
+    handle = _framebuffers.acquire();
+    _framebuffers.get(handle) = framebuffer;
+  } else {
+    gl_state::framebuffer_t framebuffer = _state.create_framebuffer(
+      data.w, data.h, data.buffers, data.format
+    );
+    NTF_ASSERT(framebuffer.id);
+    handle = _framebuffers.acquire();
+    _framebuffers.get(handle) = framebuffer;
+  }
+
+  return handle;
+}
+
+void gl_context::destroy_framebuffer(r_framebuffer_handle fb) {
+  auto& framebuffer = _framebuffers.get(fb);
+  _state.destroy_framebuffer(framebuffer);
+  _framebuffers.push(fb);
+}
+
+r_shader_handle gl_context::create_shader(const r_context::shader_create_t& data) {
+  gl_state::shader_t shader = _state.create_shader(data.type, data.src);
+  auto handle = _shaders.acquire();
+  _shaders.get(handle) = shader;
+  return handle;
+}
+
+void gl_context::destroy_shader(r_shader_handle shad) {
+  auto& shader = _shaders.get(shad);
+  _state.destroy_shader(shader);
+  _shaders.push(shad);
+}
+
+r_pipeline_handle gl_context::create_pipeline(const r_context::pipeline_create_t& data) {
+  NTF_ASSERT(data.shader_count);
+  std::vector<gl_state::shader_t*> shads(data.shader_count);
+  for (uint32 i = 0; i < data.shader_count; ++i) {
+    shads[i] = &_shaders.get(data.shaders[i]);
+  }
+  gl_state::program_t prog = _state.create_program(
+    shads.data(), data.shader_count, data.primitive
+  );
+  prog.layout = data.layout;
+  NTF_ASSERT(prog.id);
+  auto handle = _programs.acquire();
+  _programs.get(handle) = prog;
+  return handle;
+}
+
+void gl_context::destroy_pipeline(r_pipeline_handle pipeline) {
+  auto& prog = _programs.get(pipeline);
+  _state.destroy_program(prog);
+  _programs.push(pipeline);
+}
+
+r_uniform gl_context::pipeline_uniform(r_pipeline_handle pipeline, std::string_view name) {
+  auto& pip = _programs.get(pipeline);
+  return _state.uniform_location(pip.id, name);
+}
+
+void gl_context::update_swapchain(const r_context::swapchain_update_t& data) {
+  _state.update_viewport(data.viewport);
+  _state.update_color(data.clear_color);
+  _state.update_flags(data.clear_flags);
+}
+
+void gl_context::submit(const r_context::command_queue& cmds) {
+  auto check_cmd = [](const r_draw_cmd& cmd, uint32 cmd_n) -> bool {
+    if (!cmd.draw_count) {
+      SHOGLE_LOG(warning, "[gl_context::submit] Invalid draw count in command {}", cmd_n);
+      return false;
+    }
+    if (!cmd.vertex_buffer) {
+      SHOGLE_LOG(warning, "[gl_context::submit] Invalid VBO in command {}", cmd_n);
+      return false;
+    }
+    if (!cmd.pipeline) {
+      SHOGLE_LOG(warning, "[gl_context::submit] Invalid pipeline in command {}", cmd_n);
+      return false;
+    }
+    if (cmd.textures && !cmd.texture_count) {
+      SHOGLE_LOG(warning, "[gl_context::submit] Invalid textures in command {}", cmd_n);
+      return false;
+    }
+    if (cmd.uniforms && !cmd.uniform_count) {
+      SHOGLE_LOG(warning, "[gl_context::submit] Invalid uniforms in command {}", cmd_n);
+      return false;
+    }
+    return true;
   };
 
-  for (auto& [handle, cmds] : _fb_cmds) {
-    GLenum fbo = 0;
-    r_clear clear = _glstate.clear_flags;
-    uvec4 vp = _glstate.viewport;
-    vec4 color = _glstate.clear_color;
-
-    if (handle != r_handle_tombstone) {
-      auto& fb = resource<gl_framebuffer>({}, handle);
-      fbo = fb._fbo;
-      vp = fb.viewport();
-      clear = fb.clear_flags();
-      color = fb.clear_color();
+  _state.bind_vao(_vao.id);
+  // uint32 cmd_count = 0;
+  for (uint32 i = 0; i < cmds.size(); ++i) {
+    NTF_ASSERT(cmds[i]);
+    auto& cmd = *cmds[i];
+    if (!check_cmd(cmd, i)) {
+      continue;
     }
 
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    _glstate.fbo = fbo;
-    glViewport(vp.x, vp.y, vp.z, vp.w);
-    gl_clear_bits(clear, color);
+    _state.prepare_draw_target(cmd.framebuffer ? &_framebuffers.get(cmd.framebuffer) : nullptr);
 
-    for (auto* cmd_ptr : cmds) {
-      auto& cmd = *cmd_ptr;
-      bool rebind_attributes = false;
+    auto& vbo = _buffers.get(cmd.vertex_buffer);
+    auto& prog = _programs.get(cmd.pipeline);
+    NTF_ASSERT(vbo.type == GL_ARRAY_BUFFER);
 
-      NTF_ASSERT(cmd.pipeline && cmd.pipeline.api == RENDER_API);
-      auto& pipeline = resource<gl_pipeline>({}, cmd.pipeline.handle);
-      if (_glstate.program != pipeline._program_id) {
-        glUseProgram(pipeline._program_id);
-        _glstate.program = pipeline._program_id;
-        rebind_attributes = true;
+    if (_state.bind_buffer(vbo.id, vbo.type) || _state.bind_program(prog.id)) {
+      _state.bind_attributes(
+        prog.layout->attribs.data(), prog.layout->attribs.size(), prog.layout->stride
+      );
+    }
+
+    if (cmd.index_buffer) {
+      auto& ebo = _buffers.get(cmd.index_buffer);
+      NTF_ASSERT(ebo.type == GL_ELEMENT_ARRAY_BUFFER);
+      _state.bind_buffer(ebo.id, ebo.type);
+    }
+
+    if (cmd.textures) {
+      for (uint32 i = 0; i < cmd.texture_count; ++i) {
+        auto& tex = _textures.get(cmd.textures[i]);
+        _state.bind_texture(tex.id, tex.type, i);
       }
+    }
 
-      NTF_ASSERT(cmd.vertex_buffer && cmd.vertex_buffer.api == RENDER_API);
-      auto& vbo = resource<gl_buffer>({}, cmd.vertex_buffer.handle);
-      if (_glstate.vbo != vbo._id) {
-        glBindBuffer(GL_ARRAY_BUFFER, vbo._id);
-        _glstate.vbo = vbo._id;
-        rebind_attributes = true; // HAS to be reconfigured each time the vertex buffer is rebound
+    if (cmd.uniforms) {
+      for (uint32 i = 0; i < cmd.uniform_count; ++i) {
+        const auto& unif = cmd.uniforms[i];
+        _state.push_uniform(unif.location, unif.type, unif.data);
       }
+    }
 
-      bool use_indices = bool{cmd.index_buffer};
-      if (use_indices) {
-        NTF_ASSERT(cmd.index_buffer.api == RENDER_API);
-        auto& ebo = resource<gl_buffer>({}, cmd.index_buffer.handle);
-        if (_glstate.ebo != ebo._id) {
-          glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo._id);
-          _glstate.ebo = ebo._id;
-        }
+    NTF_ASSERT(prog.primitive);
+    if (cmd.index_buffer) {
+      const void* offset = reinterpret_cast<const void*>(cmd.draw_offset*sizeof(uint32));
+      const GLenum format = GL_UNSIGNED_INT;
+      if (cmd.instance_count) {
+        GL_CALL(glDrawElementsInstanced(
+          prog.primitive, cmd.draw_count, format, offset, cmd.instance_count
+        ));
+      } else {
+        GL_CALL(glDrawElements(
+          prog.primitive, cmd.draw_count, format, offset
+        ));
       }
-
-      if (rebind_attributes) {
-        for (const auto& attrib : pipeline._attribs) {
-          const uint32 type_dim = r_attrib_type_dim(attrib.type);
-          NTF_ASSERT(type_dim);
-
-          const GLenum gl_underlying_type = gl_attrib_underlying_type_cast(attrib.type);
-          NTF_ASSERT(gl_underlying_type);
-
-          glVertexAttribPointer(
-            attrib.location,
-            type_dim,
-            gl_underlying_type,
-            GL_FALSE, // Don't normalize,
-            pipeline._stride,
-            reinterpret_cast<void*>(attrib.offset)
-          );
-          glEnableVertexAttribArray(attrib.location);
-        }
+    } else {
+      if (cmd.instance_count) {
+        GL_CALL(glDrawArraysInstanced(
+          prog.primitive, cmd.draw_offset, cmd.draw_count, cmd.instance_count
+        ));
+      } else {
+        GL_CALL(glDrawArrays(
+          prog.primitive, cmd.draw_offset, cmd.draw_count
+        ));
       }
-
-      if (cmd.textures) {
-        _glstate.enabled_tex = 0;
-        for (uint32 i = 0; i < cmd.texture_count; ++i) {
-          auto& tex = resource<gl_texture>({}, cmd.textures[i].handle);
-          const GLenum gltype = gl_texture_type_cast(tex.type(), tex.is_array());
-          NTF_ASSERT(gltype);
-
-          glActiveTexture(GL_TEXTURE0+i);
-          glBindTexture(gltype, tex._id);
-          _glstate.enabled_tex |= 1 << i;
-        }
-      }
-
-      if (cmd.uniforms) {
-        for (uint32 i = 0; i < cmd.uniform_count; ++i) {
-          auto& unif = cmd.uniforms[i];
-          gl_pipeline::push_uniform(unif.location, unif.type, unif.data);
-        }
-      }
-
-      const GLenum glprim = gl_primitive_cast(cmd.primitive);
-      NTF_ASSERT(glprim);
-      draw_things(glprim, cmd.draw_offset, cmd.draw_count, cmd.instance_count, use_indices);
-
     }
   }
-  if (_glstate.fbo) {
-    auto& vp = _glstate.viewport;
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(vp.x, vp.y, vp.z, vp.w);
-    _glstate.fbo = 0;
-  }
-
-#ifdef SHOGLE_ENABLE_IMGUI
-  ImGui::Render();
-  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-#endif
-
-  _swap_buffers();
 }
-
-void gl_context::viewport(uint32 x, uint32 y, uint32 w, uint32 h) {
-  // glViewport(x, y, w, h);
-  _glstate.viewport.x = x;
-  _glstate.viewport.y = y;
-  _glstate.viewport.z = w;
-  _glstate.viewport.w = h;
-}
-
-void gl_context::viewport(uint32 w, uint32 h) {
-  viewport(_glstate.viewport.x, _glstate.viewport.y, w, h);
-}
-
-void gl_context::viewport(uvec2 pos, uvec2 size) {
-  viewport(pos.x, pos.y, size.x, size.y);
-}
-
-void gl_context::viewport(uvec2 size) {
-  viewport(size.x, size.y);
-}
-
-void gl_context::clear_color(float32 r, float32 g, float32 b, float32 a) {
-  _glstate.clear_color.r = r;
-  _glstate.clear_color.g = g;
-  _glstate.clear_color.b = b;
-  _glstate.clear_color.a = a;
-}
-
-void gl_context::clear_color(float32 r, float32 g, float32 b) {
-  clear_color(r, g, b, _glstate.clear_color.a);
-}
-
-void gl_context::clear_color(color4 color) {
-  clear_color(color.r, color.g, color.b, color. a);
-}
-
-void gl_context::clear_color(color3 color) {
-  clear_color(color.r, color.g, color.b);
-}
-
-void gl_context::clear_flags(r_clear clear) {
-  _glstate.clear_flags = clear;
-}
-
-std::string_view gl_context::name_str() const {
-  return reinterpret_cast<const char*>(glGetString(GL_RENDERER));
-}
-
-std::string_view gl_context::vendor_str() const {
-  return reinterpret_cast<const char*>(glGetString(GL_VENDOR));
-}
-
-std::string_view gl_context::version_str() const {
-  return reinterpret_cast<const char*>(glGetString(GL_VERSION));
-}
-
-auto gl_context::make_texture(r_texture_descriptor desc)
-                                                      -> expected<texture_handle, gl_texture_err> {
-  if (!gl_validate_descriptor(desc)) {
-    return unexpected<gl_texture_err>{gl_texture_err::none}; // ?
-  }
-
-  r_handle_value handle = _textures.acquire(*this);
-  auto& tex = _textures.get(handle);
-
-  tex.load(desc.type, desc.format, desc.sampler, desc.addressing, desc.texels,
-           desc.mipmap_level, desc.count, desc.extent);
-  if (!tex.complete()) {
-    _buffers.push(handle);
-    return unexpected<gl_texture_err>{gl_texture_err::none}; // ?
-  }
-
-  return texture_handle{*this, handle};
-}
-
-auto gl_context::make_buffer(r_buffer_descriptor desc) 
-                                                        -> expected<buffer_handle, gl_buffer_err> {
-  if (!gl_validate_descriptor(desc)) {
-    return unexpected<gl_buffer_err>{gl_buffer_err::none};
-  }
-
-  r_handle_value handle = _buffers.acquire(*this);
-  auto& buff = _buffers.get(handle);
-
-  buff.load(desc.type, desc.data, desc.size);
-  if (!buff.complete()) {
-    _buffers.push(handle);
-    return unexpected<gl_buffer_err>{gl_buffer_err::none};
-  }
-
-  return buffer_handle{*this, handle};
-}
-
-auto gl_context::make_pipeline(r_pipeline_descriptor desc) 
-                                                    -> expected<pipeline_handle, gl_pipeline_err> {
-  if (!gl_validate_descriptor(desc)) {
-    return unexpected<gl_pipeline_err>{gl_pipeline_err::none};
-  }
-
-  r_handle_value handle = _pipelines.acquire(*this);
-  auto& pipeline = _pipelines.get(handle);
-
-  std::vector<gl_shader*> stages(desc.stage_count);
-  for (uint32 i = 0; i < desc.stage_count; ++i) {
-    stages[i] = &_shaders.get(desc.stages[i].handle);
-  }
-
-  pipeline.load(stages.data(), desc.stage_count, desc.attribs, desc.attrib_count);
-  if (!pipeline.complete()) {
-    _pipelines.push(handle);
-    return unexpected<gl_pipeline_err>{gl_pipeline_err::none};
-  }
-
-  return pipeline_handle{*this, handle};
-}
-
-auto gl_context::make_shader(r_shader_descriptor desc)
-                                                        -> expected<shader_handle, gl_shader_err> {
-  if (!gl_validate_descriptor(desc)) {
-    return unexpected<gl_shader_err>{gl_shader_err::none};
-  }
-
-  r_handle_value handle = _shaders.acquire(*this);
-  auto& shader = _shaders.get(handle);
-
-  shader.load(desc.type, desc.source);
-  if (!shader.complete()) {
-    _shaders.push(handle);
-    return unexpected<gl_shader_err>{gl_shader_err::none};
-  }
-
-  return shader_handle{*this, handle};
-}
-
-auto gl_context::make_framebuffer(r_framebuffer_descriptor desc) 
-                                              -> expected<framebuffer_handle, gl_framebuffer_err> {
-  if (!gl_validate_descriptor(desc)) {
-    return unexpected<gl_framebuffer_err>{gl_framebuffer_err::none};
-  }
-
-  r_handle_value handle = _framebuffers.acquire(*this);
-  auto& fbo = _framebuffers.get(handle);
-
-  const uvec4& vp = desc.viewport;
-  fbo.load(vp.x, vp.y, vp.z, vp.w, desc.sampler, desc.addressing);
-  if (!fbo.complete()) {
-    _framebuffers.push(handle);
-    return unexpected<gl_framebuffer_err>{gl_framebuffer_err::none};
-  }
-
-  return framebuffer_handle{*this, handle};
-}
-
 
 // void gl_context::draw_text(const font& font, vec2 pos, float scale, std::string_view text) const {
 //   NTF_ASSERT(valid());
@@ -1201,213 +1356,4 @@ auto gl_context::make_framebuffer(r_framebuffer_descriptor desc)
 //   glBindVertexArray(0);
 //   glBindTexture(GL_TEXTURE_2D, 0);
 // }
-
-void gl_pipeline::load(const gl_shader* const* shaders, uint32 shader_count, 
-                       const r_attrib_descriptor* attribs, uint32 attrib_count) {
-  NTF_ASSERT(!_program_id);
-
-  NTF_ASSERT(shaders && shader_count > 0);
-
-  r_shader_type shader_flags{r_shader_type::none};
-  for (uint32 i = 0; i < shader_count; ++i) {
-    const auto& shader = *shaders[i];
-    NTF_ASSERT(!+(shader_flags & shader._type), "Detected duplicate shader!!!");
-    shader_flags &= shader._type;
-  }
-
-  size_t stride{0};
-  for (uint32 i = 0; i < attrib_count; ++i) {
-    r_attrib_descriptor attrib = attribs[i];
-    stride += r_attrib_type_size(attrib.type);
-  }
-
-  int succ;
-  GLuint id = glCreateProgram();
-  for (uint i = 0; i < shader_count; ++i) {
-    const auto& shader = *shaders[i];
-    glAttachShader(id, shader._id);
-  }
-  glLinkProgram(id);
-  glGetProgramiv(id, GL_LINK_STATUS, &succ);
-  if (!succ) {
-    char log[512];
-    glGetShaderInfoLog(shaders[0]->_id, 512, nullptr, log);
-    SHOGLE_LOG(error, "[ntf::gl_pipeline] Program link failed (id: {}) -> {}", id, log);
-    glDeleteProgram(id);
-    return;
-  }
-
-  _attribs.reserve(attrib_count);
-  for (uint32 i = 0; i < attrib_count; ++i) {
-    _attribs.emplace_back(attribs[i]);
-  }
-  _program_id = id;
-  _stride = stride;
-  _enabled_shaders = shader_flags;
-}
-
-void gl_pipeline::unload() {
-  NTF_ASSERT(_program_id);
-
-  glDeleteProgram(_program_id);
-
-  _program_id = 0;
-  _enabled_shaders = r_shader_type::none;
-  _attribs.clear();
-  _stride = 0;
-}
-
-optional<uint32> gl_pipeline::uniform_location(std::string_view name) const {
-  NTF_ASSERT(_program_id);
-  const GLint loc = glGetUniformLocation(_program_id, name.data());
-  if (loc < 0) {
-    return std::nullopt;
-  }
-  return static_cast<uint32>(loc);
-}
-
-void gl_pipeline::push_uniform(uint32 loc, r_attrib_type type, const void* data) {
-  switch (type) {
-    case r_attrib_type::f32: {
-      glUniform1f(loc, *reinterpret_cast<const float32*>(data));
-      break;
-    }
-    case r_attrib_type::vec2: {
-      glUniform2fv(loc, 1, glm::value_ptr(*reinterpret_cast<const vec2*>(data)));
-      break;
-    }
-    case r_attrib_type::vec3: {
-      glUniform3fv(loc, 1, glm::value_ptr(*reinterpret_cast<const vec3*>(data)));
-      break;
-    }
-    case r_attrib_type::vec4: {
-      glUniform4fv(loc, 1, glm::value_ptr(*reinterpret_cast<const vec4*>(data)));
-      break;
-    }
-    case r_attrib_type::mat3: {
-      glUniformMatrix3fv(loc, 1, GL_FALSE, glm::value_ptr(*reinterpret_cast<const mat3*>(data)));
-      break;
-    } 
-    case r_attrib_type::mat4: {
-      glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(*reinterpret_cast<const mat4*>(data)));
-      break;
-    }
-
-    case r_attrib_type::f64: {
-      glUniform1d(loc, *reinterpret_cast<const float64*>(data));
-      break;
-    }
-    case r_attrib_type::dvec2: {
-      glUniform2dv(loc, 1, glm::value_ptr(*reinterpret_cast<const dvec2*>(data)));
-      break;
-    }
-    case r_attrib_type::dvec3: {
-      glUniform3dv(loc, 1, glm::value_ptr(*reinterpret_cast<const dvec3*>(data)));
-      break;
-    }
-    case r_attrib_type::dvec4: {
-      glUniform4dv(loc, 1, glm::value_ptr(*reinterpret_cast<const dvec4*>(data)));
-      break;
-    }
-    case r_attrib_type::dmat3: {
-      glUniformMatrix3dv(loc, 1, GL_FALSE, glm::value_ptr(*reinterpret_cast<const dmat3*>(data)));
-      break;
-    } 
-    case r_attrib_type::dmat4: {
-      glUniformMatrix4dv(loc, 1, GL_FALSE, glm::value_ptr(*reinterpret_cast<const dmat4*>(data)));
-      break;
-    }
-
-    case r_attrib_type::i32: {
-      glUniform1i(loc, *reinterpret_cast<const int32*>(data));
-      break;
-    }
-    case r_attrib_type::ivec2: {
-      glUniform2iv(loc, 1, glm::value_ptr(*reinterpret_cast<const ivec2*>(data)));
-      break;
-    }
-    case r_attrib_type::ivec3: {
-      glUniform3iv(loc, 1, glm::value_ptr(*reinterpret_cast<const ivec3*>(data)));
-      break;
-    }
-    case r_attrib_type::ivec4: {
-      glUniform4iv(loc, 1, glm::value_ptr(*reinterpret_cast<const ivec4*>(data)));
-      break;
-    }
-
-    default: {
-      NTF_ASSERT(false, "Invalid type tag");
-      break;
-    }
-  };
-}
-
-void gl_shader::load(r_shader_type type, std::string_view src) {
-  NTF_ASSERT(!_id);
-
-  const char* src_data = src.data();
-  const GLenum gltype = gl_shader_type_cast(type);
-  NTF_ASSERT(gltype);
-
-  int succ;
-  GLuint id = glCreateShader(gltype);
-  glShaderSource(id, 1, &src_data, nullptr);
-  glCompileShader(id);
-  glGetShaderiv(id, GL_COMPILE_STATUS, &succ);
-  if (!succ) {
-    // TODO: Store (or pass) the log somewhere
-    char log[512]; 
-    glGetShaderInfoLog(id, 512, nullptr, log);
-    SHOGLE_LOG(error, "[ntf::gl_shader] Shader compilation failed (id: {}) -> {}", id, log);
-    glDeleteShader(id);
-    return;
-  }
-
-  _id = id;
-  _type = type;
-}
-
-void gl_shader::unload() {
-  NTF_ASSERT(_id);
-
-  glDeleteShader(_id);
-
-  _id = 0;
-  _type = r_shader_type::none;
-}
-
-
-bool gl_state::validate_descriptor(const r_attrib_descriptor&) const noexcept {
-  return true;
-}
-
-bool gl_state::validate_descriptor(const r_texture_descriptor& desc) const noexcept {
-  // TODO: Validate dimensions
-  return 
-    desc.count > 0 &&
-    !(desc.count > 1 && desc.type == r_texture_type::texture3d) &&
-    !(desc.count != 6 && desc.type == r_texture_type::cubemap);
-}
-
-bool gl_state::validate_descriptor(const r_buffer_descriptor&) const noexcept {
-  return true;
-}
-
-bool gl_state::validate_descriptor(const r_pipeline_descriptor& desc) const noexcept {
-  return !(!desc.stages || desc.stage_count < 2);
-}
-
-bool gl_state::validate_descriptor(const r_shader_descriptor&) const noexcept {
-  return true;
-}
-
-
-bool gl_state::validate_descriptor(const r_framebuffer_descriptor&) const noexcept {
-  return true;
-}
-
-
-
-
-
 } // namespace ntf

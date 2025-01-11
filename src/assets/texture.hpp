@@ -68,9 +68,6 @@ public:
     }
 
     _data = nullptr;
-    _face_bytes = 0;
-    _dim = uvec2{0, 0};
-    _format = r_texture_format::none;
   }
 
 public:
@@ -89,7 +86,7 @@ private:
   uint8* _data{nullptr};
   size_t _face_bytes{0};
   uvec2 _dim{0, 0};
-  r_texture_format _format{r_texture_format::none};
+  r_texture_format _format;
 
 public:
   ~texture_data() noexcept {
@@ -133,8 +130,7 @@ public:
 template<typename Alloc = std::allocator<uint8>>
 class cubemap_data {
 private:
-  static constexpr size_t face_count = static_cast<size_t>(r_cubemap_face::count);
-  static_assert(face_count == 6);
+  static constexpr size_t face_count = 6;
 
 public:
   using allocator_type = Alloc;
@@ -234,9 +230,7 @@ public:
     }
 
     _zero_array();
-    _dim = uvec2{0, 0};
     _face_bytes = 0;
-    _format = r_texture_format::none;
   }
 
 private:
@@ -258,7 +252,7 @@ private:
   std::array<uint8*, face_count> _data;
   uvec2 _dim{0, 0};
   size_t _face_bytes{0};
-  r_texture_format _format{r_texture_format::none};
+  r_texture_format _format;
 
 public:
   ~cubemap_data() noexcept {
