@@ -19,9 +19,9 @@ NTF_DECLARE_TAG_TYPE(r_query_type);
 NTF_DECLARE_TAG_TYPE(r_query_format);
 NTF_DECLARE_TAG_TYPE(r_query_sampler);
 NTF_DECLARE_TAG_TYPE(r_query_addressing);
-NTF_DECLARE_TAG_TYPE(r_query_dim);
-NTF_DECLARE_TAG_TYPE(r_query_layer);
-NTF_DECLARE_TAG_TYPE(r_query_mipmaps);
+NTF_DECLARE_TAG_TYPE(r_query_extent);
+NTF_DECLARE_TAG_TYPE(r_query_layers);
+NTF_DECLARE_TAG_TYPE(r_query_levels);
 NTF_DECLARE_TAG_TYPE(r_query_stages);
 NTF_DECLARE_TAG_TYPE(r_query_uniform);
 
@@ -30,21 +30,31 @@ public:
   static constexpr r_framebuffer_handle DEFAULT_FRAMEBUFFER{};
 
 public:
+  struct context_str_t {
+    std::string_view name;
+    std::string_view vendor;
+    std::string_view version;
+  };
+
   struct uniform_descriptor_t {
-    r_uniform location;
     r_attrib_type type;
+    r_uniform location;
     const void* data;
   };
 
+  struct texture_binding_t {
+    r_texture_handle handle;
+    uint32 index;
+  };
+
   struct draw_command_t {
-    r_buffer_handle vbo;
-    r_buffer_handle ebo;
-    r_pipeline_handle pip;
-    r_framebuffer_handle fbo;
-    const r_texture_handle* texs;
-    uint32 tex_c;
-    const uniform_descriptor_t* unifs;
-    uint32 unif_c;
+    r_buffer_handle vertex_buffer;
+    r_buffer_handle index_buffer;
+    r_pipeline_handle pipeline;
+    const texture_binding_t* textures;
+    uint32 texture_count;
+    const uniform_descriptor_t* uniforms;
+    uint32 uniform_count;
     r_draw_opts opts;
   };
   using command_queue = std::vector<weak_ref<draw_command_t>>;
@@ -61,89 +71,100 @@ public:
     size_t offset;
   };
 
+  struct buff_store_t {
+    r_buffer_type type;
+    size_t size;
+  };
+
   struct tex_create_t {
     r_texture_type type;
     r_texture_format format;
-    void const* const* data;
-    uvec3 dim;
-    uint32 array_size;
-    uint32 mipmaps;
+    void const* const* texels;
+    uvec3 extent;
+    uint32 layers;
+    uint32 levels;
+    bool gen_mipmaps;
     r_texture_sampler sampler;
     r_texture_address addressing;
   };
 
   struct tex_update_t {
     r_texture_format format;
-    const void* data;
+    const void* texels;
     uvec3 offset;
-    uint32 index;
+    uint32 layer;
     uint32 level;
-    bool gen_mips;
+    bool genmips;
     optional<r_texture_sampler> sampler;
     optional<r_texture_address> addressing;
   };
 
-  struct fbuff_create_t {
-    uint32 w, h;
-    r_clear_flag buffers;
+  struct tex_store_t {
+    std::atomic<uint32> refcount;
+    r_texture_type type;
     r_texture_format format;
-
-    const r_texture_handle* attachments;
-    uint32 attachment_count;
-    const uint32* attachment_levels;
+    uvec3 extent;
+    uint32 layers;
+    uint32 levels;
+    r_texture_address addressing;
+    r_texture_sampler sampler;
   };
 
   struct shader_create_t {
+    r_shader_type type;
     std::string_view src;
+  };
+
+  struct shader_store_t {
     r_shader_type type;
   };
 
-  struct shader_attributes_t {
-    std::vector<r_attrib_descriptor> attribs;
+  struct vertex_attributes_t {
+    std::vector<r_attrib_descriptor> desc;
     size_t stride;
   };
 
   struct pipeline_create_t {
     const r_shader_handle* shaders;
     uint32 shader_count;
-    weak_ref<shader_attributes_t> layout;
+    weak_ref<vertex_attributes_t> layout;
     r_primitive primitive;
   };
 
-  struct swapchain_update_t {
+  struct pipeline_store_t {
+    vertex_attributes_t layout;
+    r_stages_flag stages;
+    // std::unordered_map<r_uniform, std::string> uniforms;
+    r_primitive primitive;
+    r_polygon_mode poly_mode;
+    r_front_face front_face;
+    r_cull_mode cull_mode;
+    r_pipeline_test tests;
+    r_compare_op depth_ops;
+    r_compare_op stencil_ops;
+  };
+
+  struct fb_create_t {
+    uvec2 extent;
+    r_test_buffer_flag buffers;
+    r_texture_format buffer_format;
+    r_texture_format color_buffer_format;
+    const r_framebuffer_att* attachments;
+    uint32 attachment_count;
+  };
+
+  struct fb_update_t {
     uvec4 viewport;
-    color4 clear_color;
-    r_clear_flag clear_flags;
+    color4 color;
+    r_clear_flag flags;
   };
 
-private:
-  struct buff_handle_data_t {
-    size_t size;
-    r_buffer_type type;
-  };
-
-  struct tex_handle_data_t {
-    r_texture_type type;
-    r_texture_format format;
-    r_texture_sampler sampler;
-    r_texture_address addressing;
-    uvec3 dim;
-    uint32 layers;
-    uint32 mipmaps;
-  };
-
-  struct fb_handle_data_t {
-    r_clear_flag flags{r_clear_flag::none};
-    color4 color{0.f, 0.f, 0.f, 1.f};
-    uvec4 viewport{0, 0, 0, 0};
+  struct fb_store_t {
+    uvec4 viewport;
+    color4 color;
+    // r_clear_flag flags;
     std::vector<weak_ref<draw_command_t>> cmds;
-  };
-
-  struct shad_handle_data_t {
-  };
-
-  struct pip_handle_data_t {
-    uint32 layout_index;
+    std::vector<r_texture_handle> attachments;
   };
 
 public:
@@ -160,8 +181,8 @@ public:
 public:
   [[nodiscard]] r_buffer_handle create_buffer(const r_buffer_descriptor& desc);
   void destroy(r_buffer_handle buff);
-  void update_data(r_buffer_handle buff,
-                   const void* data, size_t size, size_t offset);
+  void update(r_buffer_handle buff,
+              const void* data, size_t size, size_t offset);
   [[nodiscard]] r_buffer_type query(r_buffer_handle buff, r_query_type_t) const;
   [[nodiscard]] size_t query(r_buffer_handle buff, r_query_size_t) const;
 
@@ -169,16 +190,16 @@ public:
   void destroy(r_texture_handle tex);
   void update(r_texture_handle tex, r_texture_sampler sampler);
   void update(r_texture_handle tex, r_texture_address addressing);
-  void update_data(r_texture_handle tex,
-                   const void* data, size_t size, size_t offset, r_texture_format format,
-                   uint32 layer, uint32 mipmap);
+  void update(r_texture_handle tex,
+              const void* texels, r_texture_format format, uvec3 offset,
+              uint32 layer, uint32 level, bool genmips = false);
   [[nodiscard]] r_texture_type query(r_texture_handle tex, r_query_type_t) const;
   [[nodiscard]] r_texture_format query(r_texture_handle tex, r_query_format_t) const;
   [[nodiscard]] r_texture_sampler query(r_texture_handle tex, r_query_sampler_t) const;
   [[nodiscard]] r_texture_address query(r_texture_handle tex, r_query_addressing_t) const;
-  [[nodiscard]] uvec3 query(r_texture_handle tex, r_query_dim_t) const;
-  [[nodiscard]] uint32 query(r_texture_handle tex, r_query_layer_t) const;
-  [[nodiscard]] uint32 query(r_texture_handle tex, r_query_mipmaps_t) const;
+  [[nodiscard]] uvec3 query(r_texture_handle tex, r_query_extent_t) const;
+  [[nodiscard]] uint32 query(r_texture_handle tex, r_query_layers_t) const;
+  [[nodiscard]] uint32 query(r_texture_handle tex, r_query_levels_t) const;
 
   [[nodiscard]] r_framebuffer_handle create_framebuffer(const r_framebuffer_descriptor& desc);
   void destroy(r_framebuffer_handle fbo);
@@ -189,9 +210,9 @@ public:
 
   [[nodiscard]] r_pipeline_handle create_pipeline(const r_pipeline_descriptor& desc);
   void destroy(r_pipeline_handle pipeline);
-  [[nodiscard]] r_shader_type query(r_pipeline_handle pipeline, r_query_stages_t) const;
-  [[nodiscard]] r_uniform query(r_pipeline_handle pipeline, std::string_view name,
-                                r_query_uniform_t) const;
+  [[nodiscard]] r_stages_flag query(r_pipeline_handle pipeline, r_query_stages_t) const;
+  [[nodiscard]] r_uniform query(r_pipeline_handle pipeline, r_query_uniform_t,
+                                std::string_view name) const;
 
 public:
   void framebuffer_viewport(r_framebuffer_handle fbo, uvec4 vp);
@@ -217,8 +238,8 @@ public:
   void push_uniform(r_uniform location, const T& data) {
     auto* ptr = _frame_arena.allocate<T>(1);
     _uniforms.emplace_back(uniform_descriptor_t{
-      .location = location,
       .type = r_attrib_traits<T>::tag,
+      .location = location,
       .data = std::construct_at(ptr, data),
     });
   }
@@ -236,11 +257,11 @@ private:
   std::unique_ptr<r_platform_context> _ctx;
   r_api _ctx_api;
 
-  std::unordered_map<r_buffer_handle, buff_handle_data_t> _buffers;
-  std::unordered_map<r_texture_handle, tex_handle_data_t> _textures;
-  std::unordered_map<r_framebuffer_handle, fb_handle_data_t> _framebuffers;
-  std::unordered_map<r_shader_handle, shad_handle_data_t> _shaders;
-  std::unordered_map<r_pipeline_handle, pip_handle_data_t> _pipelines;
+  std::unordered_map<r_buffer_handle, buff_store_t> _buffers;
+  std::unordered_map<r_texture_handle, tex_store_t> _textures;
+  std::unordered_map<r_framebuffer_handle, fb_store_t> _framebuffers;
+  std::unordered_map<r_shader_handle, shader_store_t> _shaders;
+  std::unordered_map<r_pipeline_handle, pipeline_store_t> _pipelines;
 
   ntf::mem_arena _frame_arena;
   std::vector<uniform_descriptor_t> _uniforms;
@@ -254,7 +275,7 @@ public:
 struct r_platform_context {
   virtual ~r_platform_context() = default;
   virtual r_api api_type() const = 0;
-  virtual std::string_view name_str() const = 0;
+  virtual r_context::context_str_t ctx_str() const = 0;
 
   virtual r_buffer_handle create_buffer(const r_context::buffer_create_t& data) = 0;
   virtual void update_buffer(r_buffer_handle buf, const r_context::buffer_update_t& data) = 0;
@@ -264,9 +285,6 @@ struct r_platform_context {
   virtual void update_texture(r_texture_handle tex, const r_context::tex_update_t& data) = 0;
   virtual void destroy_texture(r_texture_handle tex) = 0;
 
-  virtual r_framebuffer_handle create_framebuffer(const r_context::fbuff_create_t& data) = 0;
-  virtual void destroy_framebuffer(r_framebuffer_handle fb) = 0;
-
   virtual r_shader_handle create_shader(const r_context::shader_create_t& data) = 0;
   virtual void destroy_shader(r_shader_handle shader) = 0;
 
@@ -274,8 +292,11 @@ struct r_platform_context {
   virtual r_uniform pipeline_uniform(r_pipeline_handle pipeline, std::string_view name) = 0;
   virtual void destroy_pipeline(r_pipeline_handle pipeline) = 0;
 
-  virtual void update_swapchain(const r_context::swapchain_update_t& data) = 0;
-  virtual void submit(const r_context::command_queue& cmds) = 0;
+  virtual r_framebuffer_handle create_framebuffer(const r_context::fb_create_t& data) = 0;
+  virtual void update_framebuffer(r_framebuffer_handle fb, const r_context::fb_update_t& data) = 0;
+  virtual void destroy_framebuffer(r_framebuffer_handle fb) = 0;
+
+  virtual void submit(r_framebuffer_handle fb, const r_context::command_queue& cmds) = 0;
 
   virtual void device_wait() noexcept {}
 };
@@ -320,17 +341,17 @@ struct r_platform_context {
 //   }
 //
 //   [[nodiscard]] uvec3 dim() const {
-//     return _ctx->query(_handle, r_query_dim);
+//     return _ctx->query(_handle, r_query_extent);
 //   }
 //   [[nodiscard]] uvec2 dim2d() const {
 //     auto d = dim(); return uvec2{d.x, d.y};
 //   }
 //
 //   [[nodiscard]] uint32 layers() const {
-//     return _ctx->query(_handle, r_query_layer);
+//     return _ctx->query(_handle, r_query_layers);
 //   }
 //   [[nodiscard]] uint32 mipmaps() const {
-//     return _ctx->query(_handle, r_query_mipmaps);
+//     return _ctx->query(_handle, r_query_levels);
 //   }
 //
 //   [[nodiscard]] bool is_cubemap() const {

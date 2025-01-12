@@ -44,7 +44,7 @@ public:
   struct program_t {
     GLuint id{0};
     GLenum primitive;
-    weak_ref<r_attributes> layout;
+    weak_ref<r_context::vertex_attributes_t> layout;
   };
 
   struct texture_t {
@@ -53,9 +53,9 @@ public:
     GLenum format;
     GLenum sampler[2]; // MIN, MAG
     GLenum addressing;
-    uvec3 dim;
-    uint32 level;
-    uint32 array_size;
+    uvec3 extent;
+    uint32 layers;
+    uint32 levels;
   };
 
   struct framebuffer_t {
@@ -113,11 +113,12 @@ public:
 
   [[nodiscard]] texture_t create_texture(r_texture_type type, r_texture_format format,
                                          r_texture_sampler sampler, r_texture_address addressing,
-                                         uvec3 dim, uint32 array_size, uint32 mipmaps);
+                                         uvec3 extent, uint32 layers, uint32 levels,
+                                         const void* data, bool genmips);
   void destroy_texture(const texture_t& tex) noexcept;
   void bind_texture(GLuint tex, GLenum type, uint32 index) noexcept;
   void update_texture_data(const texture_t& tex, const void* data, r_texture_format format,
-                           uvec3 offset, uint32 index, uint32 level, bool gen_mipmaps) noexcept;
+                           uvec3 offset, uint32 layer, uint32 level, bool gen_mipmaps) noexcept;
   void update_texture_sampler(texture_t& tex, r_texture_sampler sampler) noexcept;
   void update_texture_addressing(texture_t& tex, r_texture_address addressing) noexcept;
 
@@ -141,8 +142,9 @@ public:
   [[nodiscard]] static GLenum primitive_cast(r_primitive type) noexcept;
   [[nodiscard]] static GLenum shader_type_cast(r_shader_type type) noexcept;
   [[nodiscard]] static GLenum fbo_attachment_cast(r_clear_flag flag) noexcept;
-  [[nodiscard]] static GLenum texture_type_cast(r_texture_type type) noexcept;
+  [[nodiscard]] static GLenum texture_type_cast(r_texture_type type, bool is_array) noexcept;
   [[nodiscard]] static GLenum texture_format_cast(r_texture_format format) noexcept;
+  [[nodiscard]] static GLenum texture_format_symbolic_cast(r_texture_format format) noexcept;
   [[nodiscard]] static GLenum texture_format_underlying_cast(r_texture_format format) noexcept;
   [[nodiscard]] static GLenum texture_sampler_cast(r_texture_sampler samp, bool mips) noexcept;
   [[nodiscard]] static GLenum texture_addressing_cast(r_texture_address address) noexcept;
@@ -235,7 +237,7 @@ public:
   void update_texture(r_texture_handle tex, const r_context::tex_update_t& data) override;
   void destroy_texture(r_texture_handle tex) override;
 
-  r_framebuffer_handle create_framebuffer(const r_context::fbuff_create_t& data) override;
+  r_framebuffer_handle create_framebuffer(const r_context::fb_create_t& data) override;
   void destroy_framebuffer(r_framebuffer_handle fb) override;
 
   r_shader_handle create_shader(const r_context::shader_create_t& data) override;
