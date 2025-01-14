@@ -69,6 +69,7 @@ public:
 #endif
 
 private:
+  void swap_buffers();
   bool init_context(ctx_params_t ctx_params);
   void reset();
 

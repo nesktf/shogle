@@ -79,11 +79,9 @@ public:
   struct tex_create_t {
     r_texture_type type;
     r_texture_format format;
-    void const* const* texels;
     uvec3 extent;
     uint32 layers;
     uint32 levels;
-    bool gen_mipmaps;
     r_texture_sampler sampler;
     r_texture_address addressing;
   };
@@ -119,20 +117,24 @@ public:
     r_shader_type type;
   };
 
-  struct vertex_attributes_t {
-    std::vector<r_attrib_descriptor> desc;
-    size_t stride;
-  };
-
   struct pipeline_create_t {
     const r_shader_handle* shaders;
     uint32 shader_count;
-    weak_ref<vertex_attributes_t> layout;
+    const r_attrib_descriptor* layout;
+    uint32 attrib_count;
+    size_t stride;
     r_primitive primitive;
+    r_polygon_mode poly_mode;
+    r_front_face front_face;
+    r_cull_mode cull_mode;
+    r_pipeline_test tests;
+    r_compare_op depth_ops;
+    r_compare_op stencil_ops;
   };
 
   struct pipeline_store_t {
-    vertex_attributes_t layout;
+    std::vector<r_attrib_descriptor> layout;
+    size_t stride;
     r_stages_flag stages;
     // std::unordered_map<r_uniform, std::string> uniforms;
     r_primitive primitive;
@@ -146,8 +148,9 @@ public:
 
   struct fb_create_t {
     uvec2 extent;
+    color4 clear_color;
     r_test_buffer_flag buffers;
-    r_texture_format buffer_format;
+    r_test_buffer_format buffer_format;
     r_texture_format color_buffer_format;
     const r_framebuffer_att* attachments;
     uint32 attachment_count;
@@ -164,7 +167,7 @@ public:
     color4 color;
     // r_clear_flag flags;
     std::vector<weak_ref<draw_command_t>> cmds;
-    std::vector<r_texture_handle> attachments;
+    std::vector<r_framebuffer_att> attachments;
   };
 
 public:
@@ -275,7 +278,7 @@ public:
 struct r_platform_context {
   virtual ~r_platform_context() = default;
   virtual r_api api_type() const = 0;
-  virtual r_context::context_str_t ctx_str() const = 0;
+  // virtual r_context::context_str_t ctx_str() const = 0;
 
   virtual r_buffer_handle create_buffer(const r_context::buffer_create_t& data) = 0;
   virtual void update_buffer(r_buffer_handle buf, const r_context::buffer_update_t& data) = 0;

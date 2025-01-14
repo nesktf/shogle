@@ -55,7 +55,7 @@ public:
 
     _dim = uvec2{w, h};
     _face_bytes = alloc_sz;
-    _format = r_texture_format::rgb;
+    _format = r_texture_format::rgb8u;
   }
 
   void unload() noexcept {
@@ -190,7 +190,7 @@ public:
 
     _dim = uvec2{w, h};
     _face_bytes = alloc_sz;
-    _format = r_texture_format::rgb;
+    _format = r_texture_format::rgb8u;
   }
 
   void load(std::string_view json_path) noexcept {

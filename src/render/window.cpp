@@ -145,4 +145,8 @@ void r_window::poll_events() {
   glfwPollEvents();
 }
 
+void r_window::swap_buffers() {
+  glfwSwapBuffers(_handle);
+}
+
 } // namespace ntf

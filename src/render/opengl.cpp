@@ -18,8 +18,10 @@ do { \
 }()
 
 static GLenum gl_check_error(const char* file, int line) noexcept {
-  GLenum err = GL_NO_ERROR;
+  GLenum out = GL_NO_ERROR;
+  GLenum err{};
   while ((err = glGetError()) != GL_NO_ERROR) {
+    out = err;
     const char* err_str;
     switch (err) {
       case GL_INVALID_ENUM: { err_str = "INVALID_ENUM"; break; }
@@ -34,7 +36,7 @@ static GLenum gl_check_error(const char* file, int line) noexcept {
     SHOGLE_LOG(error, "[ntf::gl_check_error] GL ERROR ({}) | \"{}\":{} -> {}",
                err, file, line, err_str);
   }
-  return err;
+  return out;
 }
 
 namespace ntf {
@@ -129,7 +131,9 @@ auto gl_state::create_buffer(r_buffer_type type, const void* data, size_t size) 
 
   buffer_pos(gltype) = id;
 
-  GLbitfield flags = GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT | (data ? 0 : GL_DYNAMIC_STORAGE_BIT);
+  GLbitfield flags = 
+    GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT |
+    (data ? 0 : GL_DYNAMIC_STORAGE_BIT);
 
   GLuint last = buffer_pos(gltype);
   GL_CALL(glBindBuffer(gltype, id));
@@ -435,6 +439,7 @@ GLenum gl_state::texture_type_cast(r_texture_type type, bool is_array) noexcept 
 
 GLenum gl_state::texture_format_cast(r_texture_format format) noexcept {
   switch (format) {
+    case r_texture_format::r8n:       return GL_R8_SNORM;
     case r_texture_format::r8u:       return GL_R8UI;
     case r_texture_format::r8i:       return GL_R8I;
     case r_texture_format::r16u:      return GL_R16UI;
@@ -444,6 +449,7 @@ GLenum gl_state::texture_format_cast(r_texture_format format) noexcept {
     case r_texture_format::r32i:      return GL_R32I;
     case r_texture_format::r32f:      return GL_R32F;
 
+    case r_texture_format::rg8n:      return GL_RG8_SNORM;
     case r_texture_format::rg8u:      return GL_RG8UI;
     case r_texture_format::rg8i:      return GL_RG8I;
     case r_texture_format::rg16u:     return GL_RG16UI;
@@ -453,6 +459,7 @@ GLenum gl_state::texture_format_cast(r_texture_format format) noexcept {
     case r_texture_format::rg32i:     return GL_RG32I;
     case r_texture_format::rg32f:     return GL_RG32F;
 
+    case r_texture_format::rgb8n:     return GL_RGB8_SNORM;
     case r_texture_format::rgb8u:     return GL_RGB8UI;
     case r_texture_format::rgb8i:     return GL_RGB8I;
     case r_texture_format::rgb16u:    return GL_RGB16UI;
@@ -462,6 +469,7 @@ GLenum gl_state::texture_format_cast(r_texture_format format) noexcept {
     case r_texture_format::rgb32i:    return GL_RGB32I;
     case r_texture_format::rgb32f:    return GL_RGB32F;
 
+    case r_texture_format::rgba8n:     return GL_RGBA8_SNORM;
     case r_texture_format::rgba8u:    return GL_RGBA8UI;
     case r_texture_format::rgba8i:    return GL_RGBA8UI;
     case r_texture_format::rgba16u:   return GL_RGBA16UI;
@@ -481,6 +489,7 @@ GLenum gl_state::texture_format_cast(r_texture_format format) noexcept {
 GLenum gl_state::texture_format_symbolic_cast(r_texture_format format) noexcept {
 
   switch (format) {
+    case r_texture_format::r8n:       [[fallthrough]];
     case r_texture_format::r8u:       [[fallthrough]];
     case r_texture_format::r8i:       [[fallthrough]];
     case r_texture_format::r16u:      [[fallthrough]];
@@ -490,6 +499,7 @@ GLenum gl_state::texture_format_symbolic_cast(r_texture_format format) noexcept 
     case r_texture_format::r32i:      [[fallthrough]];
     case r_texture_format::r32f:      return GL_RED;
 
+    case r_texture_format::rg8n:      [[fallthrough]];
     case r_texture_format::rg8u:      [[fallthrough]];
     case r_texture_format::rg8i:      [[fallthrough]];
     case r_texture_format::rg16u:     [[fallthrough]];
@@ -499,6 +509,7 @@ GLenum gl_state::texture_format_symbolic_cast(r_texture_format format) noexcept 
     case r_texture_format::rg32i:     [[fallthrough]];
     case r_texture_format::rg32f:     return GL_RG;
 
+    case r_texture_format::rgb8n:     [[fallthrough]];
     case r_texture_format::rgb8u:     [[fallthrough]];
     case r_texture_format::rgb8i:     [[fallthrough]];
     case r_texture_format::rgb16u:    [[fallthrough]];
@@ -508,6 +519,7 @@ GLenum gl_state::texture_format_symbolic_cast(r_texture_format format) noexcept 
     case r_texture_format::rgb32i:    [[fallthrough]];
     case r_texture_format::rgb32f:    return GL_RGB;
 
+    case r_texture_format::rgba8n:    [[fallthrough]];
     case r_texture_format::rgba8u:    [[fallthrough]];
     case r_texture_format::rgba8i:    [[fallthrough]];
     case r_texture_format::rgba16u:   [[fallthrough]];
@@ -527,9 +539,13 @@ GLenum gl_state::texture_format_symbolic_cast(r_texture_format format) noexcept 
 GLenum gl_state::texture_format_underlying_cast(r_texture_format format) noexcept {
   switch (format) {
     case r_texture_format::r8u:       [[fallthrough]];
+    case r_texture_format::r8n:       [[fallthrough]];
     case r_texture_format::rg8u:      [[fallthrough]];
+    case r_texture_format::rg8n:      [[fallthrough]];
     case r_texture_format::rgb8u:     [[fallthrough]];
+    case r_texture_format::rgb8n:     [[fallthrough]];
     case r_texture_format::rgba8u:    [[fallthrough]];
+    case r_texture_format::rgba8n:    [[fallthrough]];
     case r_texture_format::srgb8u:    [[fallthrough]];
     case r_texture_format::srgba8u:   return GL_UNSIGNED_BYTE;
 
@@ -596,8 +612,7 @@ GLenum gl_state::texture_addressing_cast(r_texture_address address) noexcept {
 
 auto gl_state::create_texture(r_texture_type type, r_texture_format format,
                               r_texture_sampler sampler, r_texture_address addressing,
-                              uvec3 extent, uint32 layers, uint32 levels,
-                              const void* data, bool genmips) -> texture_t {
+                              uvec3 extent, uint32 layers, uint32 levels) -> texture_t {
   NTF_ASSERT(levels <= MAX_TEXTURE_LEVEL && levels > 0);
 
   const GLenum gltype = texture_type_cast(type, (layers > 1));
@@ -672,6 +687,7 @@ auto gl_state::create_texture(r_texture_type type, r_texture_format format,
   }
 
   texture_t tex;
+  tex.id = id;
   tex.type = gltype;
   tex.format = glformat;
   tex.sampler[0] = glsamplermin;
@@ -681,9 +697,9 @@ auto gl_state::create_texture(r_texture_type type, r_texture_format format,
   tex.layers = layers;
   tex.levels = levels;
 
-  if (data) {
-    update_texture_data(tex, data, format, uvec3{0, 0, 0}, 0, 0, genmips);
-  }
+  // if (data) {
+  //   update_texture_data(tex, data, format, uvec3{0, 0, 0}, 0, 0, genmips);
+  // }
 
   return tex;
 }
@@ -795,7 +811,7 @@ void gl_state::update_texture_data(const texture_t& tex, const void* data,
     }
   }
 
-  if (gen_mipmaps) {
+  if (tex.levels > 1 && gen_mipmaps) {
     GL_CALL(glGenerateMipmap(tex.type));
   }
 }
@@ -833,9 +849,9 @@ void gl_state::update_texture_addressing(texture_t& tex, r_texture_address addre
   tex.addressing = gladdress;
 }
 
-GLenum gl_state::fbo_attachment_cast(r_clear_flag flags) noexcept {
-  const bool depth = +(flags & r_clear_flag::depth);
-  const bool stencil = +(flags & r_clear_flag::stencil);
+GLenum gl_state::fbo_attachment_cast(r_test_buffer_flag flags) noexcept {
+  const bool depth = +(flags & r_test_buffer_flag::depth);
+  const bool stencil = +(flags & r_test_buffer_flag::stencil);
   if (depth && stencil) {
     return GL_DEPTH_STENCIL_ATTACHMENT;
   }
@@ -848,7 +864,7 @@ GLenum gl_state::fbo_attachment_cast(r_clear_flag flags) noexcept {
   return 0;
 }
 
-auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
+auto gl_state::create_framebuffer(uint32 w, uint32 h, r_test_buffer_flag buffers,
                                   r_texture_format format) -> framebuffer_t {
   NTF_ASSERT(w > 0 && h > 0);
   const GLenum sd_attachment = fbo_attachment_cast(buffers);
@@ -879,8 +895,8 @@ auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
   framebuffer_t fbo;
   fbo.sd_rbo = rbos[0];
   fbo.color_rbo = rbos[1];
-  fbo.dim.x = w;
-  fbo.dim.y = h;
+  fbo.extent.x = w;
+  fbo.extent.y = h;
   fbo.clear_flags = 0;
   fbo.viewport.x = 0;
   fbo.viewport.y = 0;
@@ -893,7 +909,7 @@ auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
   return fbo;
 }
 
-auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
+auto gl_state::create_framebuffer(uint32 w, uint32 h, r_test_buffer_flag buffers,
                                   texture_t** attachments, const uint32* levels,
                                   uint32 att_count) -> framebuffer_t {
   NTF_ASSERT(att_count <= MAX_FBO_ATTACHMENTS);
@@ -923,13 +939,13 @@ auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
     bind_texture(tex.id, tex.type, _active_tex);
     switch (tex.type) {
       case GL_TEXTURE_1D: {
-        NTF_ASSERT(w == tex.dim.x && h == 1);
+        NTF_ASSERT(w == tex.extent.x && h == 1);
         GL_CALL(glFramebufferTexture1D(fbbind, GL_COLOR_ATTACHMENT0+i,
                                        tex.type, tex.id, levels[i]));
         break;
       }
       case GL_TEXTURE_2D: {
-        NTF_ASSERT(w == tex.dim.x && h == tex.dim.y);
+        NTF_ASSERT(w == tex.extent.x && h == tex.extent.y);
         GL_CALL(glFramebufferTexture2D(fbbind, GL_COLOR_ATTACHMENT0+i,
                                        tex.type, tex.id, levels[i]));
         break;
@@ -946,8 +962,8 @@ auto gl_state::create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
   framebuffer_t fbo;
   fbo.sd_rbo = rbo;
   fbo.color_rbo = NULL_BINDING;
-  fbo.dim.x = w;
-  fbo.dim.y = h;
+  fbo.extent.x = w;
+  fbo.extent.y = h;
   fbo.clear_flags = 0;
   fbo.viewport.x = 0;
   fbo.viewport.y = 0;
@@ -1205,7 +1221,9 @@ gl_context::gl_context(r_window& win, uint32 major, uint32 minor) :
 gl_context::~gl_context() noexcept {}
 
 r_buffer_handle gl_context::create_buffer(const r_context::buffer_create_t& data) {
-  gl_state::buffer_t buffer = _state.create_buffer(data.type, data.data, data.size);
+  gl_state::buffer_t buffer = _state.create_buffer(
+    data.type, data.data, data.size
+  );
   NTF_ASSERT(buffer.id);
   auto handle = _buffers.acquire();
   _buffers.get(handle) = buffer;
@@ -1228,8 +1246,7 @@ void gl_context::destroy_buffer(r_buffer_handle buf) {
 r_texture_handle gl_context::create_texture(const r_context::tex_create_t& data) {
   gl_state::texture_t texture = _state.create_texture(
     data.type, data.format, data.sampler, data.addressing,
-    data.extent, data.layers, data.levels,
-    data.texels, data.gen_mipmaps
+    data.extent, data.layers, data.levels
   );
   NTF_ASSERT(texture.id);
   auto handle = _textures.acquire();
@@ -1239,9 +1256,9 @@ r_texture_handle gl_context::create_texture(const r_context::tex_create_t& data)
 
 void gl_context::update_texture(r_texture_handle tex, const r_context::tex_update_t& data) {
   auto& texture = _textures.get(tex);
-  if (data.data) {
+  if (data.texels) {
     _state.update_texture_data(
-      texture, data.data, data.format, data.offset, data.index, data.level, true
+      texture, data.texels, data.format, data.offset, data.layer, data.level, data.genmips
     );
   }
   if (data.addressing) {
@@ -1262,20 +1279,22 @@ r_framebuffer_handle gl_context::create_framebuffer(const r_context::fb_create_t
   r_framebuffer_handle handle;
   if (data.attachment_count > 0) {
     std::vector<gl_state::texture_t*> texes(data.attachment_count);
+    std::vector<uint32> levels(data.attachment_count);
     for (uint32 i = 0; i < data.attachment_count; ++i) {
-      texes[i] = &_textures.get(data.attachments[i]);
+      texes[i] = &_textures.get(data.attachments[i].handle);
+      levels[i] = data.attachments[i].level;
     }
 
     gl_state::framebuffer_t framebuffer = _state.create_framebuffer(
-      data.w, data.h, data.buffers,
-      texes.data(), data.attachment_levels, data.attachment_count
+      data.extent.x, data.extent.y, data.buffers,
+      texes.data(), levels.data(), data.attachment_count
     );
     NTF_ASSERT(framebuffer.id);
     handle = _framebuffers.acquire();
     _framebuffers.get(handle) = framebuffer;
   } else {
     gl_state::framebuffer_t framebuffer = _state.create_framebuffer(
-      data.w, data.h, data.buffers, data.format
+      data.extent.x, data.extent.y, data.buffers, data.color_buffer_format
     );
     NTF_ASSERT(framebuffer.id);
     handle = _framebuffers.acquire();
@@ -1331,15 +1350,22 @@ r_uniform gl_context::pipeline_uniform(r_pipeline_handle pipeline, std::string_v
   return _state.uniform_location(pip.id, name);
 }
 
-void gl_context::update_swapchain(const r_context::swapchain_update_t& data) {
-  _state.update_viewport(data.viewport);
-  _state.update_color(data.clear_color);
-  _state.update_flags(data.clear_flags);
+void gl_context::update_framebuffer(r_framebuffer_handle fb, const r_context::fb_update_t& data) {
+  if (fb) {
+    auto& fbo = _framebuffers.get(fb);
+    fbo.viewport = data.viewport;
+    fbo.color = data.color;
+    // fbo.clear_flags = data.flags;
+  } else {
+    _state.update_viewport(data.viewport);
+    _state.update_color(data.color);
+    _state.update_flags(data.flags);
+  }
 }
 
-void gl_context::submit(const r_context::command_queue& cmds) {
-  auto check_cmd = [](const r_draw_cmd& cmd, uint32 cmd_n) -> bool {
-    if (!cmd.draw_count) {
+void gl_context::submit(r_framebuffer_handle fb, const r_context::command_queue& cmds) {
+  auto check_cmd = [](const r_context::draw_command_t& cmd, uint32 cmd_n) -> bool {
+    if (!cmd.opts.count) {
       SHOGLE_LOG(warning, "[gl_context::submit] Invalid draw count in command {}", cmd_n);
       return false;
     }
@@ -1363,7 +1389,7 @@ void gl_context::submit(const r_context::command_queue& cmds) {
   };
 
   _state.bind_vao(_vao.id);
-  // uint32 cmd_count = 0;
+  _state.prepare_draw_target(fb ? &_framebuffers.get(fb) : nullptr);
   for (uint32 i = 0; i < cmds.size(); ++i) {
     NTF_ASSERT(cmds[i]);
     auto& cmd = *cmds[i];
@@ -1371,15 +1397,13 @@ void gl_context::submit(const r_context::command_queue& cmds) {
       continue;
     }
 
-    _state.prepare_draw_target(cmd.framebuffer ? &_framebuffers.get(cmd.framebuffer) : nullptr);
-
     auto& vbo = _buffers.get(cmd.vertex_buffer);
     auto& prog = _programs.get(cmd.pipeline);
     NTF_ASSERT(vbo.type == GL_ARRAY_BUFFER);
 
     if (_state.bind_buffer(vbo.id, vbo.type) || _state.bind_program(prog.id)) {
       _state.bind_attributes(
-        prog.layout->attribs.data(), prog.layout->attribs.size(), prog.layout->stride
+        prog.layout, prog.attrib_count, prog.stride
       );
     }
 
@@ -1391,8 +1415,8 @@ void gl_context::submit(const r_context::command_queue& cmds) {
 
     if (cmd.textures) {
       for (uint32 i = 0; i < cmd.texture_count; ++i) {
-        auto& tex = _textures.get(cmd.textures[i]);
-        _state.bind_texture(tex.id, tex.type, i);
+        auto& tex = _textures.get(cmd.textures[i].handle);
+        _state.bind_texture(tex.id, tex.type, cmd.textures[i].index);
       }
     }
 
@@ -1405,25 +1429,25 @@ void gl_context::submit(const r_context::command_queue& cmds) {
 
     NTF_ASSERT(prog.primitive);
     if (cmd.index_buffer) {
-      const void* offset = reinterpret_cast<const void*>(cmd.draw_offset*sizeof(uint32));
+      const void* offset = reinterpret_cast<const void*>(cmd.opts.offset*sizeof(uint32));
       const GLenum format = GL_UNSIGNED_INT;
-      if (cmd.instance_count) {
+      if (cmd.opts.instances) {
         GL_CALL(glDrawElementsInstanced(
-          prog.primitive, cmd.draw_count, format, offset, cmd.instance_count
+          prog.primitive, cmd.opts.count, format, offset, cmd.opts.instances
         ));
       } else {
         GL_CALL(glDrawElements(
-          prog.primitive, cmd.draw_count, format, offset
+          prog.primitive, cmd.opts.count, format, offset
         ));
       }
     } else {
-      if (cmd.instance_count) {
+      if (cmd.opts.instances) {
         GL_CALL(glDrawArraysInstanced(
-          prog.primitive, cmd.draw_offset, cmd.draw_count, cmd.instance_count
+          prog.primitive, cmd.opts.offset, cmd.opts.count, cmd.opts.instances
         ));
       } else {
         GL_CALL(glDrawArrays(
-          prog.primitive, cmd.draw_offset, cmd.draw_count
+          prog.primitive, cmd.opts.offset, cmd.opts.count
         ));
       }
     }

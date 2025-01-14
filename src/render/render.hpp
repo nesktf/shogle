@@ -106,19 +106,19 @@ enum class r_texture_type : uint8 {
 };
 
 enum class r_texture_format : uint8 {
-  r8u = 0, r8i,
+  r8n = 0, r8u,     r8i,
   r16u,    r16i,    r16f,
   r32u,    r32i,    r32f,
 
-  rg8u,    rg8i,
+  rg8n,    rg8u,    rg8i,
   rg16u,   rg16i,   rg16f,
   rg32u,   rg32i,   rg32f,
 
-  rgb8u,   rgb8i,
+  rgb8n,   rgb8u,   rgb8i,
   rgb16u,  rgb16i,  rgb16f,
   rgb32u,  rgb32i,  rgb32f,
 
-  rgba8u,  rgba8i,
+  rgba8n,  rgba8u,  rgba8i,
   rgba16u, rgba16i, rgba16f,
   rgba32u, rgba32i, rgba32f,
 
@@ -146,6 +146,9 @@ enum class r_cubemap_face : uint8 {
   positive_z,
   negative_z,
 };
+constexpr inline uint32 r_cubemap_layer(r_cubemap_face face) {
+  return static_cast<uint32>(face);
+}
 
 enum class r_buffer_type : uint8 {
   vertex = 0,
@@ -245,7 +248,6 @@ struct r_buffer_descriptor {
 struct r_texture_descriptor {
   r_texture_type      type;
   r_texture_format    format;
-  void const* const*  texels;
 
   uvec3               extent;
   uint32              layers;
@@ -287,6 +289,7 @@ struct r_framebuffer_att {
 
 struct r_framebuffer_descriptor {
   uvec2                     extent;
+  color4                    clear_color;
 
   r_test_buffer_flag        test_buffers;
   r_test_buffer_format      test_buffer_format;

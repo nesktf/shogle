@@ -44,7 +44,9 @@ public:
   struct program_t {
     GLuint id{0};
     GLenum primitive;
-    weak_ref<r_context::vertex_attributes_t> layout;
+    const r_attrib_descriptor* layout;
+    uint32 attrib_count;
+    size_t stride;
   };
 
   struct texture_t {
@@ -60,7 +62,7 @@ public:
 
   struct framebuffer_t {
     GLuint id{0};
-    uvec2 dim;
+    uvec2 extent;
     GLuint sd_rbo;
     GLuint color_rbo;
     GLbitfield clear_flags;
@@ -113,8 +115,7 @@ public:
 
   [[nodiscard]] texture_t create_texture(r_texture_type type, r_texture_format format,
                                          r_texture_sampler sampler, r_texture_address addressing,
-                                         uvec3 extent, uint32 layers, uint32 levels,
-                                         const void* data, bool genmips);
+                                         uvec3 extent, uint32 layers, uint32 levels);
   void destroy_texture(const texture_t& tex) noexcept;
   void bind_texture(GLuint tex, GLenum type, uint32 index) noexcept;
   void update_texture_data(const texture_t& tex, const void* data, r_texture_format format,
@@ -122,9 +123,9 @@ public:
   void update_texture_sampler(texture_t& tex, r_texture_sampler sampler) noexcept;
   void update_texture_addressing(texture_t& tex, r_texture_address addressing) noexcept;
 
-  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
+  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, r_test_buffer_flag buffers,
                                                  r_texture_format format);
-  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, r_clear_flag buffers,
+  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, r_test_buffer_flag buffers,
                                                  texture_t** attachments, const uint32* levels,
                                                  uint32 att_count);
   void destroy_framebuffer(const framebuffer_t& fbo) noexcept;
@@ -141,7 +142,7 @@ public:
   [[nodiscard]] static GLenum attrib_underlying_type_cast(r_attrib_type type) noexcept;
   [[nodiscard]] static GLenum primitive_cast(r_primitive type) noexcept;
   [[nodiscard]] static GLenum shader_type_cast(r_shader_type type) noexcept;
-  [[nodiscard]] static GLenum fbo_attachment_cast(r_clear_flag flag) noexcept;
+  [[nodiscard]] static GLenum fbo_attachment_cast(r_test_buffer_flag flag) noexcept;
   [[nodiscard]] static GLenum texture_type_cast(r_texture_type type, bool is_array) noexcept;
   [[nodiscard]] static GLenum texture_format_cast(r_texture_format format) noexcept;
   [[nodiscard]] static GLenum texture_format_symbolic_cast(r_texture_format format) noexcept;
@@ -237,9 +238,6 @@ public:
   void update_texture(r_texture_handle tex, const r_context::tex_update_t& data) override;
   void destroy_texture(r_texture_handle tex) override;
 
-  r_framebuffer_handle create_framebuffer(const r_context::fb_create_t& data) override;
-  void destroy_framebuffer(r_framebuffer_handle fb) override;
-
   r_shader_handle create_shader(const r_context::shader_create_t& data) override;
   void destroy_shader(r_shader_handle shader) override;
 
@@ -247,12 +245,15 @@ public:
   r_uniform pipeline_uniform(r_pipeline_handle pipeline, std::string_view name) override;
   void destroy_pipeline(r_pipeline_handle pipeline) override;
 
-  void update_swapchain(const r_context::swapchain_update_t& data) override;
-  void submit(const r_context::command_queue& cmds) override;
+  r_framebuffer_handle create_framebuffer(const r_context::fb_create_t& data) override;
+  void update_framebuffer(r_framebuffer_handle fb, const r_context::fb_update_t& data) override;
+  void destroy_framebuffer(r_framebuffer_handle fb) override;
+
+  void submit(r_framebuffer_handle fb, const r_context::command_queue& cmds) override;
 
 public:
   r_api api_type() const override { return r_api::opengl; }
-  std::string_view name_str() const override { return _name_str; }
+  // std::string_view name_str() const override { return _name_str; }
 
 private:
   GLAPIENTRY static void debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity,

@@ -109,8 +109,13 @@ void r_context::start_frame() noexcept {
 }
 
 void r_context::end_frame() noexcept {
-  for (auto& [_, vec] : _cmds) {
-    _ctx->submit(vec);
+  for (auto& [fbo, vec] : _cmds) {
+    _ctx->submit(fbo, vec);
+  }
+  ImGui::Render();
+  if (_ctx_api == r_api::opengl) {
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    _win->swap_buffers();
   }
 }
 
@@ -119,19 +124,28 @@ void r_context::device_wait() noexcept {
 }
 
 r_buffer_handle r_context::create_buffer(const r_buffer_descriptor& desc) {
-  buffer_create_t create;
-  create.size = desc.size;
-  create.type = desc.type;
-  create.data = desc.data;
+  auto validate_descriptor = [&](buffer_create_t& data) -> bool {
+    data.size = desc.size;
+    data.type = desc.type;
+    data.data = desc.data;
+    return true;
+  };
 
-  auto handle = _ctx->create_buffer(create);
+  buffer_create_t create_data;
+  if (!validate_descriptor(create_data)) {
+    return r_buffer_handle{};
+  }
+
+  auto handle = _ctx->create_buffer(create_data);
   NTF_ASSERT(handle);
   NTF_ASSERT(_buffers.find(handle) == _buffers.end());
 
-  buff_store_t data;
-  data.size = desc.size;
-  data.type = desc.type;
-  _buffers.insert(std::make_pair(handle, data));
+  auto [it, emplaced] = _buffers.try_emplace(handle);
+  NTF_ASSERT(emplaced);
+
+  auto& stored = it->second;
+  stored.type = create_data.type;
+  stored.size = create_data.size;
   return handle;
 }
 
@@ -149,11 +163,13 @@ void r_context::update(r_buffer_handle buff,
   NTF_ASSERT(buff);
   NTF_ASSERT(_buffers.find(buff) != _buffers.end());
 
-  buffer_update_t upd;
-  upd.size = size;
-  upd.data = data;
-  upd.offset = offset;
-  _ctx->update_buffer(buff, upd);
+  NTF_ASSERT(size+offset <= _buffers.at(buff).size);
+  NTF_ASSERT(data, "Invalid buffer data");
+  _ctx->update_buffer(buff, {
+    .data = data,
+    .size = size,
+    .offset = offset,
+  });
 }
 
 r_buffer_type r_context::query(r_buffer_handle buff, r_query_type_t) const {
@@ -168,11 +184,22 @@ size_t r_context::query(r_buffer_handle buff, r_query_size_t) const {
   return _buffers.at(buff).size;
 }
 
+static const char* textypetostr(r_texture_type type) {
+  switch (type) {
+    case r_texture_type::texture1d: return "TEX1D";
+    case r_texture_type::texture2d: return "TEX2D";
+    case r_texture_type::texture3d: return "TEX3D";
+    case r_texture_type::cubemap:   return "CUBEMAP";
+  }
+
+  NTF_UNREACHABLE();
+}
+
 r_texture_handle r_context::create_texture(const r_texture_descriptor& desc) {
   auto validate_descriptor = [&](tex_create_t& data) -> bool {
     data.type = desc.type;
     data.format = desc.format;
-    data.texels = desc.texels;
+    // data.texels = desc.texels;
 
     // TODO: Get max texture size from the platform context
     data.extent = glm::clamp(desc.extent, glm::uvec3{1, 1, 1}, glm::uvec3{4096, 4096, 4096});
@@ -196,17 +223,17 @@ r_texture_handle r_context::create_texture(const r_texture_descriptor& desc) {
       data.layers = 6;
     }
 
-    data.gen_mipmaps = desc.gen_mipmaps;
-    if (desc.gen_mipmaps && desc.levels == 1) {
-      SHOGLE_LOG(warning, "[r_context::create_texture] "
-                 "Ignoring mipmaps generation for texture with level 1");
-      data.gen_mipmaps = false;
-    }
-    if (desc.gen_mipmaps && !data.texels) {
-      SHOGLE_LOG(warning, "[r_context::create_texture] "
-                 "Ignoring mipmaps generation for texture with no texel data");
-      data.gen_mipmaps = false;
-    }
+    // data.gen_mipmaps = desc.gen_mipmaps;
+    // if (desc.gen_mipmaps && desc.levels == 1) {
+    //   SHOGLE_LOG(warning, "[r_context::create_texture] "
+    //              "Ignoring mipmaps generation for texture with level 1");
+    //   data.gen_mipmaps = false;
+    // }
+    // if (desc.gen_mipmaps && !data.texels) {
+    //   SHOGLE_LOG(warning, "[r_context::create_texture] "
+    //              "Ignoring mipmaps generation for texture with no texel data");
+    //   data.gen_mipmaps = false;
+    // }
 
     data.levels = glm::clamp(desc.levels, uint32{0}, uint32{7});
     if (desc.levels > 7) {
@@ -245,6 +272,12 @@ r_texture_handle r_context::create_texture(const r_texture_descriptor& desc) {
   stored.addressing = create_data.addressing;
   stored.sampler = create_data.sampler;
 
+  SHOGLE_LOG(verbose,
+             "[ntf::r_context] TEXTURE CREATE - ID {} - EXT {}x{}x{} - TYPE {}",
+             handle.value(),
+             stored.extent.x, stored.extent.y, stored.extent.z,
+             textypetostr(stored.type));
+
   return handle;
 }
 
@@ -256,6 +289,12 @@ void r_context::destroy(r_texture_handle tex) {
     return;
   }
   _ctx->destroy_texture(tex);
+  auto& data = it->second;
+  SHOGLE_LOG(verbose,
+             "[ntf::r_context] TEXTURE DESTROY - ID {} - EXT {}x{}x{} - TYPE {}",
+             tex.value(),
+             data.extent.x, data.extent.y, data.extent.z,
+             textypetostr(data.type));
   _textures.erase(it);
 }
 
@@ -327,6 +366,12 @@ void r_context::update(r_texture_handle tex,
     .level = level,
     .genmips = texture.levels == 1 ? genmips : false,
   });
+  auto& data = _textures.find(tex)->second;
+  SHOGLE_LOG(verbose,
+             "[ntf::r_context] TEXTURE UPLOAD - ID {} - EXT {}x{}x{} - TYPE {}",
+             tex.value(),
+             data.extent.x, data.extent.y, data.extent.z,
+             textypetostr(data.type));
 }
 
 r_texture_type r_context::query(r_texture_handle tex, r_query_type_t) const {
@@ -372,27 +417,41 @@ uint32 r_context::query(r_texture_handle tex, r_query_levels_t) const {
 }
 
 r_framebuffer_handle r_context::create_framebuffer(const r_framebuffer_descriptor& desc) {
-  fb_create_t create;
-  create.w = desc.size.x;
-  create.h = desc.size.y;
-  create.buffers = desc.buffers;
-  create.attachments = desc.attachments;
-  create.attachment_levels = desc.attachment_levels;
-  create.attachment_count = desc.attachment_count;
-  create.format = r_texture_format::rgb;
+  auto validate_descriptor = [&](fb_create_t& data) -> bool {
+    data.extent.x = desc.extent.x;
+    data.extent.y = desc.extent.y;
 
-  auto handle = _ctx->create_framebuffer(create);
+    data.attachments = desc.attachments;
+    data.attachment_count = desc.attachment_count;
+    data.buffer_format = desc.test_buffer_format;
+    data.color_buffer_format = desc.color_buffer_format;
+    data.clear_color = desc.clear_color;
+
+    return true;
+  };
+
+  fb_create_t create_data;
+  if (!validate_descriptor(create_data)) {
+    return r_framebuffer_handle{};
+  }
+
+  auto handle = _ctx->create_framebuffer(create_data);
   NTF_ASSERT(handle);
   NTF_ASSERT(_framebuffers.find(handle) == _framebuffers.end());
 
   auto [it, emplaced] = _framebuffers.try_emplace(handle);
   NTF_ASSERT(emplaced);
 
-  auto& data = it->second;
-  data.attachments.reserve(desc.attachment_count);
-  for (uint32 i = 0; i < desc.attachment_count; ++i) {
-    data.attachments.push_back(desc.attachments[i]);
+  auto& stored = it->second;
+  stored.attachments.reserve(create_data.attachment_count);
+  for (uint32 i = 0; i < create_data.attachment_count; ++i) {
+    stored.attachments.push_back(create_data.attachments[i]);
   }
+  stored.viewport.x = 0;
+  stored.viewport.y = 0;
+  stored.viewport.z = create_data.extent.x;
+  stored.viewport.w = create_data.extent.y;
+  stored.color = create_data.clear_color;
 
   return handle;
 }
@@ -403,7 +462,7 @@ void r_context::destroy(r_framebuffer_handle fbo) {
   NTF_ASSERT(it != _framebuffers.end());
   _ctx->destroy_framebuffer(fbo);
   for (auto att : it->second.attachments) {
-    destroy(att);
+    destroy(att.handle);
   }
   _framebuffers.erase(it);
 }
@@ -441,16 +500,71 @@ r_shader_type r_context::query(r_shader_handle shader, r_query_type_t) const {
 }
 
 r_pipeline_handle r_context::create_pipeline(const r_pipeline_descriptor& desc) {
+  auto validate_descriptor = [&](pipeline_create_t& data) -> bool {
+    data.stride = desc.stride;
+    data.shaders = desc.stages;
+    data.shader_count = desc.stage_count;
+
+    data.primitive = desc.primitive;
+    data.poly_mode = desc.poly_mode;
+    data.front_face = desc.front_face;
+    data.cull_mode = desc.cull_mode;
+    data.tests = desc.tests;
+    data.depth_ops = desc.depth_compare_op;
+    data.stencil_ops = desc.stencil_compare_op;
+    return true;
+  };
+
+  pipeline_create_t create_data;
+  if (!validate_descriptor(create_data)) {
+    return r_pipeline_handle{};
+  }
+
+  std::vector<r_attrib_descriptor> layout(create_data.attrib_count);
+  create_data.layout = layout.data();
+  create_data.attrib_count = layout.size();
+
+  auto handle = _ctx->create_pipeline(create_data);
+  NTF_ASSERT(handle);
+  NTF_ASSERT(_pipelines.find(handle) == _pipelines.end());
+
+  auto [it, emplaced] = _pipelines.try_emplace(handle);
+  NTF_ASSERT(emplaced);
+
+  auto& stored = it->second;
+  stored.layout = std::move(layout);
+  stored.stride = create_data.stride;
+  // stored.stages = create_data.
+  stored.primitive = create_data.primitive;
+  stored.poly_mode = create_data.poly_mode;
+  stored.front_face = create_data.front_face;
+  stored.cull_mode = create_data.cull_mode;
+  stored.tests = create_data.tests;
+  stored.depth_ops = create_data.depth_ops;
+  stored.stencil_ops = create_data.stencil_ops;
+
+  return handle;
 }
 
 void r_context::destroy(r_pipeline_handle pipeline) {
+  NTF_ASSERT(pipeline);
+  auto it = _pipelines.find(pipeline);
+  NTF_ASSERT(it != _pipelines.end());
+  _ctx->destroy_pipeline(pipeline);
+  _pipelines.erase(it);
 }
 
-r_shader_type r_context::query(r_pipeline_handle pipeline, r_query_stages_t) const {
+r_stages_flag r_context::query(r_pipeline_handle pipeline, r_query_stages_t) const {
+  NTF_ASSERT(pipeline);
+  NTF_ASSERT(_pipelines.find(pipeline) != _pipelines.end());
+  return _pipelines.at(pipeline).stages;
 }
 
-r_uniform r_context::query(r_pipeline_handle pipeline, std::string_view name,
-                           r_query_uniform_t) const {
+r_uniform r_context::query(r_pipeline_handle pipeline, r_query_uniform_t,
+                           std::string_view name) const {
+  NTF_ASSERT(pipeline);
+  NTF_ASSERT(_pipelines.find(pipeline) != _pipelines.end());
+  return _ctx->pipeline_uniform(pipeline, name);
 }
 
 } // namespace ntf
