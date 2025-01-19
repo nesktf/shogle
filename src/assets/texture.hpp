@@ -34,6 +34,7 @@ public:
     int w, h, ch;
     uint8* stbi_data = stbi_load(path.data(), &w, &h, &ch, 0);
     if (!stbi_data) {
+      SHOGLE_LOG(error, "[ntf::texture_data] Failed to load image \"{}\"", path);
       return;
     }
 
