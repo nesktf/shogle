@@ -6,7 +6,7 @@ Funny C++ graphics framework that I use for my personal projects.
 - Wrappers for GLFW, Imgui and OpenGL (might add some other backends in the future)
 - Resource loading (texture atlases, fonts, models...)
 - Some maths for physics and collisions
-- Some custom stl implementations (and other extra utillities)
+- Some stl implementations
 
 ## Installation
 Clone the library in your libraries folder recursing submodules
@@ -46,8 +46,12 @@ target_link_libraries(${PROJECT_NAME} shogle)
 ```
 
 ## Examples
-TODO
+Build them using using the following commands
+```sh 
+$ cmake -B build -DCMAKE_BUILD_TYPE=Debug -DSHOGLE_ENABLE_IMGUI=1 -DSHOGLE_BUILD_EXAMPLES=1
+$ make -C build -j4
+```
 
-In the mean time you can check out my projects using this framework
+You can also check out some of my projects that use this framework
 - [danmaku_engine](https://github.com/nesktf/danmaku_engine) 
 - [lora_gps_tracking](https://github.com/nesktf/lora_gps_tracking) 

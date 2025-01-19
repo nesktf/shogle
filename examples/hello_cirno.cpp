@@ -86,7 +86,7 @@ int main() {
   ntf::r_window window{ntf::r_window_params{
     .width = 1280,
     .height = 720,
-    .title = "hello_cirno - ShOGLE " SHOGLE_VERSION_STRING,
+    .title = "test - hello_cirno - ShOGLE " SHOGLE_VERSION_STRING,
   }};
 
   ntf::r_context ctx;
@@ -158,7 +158,7 @@ int main() {
     return pipe;
   };
 
-  auto tex = load_tex("./res/cirno_cpp.jpg");
+  auto tex = load_tex("./examples/res/cirno_cpp.jpg");
 
   auto cube_vbo = load_buffer(ntf::cube_vertices, ntf::r_buffer_type::vertex);
   auto quad_vbo = load_buffer(ntf::quad_vertices, ntf::r_buffer_type::vertex);
@@ -234,11 +234,8 @@ int main() {
   ntf::uint8 fps_counter{0};
   ntf::float32 t2 = 0;
 
-  // glBindFramebuffer(GL_FRAMEBUFFER, 0);
   ntf::shogle_render_loop(ctx, [&](ntf::float64 dt) {
-    // glClearColor(.3f, .3f, .3f, 1.f);
-    // glClear(GL_COLOR_BUFFER_BIT);
-
+    // Using an ode solver instead of t+=dt just because
     t = ntf::ode_euler<ntf::float32>{}(0.f, t, dt, [](...) { return glm::pi<ntf::float32>(); });
     t2 = ntf::ode_euler<ntf::float32>{}(0.f, t2, dt, [](...) { return 1.f; });
 
