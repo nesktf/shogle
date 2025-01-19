@@ -44,9 +44,7 @@ public:
   struct program_t {
     GLuint id{0};
     GLenum primitive;
-    const r_attrib_descriptor* layout;
-    uint32 attrib_count;
-    size_t stride;
+    r_vertex_attrib attribs;
   };
 
   struct texture_t {
@@ -65,9 +63,6 @@ public:
     uvec2 extent;
     GLuint sd_rbo;
     GLuint color_rbo;
-    GLbitfield clear_flags;
-    uvec4 viewport;
-    color4 color;
   };
 
   enum fbo_binding {
@@ -80,9 +75,6 @@ public:
 
   struct init_data_t {
     GLDEBUGPROC dbg;
-    uvec4 vport;
-    // color4 clear_color;
-    // r_clear_flag flags;
   };
 
 public:
@@ -130,11 +122,9 @@ public:
                                                  uint32 att_count);
   void destroy_framebuffer(const framebuffer_t& fbo) noexcept;
   void bind_framebuffer(GLuint id, fbo_binding binding) noexcept;
-  void prepare_draw_target(const framebuffer_t* fbo) noexcept;
+  void prepare_draw_target(GLuint fb, r_clear_flag flags,
+                           const uvec4& vp, const color4& col) noexcept;
 
-  void update_viewport(uvec4 vp) noexcept;
-  void update_color(color4 col) noexcept;
-  void update_flags(r_clear_flag flags) noexcept;
   void bind_attributes(const r_attrib_descriptor* attrs, uint32 count, size_t stride) noexcept;
 
 public:
@@ -149,6 +139,7 @@ public:
   [[nodiscard]] static GLenum texture_format_underlying_cast(r_texture_format format) noexcept;
   [[nodiscard]] static GLenum texture_sampler_cast(r_texture_sampler samp, bool mips) noexcept;
   [[nodiscard]] static GLenum texture_addressing_cast(r_texture_address address) noexcept;
+  [[nodiscard]] static GLbitfield clear_bit_cast(r_clear_flag flags) noexcept;
 
 private:
   GLenum& buffer_pos(GLenum type);
@@ -167,12 +158,6 @@ private:
   } _tex_limits;
   std::vector<std::pair<GLuint, GLenum>> _bound_texs; // id, type
   size_t _active_tex;
-
-  struct {
-    uvec4 vport;
-    color4 color;
-    GLbitfield flag;
-  } _swpch;
 };
 
 class gl_context final : public r_platform_context {
@@ -199,7 +184,7 @@ private:
         return pos;
       }
       _res.emplace_back(T{});
-      return H{_res.size()-1};
+      return static_cast<H>(_res.size()-1);
     }
 
     void push(H pos) {
@@ -246,10 +231,9 @@ public:
   void destroy_pipeline(r_pipeline_handle pipeline) override;
 
   r_framebuffer_handle create_framebuffer(const r_context::fb_create_t& data) override;
-  void update_framebuffer(r_framebuffer_handle fb, const r_context::fb_update_t& data) override;
   void destroy_framebuffer(r_framebuffer_handle fb) override;
 
-  void submit(r_framebuffer_handle fb, const r_context::command_queue& cmds) override;
+  void submit(r_framebuffer_handle fb, const r_context::draw_list_t& frame) override;
 
 public:
   r_api api_type() const override { return r_api::opengl; }
@@ -257,7 +241,7 @@ public:
 
 private:
   GLAPIENTRY static void debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity,
-                                         GLsizei len, const GLchar* msg, const void* user_ptr);
+                                        GLsizei len, const GLchar* msg, const void* user_ptr);
 
 private:
   gl_state _state;

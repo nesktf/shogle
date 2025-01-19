@@ -30,12 +30,6 @@ public:
   static constexpr r_framebuffer_handle DEFAULT_FRAMEBUFFER{};
 
 public:
-  struct context_str_t {
-    std::string_view name;
-    std::string_view vendor;
-    std::string_view version;
-  };
-
   struct uniform_descriptor_t {
     r_attrib_type type;
     r_uniform location;
@@ -51,14 +45,21 @@ public:
     r_buffer_handle vertex_buffer;
     r_buffer_handle index_buffer;
     r_pipeline_handle pipeline;
-    const texture_binding_t* textures;
-    uint32 texture_count;
-    const uniform_descriptor_t* uniforms;
-    uint32 uniform_count;
-    r_draw_opts opts;
+    std::vector<weak_ref<texture_binding_t>> textures;
+    std::vector<weak_ref<uniform_descriptor_t>> uniforms;
+    uint32 count;
+    uint32 offset;
+    uint32 instances;
   };
-  using command_queue = std::vector<weak_ref<draw_command_t>>;
 
+  struct draw_list_t {
+    color4 color;
+    uvec4 viewport;
+    r_clear_flag clear;
+    std::vector<weak_ref<draw_command_t>> cmds;
+  };
+
+public:
   struct buffer_create_t {
     r_buffer_type type;
     const void* data;
@@ -120,9 +121,7 @@ public:
   struct pipeline_create_t {
     const r_shader_handle* shaders;
     uint32 shader_count;
-    const r_attrib_descriptor* layout;
-    uint32 attrib_count;
-    size_t stride;
+    r_vertex_attrib attribs;
     r_primitive primitive;
     r_polygon_mode poly_mode;
     r_front_face front_face;
@@ -218,33 +217,71 @@ public:
                                 std::string_view name) const;
 
 public:
-  void framebuffer_viewport(r_framebuffer_handle fbo, uvec4 vp);
+  void framebuffer_viewport(r_framebuffer_handle fbo, uvec4 vp) {
+    NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
+    _draw_lists.at(fbo).viewport = vp;
+  }
   void framebuffer_viewport(uvec4 vp) { framebuffer_viewport(DEFAULT_FRAMEBUFFER, vp); }
 
-  void framebuffer_color(r_framebuffer_handle fbo, color4 color);
+  void framebuffer_color(r_framebuffer_handle fbo, color4 color) {
+    NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
+    _draw_lists.at(fbo).color = color;
+  }
   void framebuffer_color(color4 color) { framebuffer_color(DEFAULT_FRAMEBUFFER, color); }
 
-  void framebuffer_clear(r_framebuffer_handle fbo, r_clear_flag flags);
+  void framebuffer_clear(r_framebuffer_handle fbo, r_clear_flag flags) {
+    NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
+    _draw_lists.at(fbo).clear = flags;
+  }
   void framebuffer_clear(r_clear_flag flags) { framebuffer_clear(DEFAULT_FRAMEBUFFER, flags); }
 
-  void bind_texture(r_texture_handle texture, uint32 index);
-  void bind_framebuffer(r_framebuffer_handle fbo);
-  void bind_vertex_buffer(r_buffer_handle buffer);
-  void bind_index_buffer(r_buffer_handle buffer);
-  void bind_pipeline(r_pipeline_handle pipeline);
-  void draw_opts(r_draw_opts opts);
+  void bind_texture(r_texture_handle texture, uint32 index) {
+    auto* ptr = _frame_arena.allocate<texture_binding_t>(1);
+    ptr->handle = texture;
+    ptr->index = index;
+    _d_cmd.textures.emplace_back(ptr);
+  }
 
-  void submit();
+  void bind_framebuffer(r_framebuffer_handle fbo) {
+    NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
+    _d_list = _draw_lists.at(fbo);
+  }
+
+  void bind_vertex_buffer(r_buffer_handle buffer) {
+    _d_cmd.vertex_buffer = buffer;
+  }
+
+  void bind_index_buffer(r_buffer_handle buffer) {
+    _d_cmd.index_buffer = buffer;
+  }
+
+  void bind_pipeline(r_pipeline_handle pipeline) {
+    _d_cmd.pipeline = pipeline;
+  }
+
+  void draw_opts(r_draw_opts opts) {
+    _d_cmd.count = opts.count;
+    _d_cmd.offset = opts.offset;
+    _d_cmd.instances = opts.instances;
+  }
 
   template<typename T>
   requires(r_attrib_traits<T>::is_attrib)
   void push_uniform(r_uniform location, const T& data) {
-    auto* ptr = _frame_arena.allocate<T>(1);
-    _uniforms.emplace_back(uniform_descriptor_t{
-      .type = r_attrib_traits<T>::tag,
-      .location = location,
-      .data = std::construct_at(ptr, data),
-    });
+    auto* desc = _frame_arena.allocate<uniform_descriptor_t>(1);
+    desc->location = location;
+    desc->type = r_attrib_traits<T>::tag;
+    auto* data_ptr = _frame_arena.template allocate<T>(1);
+    std::construct_at(data_ptr, data);
+    desc->data = data_ptr;
+    _d_cmd.uniforms.emplace_back(desc);
+  }
+
+  void submit() {
+    auto* cmd = _frame_arena.allocate<draw_command_t>(1);
+    weak_ref<draw_command_t> ref = std::construct_at(cmd, std::move(_d_cmd));
+    _d_list->cmds.emplace_back(ref);
+    _d_cmd = {};
   }
 
 public:
@@ -256,6 +293,7 @@ public:
   r_window& win() { return *_win; }
 
 private:
+  ntf::mem_arena _frame_arena;
   weak_ref<r_window> _win;
   std::unique_ptr<r_platform_context> _ctx;
   r_api _ctx_api;
@@ -266,10 +304,9 @@ private:
   std::unordered_map<r_shader_handle, shader_store_t> _shaders;
   std::unordered_map<r_pipeline_handle, pipeline_store_t> _pipelines;
 
-  ntf::mem_arena _frame_arena;
-  std::vector<uniform_descriptor_t> _uniforms;
-
-  std::unordered_map<r_framebuffer_handle, std::vector<weak_ref<draw_command_t>>> _cmds;
+  std::unordered_map<r_framebuffer_handle, draw_list_t> _draw_lists;
+  weak_ref<draw_list_t> _d_list;
+  draw_command_t _d_cmd{};
 
 public:
   NTF_DECLARE_NO_MOVE_NO_COPY(r_context);
@@ -296,10 +333,9 @@ struct r_platform_context {
   virtual void destroy_pipeline(r_pipeline_handle pipeline) = 0;
 
   virtual r_framebuffer_handle create_framebuffer(const r_context::fb_create_t& data) = 0;
-  virtual void update_framebuffer(r_framebuffer_handle fb, const r_context::fb_update_t& data) = 0;
   virtual void destroy_framebuffer(r_framebuffer_handle fb) = 0;
 
-  virtual void submit(r_framebuffer_handle fb, const r_context::command_queue& cmds) = 0;
+  virtual void submit(r_framebuffer_handle fb, const r_context::draw_list_t& cmds) = 0;
 
   virtual void device_wait() noexcept {}
 };

@@ -63,8 +63,14 @@ void r_context::init(r_window& win, const r_context_params& params) noexcept {
   }
 #endif
 #endif
+  auto [def_list, cmd_emplaced] = _draw_lists.try_emplace(DEFAULT_FRAMEBUFFER);
+  NTF_ASSERT(cmd_emplaced);
+
+  _frame_arena.init(1ull<<29); // 512MiB
   _win = &win;
   _ctx_api = api;
+  _d_list = def_list->second;
+  def_list->second.viewport = uvec4{0, 0, _win->fb_size()};
 }
 
 r_context::~r_context() noexcept {
@@ -89,9 +95,12 @@ r_context::~r_context() noexcept {
 }
 
 void r_context::start_frame() noexcept {
-  _uniforms.clear();
-  for (auto& [_, vec] : _cmds) {
-    vec.clear();
+  for (auto& [_, list] : _draw_lists) {
+    list.clear = r_clear_flag::none;
+    for (auto& cmd : list.cmds) {
+      cmd.get().~draw_command_t();
+    }
+    list.cmds.clear();
   }
   _frame_arena.reset();
 
@@ -109,8 +118,8 @@ void r_context::start_frame() noexcept {
 }
 
 void r_context::end_frame() noexcept {
-  for (auto& [fbo, vec] : _cmds) {
-    _ctx->submit(fbo, vec);
+  for (auto& [fbo, list] : _draw_lists) {
+    _ctx->submit(fbo, list);
   }
   ImGui::Render();
   if (_ctx_api == r_api::opengl) {
@@ -269,6 +278,7 @@ r_texture_handle r_context::create_texture(const r_texture_descriptor& desc) {
   stored.format = create_data.format;
   stored.extent = create_data.extent;
   stored.layers = create_data.layers;
+  stored.levels = create_data.levels;
   stored.addressing = create_data.addressing;
   stored.sampler = create_data.sampler;
 
@@ -364,7 +374,7 @@ void r_context::update(r_texture_handle tex,
     .offset = offset,
     .layer = layer,
     .level = level,
-    .genmips = texture.levels == 1 ? genmips : false,
+    .genmips = texture.levels > 1 ? genmips : false,
   });
   auto& data = _textures.find(tex)->second;
   SHOGLE_LOG(verbose,
@@ -424,6 +434,7 @@ r_framebuffer_handle r_context::create_framebuffer(const r_framebuffer_descripto
     data.attachments = desc.attachments;
     data.attachment_count = desc.attachment_count;
     data.buffer_format = desc.test_buffer_format;
+    data.buffers = desc.test_buffers;
     data.color_buffer_format = desc.color_buffer_format;
     data.clear_color = desc.clear_color;
 
@@ -442,10 +453,15 @@ r_framebuffer_handle r_context::create_framebuffer(const r_framebuffer_descripto
   auto [it, emplaced] = _framebuffers.try_emplace(handle);
   NTF_ASSERT(emplaced);
 
+  auto [_, cmd_emplaced] = _draw_lists.try_emplace(handle);
+  NTF_ASSERT(cmd_emplaced);
+
   auto& stored = it->second;
   stored.attachments.reserve(create_data.attachment_count);
   for (uint32 i = 0; i < create_data.attachment_count; ++i) {
     stored.attachments.push_back(create_data.attachments[i]);
+    auto& tex = _textures.at(create_data.attachments[i].handle);
+    tex.refcount++;
   }
   stored.viewport.x = 0;
   stored.viewport.y = 0;
@@ -501,7 +517,7 @@ r_shader_type r_context::query(r_shader_handle shader, r_query_type_t) const {
 
 r_pipeline_handle r_context::create_pipeline(const r_pipeline_descriptor& desc) {
   auto validate_descriptor = [&](pipeline_create_t& data) -> bool {
-    data.stride = desc.stride;
+    data.attribs = desc.attribs;
     data.shaders = desc.stages;
     data.shader_count = desc.stage_count;
 
@@ -520,10 +536,6 @@ r_pipeline_handle r_context::create_pipeline(const r_pipeline_descriptor& desc) 
     return r_pipeline_handle{};
   }
 
-  std::vector<r_attrib_descriptor> layout(create_data.attrib_count);
-  create_data.layout = layout.data();
-  create_data.attrib_count = layout.size();
-
   auto handle = _ctx->create_pipeline(create_data);
   NTF_ASSERT(handle);
   NTF_ASSERT(_pipelines.find(handle) == _pipelines.end());
@@ -532,8 +544,6 @@ r_pipeline_handle r_context::create_pipeline(const r_pipeline_descriptor& desc) 
   NTF_ASSERT(emplaced);
 
   auto& stored = it->second;
-  stored.layout = std::move(layout);
-  stored.stride = create_data.stride;
   // stored.stages = create_data.
   stored.primitive = create_data.primitive;
   stored.poly_mode = create_data.poly_mode;

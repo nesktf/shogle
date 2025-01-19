@@ -263,13 +263,17 @@ struct r_shader_descriptor {
   std::string_view  source;
 };
 
+struct r_vertex_attrib {
+  const r_attrib_descriptor* attribs;
+  uint32 count;
+  size_t stride;
+};
+
 struct r_pipeline_descriptor {
   const r_shader_handle*      stages;
   uint32                      stage_count;
 
-  const r_attrib_descriptor*  attribs;
-  uint32                      attrib_count;
-  size_t                      stride;
+  r_vertex_attrib             attribs;
 
   r_primitive                 primitive;
   r_polygon_mode              poly_mode;

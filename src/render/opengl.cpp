@@ -6,6 +6,7 @@
 #define GL_CALL(fun) \
 do { \
   fun; \
+  SHOGLE_LOG(verbose, "GL_CALL: " #fun); \
   GLenum glerr = gl_check_error(__FILE__, __LINE__); \
   NTF_ASSERT(glerr == 0, "GL ERROR: {}", glerr); \
 } while(0)
@@ -14,6 +15,7 @@ do { \
 #define GL_CHECK(fun) \
 [&]() { \
   fun; \
+  SHOGLE_LOG(verbose, "GL_CALL: " #fun); \
   return gl_check_error(__FILE__, __LINE__); \
 }()
 
@@ -87,16 +89,10 @@ void gl_state::init(const init_data_t& data) noexcept {
     GL_CALL(glBindTexture(GL_TEXTURE_2D, NULL_BINDING));
   }
 
-  // Configure swapchain
-  auto& vp = _swpch.vport;
-  vp = data.vport;
-  _swpch.flag = 0;
-  _swpch.color = color4{.3f, .3f, .3f, 1.f};
   if (data.dbg) {
     GL_CALL(glEnable(GL_DEBUG_OUTPUT));
     GL_CALL(glDebugMessageCallback(data.dbg, &_ctx));
   }
-  GL_CALL(glViewport(vp.x, vp.y, vp.z, vp.w));
   GL_CALL(glEnable(GL_DEPTH_TEST)); // (?)
 }
 
@@ -418,7 +414,7 @@ void gl_state::push_uniform(uint32 loc, r_attrib_type type, const void* data) no
 
 r_uniform gl_state::uniform_location(GLuint program, std::string_view name) noexcept {
   NTF_ASSERT(program);
-  NTF_ASSERT(name.back() == '\0');
+  // TODO: Check for null termination?
   const GLint loc = glGetUniformLocation(program, name.data());
   if (loc < 0) {
     return r_uniform{};
@@ -861,6 +857,7 @@ GLenum gl_state::fbo_attachment_cast(r_test_buffer_flag flags) noexcept {
   if (stencil) {
     return GL_STENCIL_ATTACHMENT;
   }
+
   return 0;
 }
 
@@ -893,19 +890,11 @@ auto gl_state::create_framebuffer(uint32 w, uint32 h, r_test_buffer_flag buffers
   NTF_ASSERT(glCheckFramebufferStatus(fbbind) == GL_FRAMEBUFFER_COMPLETE);
 
   framebuffer_t fbo;
+  fbo.id = id;
   fbo.sd_rbo = rbos[0];
   fbo.color_rbo = rbos[1];
   fbo.extent.x = w;
   fbo.extent.y = h;
-  fbo.clear_flags = 0;
-  fbo.viewport.x = 0;
-  fbo.viewport.y = 0;
-  fbo.viewport.z = w;
-  fbo.viewport.w = h;
-  fbo.color.r = .3f;
-  fbo.color.g = .3f;
-  fbo.color.b = .3f;
-  fbo.color.a = 1.f;
   return fbo;
 }
 
@@ -960,19 +949,11 @@ auto gl_state::create_framebuffer(uint32 w, uint32 h, r_test_buffer_flag buffers
   NTF_ASSERT(glCheckFramebufferStatus(fbbind) == GL_FRAMEBUFFER_COMPLETE);
 
   framebuffer_t fbo;
+  fbo.id = id;
   fbo.sd_rbo = rbo;
   fbo.color_rbo = NULL_BINDING;
   fbo.extent.x = w;
   fbo.extent.y = h;
-  fbo.clear_flags = 0;
-  fbo.viewport.x = 0;
-  fbo.viewport.y = 0;
-  fbo.viewport.z = w;
-  fbo.viewport.w = h;
-  fbo.color.r = .3f;
-  fbo.color.g = .3f;
-  fbo.color.b = .3f;
-  fbo.color.a = 1.f;
   return fbo;
 }
 
@@ -1033,48 +1014,6 @@ void gl_state::bind_framebuffer(GLuint id, fbo_binding binding) noexcept {
   GL_CALL(glBindFramebuffer(fb, id));
 }
 
-void gl_state::prepare_draw_target(const framebuffer_t* fb) noexcept {
-  if (!fb) {
-    bind_framebuffer(DEFAULT_FBO, FBO_BIND_WRITE);
-    const auto& vp = _swpch.vport;
-    const auto& col = _swpch.color;
-    GL_CALL(glViewport(vp.x, vp.y, vp.z, vp.w));
-    GL_CALL(glClearColor(col.r, col.g, col.b, col.a));
-    GL_CALL(glClear(_swpch.flag));
-    return;
-  }
-
-  NTF_ASSERT(fb->id);
-  bind_framebuffer(fb->id, FBO_BIND_WRITE);
-  const auto& vp = fb->viewport;
-  const auto& col = fb->color;
-  GL_CALL(glViewport(vp.x, vp.y, vp.z, vp.w));
-  GL_CALL(glClearColor(col.r, col.g, col.b, col.a));
-  GL_CALL(glClear(fb->clear_flags));
-}
-
-void gl_state::update_viewport(uvec4 vp) noexcept {
-  _swpch.vport = vp;
-}
-
-void gl_state::update_color(color4 col) noexcept {
-  _swpch.color = col;
-}
-
-void gl_state::update_flags(r_clear_flag flags) noexcept {
-  GLbitfield clear_bits{0};
-  if (+(flags & r_clear_flag::color)) {
-    clear_bits |= GL_COLOR_BUFFER_BIT;
-  }
-  if (+(flags & r_clear_flag::depth)) {
-    clear_bits |= GL_DEPTH_BUFFER_BIT;
-  }
-  if (+(flags & r_clear_flag::stencil)) {
-    clear_bits |= GL_STENCIL_BUFFER_BIT;
-  }
-  _swpch.flag = clear_bits;
-}
-
 void gl_state::bind_attributes(const r_attrib_descriptor* attrs, uint32 count, 
                                size_t stride) noexcept {
   NTF_ASSERT(attrs);
@@ -1098,6 +1037,31 @@ void gl_state::bind_attributes(const r_attrib_descriptor* attrs, uint32 count,
       reinterpret_cast<void*>(attr.offset)
     ));
   }
+}
+
+GLbitfield gl_state::clear_bit_cast(r_clear_flag flags) noexcept {
+  GLbitfield clear_bits{0};
+  if (+(flags & r_clear_flag::color)) {
+    clear_bits |= GL_COLOR_BUFFER_BIT;
+  }
+  if (+(flags & r_clear_flag::depth)) {
+    clear_bits |= GL_DEPTH_BUFFER_BIT;
+  }
+  if (+(flags & r_clear_flag::stencil)) {
+    clear_bits |= GL_STENCIL_BUFFER_BIT;
+  }
+  return clear_bits;
+}
+
+void gl_state::prepare_draw_target(GLuint fb, r_clear_flag flags,
+                                   const uvec4& vp, const color4& col) noexcept {
+  bind_framebuffer(fb, gl_state::FBO_BIND_WRITE);
+  GL_CALL(glViewport(vp.x, vp.y, vp.z, vp.w));
+  if (!+(flags & r_clear_flag::color)) {
+    return;
+  }
+  GL_CALL(glClearColor(col.r, col.g, col.b, col.a));
+  GL_CALL(glClear(clear_bit_cast(flags)));
 }
 
 GLenum gl_state::attrib_underlying_type_cast(r_attrib_type type) noexcept {
@@ -1186,13 +1150,13 @@ void gl_context::debug_callback(GLenum src, GLenum type, GLuint id, GLenum sever
   }();
 
   if (type == GL_DEBUG_TYPE_ERROR) {
-    SHOGLE_LOG(error, "[ntf::gl_context][{}][{}][{}][{}] {}",
+    SHOGLE_LOG(error, "[ntf::gl_context][GL_DEBUG][{}][{}][{}][{}]\n\t{}",
                severity_msg, type_msg, src_msg, id, msg);
   } else if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
-    SHOGLE_LOG(verbose, "[ntf::gl_context][{}][{}][{}][{}] {}",
+    SHOGLE_LOG(verbose, "[ntf::gl_context][GL_DEBUG][{}][{}][{}][{}]\n\t{}",
                severity_msg, type_msg, src_msg, id, msg);
   } else {
-    SHOGLE_LOG(debug, "[ntf::gl_context][{}][{}][{}][{}] {}",
+    SHOGLE_LOG(debug, "[ntf::gl_context][GL_DEBUG][{}][{}][{}][{}]\n\t{}",
                severity_msg, type_msg, src_msg, id, msg);
   }
 }
@@ -1205,7 +1169,6 @@ gl_context::gl_context(r_window& win, uint32 major, uint32 minor) :
   _proc_fun = win.proc_loader();
   _state.init(gl_state::init_data_t{
     .dbg = gl_context::debug_callback,
-    .vport = uvec4{0, 0, win.fb_size()},
   });
 
   _vao = _state.create_vao();
@@ -1332,7 +1295,7 @@ r_pipeline_handle gl_context::create_pipeline(const r_context::pipeline_create_t
   gl_state::program_t prog = _state.create_program(
     shads.data(), data.shader_count, data.primitive
   );
-  prog.layout = data.layout;
+  prog.attribs = data.attribs;
   NTF_ASSERT(prog.id);
   auto handle = _programs.acquire();
   _programs.get(handle) = prog;
@@ -1350,60 +1313,33 @@ r_uniform gl_context::pipeline_uniform(r_pipeline_handle pipeline, std::string_v
   return _state.uniform_location(pip.id, name);
 }
 
-void gl_context::update_framebuffer(r_framebuffer_handle fb, const r_context::fb_update_t& data) {
-  if (fb) {
-    auto& fbo = _framebuffers.get(fb);
-    fbo.viewport = data.viewport;
-    fbo.color = data.color;
-    // fbo.clear_flags = data.flags;
-  } else {
-    _state.update_viewport(data.viewport);
-    _state.update_color(data.color);
-    _state.update_flags(data.flags);
-  }
-}
-
-void gl_context::submit(r_framebuffer_handle fb, const r_context::command_queue& cmds) {
-  auto check_cmd = [](const r_context::draw_command_t& cmd, uint32 cmd_n) -> bool {
-    if (!cmd.opts.count) {
-      SHOGLE_LOG(warning, "[gl_context::submit] Invalid draw count in command {}", cmd_n);
-      return false;
-    }
-    if (!cmd.vertex_buffer) {
-      SHOGLE_LOG(warning, "[gl_context::submit] Invalid VBO in command {}", cmd_n);
-      return false;
-    }
-    if (!cmd.pipeline) {
-      SHOGLE_LOG(warning, "[gl_context::submit] Invalid pipeline in command {}", cmd_n);
-      return false;
-    }
-    if (cmd.textures && !cmd.texture_count) {
-      SHOGLE_LOG(warning, "[gl_context::submit] Invalid textures in command {}", cmd_n);
-      return false;
-    }
-    if (cmd.uniforms && !cmd.uniform_count) {
-      SHOGLE_LOG(warning, "[gl_context::submit] Invalid uniforms in command {}", cmd_n);
-      return false;
-    }
-    return true;
-  };
-
+void gl_context::submit(r_framebuffer_handle fb, const r_context::draw_list_t& list) {
+  SHOGLE_LOG(debug, " ==== GL DRAW CALL === {} -> {}", fb.value(), list.cmds.size());
   _state.bind_vao(_vao.id);
-  _state.prepare_draw_target(fb ? &_framebuffers.get(fb) : nullptr);
-  for (uint32 i = 0; i < cmds.size(); ++i) {
-    NTF_ASSERT(cmds[i]);
-    auto& cmd = *cmds[i];
-    if (!check_cmd(cmd, i)) {
-      continue;
-    }
+  _state.prepare_draw_target(fb ? _framebuffers.get(fb).id : gl_state::DEFAULT_FBO,
+                             list.clear, list.viewport, list.color);
 
-    auto& vbo = _buffers.get(cmd.vertex_buffer);
-    auto& prog = _programs.get(cmd.pipeline);
+  for (const auto& cmd_ref : list.cmds) {
+    const auto& cmd = *cmd_ref;
+    SHOGLE_LOG(debug, " === GL DRAW COMMAND === ");
+
+    NTF_ASSERT(cmd.count);
+    NTF_ASSERT(cmd.vertex_buffer);
+    NTF_ASSERT(cmd.pipeline);
+
+    const auto& vbo = _buffers.get(cmd.vertex_buffer);
+    const auto& prog = _programs.get(cmd.pipeline);
+    NTF_ASSERT(vbo.id);
     NTF_ASSERT(vbo.type == GL_ARRAY_BUFFER);
+    NTF_ASSERT(prog.id);
 
-    if (_state.bind_buffer(vbo.id, vbo.type) || _state.bind_program(prog.id)) {
+    bool rebind = _state.bind_buffer(vbo.id, vbo.type);
+    rebind = (_state.bind_program(prog.id) || rebind);
+    NTF_ASSERT(prog.primitive);
+    if (rebind) {
+      auto& attr = prog.attribs;
       _state.bind_attributes(
-        prog.layout, prog.attrib_count, prog.stride
+        attr.attribs, attr.count, attr.stride
       );
     }
 
@@ -1413,41 +1349,35 @@ void gl_context::submit(r_framebuffer_handle fb, const r_context::command_queue&
       _state.bind_buffer(ebo.id, ebo.type);
     }
 
-    if (cmd.textures) {
-      for (uint32 i = 0; i < cmd.texture_count; ++i) {
-        auto& tex = _textures.get(cmd.textures[i].handle);
-        _state.bind_texture(tex.id, tex.type, cmd.textures[i].index);
-      }
+    for (const auto& bind : cmd.textures) {
+      const auto& tex = _textures.get(bind->handle);
+      _state.bind_texture(tex.id, tex.type, bind->index);
     }
 
-    if (cmd.uniforms) {
-      for (uint32 i = 0; i < cmd.uniform_count; ++i) {
-        const auto& unif = cmd.uniforms[i];
-        _state.push_uniform(unif.location, unif.type, unif.data);
-      }
+    for (const auto& unif : cmd.uniforms) {
+      _state.push_uniform(unif->location, unif->type, unif->data);
     }
 
-    NTF_ASSERT(prog.primitive);
     if (cmd.index_buffer) {
-      const void* offset = reinterpret_cast<const void*>(cmd.opts.offset*sizeof(uint32));
+      const void* offset = reinterpret_cast<const void*>(cmd.offset*sizeof(uint32));
       const GLenum format = GL_UNSIGNED_INT;
-      if (cmd.opts.instances) {
+      if (cmd.instances) {
         GL_CALL(glDrawElementsInstanced(
-          prog.primitive, cmd.opts.count, format, offset, cmd.opts.instances
+          prog.primitive, cmd.count, format, offset, cmd.instances
         ));
       } else {
         GL_CALL(glDrawElements(
-          prog.primitive, cmd.opts.count, format, offset
+          prog.primitive, cmd.count, format, offset
         ));
       }
     } else {
-      if (cmd.opts.instances) {
+      if (cmd.instances) {
         GL_CALL(glDrawArraysInstanced(
-          prog.primitive, cmd.opts.offset, cmd.opts.count, cmd.opts.instances
+          prog.primitive, cmd.offset, cmd.count, cmd.instances
         ));
       } else {
         GL_CALL(glDrawArrays(
-          prog.primitive, cmd.opts.offset, cmd.opts.count
+          prog.primitive, cmd.offset, cmd.count
         ));
       }
     }
