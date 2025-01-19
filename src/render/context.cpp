@@ -517,7 +517,6 @@ r_shader_type r_context::query(r_shader_handle shader, r_query_type_t) const {
 
 r_pipeline_handle r_context::create_pipeline(const r_pipeline_descriptor& desc) {
   auto validate_descriptor = [&](pipeline_create_t& data) -> bool {
-    data.attribs = desc.attribs;
     data.shaders = desc.stages;
     data.shader_count = desc.stage_count;
 
@@ -536,6 +535,17 @@ r_pipeline_handle r_context::create_pipeline(const r_pipeline_descriptor& desc) 
     return r_pipeline_handle{};
   }
 
+  auto layout = std::make_unique<vertex_attrib_t>();
+  layout->binding = desc.attrib_binding.binding;
+  layout->stride = desc.attrib_binding.stride;
+  layout->descriptors.resize(desc.attrib_desc_count);
+  std::memcpy(
+    layout->descriptors.data(), desc.attrib_desc,
+    desc.attrib_desc_count*sizeof(r_attrib_descriptor)
+  );
+
+  create_data.layout = layout.get();
+
   auto handle = _ctx->create_pipeline(create_data);
   NTF_ASSERT(handle);
   NTF_ASSERT(_pipelines.find(handle) == _pipelines.end());
@@ -545,6 +555,7 @@ r_pipeline_handle r_context::create_pipeline(const r_pipeline_descriptor& desc) 
 
   auto& stored = it->second;
   // stored.stages = create_data.
+  stored.layout = std::move(layout);
   stored.primitive = create_data.primitive;
   stored.poly_mode = create_data.poly_mode;
   stored.front_face = create_data.front_face;

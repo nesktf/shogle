@@ -1295,7 +1295,7 @@ r_pipeline_handle gl_context::create_pipeline(const r_context::pipeline_create_t
   gl_state::program_t prog = _state.create_program(
     shads.data(), data.shader_count, data.primitive
   );
-  prog.attribs = data.attribs;
+  prog.layout = data.layout;
   NTF_ASSERT(prog.id);
   auto handle = _programs.acquire();
   _programs.get(handle) = prog;
@@ -1337,9 +1337,9 @@ void gl_context::submit(r_framebuffer_handle fb, const r_context::draw_list_t& l
     rebind = (_state.bind_program(prog.id) || rebind);
     NTF_ASSERT(prog.primitive);
     if (rebind) {
-      auto& attr = prog.attribs;
+      auto& layout = prog.layout;
       _state.bind_attributes(
-        attr.attribs, attr.count, attr.stride
+        layout->descriptors.data(), layout->descriptors.size(), layout->stride
       );
     }
 

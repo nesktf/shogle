@@ -232,6 +232,11 @@ enum class r_clear_flag : uint8 {
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear_flag);
 
+struct r_attrib_binding {
+  uint32 binding;
+  size_t stride;
+};
+
 struct r_attrib_descriptor {
   r_attrib_type type;
   uint32        binding;
@@ -263,17 +268,13 @@ struct r_shader_descriptor {
   std::string_view  source;
 };
 
-struct r_vertex_attrib {
-  const r_attrib_descriptor* attribs;
-  uint32 count;
-  size_t stride;
-};
-
 struct r_pipeline_descriptor {
   const r_shader_handle*      stages;
   uint32                      stage_count;
 
-  r_vertex_attrib             attribs;
+  r_attrib_binding            attrib_binding;
+  const r_attrib_descriptor*  attrib_desc;
+  uint32                      attrib_desc_count;
 
   r_primitive                 primitive;
   r_polygon_mode              poly_mode;

@@ -118,10 +118,18 @@ public:
     r_shader_type type;
   };
 
+  struct vertex_attrib_t {
+    uint32 binding;
+    size_t stride;
+    std::vector<r_attrib_descriptor> descriptors;
+  };
+
   struct pipeline_create_t {
+    weak_ref<vertex_attrib_t> layout;
+
     const r_shader_handle* shaders;
     uint32 shader_count;
-    r_vertex_attrib attribs;
+
     r_primitive primitive;
     r_polygon_mode poly_mode;
     r_front_face front_face;
@@ -132,10 +140,10 @@ public:
   };
 
   struct pipeline_store_t {
-    std::vector<r_attrib_descriptor> layout;
-    size_t stride;
+    std::unique_ptr<vertex_attrib_t> layout;
+
     r_stages_flag stages;
-    // std::unordered_map<r_uniform, std::string> uniforms;
+
     r_primitive primitive;
     r_polygon_mode poly_mode;
     r_front_face front_face;

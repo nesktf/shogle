@@ -59,27 +59,6 @@ void main()  {
 
 )glsl";
 
-struct common_vertex {
-  ntf::vec3 pos;
-  ntf::vec3 normals;
-  ntf::vec2 texcoords;
-
-  static constexpr std::array<ntf::r_attrib_descriptor, 3> attribs {{
-    { ntf::r_attrib_type::vec3, 0, 0, 0 },
-    { ntf::r_attrib_type::vec3, 0, 1, sizeof(ntf::vec3) },
-    { ntf::r_attrib_type::vec2, 0, 2, 2*sizeof(ntf::vec3) },
-  }};
-  static constexpr ntf::uint32 count = 3;
-  static constexpr size_t stride = 2*sizeof(ntf::vec3)+sizeof(ntf::vec2);
-  static constexpr ntf::r_vertex_attrib verex_attrib() {
-    return {
-      .attribs = attribs.data(),
-      .count = count,
-      .stride = stride,
-    };
-  }
-};
-
 
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
@@ -126,7 +105,7 @@ int main() {
   auto load_buffer = [&](auto& data, ntf::r_buffer_type type) {
     auto buff = ctx.create_buffer({
       .type = type,
-      .data = data,
+      .data = std::addressof(data),
       .size = sizeof(data),
     });
     NTF_ASSERT(buff);
@@ -141,11 +120,16 @@ int main() {
     return shad;
   };
   auto load_pipeline = [&](ntf::r_shader_handle vert, ntf::r_shader_handle frag) {
+    auto attr_bind = ntf::pnt_vertex::attrib_binding();
+    auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
+
     ntf::r_shader_handle shads[] = {vert, frag};
     auto pipe = ctx.create_pipeline({
       .stages = shads,
       .stage_count = 2,
-      .attribs = common_vertex::verex_attrib(),
+      .attrib_binding = attr_bind,
+      .attrib_desc = attr_desc.data(),
+      .attrib_desc_count = static_cast<ntf::uint32>(attr_desc.size()),
       .primitive = ntf::r_primitive::triangles,
       .poly_mode = ntf::r_polygon_mode::fill,
       .front_face = ntf::r_front_face::clockwise,
@@ -160,9 +144,9 @@ int main() {
 
   auto tex = load_tex("./examples/res/cirno_cpp.jpg");
 
-  auto cube_vbo = load_buffer(ntf::cube_vertices, ntf::r_buffer_type::vertex);
-  auto quad_vbo = load_buffer(ntf::quad_vertices, ntf::r_buffer_type::vertex);
-  auto quad_ebo = load_buffer(ntf::quad_indices, ntf::r_buffer_type::index);
+  auto cube_vbo = load_buffer(ntf::pnt_unindexed_cube_vert, ntf::r_buffer_type::vertex);
+  auto quad_vbo = load_buffer(ntf::pnt_indexed_quad_vert, ntf::r_buffer_type::vertex);
+  auto quad_ebo = load_buffer(ntf::pnt_indexed_quad_ind, ntf::r_buffer_type::index);
 
   auto vertex = load_shader(vert_src, ntf::r_shader_type::vertex);
   auto fragment_color = load_shader(frag_src, ntf::r_shader_type::fragment);

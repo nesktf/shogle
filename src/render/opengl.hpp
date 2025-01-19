@@ -44,7 +44,7 @@ public:
   struct program_t {
     GLuint id{0};
     GLenum primitive;
-    r_vertex_attrib attribs;
+    weak_ref<r_context::vertex_attrib_t> layout;
   };
 
   struct texture_t {
