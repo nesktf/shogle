@@ -1,6 +1,5 @@
 #pragma once
 
-#include "./assets.hpp"
 #include "./texture.hpp"
 #include "./meshes.hpp"
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "./assets.hpp"
 #include "./texture.hpp"
 
 namespace ntf {
@@ -12,7 +11,6 @@ template<typename Alloc = std::allocator<uint8>>
 class texture_atlas_data {
 public:
   using allocator_type = Alloc;
-  using texture_data_type = texture_data<rebind_alloc_t<uint8, Alloc>>;
 
   struct sprite_data {
     vec4 offset;
@@ -60,7 +58,8 @@ public:
 
   explicit texture_atlas_data(std::string_view path)
   noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
-    _texture_path(Alloc{}), _sprites(Alloc{}), _sequences(Alloc{}), _groups(Alloc{}) { load(path); }
+    _texture_path(Alloc{}), _sprites(Alloc{}),
+    _sequences(Alloc{}), _groups(Alloc{}) { load(path); }
 
   texture_atlas_data(std::string_view path, const Alloc& alloc) 
   noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
@@ -96,8 +95,19 @@ public:
       return;
     }
 
-    uint32 sprite_pos = 0;
     _preallocate_vectors(json_data["content"], path);
+    if (!_sprites.capacity()) {
+      SHOGLE_LOG(error, "[ntf::texture_atlas_data] Falied to preallocate containers");
+      _groups.shrink_to_fit();
+      _sequences.shrink_to_fit();
+      return;
+    }
+
+    SHOGLE_LOG(verbose,
+               "[ntf::texture_atlas_data] Found {} sprites, {} groups, {} sequences for \"{}\"",
+               _sprites.capacity(), _groups.capacity(), _sequences.capacity(), path);
+
+    uint32 sprite_pos = 0;
     for (const auto& content : json_data["content"]) {
       const std::string group_name = content["name"].get<std::string>();
 
@@ -181,16 +191,13 @@ public:
   const_iterator cend() const { return _sprites.cend(); }
 
 private:
-  void _preallocate_vectors(const json& content_entry, [[maybe_unused]] std::string_view path) {
+  void _preallocate_vectors(const json& content_entry) {
     uint32 sprite_count = 0;
     uint32 sequence_count = 0;
     for (const auto& content : content_entry) {
       sprite_count += content["offset"]["count"].get<uint32>();
       sequence_count += content["anim"].size();
     }
-    SHOGLE_LOG(verbose,
-               "[ntf::texture_atlas_data] Found {} sprites, {} groups, {} sequences for \"{}\"",
-               sprite_count, content_entry.size(), sequence_count, path);
     _sprites.reserve(sprite_count);
     _groups.reserve(content_entry.size());
     _sequences.reserve(sequence_count);
