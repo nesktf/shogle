@@ -183,6 +183,8 @@ public:
         auto& mat = mesh.materials.back();
         mat.type = assimp_material_cast(type);
         mat.texture = std::move(tex_data);
+        SHOGLE_LOG(verbose, "[ntf::model_data] Found texture \"{}\" for model \"{}\"",
+                   tex_path, path);
         loaded_materials.emplace_back(std::move(tex_path));
       }
     };
