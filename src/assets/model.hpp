@@ -20,7 +20,7 @@ struct assimp_mesh_loader;
 
 template<>
 struct assimp_mesh_loader<pnt_vertex> {
-  pnt_vertex operator()(const aiMesh& mesh, uint32 index) {
+  constexpr pnt_vertex operator()(const aiMesh& mesh, uint32 index) {
     pnt_vertex vert;
     auto& ai_pos = mesh.mVertices[index];
     auto& ai_norm = mesh.mNormals[index];
@@ -48,7 +48,7 @@ struct assimp_mesh_loader<pnt_vertex> {
 
 template<>
 struct assimp_mesh_loader<pn_vertex> {
-  pn_vertex operator()(const aiMesh& mesh, uint32 index) {
+  constexpr pn_vertex operator()(const aiMesh& mesh, uint32 index) {
     pn_vertex vert;
     auto& ai_pos = mesh.mVertices[index];
     auto& ai_norm = mesh.mNormals[index];
@@ -65,47 +65,61 @@ struct assimp_mesh_loader<pn_vertex> {
   };
 };
 
-template<typename Vertex, typename Alloc = std::allocator<uint8>>
+template<typename Vertex, typename Alloc = std::allocator<Vertex>>
 class model_data {
 public:
-  using allocator_type = Alloc; // TODO: Actually use the allocator
-  using texture_data_type = texture_data<Alloc>;
+  using allocator_type = Alloc;
   using vertex_type = Vertex;
 
   struct material_data {
+    template<typename MatAlloc>
+    material_data(const MatAlloc& alloc) :
+      texture(alloc) {}
+
     r_material_type type;
-    texture_data_type texture;
+    texture_data<rebind_alloc_t<uint8, Alloc>> texture;
   };
 
   struct mesh_data {
-    std::vector<vertex_type> vertices;
-    std::vector<uint32> indices;
-    std::vector<material_data> materials;
+    template<typename MeshAlloc>
+    mesh_data(const MeshAlloc& alloc) :
+      name(alloc), vertices(alloc), indices(alloc), materials(alloc) {}
+
+    std::basic_string<char, std::char_traits<char>, rebind_alloc_t<char, Alloc>> name;
+    std::vector<vertex_type, Alloc> vertices;
+    std::vector<uint32, rebind_alloc_t<uint32, Alloc>> indices;
+    std::vector<material_data, rebind_alloc_t<material_data, Alloc>> materials;
 
     size_t vertices_size() const { return vertices.size()*sizeof(vertex_type); }
     size_t indices_size() const { return indices.size()*sizeof(uint32); }
   };
 
-private:
-  using mesh_loader = assimp_mesh_loader<vertex_type>;
+  using mesh_vec = std::vector<mesh_data, rebind_alloc_t<mesh_data, Alloc>>;
+
+  using value_type = vertex_type;
+  using iterator = mesh_vec::iterator;
+  using const_iterator = mesh_vec::const_iterator;
 
 public:
   model_data()
   noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
-    _alloc{Alloc{}} {}
+    _meshes(Alloc{}) {}
 
   explicit model_data(const Alloc& alloc)
   noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _alloc{alloc} {}
+    _meshes(alloc) {}
 
-  explicit model_data(std::string_view path) noexcept { load(path); }
+  explicit model_data(std::string_view path)
+  noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
+    _meshes(Alloc{}) { load(path); }
 
   model_data(std::string_view path, const Alloc& alloc)
   noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _alloc{alloc} { load(path); }
+    _meshes(alloc) { load(path); }
 
 public:
-  void load(std::string_view path) noexcept {
+  template<typename MeshLoader = assimp_mesh_loader<vertex_type>>
+  void load(std::string_view path, MeshLoader&& mesh_loader = {}) noexcept {
     NTF_ASSERT(!has_data());
     Assimp::Importer import;
     const aiScene* scene = import.ReadFile(path.data(), aiProcess_Triangulate | aiProcess_FlipUVs);
@@ -119,7 +133,7 @@ public:
       SHOGLE_LOG(error, "[ntf::model_data] Invalid file path: \"{}\"", path);
       return;
     }
-    std::vector<std::string> loaded_materials;
+    std::vector<std::string> loaded_materials; // Maybe use the allocator here?
 
     auto load_material = [&](mesh_data& mesh, aiMaterial* mat, aiTextureType type) {
       NTF_ASSERT(mat);
@@ -140,13 +154,16 @@ public:
           continue;
         }
 
-        texture_data_type tex_data;
+        decltype(material_data::texture) tex_data{_meshes.get_allocator()};
         tex_data.load(tex_path);
         if (!tex_data) {
           SHOGLE_LOG(error, "[ntf::model_data] Failed to load texture: \"{}\"", tex_path);
           continue;
         }
-        mesh.materials.emplace_back(assimp_material_cast(type), std::move(tex_data));
+        mesh.materials.emplace_back(_meshes.get_allocator());
+        auto& mat = mesh.materials.back();
+        mat.type = assimp_material_cast(type);
+        mat.texture = std::move(tex_data);
         loaded_materials.emplace_back(std::move(tex_path));
       }
     };
@@ -155,14 +172,14 @@ public:
     SHOGLE_LOG(verbose, "[ntf::model_data] Found {} mesh(es) for model \"{}\"",
                scene->mNumMeshes, path);
     for (uint32 i = 0; i < scene->mNumMeshes; ++i) {
-      mesh_data mesh;
+      mesh_data mesh{_meshes.get_allocator()};
       aiMesh* ai_mesh = scene->mMeshes[i];
       NTF_ASSERT(ai_mesh);
 
       // Vertices
       mesh.vertices.reserve(ai_mesh->mNumVertices);
       for (uint32 j = 0; j < ai_mesh->mNumVertices; ++j) {
-        mesh.vertices.emplace_back(mesh_loader{}(*ai_mesh, j));
+        mesh.vertices.emplace_back(mesh_loader(*ai_mesh, j));
       }
 
       // Indices
@@ -174,15 +191,16 @@ public:
         }
       }
 
+      // Materials
       if (ai_mesh->mMaterialIndex > 0) {
         aiMaterial* mat = scene->mMaterials[ai_mesh->mMaterialIndex];
         load_material(mesh, mat, aiTextureType_DIFFUSE);
         load_material(mesh, mat, aiTextureType_SPECULAR);
       }
 
-
-      auto [_, emplaced] = _mesh_names.try_emplace(ai_mesh->mName.C_Str(), i);
-      NTF_ASSERT(emplaced);
+      mesh.name.resize(ai_mesh->mName.length);
+      std::memcpy(mesh.name.data(), ai_mesh->mName.C_Str(), ai_mesh->mName.length);
+      SHOGLE_LOG(verbose, "[ntf::model_data] Loaded mesh \"{}\" for \"{}\"", mesh.name, path);
       _meshes.emplace_back(std::move(mesh));
     }
   }
@@ -190,7 +208,31 @@ public:
   void unload() noexcept {
     NTF_ASSERT(has_data());
     _meshes.clear();
-    _mesh_names.clear();
+  }
+
+public:
+  const mesh_vec& data() const { return _meshes; }
+  mesh_vec& data() { return _meshes; }
+  [[nodiscard]] uint32 mesh_count() const { return _meshes.size(); }
+
+  [[nodiscard]] bool has_data() const { return mesh_count() > 0; }
+  explicit operator bool() const { return has_data(); }
+
+  iterator begin() { return _meshes.begin(); }
+  const_iterator begin() const { return _meshes.begin(); }
+  const_iterator cbegin() const { return _meshes.cbegin(); }
+
+  iterator end() { return _meshes.end(); }
+  const_iterator end() const { return _meshes.end(); }
+  const_iterator cend() const { return _meshes.cend(); }
+
+  mesh_data& operator[](uint32 index) {
+    NTF_ASSERT(index < _meshes.size());
+    return _meshes[index];
+  }
+  const mesh_data& operator[](uint32 index) const {
+    NTF_ASSERT(index < _meshes.size());
+    return _meshes[index];
   }
 
 public:
@@ -206,21 +248,8 @@ public:
     NTF_UNREACHABLE();
   }
 
-public:
-  const std::vector<mesh_data>& data() const { return _meshes; }
-  std::vector<mesh_data>& data() { return _meshes; }
-  uint32 mesh_count() const { return _meshes.size(); }
-
-  const std::unordered_map<std::string, uint32>& names() const { return _mesh_names; }
-  std::unordered_map<std::string, uint32>& names() { return _mesh_names; }
-
-  bool has_data() const { return mesh_count() > 0; }
-  explicit operator bool() const { return has_data(); }
-
 private:
-  [[maybe_unused]] Alloc _alloc;
-  std::vector<mesh_data> _meshes;
-  std::unordered_map<std::string, uint32> _mesh_names;
+  mesh_vec _meshes;
 };
 
 } // namespace ntf
