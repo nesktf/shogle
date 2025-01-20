@@ -148,7 +148,7 @@ int main() {
 
   ntf::model_data<ntf::pnt_vertex> fumo{"./examples/res/cirno_fumo/cirno_fumo.obj"};
   NTF_ASSERT(fumo);
-  const auto& fumo_mesh = fumo.data()[0];
+  const auto& fumo_mesh = fumo.meshes()[0];
   const auto fumo_diffuse_it = std::find_if(
     fumo_mesh.materials.begin(), fumo_mesh.materials.end(), [](const auto& mat) {
       return mat.type == ntf::r_material_type::diffuse;
@@ -237,13 +237,14 @@ int main() {
   ntf::mat4 cam_proj_cube = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);
   ntf::vec4 color_cube {0.f, 1.f, 0.f, 1.f};
 
-  auto transf_quad0 = ntf::transform2d{}.pos(-200.f, 0.f).scale(ntf::vec2{300.f, 300.f});
-  auto transf_quad1 = ntf::transform2d{}.pos(200.f, 0.f).scale(ntf::vec2{fb_ratio*300.f, 300.f});
+  auto transf_quad0 = ntf::transform2d{}.pos(-350.f, 0.f).scale(ntf::vec2{300.f, 300.f});
+  auto transf_quad1 = ntf::transform2d{}.pos(350.f, 0.f).scale(ntf::vec2{fb_ratio*300.f, 300.f});
   ntf::mat4 cam_view_quad = glm::translate(glm::mat4{1.f}, glm::vec3{640.f, 360.f, -3.f});
   ntf::mat4 cam_proj_quad = glm::ortho(0.f, 1280.f, 0.f, 720.f, .1f, 100.f);
   ntf::vec4 color_quad {1.f, 1.f, 1.f, 1.f};
 
-  auto transf_fumo = ntf::transform3d{}.pos(0.f, 0.f, 0.f).scale(0.035f);
+  const ntf::float32 fumo_scale = 0.04f;
+  auto transf_fumo = ntf::transform3d{}.pos(0.f, -.3f, 0.f).scale(fumo_scale);
 
   ntf::color4 main_color{.3f, .3f, .3f, 1.f};
   ntf::color4 fbo_color{1.f, 0.f, 0.f, 1.f};
@@ -267,7 +268,12 @@ int main() {
     transf_quad0.rot(-t);
     transf_quad1.rot(t);
     transf_fumo
-      .rot(ntf::axisquat(t, ntf::vec3{0.f, 1.f, 0.f}));
+      .rot(ntf::axisquat(glm::pi<ntf::float32>()*.5f*t, ntf::vec3{0.f, 1.f, 0.f}))
+      .scale(ntf::vec3{
+        fumo_scale,
+        fumo_scale*.5f+fumo_scale*.5f*std::abs(std::sin(glm::pi<ntf::float32>()*t)),
+        fumo_scale
+      });
 
     if (t2 > 0.016*.5) {
       fps[fps_counter] = 1/dt;

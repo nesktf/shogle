@@ -211,7 +211,8 @@ r_texture_handle r_context::create_texture(const r_texture_descriptor& desc) {
     // data.texels = desc.texels;
 
     // TODO: Get max texture size from the platform context
-    data.extent = glm::clamp(desc.extent, glm::uvec3{1, 1, 1}, glm::uvec3{4096, 4096, 4096});
+    // data.extent = glm::clamp(desc.extent, glm::uvec3{1, 1, 1}, glm::uvec3{4096, 4096, 4096});
+    data.extent = desc.extent;
     if (desc.type == r_texture_type::cubemap && data.extent.x != data.extent.y) {
       SHOGLE_LOG(warning, "[r_context::create_texture] "
                  "Ignoring non square cubemap size, clamping to greater dim");

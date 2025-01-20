@@ -18,6 +18,13 @@ enum class r_material_type {
 template<typename Vertex>
 struct assimp_mesh_loader;
 
+template<typename T, typename Vertex>
+concept is_vertex_loader = is_complete<T> && requires(T obj, const aiMesh& mesh, uint32 index) {
+  { obj(mesh, index) } -> std::convertible_to<Vertex>;
+};
+// It should check for undefined assimp_mesh_loader
+// static_assert(!is_vertex_loader<assimp_mesh_loader<void>, void>);
+
 template<>
 struct assimp_mesh_loader<pnt_vertex> {
   constexpr pnt_vertex operator()(const aiMesh& mesh, uint32 index) {
@@ -45,6 +52,7 @@ struct assimp_mesh_loader<pnt_vertex> {
     return vert;
   };
 };
+static_assert(is_vertex_loader<assimp_mesh_loader<pnt_vertex>, pnt_vertex>);
 
 template<>
 struct assimp_mesh_loader<pn_vertex> {
@@ -64,6 +72,7 @@ struct assimp_mesh_loader<pn_vertex> {
     return vert;
   };
 };
+static_assert(is_vertex_loader<assimp_mesh_loader<pn_vertex>, pn_vertex>);
 
 template<typename Vertex, typename Alloc = std::allocator<Vertex>>
 class model_data {
@@ -90,8 +99,8 @@ public:
     std::vector<uint32, rebind_alloc_t<uint32, Alloc>> indices;
     std::vector<material_data, rebind_alloc_t<material_data, Alloc>> materials;
 
-    size_t vertices_size() const { return vertices.size()*sizeof(vertex_type); }
-    size_t indices_size() const { return indices.size()*sizeof(uint32); }
+    [[nodiscard]] size_t vertices_size() const { return vertices.size()*sizeof(vertex_type); }
+    [[nodiscard]] size_t indices_size() const { return indices.size()*sizeof(uint32); }
   };
 
   using mesh_vec = std::vector<mesh_data, rebind_alloc_t<mesh_data, Alloc>>;
@@ -113,16 +122,26 @@ public:
   noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
     _meshes(Alloc{}) { load(path); }
 
-  model_data(std::string_view path, const Alloc& alloc)
+  template<is_vertex_loader<Vertex> MeshLoader>
+  model_data(std::string_view path, MeshLoader&& mesh_loader)
+  noexcept(std::is_nothrow_default_constructible_v<Alloc>) : 
+    _meshes(Alloc{}) { load(path, std::forward<MeshLoader>(mesh_loader)); }
+
+  explicit model_data(std::string_view path, const Alloc& alloc)
   noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
     _meshes(alloc) { load(path); }
 
+  template<is_vertex_loader<Vertex> MeshLoader>
+  model_data(std::string_view path, const Alloc& alloc, MeshLoader&& mesh_loader)
+  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
+    _meshes(alloc) { load(path, std::forward<MeshLoader>(mesh_loader)); }
+
 public:
-  template<typename MeshLoader = assimp_mesh_loader<vertex_type>>
+  template<is_vertex_loader<Vertex> MeshLoader = assimp_mesh_loader<Vertex>>
   void load(std::string_view path, MeshLoader&& mesh_loader = {}) noexcept {
     NTF_ASSERT(!has_data());
     Assimp::Importer import;
-    const aiScene* scene = import.ReadFile(path.data(), aiProcess_Triangulate | aiProcess_FlipUVs);
+    const aiScene* scene = import.ReadFile(path.data(), aiProcess_Triangulate);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
       SHOGLE_LOG(error, "[ntf::model_data] ASSIMP error: {}", import.GetErrorString());
       return;
@@ -211,25 +230,25 @@ public:
   }
 
 public:
-  const mesh_vec& data() const { return _meshes; }
-  mesh_vec& data() { return _meshes; }
+  const mesh_vec& meshes() const { return _meshes; }
+  // mesh_vec& meshes() { return _meshes; }
   [[nodiscard]] uint32 mesh_count() const { return _meshes.size(); }
 
   [[nodiscard]] bool has_data() const { return mesh_count() > 0; }
   explicit operator bool() const { return has_data(); }
 
-  iterator begin() { return _meshes.begin(); }
+  // iterator begin() { return _meshes.begin(); }
   const_iterator begin() const { return _meshes.begin(); }
   const_iterator cbegin() const { return _meshes.cbegin(); }
 
-  iterator end() { return _meshes.end(); }
+  // iterator end() { return _meshes.end(); }
   const_iterator end() const { return _meshes.end(); }
   const_iterator cend() const { return _meshes.cend(); }
 
-  mesh_data& operator[](uint32 index) {
-    NTF_ASSERT(index < _meshes.size());
-    return _meshes[index];
-  }
+  // mesh_data& operator[](uint32 index) {
+  //   NTF_ASSERT(index < _meshes.size());
+  //   return _meshes[index];
+  // }
   const mesh_data& operator[](uint32 index) const {
     NTF_ASSERT(index < _meshes.size());
     return _meshes[index];
