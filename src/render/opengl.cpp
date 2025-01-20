@@ -6,7 +6,6 @@
 #define GL_CALL(fun) \
 do { \
   fun; \
-  SHOGLE_LOG(verbose, "GL_CALL: " #fun); \
   GLenum glerr = gl_check_error(__FILE__, __LINE__); \
   NTF_ASSERT(glerr == 0, "GL ERROR: {}", glerr); \
 } while(0)
@@ -15,7 +14,6 @@ do { \
 #define GL_CHECK(fun) \
 [&]() { \
   fun; \
-  SHOGLE_LOG(verbose, "GL_CALL: " #fun); \
   return gl_check_error(__FILE__, __LINE__); \
 }()
 
@@ -1314,14 +1312,14 @@ r_uniform gl_context::pipeline_uniform(r_pipeline_handle pipeline, std::string_v
 }
 
 void gl_context::submit(r_framebuffer_handle fb, const r_context::draw_list_t& list) {
-  SHOGLE_LOG(debug, " ==== GL DRAW CALL === {} -> {}", fb.value(), list.cmds.size());
+  // SHOGLE_LOG(debug, " ==== GL DRAW CALL === {} -> {}", fb.value(), list.cmds.size());
   _state.bind_vao(_vao.id);
   _state.prepare_draw_target(fb ? _framebuffers.get(fb).id : gl_state::DEFAULT_FBO,
                              list.clear, list.viewport, list.color);
 
   for (const auto& cmd_ref : list.cmds) {
     const auto& cmd = *cmd_ref;
-    SHOGLE_LOG(debug, " === GL DRAW COMMAND === ");
+    // SHOGLE_LOG(debug, " === GL DRAW COMMAND === ");
 
     NTF_ASSERT(cmd.count);
     NTF_ASSERT(cmd.vertex_buffer);

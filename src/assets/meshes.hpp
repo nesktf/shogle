@@ -9,13 +9,13 @@ struct pn_vertex {
   vec3 position;
   vec3 normal;
 
-  [[nodiscard]] static r_attrib_binding attrib_binding() {
+  [[nodiscard]] static constexpr r_attrib_binding attrib_binding() {
     return r_attrib_binding{
       .binding = 0,
       .stride = sizeof(pn_vertex),
     };
   }
-  [[nodiscard]] static std::array<r_attrib_descriptor, 2> attrib_descriptor() {
+  [[nodiscard]] static constexpr std::array<r_attrib_descriptor, 2> attrib_descriptor() {
     std::array<r_attrib_descriptor, 2> desc;
 
     // layout (location = 0, binding = 0) in vec3 att_position;
@@ -84,13 +84,13 @@ struct pnt_vertex {
   vec3 normal;
   vec2 uv;
 
-  [[nodiscard]] static r_attrib_binding attrib_binding() {
+  [[nodiscard]] static constexpr r_attrib_binding attrib_binding() {
     return r_attrib_binding {
       .binding = 0,
       .stride = sizeof(pnt_vertex),
     };
   }
-  [[nodiscard]] static std::array<r_attrib_descriptor, 3> attrib_descriptor() {
+  [[nodiscard]] static constexpr std::array<r_attrib_descriptor, 3> attrib_descriptor() {
     std::array<r_attrib_descriptor, 3> desc;
 
     // layout (location = 0, binding = 0) in vec3 att_position;

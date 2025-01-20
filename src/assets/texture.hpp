@@ -15,22 +15,24 @@ public:
   using allocator_type = Alloc;
 
 public:
-  texture_data() noexcept(noexcept(Alloc{})) :
-    _alloc(Alloc{}) {}
-  explicit texture_data(const Alloc& alloc) noexcept :
-    _alloc(alloc) {}
+  texture_data()
+  noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
+    _alloc{Alloc{}} {}
 
-  // explicit texture_data(const char* path) noexcept { load(path); }
+  explicit texture_data(const Alloc& alloc)
+  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
+    _alloc{alloc} {}
+
   explicit texture_data(std::string_view path) noexcept { load(path); }
 
-  texture_data(std::string_view path, const Alloc& alloc) noexcept :
-    _alloc(alloc) { load(path); }
-  // explicit texture_data(const char* path, const Alloc& alloc) noexcept :
-    // _alloc(alloc) { load(path); }
+  texture_data(std::string_view path, const Alloc& alloc)
+  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
+    _alloc{alloc} { load(path); }
 
 public:
   void load(std::string_view path) noexcept {
     NTF_ASSERT(!has_data());
+    stbi_set_flip_vertically_on_load(true);
     int w, h, ch;
     uint8* stbi_data = stbi_load(path.data(), &w, &h, &ch, 0);
     if (!stbi_data) {
@@ -101,7 +103,7 @@ public:
   texture_data& operator=(const texture_data&) = delete;
 
   texture_data(texture_data&& t) noexcept :
-    _alloc(std::move(t._alloc)),
+    // _alloc(std::move(t._alloc)),
     _data(std::move(t._data)),
     _face_bytes(std::move(t._face_bytes)),
     _dim(std::move(t._dim)),
@@ -115,7 +117,7 @@ public:
       unload();
     }
 
-    _alloc = std::move(t._alloc);
+    // _alloc = std::move(t._alloc);
     _data = std::move(t._data);
     _face_bytes = std::move(t._face_bytes);
     _dim = std::move(t._dim);

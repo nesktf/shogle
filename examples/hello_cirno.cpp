@@ -1,4 +1,6 @@
-#include "shogle/shogle.hpp"
+#include "shogle/render.hpp"
+#include "shogle/assets.hpp"
+#include "shogle/math.hpp"
 
 constexpr std::string_view vert_src = R"glsl(
 #version 460 core
@@ -144,6 +146,46 @@ int main() {
 
   auto tex = load_tex("./examples/res/cirno_cpp.jpg");
 
+  ntf::model_data<ntf::pnt_vertex> fumo{"./examples/res/cirno_fumo/cirno_fumo.obj"};
+  NTF_ASSERT(fumo);
+  const auto& fumo_mesh = fumo.data()[0];
+  const auto fumo_diffuse_it = std::find_if(
+    fumo_mesh.materials.begin(), fumo_mesh.materials.end(), [](const auto& mat) {
+      return mat.type == ntf::r_material_type::diffuse;
+    }
+  );
+  NTF_ASSERT(fumo_diffuse_it != fumo_mesh.materials.end());
+  const auto& fumo_diffuse = fumo_diffuse_it->texture;
+
+  auto fumo_vbo = ctx.create_buffer({
+    .type = ntf::r_buffer_type::vertex,
+    .data = fumo_mesh.vertices.data(),
+    .size = fumo_mesh.vertices_size(),
+  });
+  NTF_ASSERT(fumo_vbo);
+
+  auto fumo_ebo = ctx.create_buffer({
+    .type = ntf::r_buffer_type::index,
+    .data = fumo_mesh.indices.data(),
+    .size = fumo_mesh.indices_size(),
+  });
+  NTF_ASSERT(fumo_ebo);
+
+  auto fumo_tex = ctx.create_texture({
+    .type = ntf::r_texture_type::texture2d,
+    .format = ntf::r_texture_format::rgb8n,
+    .extent = ntf::uvec3{fumo_diffuse.dim(), 0},
+    .layers = 1,
+    .levels = 7,
+    .gen_mipmaps = false,
+    .sampler = ntf::r_texture_sampler::linear,
+    .addressing = ntf::r_texture_address::repeat,
+  });
+  NTF_ASSERT(fumo_tex);
+  ctx.update(
+    fumo_tex, fumo_diffuse.data(), ntf::r_texture_format::rgb8n, ntf::uvec3{0, 0, 0}, 0, 0, true
+  );
+
   auto cube_vbo = load_buffer(ntf::pnt_unindexed_cube_vert, ntf::r_buffer_type::vertex);
   auto quad_vbo = load_buffer(ntf::pnt_indexed_quad_vert, ntf::r_buffer_type::vertex);
   auto quad_ebo = load_buffer(ntf::pnt_indexed_quad_ind, ntf::r_buffer_type::index);
@@ -189,28 +231,24 @@ int main() {
   auto u_tex_color = ctx.query(pipe_tex, ntf::r_query_uniform, "color");
   auto u_tex_sampler = ctx.query(pipe_tex, ntf::r_query_uniform, "sampler0");
 
-  ntf::mat4 cam_view_cube = glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -3.f});
-  ntf::mat4 cam_proj_cube = glm::perspective(glm::radians(45.f), 1280.f/720.f, .1f, 100.f);
+  ntf::float32 fb_ratio = 1280.f/720.f;
   auto transf_cube = ntf::transform3d{}.pos(0.f, 0.f, 0.f).scale(1.f);
-  ntf::mat4 transf_mat_cube = transf_cube.mat();
+  ntf::mat4 cam_view_cube = glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -3.f});
+  ntf::mat4 cam_proj_cube = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);
   ntf::vec4 color_cube {0.f, 1.f, 0.f, 1.f};
 
+  auto transf_quad0 = ntf::transform2d{}.pos(-200.f, 0.f).scale(ntf::vec2{300.f, 300.f});
+  auto transf_quad1 = ntf::transform2d{}.pos(200.f, 0.f).scale(ntf::vec2{fb_ratio*300.f, 300.f});
   ntf::mat4 cam_view_quad = glm::translate(glm::mat4{1.f}, glm::vec3{640.f, 360.f, -3.f});
   ntf::mat4 cam_proj_quad = glm::ortho(0.f, 1280.f, 0.f, 720.f, .1f, 100.f);
+  ntf::vec4 color_quad {1.f, 1.f, 1.f, 1.f};
 
-  auto transf_quad0 = ntf::transform2d{}.pos(-200.f, 0.f).scale(ntf::vec2{300.f, -300.f});
-  ntf::mat4 transf_mat_quad0 = transf_quad0.mat();
-
-  ntf::float32 ratio = 1280.f/720.f;
-  auto transf_quad1 = ntf::transform2d{}.pos(200.f, 0.f).scale(ntf::vec2{ratio*300.f, 300.f});
-  ntf::mat4 transf_mat_quad1 = transf_quad1.mat();
+  auto transf_fumo = ntf::transform3d{}.pos(0.f, 0.f, 0.f).scale(0.035f);
 
   ntf::color4 main_color{.3f, .3f, .3f, 1.f};
   ntf::color4 fbo_color{1.f, 0.f, 0.f, 1.f};
   ctx.framebuffer_color(main_color);
   ctx.framebuffer_color(fbo, fbo_color);
-
-  ntf::vec4 color_quad {1.f, 1.f, 1.f, 1.f};
 
   ntf::float32 t = 0;
   ntf::float64 avg_fps{0};
@@ -223,14 +261,13 @@ int main() {
     t = ntf::ode_euler<ntf::float32>{}(0.f, t, dt, [](...) { return glm::pi<ntf::float32>(); });
     t2 = ntf::ode_euler<ntf::float32>{}(0.f, t2, dt, [](...) { return 1.f; });
 
-    transf_cube.rot(ntf::axisquat(t, ntf::vec3{0.f, 1.f, 0.f}));
-    transf_mat_cube = transf_cube.mat();
-
+    transf_cube
+      .rot(ntf::axisquat(t, ntf::vec3{0.f, 1.f, 0.f}))
+      .scale(ntf::vec3{1.f, .5f + std::abs(std::sin(t)), 1.f});
     transf_quad0.rot(-t);
-    transf_mat_quad0 = transf_quad0.mat();
-
     transf_quad1.rot(t);
-    transf_mat_quad1 = transf_quad1.mat();
+    transf_fumo
+      .rot(ntf::axisquat(t, ntf::vec3{0.f, 1.f, 0.f}));
 
     if (t2 > 0.016*.5) {
       fps[fps_counter] = 1/dt;
@@ -257,14 +294,17 @@ int main() {
 
     ctx.bind_framebuffer(ntf::r_context::DEFAULT_FRAMEBUFFER);
 
-    ctx.bind_vertex_buffer(cube_vbo);
-    ctx.bind_pipeline(pipe_col);
-    ctx.push_uniform(u_col_model, transf_mat_cube);
-    ctx.push_uniform(u_col_proj, cam_proj_cube);
-    ctx.push_uniform(u_col_view, cam_view_cube);
-    ctx.push_uniform(u_col_color, color_cube);
+    ctx.bind_vertex_buffer(fumo_vbo);
+    ctx.bind_index_buffer(fumo_ebo);
+    ctx.bind_pipeline(pipe_tex);
+    ctx.bind_texture(fumo_tex, 0);
+    ctx.push_uniform(u_tex_model, transf_fumo.mat());
+    ctx.push_uniform(u_tex_proj, cam_proj_cube);
+    ctx.push_uniform(u_tex_view, cam_view_cube);
+    ctx.push_uniform(u_tex_color, color_quad);
+    ctx.push_uniform(u_tex_sampler, 0);
     ctx.draw_opts({
-      .count = 36,
+      .count = static_cast<ntf::uint32>(fumo_mesh.indices.size()),
       .offset = 0,
       .instances = 0,
     });
@@ -274,7 +314,7 @@ int main() {
     ctx.bind_index_buffer(quad_ebo);
     ctx.bind_pipeline(pipe_tex);
     ctx.bind_texture(tex, 0);
-    ctx.push_uniform(u_tex_model, transf_mat_quad0);
+    ctx.push_uniform(u_tex_model, transf_quad0.mat());
     ctx.push_uniform(u_tex_proj, cam_proj_quad);
     ctx.push_uniform(u_tex_view, cam_view_quad);
     ctx.push_uniform(u_tex_color, color_quad);
@@ -290,7 +330,7 @@ int main() {
     ctx.bind_index_buffer(quad_ebo);
     ctx.bind_pipeline(pipe_tex);
     ctx.bind_texture(fb_tex, 0);
-    ctx.push_uniform(u_tex_model, transf_mat_quad1);
+    ctx.push_uniform(u_tex_model, transf_quad1.mat());
     ctx.push_uniform(u_tex_proj, cam_proj_quad);
     ctx.push_uniform(u_tex_view, cam_view_quad);
     ctx.push_uniform(u_tex_color, color_quad);
@@ -306,7 +346,7 @@ int main() {
 
     ctx.bind_vertex_buffer(cube_vbo);
     ctx.bind_pipeline(pipe_col);
-    ctx.push_uniform(u_col_model, transf_mat_cube);
+    ctx.push_uniform(u_col_model, transf_cube.mat());
     ctx.push_uniform(u_col_proj, cam_proj_cube);
     ctx.push_uniform(u_col_view, cam_view_cube);
     ctx.push_uniform(u_col_color, color_cube);
@@ -321,7 +361,7 @@ int main() {
     ctx.bind_index_buffer(quad_ebo);
     ctx.bind_pipeline(pipe_tex);
     ctx.bind_texture(tex, 0);
-    ctx.push_uniform(u_tex_model, transf_mat_quad0);
+    ctx.push_uniform(u_tex_model, transf_quad0.mat());
     ctx.push_uniform(u_tex_proj, cam_proj_quad);
     ctx.push_uniform(u_tex_view, cam_view_quad);
     ctx.push_uniform(u_tex_color, color_quad);
@@ -334,6 +374,9 @@ int main() {
     ctx.submit();
   });
 
+  ctx.destroy(fumo_ebo);
+  ctx.destroy(fumo_vbo);
+  ctx.destroy(fumo_tex);
   ctx.destroy(fbo);
   ctx.destroy(fb_tex);
   ctx.destroy(pipe_tex);

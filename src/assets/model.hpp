@@ -2,7 +2,7 @@
 
 #include "./assets.hpp"
 #include "./texture.hpp"
-#include "../render/render.hpp"
+#include "./meshes.hpp"
 
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
@@ -10,328 +10,217 @@
 
 namespace ntf {
 
-using material_index = uint32_t;
-
-template<typename Texture>
-class material {
-public:
-  using texture_type = Texture;
-
-  using iterator = std::vector<texture_type>::iterator;
-  using const_iterator = std::vector<texture_type>::const_iterator;
-
-public:
-  material() = default;
-  material(std::vector<texture_type> materials, 
-           std::unordered_map<material_category, material_index> material_types);
-
-public:
-  const texture_type& operator[](material_index pos) const;
-  texture_type& operator[](material_index pos);
-
-  std::optional<material_index> find(material_category type);
-
-public:
-  std::size_t size() const { return _materials.size();}
-
-  iterator begin() { return _materials.begin(); }
-  const_iterator begin() const { return _materials.begin(); }
-  const_iterator cbegin() const { return _materials.cbegin(); }
-
-  iterator end() { return _materials.end(); }
-  const_iterator end() const { return _materials.end(); }
-  const_iterator cend() const { return _materials.cend(); }
-
-private:
-  std::vector<texture_type> _materials;
-  std::unordered_map<material_category, std::size_t> _material_types;
+enum class r_material_type {
+  diffuse = 0,
+  specular,
 };
 
-template<typename Mesh, typename Texture>
-class model {
-public:
-  using mesh_type = Mesh;
-  using texture_type = Texture;
+template<typename Vertex>
+struct assimp_mesh_loader;
 
-public:
-  model() = default;
+template<>
+struct assimp_mesh_loader<pnt_vertex> {
+  pnt_vertex operator()(const aiMesh& mesh, uint32 index) {
+    pnt_vertex vert;
+    auto& ai_pos = mesh.mVertices[index];
+    auto& ai_norm = mesh.mNormals[index];
 
-  model(std::vector<mesh_type> meshes, std::unordered_map<std::string, std::size_t> names,
-        std::vector<material<texture_type>> materials);
+    vert.position.x = ai_pos.x;
+    vert.position.y = ai_pos.y;
+    vert.position.z = ai_pos.z;
 
-private:
-  std::vector<mesh_type> _meshes;
-  std::unordered_map<std::string, std::size_t> _mesh_names;
-  std::vector<material<texture_type>> _materials;
+    vert.normal.x = ai_norm.x;
+    vert.normal.y = ai_norm.y;
+    vert.normal.z = ai_norm.z;
+
+    if (mesh.mTextureCoords[0]) {
+      auto& ai_uv = mesh.mTextureCoords[0][index];
+      vert.uv.x = ai_uv.x;
+      vert.uv.y = ai_uv.y;
+    } else {
+      vert.uv.x = 0;
+      vert.uv.y = 0;
+    }
+
+    return vert;
+  };
 };
 
+template<>
+struct assimp_mesh_loader<pn_vertex> {
+  pn_vertex operator()(const aiMesh& mesh, uint32 index) {
+    pn_vertex vert;
+    auto& ai_pos = mesh.mVertices[index];
+    auto& ai_norm = mesh.mNormals[index];
 
-struct basic_vertex {
-  using att0 = shader_attribute<0, vec3>;
-  using att1 = shader_attribute<1, vec3>;
-  using att2 = shader_attribute<2, vec2>;
+    vert.position.x = ai_pos.x;
+    vert.position.y = ai_pos.y;
+    vert.position.z = ai_pos.z;
 
-  vec3 coord;
-  vec3 normal;
-  vec2 tex_coord;
+    vert.normal.x = ai_norm.x;
+    vert.normal.y = ai_norm.y;
+    vert.normal.z = ai_norm.z;
+
+    return vert;
+  };
 };
 
-
-template<typename Mesh, typename Texture, typename Vertex = basic_vertex>
-class assimp_data_loader {
+template<typename Vertex, typename Alloc = std::allocator<uint8>>
+class model_data {
 public:
-  using resource_type = model<Mesh, Texture>;
-
-private:
-  using texture_type = Texture;
+  using allocator_type = Alloc; // TODO: Actually use the allocator
+  using texture_data_type = texture_data<Alloc>;
   using vertex_type = Vertex;
 
-  struct basic_mesh_data {
-    std::string name;
+  struct material_data {
+    r_material_type type;
+    texture_data_type texture;
+  };
+
+  struct mesh_data {
     std::vector<vertex_type> vertices;
-    std::vector<uint> indices;
-    std::vector<std::pair<material_category, basic_texture_data<texture_type>>> materials;
+    std::vector<uint32> indices;
+    std::vector<material_data> materials;
+
+    size_t vertices_size() const { return vertices.size()*sizeof(vertex_type); }
+    size_t indices_size() const { return indices.size()*sizeof(uint32); }
   };
 
-public:
-  using data_type = std::vector<basic_mesh_data>;
-
-public:
-  bool resource_load(std::string_view path);
-  void resource_unload(bool overwrite);
-
-  std::optional<resource_type> make_resource() const;
-
 private:
-  data_type _data;
-};
-
-template<typename Texture>
-struct mesh_data {
-  using texture_data_type = texture_data<Texture>;
-
-  struct vertex {
-    using att_coord    = shader_attribute<0, vec3>;
-    using att_normal   = shader_attribute<1, vec3>;
-    using att_texcoord = shader_attribute<2, vec2>;
-
-    vec3 coord;
-    vec3 normal;
-    vec2 tex_coord;
-  };
-
-  std::string name;
-  std::vector<vertex> vertices;
-  std::vector<uint> indices;
-  std::vector<std::pair<material_category, texture_data_type>> materials;
-};
-
-
-template<typename Mesh, typename Texture>
-class model {
-public:
-  using texture_type = Texture;
-  using mesh_type = Mesh;
-
-  using mesh_data_type = mesh_data<Texture>;
-  struct data_type;
-
-  class textured_mesh;
+  using mesh_loader = assimp_mesh_loader<vertex_type>;
 
 public:
-  model() = default;
-  model(std::vector<mesh_data_type> meshes);
+  model_data()
+  noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
+    _alloc{Alloc{}} {}
+
+  explicit model_data(const Alloc& alloc)
+  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
+    _alloc{alloc} {}
+
+  explicit model_data(std::string_view path) noexcept { load(path); }
+
+  model_data(std::string_view path, const Alloc& alloc)
+  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
+    _alloc{alloc} { load(path); }
 
 public:
-  const textured_mesh& operator[](std::string_view name) const { return _meshes.at(name.data()); }
-  const textured_mesh& at(std::string_view name) const { return _meshes.at(name.data()); }
-
-  auto cbegin() const { return _meshes.cbegin(); }
-  auto cend() const { return _meshes.cend(); }
-  auto begin() { return _meshes.begin(); }
-  auto end() { return _meshes.end(); }
-
-  size_t size() const { return _meshes.size(); }
-
-private:
-  std::unordered_map<std::string, textured_mesh> _meshes;
-};
-
-
-template<typename Mesh, typename Texture>
-struct model<Mesh, Texture>::data_type {
-public:
-  using texture_data_type = texture_data<Texture>;
-  using mesh_data_type = mesh_data<Texture>;
-
-public:
-  struct loader {
-    model operator()(data_type data) {
-      return model{std::move(data.meshes)};
+  void load(std::string_view path) noexcept {
+    NTF_ASSERT(!has_data());
+    Assimp::Importer import;
+    const aiScene* scene = import.ReadFile(path.data(), aiProcess_Triangulate | aiProcess_FlipUVs);
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+      SHOGLE_LOG(error, "[ntf::model_data] ASSIMP error: {}", import.GetErrorString());
+      return;
     }
-    model operator()(std::string path, tex_filter filter, tex_wrap wrap) {
-      return (*this)(data_type{path, filter, wrap});
+
+    auto dir = file_dir(path);
+    if (!dir) {
+      SHOGLE_LOG(error, "[ntf::model_data] Invalid file path: \"{}\"", path);
+      return;
     }
-  };
+    std::vector<std::string> loaded_materials;
 
-public:
-  data_type(std::string_view path_, tex_filter filter_, tex_wrap wrap_);
+    auto load_material = [&](mesh_data& mesh, aiMaterial* mat, aiTextureType type) {
+      NTF_ASSERT(mat);
 
-public:
-  std::vector<mesh_data_type> meshes;
-};
+      for (uint32 i = 0; i < mat->GetTextureCount(type); ++i) {
+        aiString filename;
+        mat->GetTexture(type, i, &filename);
+        auto tex_path = *dir + "/" + std::string{filename.C_Str()};
+        bool skip = false;
 
+        for (const auto& mat_path : loaded_materials) {
+          if (std::strcmp(mat_path.data(), tex_path.data()) == 0) {
+            skip = true;
+            break;
+          }
+        }
+        if (skip) {
+          continue;
+        }
 
-template<typename Mesh, typename Texture>
-class model<Mesh, Texture>::textured_mesh {
-public:
-  using texture_type = Texture;
-  using mesh_type = Mesh;
-
-public:
-  textured_mesh(mesh_type mesh, std::unordered_map<material_category, texture_type> materials) :
-    _mesh(std::move(mesh)), _materials(std::move(materials)) {}
-
-public:
-  const mesh_type& mesh() const { return _mesh; }
-  const texture_type& operator[](material_category material) const { return _materials.at(material); }
-
-  auto cbegin() const { return _materials.cbegin(); }
-  auto cend() const { return _materials.cend(); }
-  auto begin() { return _materials.begin(); }
-  auto end() { return _materials.end(); }
-
-  size_t size() const { return _materials.size(); }
-
-private:
-  mesh_type _mesh;
-  std::unordered_map<material_category, texture_type> _materials;
-};
-
-template<typename Mesh, typename Texture>
-model<Mesh, Texture>::data_type::data_type(std::string_view path_, tex_filter filter_,
-                                           tex_wrap wrap_) {
-  Assimp::Importer import;
-  const aiScene* scene = import.ReadFile(path_.data(), aiProcess_Triangulate | aiProcess_FlipUVs);
-
-  if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-    throw ntf::error{"[ntf::model_data] ASSIMP error: {}", import.GetErrorString()};
-  }
-
-  auto dir = file_dir(path_.data());
-  std::vector<std::string> loaded_materials;
-
-  auto load_material = [&](mesh_data_type& mesh, aiMaterial* aimat, aiTextureType aitype) {
-    material_category mat_type;
-    switch (aitype) {
-      case aiTextureType_SPECULAR: {
-        mat_type = material_category::specular;
-        break;
+        texture_data_type tex_data;
+        tex_data.load(tex_path);
+        if (!tex_data) {
+          SHOGLE_LOG(error, "[ntf::model_data] Failed to load texture: \"{}\"", tex_path);
+          continue;
+        }
+        mesh.materials.emplace_back(assimp_material_cast(type), std::move(tex_data));
+        loaded_materials.emplace_back(std::move(tex_path));
       }
-      default: {
-        mat_type = material_category::diffuse;
-        break;
+    };
+
+    _meshes.reserve(scene->mNumMeshes);
+    SHOGLE_LOG(verbose, "[ntf::model_data] Found {} mesh(es) for model \"{}\"",
+               scene->mNumMeshes, path);
+    for (uint32 i = 0; i < scene->mNumMeshes; ++i) {
+      mesh_data mesh;
+      aiMesh* ai_mesh = scene->mMeshes[i];
+      NTF_ASSERT(ai_mesh);
+
+      // Vertices
+      mesh.vertices.reserve(ai_mesh->mNumVertices);
+      for (uint32 j = 0; j < ai_mesh->mNumVertices; ++j) {
+        mesh.vertices.emplace_back(mesh_loader{}(*ai_mesh, j));
       }
-    }
 
-    for (size_t i = 0; i < aimat->GetTextureCount(aitype); ++i) {
-      aiString filename;
-      aimat->GetTexture(aitype, i, &filename);
-      auto tex_path = dir + "/" + std::string{filename.C_Str()};
-      bool skip {false};
-
-      for (const auto& mat_path : loaded_materials) {
-        if (std::strcmp(mat_path.data(), tex_path.data()) == 0) {
-          skip = true;
-          break;
+      // Indices
+      // mesh.indices.reserve(ai_mesh->mNumFaces);
+      for (uint32 j = 0; j < ai_mesh->mNumFaces; ++j) {
+        auto& face = ai_mesh->mFaces[j];
+        for (uint32 k = 0; k < face.mNumIndices; ++k) {
+          mesh.indices.emplace_back(face.mIndices[k]);
         }
       }
 
-      if (!skip) {
-        mesh.materials.emplace_back(std::make_pair(
-          mat_type, texture_data_type{tex_path, filter_, wrap_}
-        ));
-        loaded_materials.emplace_back(std::move(tex_path));
-      }
-    }
-  };
-
-  for (size_t i = 0; i < scene->mNumMeshes; ++i) {
-    mesh_data_type mesh;
-    aiMesh* curr_aimesh = scene->mMeshes[i];
-
-    // Extract vertices
-    for (size_t j = 0; j < curr_aimesh->mNumVertices; ++j) { 
-      typename mesh_data_type::vertex vert;
-      vert.coord = vec3{
-        curr_aimesh->mVertices[j].x,
-        curr_aimesh->mVertices[j].y,
-        curr_aimesh->mVertices[j].z
-      };
-      vert.normal = vec3{
-        curr_aimesh->mNormals[j].x,
-        curr_aimesh->mNormals[j].y,
-        curr_aimesh->mNormals[j].z
-      };
-
-      if (curr_aimesh->mTextureCoords[0]) {
-        vert.tex_coord = vec2{
-          curr_aimesh->mTextureCoords[0][j].x,
-          curr_aimesh->mTextureCoords[0][j].y
-        };
+      if (ai_mesh->mMaterialIndex > 0) {
+        aiMaterial* mat = scene->mMaterials[ai_mesh->mMaterialIndex];
+        load_material(mesh, mat, aiTextureType_DIFFUSE);
+        load_material(mesh, mat, aiTextureType_SPECULAR);
       }
 
-      mesh.vertices.emplace_back(std::move(vert));
+
+      auto [_, emplaced] = _mesh_names.try_emplace(ai_mesh->mName.C_Str(), i);
+      NTF_ASSERT(emplaced);
+      _meshes.emplace_back(std::move(mesh));
     }
-
-    // Extract indices
-    for (size_t j = 0; j < curr_aimesh->mNumFaces; ++j) {
-      aiFace face = curr_aimesh->mFaces[j];
-      for (size_t k = 0; k < face.mNumIndices; ++k) {
-        mesh.indices.emplace_back(face.mIndices[k]);
-      }
-    }
-
-    // Extract materials
-    if (curr_aimesh->mMaterialIndex > 0) {
-      aiMaterial* mat = scene->mMaterials[curr_aimesh->mMaterialIndex];
-      load_material(mesh, mat, aiTextureType_DIFFUSE);
-      load_material(mesh, mat, aiTextureType_SPECULAR);
-    }
-
-    // Extract name
-    mesh.name = std::string{curr_aimesh->mName.C_Str()};
-
-    meshes.emplace_back(std::move(mesh));
   }
-}
 
-template<typename Mesh, typename Texture>
-model<Mesh, Texture>::model(std::vector<mesh_data_type> meshes) {
-  for (auto& data : meshes) {
-    std::unordered_map<material_category, texture_type> materials;
-    for (auto& [type, tex_data] : data.materials) {
-      typename texture_type::loader tex_loader;
-      materials.emplace(std::make_pair(type, 
-        tex_loader(tex_data.pixels, tex_data.dim, tex_data.format, tex_data.filter, tex_data.wrap)
-      ));
+  void unload() noexcept {
+    NTF_ASSERT(has_data());
+    _meshes.clear();
+    _mesh_names.clear();
+  }
+
+public:
+  [[nodiscard]] static inline r_material_type assimp_material_cast(aiTextureType type) {
+    switch (type) {
+      case aiTextureType_SPECULAR: return r_material_type::specular;
+      case aiTextureType_DIFFUSE:  return r_material_type::diffuse;
+
+      default: break;
     }
 
-    mesh_type mesh {
-      mesh_primitive::triangles,
-      &data.vertices[0], data.vertices.size()*sizeof(mesh_data_type::vertex),
-      mesh_buffer::static_draw,
-      &data.indices[0], data.indices.size()*sizeof(uint),
-      mesh_buffer::static_draw,
-      typename mesh_data_type::att_coords{}, typename mesh_data_type::att_normal{},
-      typename mesh_data_type::att_texcoord{}
-    };
-
-    _meshes.emplace(std::make_pair(
-      std::move(data.name),
-      textured_mesh{std::move(mesh), std::move(materials)}
-    ));
+    // TODO: Handle more material types :p
+    NTF_UNREACHABLE();
   }
-}
+
+public:
+  const std::vector<mesh_data>& data() const { return _meshes; }
+  std::vector<mesh_data>& data() { return _meshes; }
+  uint32 mesh_count() const { return _meshes.size(); }
+
+  const std::unordered_map<std::string, uint32>& names() const { return _mesh_names; }
+  std::unordered_map<std::string, uint32>& names() { return _mesh_names; }
+
+  bool has_data() const { return mesh_count() > 0; }
+  explicit operator bool() const { return has_data(); }
+
+private:
+  [[maybe_unused]] Alloc _alloc;
+  std::vector<mesh_data> _meshes;
+  std::unordered_map<std::string, uint32> _mesh_names;
+};
 
 } // namespace ntf
