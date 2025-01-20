@@ -52,19 +52,19 @@ private:
 public:
   texture_atlas_data()
   noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
-    _texture{Alloc{}}, _sprites{Alloc{}}, _sequences{Alloc{}}, _groups{Alloc{}} {}
+    _texture_path(Alloc{}), _sprites(Alloc{}), _sequences(Alloc{}), _groups(Alloc{}) {}
 
   explicit texture_atlas_data(const Alloc& alloc)
   noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _texture(alloc), _sprites(alloc), _sequences(alloc), _groups(alloc) {}
+    _texture_path(alloc), _sprites(alloc), _sequences(alloc), _groups(alloc) {}
 
   explicit texture_atlas_data(std::string_view path)
   noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
-    _texture{Alloc{}}, _sprites{Alloc{}}, _sequences{Alloc{}}, _groups{Alloc{}} { load(path); }
+    _texture_path(Alloc{}), _sprites(Alloc{}), _sequences(Alloc{}), _groups(Alloc{}) { load(path); }
 
   texture_atlas_data(std::string_view path, const Alloc& alloc) 
   noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _texture(alloc), _sprites(alloc), _sequences(alloc), _groups(alloc) { load(path); }
+    _texture_path(alloc), _sprites(alloc), _sequences(alloc), _groups(alloc) { load(path); }
 
 public:
   void load(std::string_view path) {
@@ -90,9 +90,9 @@ public:
     }
 
     std::string tex_path = *tex_dir+"/"+json_data["file"].get<std::string>();
-    _texture.load(tex_path);
-    if (!_texture) {
-      SHOGLE_LOG(error, "[ntf::texture_atlas_data] Failed to load file \"{}\"", tex_path);
+    auto tex_info = texture_info(tex_path);
+    if (!tex_info) {
+      SHOGLE_LOG(error, "[ntf::texture_atlas_data] Failed to open texture file \"{}\"", tex_path);
       return;
     }
 
@@ -101,10 +101,10 @@ public:
     for (const auto& content : json_data["content"]) {
       const std::string group_name = content["name"].get<std::string>();
 
-      const uint32 group_size = _parse_offsets(content["offset"]);
+      const uint32 group_size = _parse_offsets(tex_info->first, content["offset"]);
       _parse_sequences(sprite_pos, group_name, content["anim"]);
 
-      _groups.emplace_back(_texture.get_allocator());
+      _groups.emplace_back(_sprites.get_allocator());
       sprite_group& stored = _groups.back();
 
       stored.name.resize(group_name.size());
@@ -117,11 +117,12 @@ public:
 
       sprite_pos += group_size;
     }
+    _texture_path.resize(tex_path.size());
+    std::memcpy(_texture_path.data(), tex_path.data(), tex_path.size());
   }
 
   void unload() noexcept {
     NTF_ASSERT(has_data());
-    _texture.unload();
     _sprites.clear();
     _sequences.clear();
     _groups.clear();
@@ -159,12 +160,13 @@ public:
     return static_cast<atlas_handle>(std::distance(_groups.begin(), it));
   }
 
-  const texture_data_type& texture() const { return _texture; }
   uint32 sprite_count() const { return static_cast<uint32>(_sprites.size()); }
   uint32 group_count() const { return static_cast<uint32>(_groups.size()); }
   uint32 sequence_count() const { return static_cast<uint32>(_sequences.size()); }
 
-  [[nodiscard]] bool has_data() const { return _texture && _sprites.size() > 0; }
+  std::string_view path() const { return _texture_path; }
+
+  [[nodiscard]] bool has_data() const { return _sprites.size() > 0; }
   explicit operator bool() const { return has_data(); }
 
   const sprite_data& operator[](atlas_handle pos) const { return sprite(pos); }
@@ -194,9 +196,8 @@ private:
     _sequences.reserve(sequence_count);
   }
 
-  uint32 _parse_offsets(const json& entry) {
+  uint32 _parse_offsets(uvec2 tex_dim, const json& entry) {
     const uint32 count = entry["count"].get<uint32>();
-    const uvec2 tex_dim = _texture.dim();
 
     const uint32 x0 = entry["x0"].get<uint32>();
     const uint32 y0 = entry["y0"].get<uint32>();
@@ -252,7 +253,7 @@ public:
   }
 
 private:
-  texture_data_type _texture;
+  std::basic_string<char, std::char_traits<char>, rebind_alloc_t<char, Alloc>> _texture_path;
   std::vector<sprite_data, rebind_alloc_t<sprite_data, Alloc>> _sprites;
   std::vector<sprite_sequence, rebind_alloc_t<sprite_sequence, Alloc>> _sequences;
   std::vector<sprite_group, rebind_alloc_t<sprite_group, Alloc>> _groups;

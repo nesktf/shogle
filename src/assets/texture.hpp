@@ -9,6 +9,15 @@
 
 namespace ntf {
 
+inline optional<std::pair<uvec2, uint>> texture_info(std::string_view path) {
+  int w, h, c;
+  if (!stbi_info(path.data(), &w, &h, &c)) {
+    // SHOGLE_LOG(error, "[ntf::texture_info] Failed to open texture: {}", stbi_failure_reason());
+    return nullopt;
+  }
+  return std::make_pair(uvec2{w, h}, static_cast<uint32>(c));
+}
+
 template<typename Alloc = std::allocator<uint8>>
 class texture_data {
 public:
@@ -36,7 +45,8 @@ public:
     int w, h, ch;
     uint8* stbi_data = stbi_load(path.data(), &w, &h, &ch, 0);
     if (!stbi_data) {
-      SHOGLE_LOG(error, "[ntf::texture_data] Failed to load image \"{}\"", path);
+      SHOGLE_LOG(error, "[ntf::texture_data] Failed to load image \"{}\", {}",
+                 path, stbi_failure_reason());
       return;
     }
 
