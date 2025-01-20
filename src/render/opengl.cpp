@@ -712,7 +712,7 @@ void gl_state::destroy_texture(const texture_t& tex) noexcept {
 
 void gl_state::bind_texture(GLuint id, GLenum type, uint32 index) noexcept {
   NTF_ASSERT(type);
-  NTF_ASSERT(index < _bound_texs.size())
+  NTF_ASSERT(index < _bound_texs.size());
   auto& [bound, bound_type] = _bound_texs[index];
   if (bound == id) {
     return;
