@@ -248,7 +248,7 @@ int main() {
 
   const ntf::float32 fumo_scale = 0.04f;
   auto transf_fumo = ntf::transform3d<ntf::float32>{}
-    .pos(0.f, -.3f, 0.f).scale(fumo_scale);
+    .pos(0.f, -.3f, 0.f).scale(fumo_scale).pivot(1.f, 0.f, 0.f);
 
   ntf::color4 main_color{.3f, .3f, .3f, 1.f};
   ntf::color4 fbo_color{1.f, 0.f, 0.f, 1.f};
