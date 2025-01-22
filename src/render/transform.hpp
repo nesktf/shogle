@@ -302,22 +302,22 @@ public:
     _rot.y = rot_yz.real();
     _rot.z = rot_yz.imag();
   );
-  SHOGLE_TRANSF_DEF_SETTER(roll(const T& roll),
-    _rot.x = roll;
-  );
   SHOGLE_TRANSF_DEF_SETTER(pitch(const T& pitch),
-    _rot.y = pitch;
+    _rot.x = pitch;
   );
   SHOGLE_TRANSF_DEF_SETTER(yaw(const T& yaw),
-    _rot.z = yaw;
+    _rot.y = yaw;
+  );
+  SHOGLE_TRANSF_DEF_SETTER(roll(const T& roll),
+    _rot.z = roll;
   );
 
 public:
   [[nodiscard]] vec<3, T> rot() const { return _rot; }
   [[nodiscard]] qua<T> qrot() const { return eulerquat(_rot); }
-  [[nodiscard]] T roll() const { return _rot.x; }
-  [[nodiscard]] T pitch() const { return _rot.y; }
-  [[nodiscard]] T yaw() const { return _rot.z; }
+  [[nodiscard]] T pitch() const { return _rot.x; }
+  [[nodiscard]] T yaw() const { return _rot.y; }
+  [[nodiscard]] T roll() const { return _rot.z; }
 
 protected:
   vec<3, T> _rot;
@@ -441,6 +441,10 @@ public:
     _local_mat{T{1}}, _gen_mat{transf}, _flags{flags} { _mark_dirty(); }
 
 public:
+  basic_transform& flags(transf_flag flags) & { _flags = flags; return *this; } 
+  basic_transform&& flags(transf_flag flags) && { _flags = flags; return std::move(*this); }
+
+public:
   const Transform& get_transform() const { return _gen_mat; }
 
   [[nodiscard]] const mat<4, 4, T>& local(transf_raw_mat_t) const& { return _local_mat; }
@@ -456,11 +460,13 @@ public:
 
   void force_update() & {
     _local_mat = _gen_mat(this->_pos, this->_scale, this->_pivot, this->_rot);
-    _flags ^= transf_flag::dirty;
+    _flags &= ~transf_flag::dirty;
   }
 
   [[nodiscard]] const mat<4, 4, T>& world(transf_raw_mat_t) const& { return _local_mat;}
   [[nodiscard]] const mat<4, 4, T>& world() & { return local(); }
+
+  [[nodiscard]] transf_flag flags() const { return _flags; }
 
 private:
   void _mark_dirty() {

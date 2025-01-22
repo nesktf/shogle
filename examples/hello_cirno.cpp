@@ -269,8 +269,8 @@ int main() {
     transf_cube
       .rot(ntf::axisquat(t, ntf::vec3{0.f, 1.f, 0.f}))
       .scale(ntf::vec3{1.f, .5f + std::abs(std::sin(t)), 1.f});
-    transf_quad0.yaw(-t);
-    transf_quad1.yaw(t);
+    transf_quad0.roll(-t);
+    transf_quad1.roll(t);
     transf_fumo
       .rot(ntf::axisquat(glm::pi<ntf::float32>()*.5f*t, ntf::vec3{0.f, 1.f, 0.f}))
       .scale(ntf::vec3{

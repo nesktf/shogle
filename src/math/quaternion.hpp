@@ -28,19 +28,19 @@ constexpr qua<T> eulerquat(const vec<3, T>& rot) {
   //   axisquat(rot.y, vec<3, T>{T{0}, T{1}, T{0}}) *
   //   axisquat(rot.z, vec<3, T>{T{0}, T{0}, T{1}});
 
-  const T cr = glm::cos(rot.x*T{0.5});
-  const T sr = glm::sin(rot.x*T{0.5});
-  const T cp = glm::cos(rot.y*T{0.5});
-  const T sp = glm::sin(rot.y*T{0.5});
-  const T cy = glm::cos(rot.z*T{0.5});
-  const T sy = glm::cos(rot.z*T{0.5});
+  const T cp = glm::cos(rot.x*T{0.5});
+  const T sp = glm::sin(rot.x*T{0.5});
+  const T cy = glm::cos(rot.y*T{0.5});
+  const T sy = glm::sin(rot.y*T{0.5});
+  const T cr = glm::cos(rot.z*T{0.5});
+  const T sr = glm::sin(rot.z*T{0.5});
 
   qua<T> q;
 
-  q.w = cr * cp * cy + sr * sp * sy;
-  q.x = sr * cp * cy - cr * sp * sy;
-  q.y = cr * sp * cy + sr * cp * sy;
-  q.z = cr * cp * sy - sr * sp * cy;
+  q.w = cr*cp*cy + sr*sp*sy;
+  q.x = sr*cp*cy - cr*sp*sy;
+  q.y = cr*sp*cy + sr*cp*sy;
+  q.z = cr*cp*sy - sr*sp*cy;
 
   return q;
 }
@@ -49,17 +49,17 @@ template<typename T>
 constexpr vec<3, T> eulerquat(const qua<T>& q) noexcept {
   vec<3, T> euler;
 
-  // Roll
+  // Pitch
   const T sinr_cosp = T{2}*(q.w*q.x + q.y*q.z);
   const T cosr_cosp = T{1} - T{2}*(q.x*q.x + q.y*q.y);
   euler.x = std::atan2(sinr_cosp, cosr_cosp);
 
-  // Pitch
+  // Yaw
   const T sinp = std::sqrt(T{1} + T{2}*(q.w*q.y - q.x*q.z));
   const T cosp = std::sqrt(T{1} - T{2}*(q.w*q.y - q.x*q.z));
   euler.y = T{2}*std::atan2(sinp, cosp) - glm::pi<T>()/T{2};
 
-  // Yaw
+  // Roll
   const T siny_cosp = T{2}*(q.w*q.z + q.x*q.y);
   const T cosy_cosp = T{1} - T{2}*(q.y*q.y + q.z*q.z);
   euler.z = std::atan2(siny_cosp, cosy_cosp);
