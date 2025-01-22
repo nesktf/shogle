@@ -28,10 +28,11 @@ class transform_dim;
 template<typename T, typename Derived>
 class transform_dim<T, Derived, 3> {
 public:
-  transform_dim(const vec<3, T>& pos   = {T{0}, T{0}, T{0}},
-                const vec<3, T>& scale = {T{1}, T{1}, T{1}},
-                const vec<3, T>& pivot = {T{0}, T{0}, T{0}}) noexcept :
-    _pos{pos}, _scale{scale}, _pivot{pivot} {}
+  transform_dim(const vec<3, T>& pos    = {T{0}, T{0}, T{0}},
+                const vec<3, T>& scale  = {T{1}, T{1}, T{1}},
+                const vec<3, T>& pivot  = {T{0}, T{0}, T{0}},
+                const vec<3, T>& offset = {T{0}, T{0}, T{0}}) noexcept :
+    _pos{pos}, _scale{scale}, _pivot{pivot}, _offset{offset} {}
 
 public:
   SHOGLE_TRANSF_DEF_SETTER(pos(const vec<3, T>& pos),
