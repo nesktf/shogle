@@ -5,12 +5,14 @@
 #include "../math/complex.hpp"
 
 #define SHOGLE_TRANSF_DEF_SETTER(_signature, ...) \
-Derived& _signature & noexcept { \
+Derived& _signature & \
+noexcept(noexcept(static_cast<Derived&>(*this)._mark_dirty())) { \
   __VA_ARGS__ \
   static_cast<Derived&>(*this)._mark_dirty(); \
   return static_cast<Derived&>(*this); \
 } \
-Derived&& _signature && noexcept { \
+Derived&& _signature && \
+noexcept(noexcept(static_cast<Derived&>(*this)._mark_dirty())) { \
   __VA_ARGS__ \
   static_cast<Derived&>(*this)._mark_dirty(); \
   return static_cast<Derived&&>(*this); \
@@ -151,35 +153,80 @@ public:
     _pivot.z = z;
   );
 
+  SHOGLE_TRANSF_DEF_SETTER(offset(const vec<3, T>& offset),
+    _offset = offset;
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset(const T& x, const T& y, const T& z),
+    _offset.x = x;
+    _offset.y = y;
+    _offset.z = z;
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset(const vec<2, T>& offset_xy, const T& z),
+    _offset.x = offset_xy.x;
+    _offset.y = offset_xy.y;
+    _offset.z = z;
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset(const T& x, const vec<2, T>& offset_yz),
+    _offset.x = x;
+    _offset.y = offset_yz.x;
+    _offset.z = offset_yz.y;
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset(const complex<T>& offset_xy, const T& z),
+    _offset.x = offset_xy.real();
+    _offset.y = offset_xy.imag();
+    _offset.z = z;
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset(const T& x, const complex<T>& offset_yz),
+    _offset.x = x;
+    _offset.y = offset_yz.real();
+    _offset.z = offset_yz.imag();
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset_x(const T& x),
+    _offset.x = x;
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset_y(const T& y),
+    _offset.y = y;
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset_z(const T& z),
+    _offset.z = z;
+  );
+
 public:
-  [[nodiscard]] vec<3, T> pos() const { return _pos; }
-  [[nodiscard]] T pos_x() const { return _pos.x; }
-  [[nodiscard]] T pos_y() const { return _pos.y; }
-  [[nodiscard]] T pos_z() const { return _pos.z; }
+  [[nodiscard]] vec<3, T> pos() const noexcept { return _pos; }
+  [[nodiscard]] T pos_x() const noexcept { return _pos.x; }
+  [[nodiscard]] T pos_y() const noexcept { return _pos.y; }
+  [[nodiscard]] T pos_z() const noexcept { return _pos.z; }
 
-  [[nodiscard]] vec<3, T> scale() const { return _scale; }
-  [[nodiscard]] T scale_x() const { return _scale.x; }
-  [[nodiscard]] T scale_y() const { return _scale.y;}
-  [[nodiscard]] T scale_z() const { return _scale.z; }
+  [[nodiscard]] vec<3, T> scale() const noexcept { return _scale; }
+  [[nodiscard]] T scale_x() const noexcept { return _scale.x; }
+  [[nodiscard]] T scale_y() const noexcept { return _scale.y;}
+  [[nodiscard]] T scale_z() const noexcept { return _scale.z; }
 
-  [[nodiscard]] vec<3, T> pivot() const { return _pivot; }
-  [[nodiscard]] T pivot_x() const { return _pivot.x; }
-  [[nodiscard]] T pivot_y() const { return _pivot.y; }
-  [[nodiscard]] T pivot_z() const { return _pivot.z; }
+  [[nodiscard]] vec<3, T> pivot() const noexcept { return _pivot; }
+  [[nodiscard]] T pivot_x() const noexcept { return _pivot.x; }
+  [[nodiscard]] T pivot_y() const noexcept { return _pivot.y; }
+  [[nodiscard]] T pivot_z() const noexcept { return _pivot.z; }
+
+  [[nodiscard]] vec<3, T> offset() const noexcept { return _offset; }
+  [[nodiscard]] T offset_x() const noexcept { return _offset.x; }
+  [[nodiscard]] T offset_y() const noexcept { return _offset.y; }
+  [[nodiscard]] T offset_z() const noexcept { return _offset.y; }
 
 protected:
   vec<3, T> _pos;
   vec<3, T> _scale;
   vec<3, T> _pivot;
+  vec<3, T> _offset;
 };
 
 template<typename T, typename Derived>
 class transform_dim<T, Derived, 2> {
 public:
-  transform_dim(const vec<2, T>& pos   = {T{0}, T{0}},
-                const vec<2, T>& scale = {T{1}, T{1}},
-                const vec<2, T>& pivot = {T{0}, T{0}}) noexcept :
-    _pos{pos}, _scale{scale}, _pivot{pivot} {}
+  transform_dim(const vec<2, T>& pos    = {T{0}, T{0}},
+                const vec<2, T>& scale  = {T{1}, T{1}},
+                const vec<2, T>& pivot  = {T{0}, T{0}},
+                const vec<2, T>& offset = {T{0}, T{0}}) noexcept :
+    _pos{pos}, _scale{scale}, _pivot{pivot}, _offset{offset} {}
 
 public:
   SHOGLE_TRANSF_DEF_SETTER(pos(const vec<2, T>& pos),
@@ -240,26 +287,50 @@ public:
     _pivot.y = y;
   );
 
+  SHOGLE_TRANSF_DEF_SETTER(offset(const vec<2, T>& offset),
+    _offset = offset;
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset(const complex<T>& offset),
+    _offset.x = offset.real();
+    _offset.y = offset.imag();
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset(const T& x, const T& y),
+    _offset.x = x;
+    _offset.y = y;
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset_x(const T& x),
+    _offset.x = x;
+  );
+  SHOGLE_TRANSF_DEF_SETTER(offset_y(const T& y),
+    _offset.y = y;
+  );
+
 public:
-  [[nodiscard]] vec<2, T> pos() const { return _pos; }
-  [[nodiscard]] complex<T> cpos() const { return complex<T>{_pos.x, _pos.y}; }
-  [[nodiscard]] T pos_x() const { return _pos.x; }
-  [[nodiscard]] T pos_y() const { return _pos.y; }
+  [[nodiscard]] vec<2, T> pos() const noexcept { return _pos; }
+  [[nodiscard]] complex<T> cpos() const noexcept { return complex<T>{_pos.x, _pos.y}; }
+  [[nodiscard]] T pos_x() const noexcept { return _pos.x; }
+  [[nodiscard]] T pos_y() const noexcept { return _pos.y; }
 
-  [[nodiscard]] vec<2, T> scale() const { return _scale; }
-  [[nodiscard]] complex<T> cscale() const { return complex<T>{_scale.x, _scale.y}; }
-  [[nodiscard]] T scale_x() const { return _scale.x; }
-  [[nodiscard]] T scale_y() const { return _scale.y;}
+  [[nodiscard]] vec<2, T> scale() const noexcept { return _scale; }
+  [[nodiscard]] complex<T> cscale() const noexcept { return complex<T>{_scale.x, _scale.y}; }
+  [[nodiscard]] T scale_x() const noexcept { return _scale.x; }
+  [[nodiscard]] T scale_y() const noexcept { return _scale.y;}
 
-  [[nodiscard]] vec<2, T> pivot() const { return _pivot; }
-  [[nodiscard]] complex<T> cpivot() const { return complex<T>{_pivot.x, _pivot.y}; }
-  [[nodiscard]] T pivot_x() const { return _pivot.x; }
-  [[nodiscard]] T pivot_y() const { return _pivot.y; }
+  [[nodiscard]] vec<2, T> pivot() const noexcept { return _pivot; }
+  [[nodiscard]] complex<T> cpivot() const noexcept { return complex<T>{_pivot.x, _pivot.y}; }
+  [[nodiscard]] T pivot_x() const noexcept { return _pivot.x; }
+  [[nodiscard]] T pivot_y() const noexcept { return _pivot.y; }
+
+  [[nodiscard]] vec<2, T> offset() const noexcept { return _offset; }
+  [[nodiscard]] complex<T> coffset() const noexcept { return complex<T>{_offset.x, _offset.y}; }
+  [[nodiscard]] T offset_x() const noexcept { return _offset.x; }
+  [[nodiscard]] T offset_y() const noexcept { return _offset.y; }
 
 protected:
   vec<2, T> _pos;
   vec<2, T> _scale;
   vec<2, T> _pivot;
+  vec<2, T> _offset;
 };
 
 template<typename T, typename Derived, bool use_euler>
@@ -313,11 +384,11 @@ public:
   );
 
 public:
-  [[nodiscard]] vec<3, T> rot() const { return _rot; }
-  [[nodiscard]] qua<T> qrot() const { return eulerquat(_rot); }
-  [[nodiscard]] T pitch() const { return _rot.x; }
-  [[nodiscard]] T yaw() const { return _rot.y; }
-  [[nodiscard]] T roll() const { return _rot.z; }
+  [[nodiscard]] vec<3, T> rot() const noexcept { return _rot; }
+  [[nodiscard]] qua<T> qrot() const noexcept { return eulerquat(_rot); }
+  [[nodiscard]] T pitch() const noexcept { return _rot.x; }
+  [[nodiscard]] T yaw() const noexcept { return _rot.y; }
+  [[nodiscard]] T roll() const noexcept { return _rot.z; }
 
 protected:
   vec<3, T> _rot;
@@ -361,13 +432,13 @@ public:
   );
 
 public:
-  [[nodiscard]] qua<T> rot() const { return _rot; }
-  [[nodiscard]] vec<3, T> erot() const { return eulerquat(_rot); }
-  [[nodiscard]] T rot_x() const { return _rot.x; }
-  [[nodiscard]] T rot_y() const { return _rot.y; }
-  [[nodiscard]] T rot_z() const { return _rot.z; }
-  [[nodiscard]] T rot_w() const { return _rot.w; }
-  [[nodiscard]] vec<3, T> rot_vec() const { return vec<3, T>{_rot.x, _rot.y, _rot.z}; }
+  [[nodiscard]] qua<T> rot() const noexcept { return _rot; }
+  [[nodiscard]] vec<3, T> erot() const noexcept { return eulerquat(_rot); }
+  [[nodiscard]] T rot_x() const noexcept { return _rot.x; }
+  [[nodiscard]] T rot_y() const noexcept { return _rot.y; }
+  [[nodiscard]] T rot_z() const noexcept { return _rot.z; }
+  [[nodiscard]] T rot_w() const noexcept { return _rot.w; }
+  [[nodiscard]] vec<3, T> rot_vec() const noexcept { return vec<3, T>{_rot.x, _rot.y, _rot.z}; }
 
 protected:
   qua<T> _rot;
@@ -389,14 +460,16 @@ struct trs_transform {
   mat<4, 4, T> operator()(const vec<dim, T>& pos,
                           const vec<dim, T>& scale,
                           const vec<dim, T>& pivot,
+                          const vec<dim, T>& offset,
                           const vec<3, T>& rot) noexcept {
-    return build_trs_matrix(pos, scale, pivot, rot);
+    return build_trs_matrix(pos, scale, pivot, offset, rot);
   }
   mat<4, 4, T> operator()(const vec<dim, T>& pos,
                           const vec<dim, T>& scale,
                           const vec<dim, T>& pivot,
+                          const vec<dim, T>& offset,
                           const qua<T>& rot) noexcept {
-    return build_trs_matrix(pos, scale, pivot, rot);
+    return build_trs_matrix(pos, scale, pivot, offset, rot);
   }
 };
 
@@ -413,7 +486,7 @@ public:
 public:
   explicit basic_transform(transf_flag flags = transf_flag::dirty,
                            const Transform& transf = {})
-  noexcept(std::is_nothrow_copy_constructible_v<Transform>) :
+  noexcept(std::is_nothrow_copy_constructible_v<Transform> && noexcept(_mark_dirty())) :
     impl::transform_dim<T, basic_transform<T, Transform, dim, use_euler>, dim>{},
     impl::transform_rot<T, basic_transform<T, Transform, dim, use_euler>, use_euler>{},
     _local_mat{T{1}}, _gen_mat{transf}, _flags{flags} { _mark_dirty(); }
@@ -421,34 +494,47 @@ public:
   explicit basic_transform(const vec<dim, T>& pos,
                            const vec<dim, T>& scale,
                            const vec<dim, T>& pivot,
+                           const vec<dim, T>& offset,
                            const vec<dim, T>& rot,
                            transf_flag flags = transf_flag::dirty,
                            const Transform& transf = {})
-  noexcept(std::is_nothrow_copy_constructible_v<Transform>) :
-    impl::transform_dim<T, basic_transform<T, Transform, dim, use_euler>, dim>{pos, scale, pivot},
-    impl::transform_rot<T, basic_transform<T, Transform, dim, use_euler>, use_euler>{rot},
+  noexcept(std::is_nothrow_copy_constructible_v<Transform> && noexcept(_mark_dirty())) :
+    impl::transform_dim<T, basic_transform<T, Transform, dim, use_euler>, dim>
+      {pos, scale, pivot, offset},
+    impl::transform_rot<T, basic_transform<T, Transform, dim, use_euler>, use_euler>
+      {rot},
     _local_mat{T{1}}, _gen_mat{transf}, _flags{flags} { _mark_dirty(); }
 
   explicit basic_transform(const vec<dim, T>& pos,
                            const vec<dim, T>& scale,
                            const vec<dim, T>& pivot,
+                           const vec<dim, T>& offset,
                            const qua<T>& rot,
                            transf_flag flags = transf_flag::dirty,
                            const Transform& transf = {})
-  noexcept(std::is_nothrow_copy_constructible_v<Transform>) :
-    impl::transform_dim<T, basic_transform<T, Transform, dim, use_euler>, dim>{pos, scale, pivot},
-    impl::transform_rot<T, basic_transform<T, Transform, dim, use_euler>, use_euler>{rot},
+  noexcept(std::is_nothrow_copy_constructible_v<Transform> && noexcept(_mark_dirty())) :
+    impl::transform_dim<T, basic_transform<T, Transform, dim, use_euler>, dim>
+      {pos, scale, pivot, offset},
+    impl::transform_rot<T, basic_transform<T, Transform, dim, use_euler>, use_euler>
+      {rot},
     _local_mat{T{1}}, _gen_mat{transf}, _flags{flags} { _mark_dirty(); }
 
 public:
-  basic_transform& flags(transf_flag flags) & { _flags = flags; return *this; } 
-  basic_transform&& flags(transf_flag flags) && { _flags = flags; return std::move(*this); }
+  basic_transform& flags(transf_flag flags) & noexcept {
+    _flags = flags;
+    return *this;
+  } 
+  basic_transform&& flags(transf_flag flags) && noexcept {
+    _flags = flags;
+    return std::move(*this);
+  }
 
 public:
-  const Transform& get_transform() const { return _gen_mat; }
+  const Transform& get_transform() const noexcept { return _gen_mat; }
 
-  [[nodiscard]] const mat<4, 4, T>& local(transf_raw_mat_t) const& { return _local_mat; }
-  [[nodiscard]] const mat<4, 4, T>& local() & {
+  [[nodiscard]] const mat<4, 4, T>& local(transf_raw_mat_t) const& noexcept { return _local_mat; }
+  [[nodiscard]] const mat<4, 4, T>& local() &
+  noexcept(noexcept(force_update())) {
     if (+(_flags & transf_flag::disable_lazy_eval)) {
       return _local_mat;
     }
@@ -458,18 +544,19 @@ public:
     return _local_mat;
   }
 
-  void force_update() & {
-    _local_mat = _gen_mat(this->_pos, this->_scale, this->_pivot, this->_rot);
+  void force_update() &
+  noexcept(noexcept(_gen_mat(this->_pos, this->_scale, this->_pivot, this->_offset, this->_rot))) {
+    _local_mat = _gen_mat(this->_pos, this->_scale, this->_pivot, this->_offset, this->_rot);
     _flags &= ~transf_flag::dirty;
   }
 
-  [[nodiscard]] const mat<4, 4, T>& world(transf_raw_mat_t) const& { return _local_mat;}
-  [[nodiscard]] const mat<4, 4, T>& world() & { return local(); }
+  [[nodiscard]] const mat<4, 4, T>& world(transf_raw_mat_t) const& noexcept { return _local_mat;}
+  [[nodiscard]] const mat<4, 4, T>& world() & noexcept(noexcept(local())) { return local(); }
 
-  [[nodiscard]] transf_flag flags() const { return _flags; }
+  [[nodiscard]] transf_flag flags() const noexcept { return _flags; }
 
 private:
-  void _mark_dirty() {
+  void _mark_dirty() noexcept(noexcept(force_update())) {
     _flags |= transf_flag::dirty;
     if (+(_flags & transf_flag::auto_update)) {
       force_update();
@@ -485,7 +572,6 @@ private:
   friend class impl::transform_dim<T, basic_transform<T, Transform, dim, use_euler>, dim>;
   friend class impl::transform_rot<T, basic_transform<T, Transform, dim, use_euler>, use_euler>;
 };
-
 
 template<typename T, typename Transform = trs_transform<T, 2>, bool use_euler = true>
 using transform2d = basic_transform<T, Transform, 2, use_euler>;

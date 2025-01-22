@@ -248,7 +248,7 @@ int main() {
 
   const ntf::float32 fumo_scale = 0.04f;
   auto transf_fumo = ntf::transform3d<ntf::float32>{}
-    .pos(0.f, -.3f, 0.f).scale(fumo_scale).pivot(1.f, 0.f, 0.f);
+    .pos(0.f, -.3f, 0.f).scale(fumo_scale).pivot_x(1.f);
 
   ntf::color4 main_color{.3f, .3f, .3f, 1.f};
   ntf::color4 fbo_color{1.f, 0.f, 0.f, 1.f};
@@ -268,7 +268,8 @@ int main() {
 
     transf_cube
       .rot(ntf::axisquat(t, ntf::vec3{0.f, 1.f, 0.f}))
-      .scale(ntf::vec3{1.f, .5f + std::abs(std::sin(t)), 1.f});
+      .scale(ntf::vec3{1.f, .5f + std::abs(std::sin(t)), 1.f})
+      .offset_y(-0.5f);
     transf_quad0.roll(-t);
     transf_quad1.roll(t);
     transf_fumo
