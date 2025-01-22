@@ -148,7 +148,7 @@ int main() {
 
   ntf::model_data<ntf::pnt_vertex> fumo{"./examples/res/cirno_fumo/cirno_fumo.obj"};
   NTF_ASSERT(fumo);
-  const auto& fumo_mesh = fumo.meshes()[0];
+  const auto& fumo_mesh = fumo[0];
   const auto fumo_diffuse_it = std::find_if(
     fumo_mesh.materials.begin(), fumo_mesh.materials.end(), [](const auto& mat) {
       return mat.type == ntf::r_material_type::diffuse;
@@ -232,19 +232,23 @@ int main() {
   auto u_tex_sampler = ctx.query(pipe_tex, ntf::r_query_uniform, "sampler0");
 
   ntf::float32 fb_ratio = 1280.f/720.f;
-  auto transf_cube = ntf::transform3d{}.pos(0.f, 0.f, 0.f).scale(1.f);
+  auto transf_cube = ntf::transform3d<ntf::float32>{}
+    .pos(0.f, 0.f, 0.f).scale(1.f);
   ntf::mat4 cam_view_cube = glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -3.f});
   ntf::mat4 cam_proj_cube = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);
   ntf::vec4 color_cube {0.f, 1.f, 0.f, 1.f};
 
-  auto transf_quad0 = ntf::transform2d{}.pos(-350.f, 0.f).scale(ntf::vec2{300.f, 300.f});
-  auto transf_quad1 = ntf::transform2d{}.pos(350.f, 0.f).scale(ntf::vec2{fb_ratio*300.f, 300.f});
+  auto transf_quad0 = ntf::transform2d<ntf::float32>{}
+    .pos(-350.f, 0.f).scale(ntf::vec2{300.f, 300.f});
+  auto transf_quad1 = ntf::transform2d<ntf::float32>{}
+    .pos(350.f, 0.f).scale(ntf::vec2{fb_ratio*300.f, 300.f});
   ntf::mat4 cam_view_quad = glm::translate(glm::mat4{1.f}, glm::vec3{640.f, 360.f, -3.f});
   ntf::mat4 cam_proj_quad = glm::ortho(0.f, 1280.f, 0.f, 720.f, .1f, 100.f);
   ntf::vec4 color_quad {1.f, 1.f, 1.f, 1.f};
 
   const ntf::float32 fumo_scale = 0.04f;
-  auto transf_fumo = ntf::transform3d{}.pos(0.f, -.3f, 0.f).scale(fumo_scale);
+  auto transf_fumo = ntf::transform3d<ntf::float32>{}
+    .pos(0.f, -.3f, 0.f).scale(fumo_scale);
 
   ntf::color4 main_color{.3f, .3f, .3f, 1.f};
   ntf::color4 fbo_color{1.f, 0.f, 0.f, 1.f};
@@ -265,8 +269,8 @@ int main() {
     transf_cube
       .rot(ntf::axisquat(t, ntf::vec3{0.f, 1.f, 0.f}))
       .scale(ntf::vec3{1.f, .5f + std::abs(std::sin(t)), 1.f});
-    transf_quad0.rot(-t);
-    transf_quad1.rot(t);
+    transf_quad0.yaw(-t);
+    transf_quad1.yaw(t);
     transf_fumo
       .rot(ntf::axisquat(glm::pi<ntf::float32>()*.5f*t, ntf::vec3{0.f, 1.f, 0.f}))
       .scale(ntf::vec3{
@@ -304,7 +308,7 @@ int main() {
     ctx.bind_index_buffer(fumo_ebo);
     ctx.bind_pipeline(pipe_tex);
     ctx.bind_texture(fumo_tex, 0);
-    ctx.push_uniform(u_tex_model, transf_fumo.mat());
+    ctx.push_uniform(u_tex_model, transf_fumo.world());
     ctx.push_uniform(u_tex_proj, cam_proj_cube);
     ctx.push_uniform(u_tex_view, cam_view_cube);
     ctx.push_uniform(u_tex_color, color_quad);
@@ -320,7 +324,7 @@ int main() {
     ctx.bind_index_buffer(quad_ebo);
     ctx.bind_pipeline(pipe_tex);
     ctx.bind_texture(tex, 0);
-    ctx.push_uniform(u_tex_model, transf_quad0.mat());
+    ctx.push_uniform(u_tex_model, transf_quad0.world());
     ctx.push_uniform(u_tex_proj, cam_proj_quad);
     ctx.push_uniform(u_tex_view, cam_view_quad);
     ctx.push_uniform(u_tex_color, color_quad);
@@ -336,7 +340,7 @@ int main() {
     ctx.bind_index_buffer(quad_ebo);
     ctx.bind_pipeline(pipe_tex);
     ctx.bind_texture(fb_tex, 0);
-    ctx.push_uniform(u_tex_model, transf_quad1.mat());
+    ctx.push_uniform(u_tex_model, transf_quad1.world());
     ctx.push_uniform(u_tex_proj, cam_proj_quad);
     ctx.push_uniform(u_tex_view, cam_view_quad);
     ctx.push_uniform(u_tex_color, color_quad);
@@ -352,7 +356,7 @@ int main() {
 
     ctx.bind_vertex_buffer(cube_vbo);
     ctx.bind_pipeline(pipe_col);
-    ctx.push_uniform(u_col_model, transf_cube.mat());
+    ctx.push_uniform(u_col_model, transf_cube.world());
     ctx.push_uniform(u_col_proj, cam_proj_cube);
     ctx.push_uniform(u_col_view, cam_view_cube);
     ctx.push_uniform(u_col_color, color_cube);
@@ -367,7 +371,7 @@ int main() {
     ctx.bind_index_buffer(quad_ebo);
     ctx.bind_pipeline(pipe_tex);
     ctx.bind_texture(tex, 0);
-    ctx.push_uniform(u_tex_model, transf_quad0.mat());
+    ctx.push_uniform(u_tex_model, transf_quad0.world());
     ctx.push_uniform(u_tex_proj, cam_proj_quad);
     ctx.push_uniform(u_tex_view, cam_view_quad);
     ctx.push_uniform(u_tex_color, color_quad);
