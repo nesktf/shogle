@@ -445,16 +445,76 @@ protected:
   qua<T> _rot;
 };
 
+template<typename T, typename Derived, uint32 dim, bool use_euler>
+class camera_base;
+
+template<typename T, typename Derived, bool use_euler>
+class camera_base<T, Derived, 2, use_euler> {
+
+protected:
+  vec<2, T> _viewport;
+  vec<2, T> _origin;
+  vec<2, T> _pos;
+  vec<2, T> _zoom;
+  T _rot;
+  T _znear;
+  T _zfar;
+};
+
+template<typename T, typename Derived>
+class camera_base<T, Derived, 3, true> {
+public:
+  camera_base(const vec<2, T> viewport,
+              const T& znear       = T{0.1},
+              const T& zfar        = T{100},
+              const T& fov         = {glm::pi<T>()},
+              const vec<3, T>& pos = {T{0}, T{0}, T{0}},
+              const vec<3, T>& dir = {T{0}, T{0}, T{-1}},
+              const vec<3, T>& up  = {T{0}, T{1}, T{0}}) noexcept :
+    _pos{pos}, _dir{dir}, _viewport{viewport}, _up{up},
+    _znear{znear}, _zfar{zfar}, _fov{fov} {}
+
+protected:
+  vec<3, T> _pos;
+  vec<3, T> _dir;
+  vec<2, T> _viewport;
+  vec<3, T> _up;
+  T _znear;
+  T _zfar;
+  T _fov;
+};
+
+template<typename T, typename Derived>
+class camera_base<T, Derived, 3, false> {
+
+protected:
+  qua<T> _rot;
+  vec<2, T> _viewport;
+  vec<3, T> _pos;
+  T _znear;
+  T _zfar;
+  T _fov;
+};
+
 } // namespace impl
 
 enum class transf_flag {
   none              = 0,
   dirty             = 1<<0,
-  disable_lazy_eval = 1<<1,
-  auto_update       = 1<<2,
+  auto_update       = 1<<1,
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(transf_flag);
 NTF_DECLARE_TAG_TYPE(transf_raw_mat);
+
+enum class camera_flag {
+  none              = 0,
+  dirty_view        = 1<<0,
+  dirty_proj        = 1<<1,
+  auto_update       = 1<<2,
+  use_perspective   = 1<<3,
+};
+NTF_DEFINE_ENUM_CLASS_FLAG_OPS(camera_flag);
+NTF_DECLARE_TAG_TYPE(camera_raw_mat);
 
 template<typename T, uint32 dim>
 struct trs_transform {
@@ -472,6 +532,20 @@ struct trs_transform {
                           const qua<T>& rot) noexcept {
     return build_trs_matrix(pos, scale, pivot, offset, rot);
   }
+  mat<4, 4, T> operator()(const vec<dim, T>& pos,
+                          const vec<dim, T>& scale,
+                          const vec<dim, T>& pivot,
+                          const vec<dim, T>& offset,
+                          const T& roll) noexcept {
+    return build_trs_matrix(pos, scale, pivot, offset, roll, vec<3, T>{T{0}, T{0}, T{1}});
+  }
+};
+
+template<typename T, uint32 dim>
+struct lookat_transform {
+  constexpr mat<4, 4, T> operator()() noexcept {
+
+  }
 };
 
 template<typename T, typename Transform, uint32 dim, bool use_euler>
@@ -483,6 +557,8 @@ public:
   using transform_type = Transform;
   static constexpr uint32 dimensions = dim;
   static constexpr bool uses_euler_angles = use_euler;
+
+  static_assert(dim == 2 || dim == 3, "Invalid transform dimensions");
 
 public:
   explicit basic_transform(transf_flag flags = transf_flag::dirty,
@@ -536,9 +612,6 @@ public:
   [[nodiscard]] const mat<4, 4, T>& local(transf_raw_mat_t) const& noexcept { return _local_mat; }
   [[nodiscard]] const mat<4, 4, T>& local() &
   noexcept(noexcept(force_update())) {
-    if (+(_flags & transf_flag::disable_lazy_eval)) {
-      return _local_mat;
-    }
     if (+(_flags & transf_flag::dirty)) {
       force_update();
     }
@@ -574,11 +647,123 @@ private:
   friend class impl::transform_rot<T, basic_transform<T, Transform, dim, use_euler>, use_euler>;
 };
 
+template<typename T, typename Transform, uint32 dim, bool use_euler>
+class basic_camera final :
+  public impl::camera_base<T, basic_camera<T, Transform, dim, use_euler>, dim, use_euler> {
+public:
+  using value_type = T;
+  using transform_type = Transform;
+  static constexpr uint32 dimensions = dim;
+  static constexpr bool uses_euler_angles = use_euler || dim == 2;
+
+  static_assert(dim == 2 || dim == 3, "Invalid camera dimensions");
+
+public:
+  basic_camera& flags(camera_flag flags) & noexcept {
+    _flags = flags;
+    return *this;
+  } 
+  basic_camera&& flags(camera_flag flags) && noexcept {
+    _flags = flags;
+    return std::move(*this);
+  }
+
+public:
+  const Transform& get_transform() const noexcept { return _gen_view; }
+
+  [[nodiscard]] const mat<4, 4, T>& view(camera_raw_mat_t) const& noexcept { return _view_mat; }
+  [[nodiscard]] const mat<4, 4, T>& view() &
+  noexcept(noexcept(force_update_view())) {
+    if (+(_flags & camera_flag::dirty_view)) {
+      force_update_view();
+    }
+    return _view_mat;
+  }
+
+  [[nodiscard]] const mat<4, 4, T>& proj(camera_raw_mat_t) const& noexcept { return _proj_mat; }
+  [[nodiscard]] const mat<4, 4 ,T>& proj() &
+  noexcept(noexcept(force_update_proj())) {
+    if (+(_flags & camera_flag::dirty_proj)) {
+      force_update_proj();
+    }
+    return _proj_mat;
+  }
+
+  void force_update_view() & {
+    // TODO: check noexcept here somehow
+    if constexpr (dim == 2) { 
+      _view_mat = _gen_view(this->_origin, this->_pos, this->_zoom, this->_rot);
+    } else if constexpr(use_euler) {
+      _view_mat = _gen_view(this->pos, this->dir, this->_up);
+    } else {
+      _view_mat = _gen_view(this->pos, this->rot);
+    }
+    _flags &= ~camera_flag::dirty_view;
+  }
+
+  void force_update_proj() & noexcept {
+    if (+(_flags & camera_flag::use_perspective)) {
+      _proj_mat = build_proj_matrix(this->_viewport, this->_znear, this->_zfar);
+    } else {
+      if constexpr (dim == 2) {
+        _proj_mat = build_proj_matrix(this->_viewport, this->_znear, this->_zfar, glm::pi<T>());
+      } else {
+        _proj_mat = build_proj_matrix(this->_viewport, this->_znear, this->_zfar, this->_fov);
+      }
+    }
+    _flags &= ~camera_flag::dirty_proj;
+  }
+
+  void force_update() &
+  noexcept(noexcept(force_update_proj()) && noexcept(force_update_view())){
+    force_update_view();
+    force_update_proj();
+  }
+
+  [[nodiscard]] camera_flag flags() const noexcept { return _flags; }
+
+private:
+  void _mark_dirty_view()
+  noexcept(noexcept(force_update_view())) {
+    _flags |= camera_flag::dirty_view;
+    if (+(_flags & camera_flag::auto_update)) {
+      force_update_view();
+    }
+  }
+
+  void _mark_dirty_proj() 
+  noexcept(noexcept(force_update_proj())) {
+    _flags |= camera_flag::dirty_proj;
+    if (+(_flags & camera_flag::auto_update)) {
+      force_update_proj();
+    }
+  }
+
+private:
+  mat<4, 4, T> _view_mat;
+  mat<4, 4, T> _proj_mat;
+  Transform _gen_view;
+  camera_flag _flags;
+
+private:
+  friend class impl::camera_base<T, basic_camera<T, Transform, dim, use_euler>, dim, use_euler>;
+};
+
 template<typename T, typename Transform = trs_transform<T, 2>, bool use_euler = true>
-using transform2d = basic_transform<T, Transform, 2, use_euler>;
+using transform2d =
+  basic_transform<T, Transform, 2, use_euler>;
 
 template<typename T, typename Transform = trs_transform<T, 3>, bool use_euler = false>
-using transform3d = basic_transform<T, Transform, 3, use_euler>;
+using transform3d =
+  basic_transform<T, Transform, 3, use_euler>;
+
+template<typename T, typename CamView = lookat_transform<T, 2>>
+using camera2d =
+  basic_camera<T, CamView, 2, true>;
+
+template<typename T, typename CamView = lookat_transform<T, 2>, bool use_euler = true>
+using camera3d =
+  basic_camera<T, CamView, 3, use_euler>;
 
 
 // template<std::size_t dim>
