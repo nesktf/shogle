@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../math/matrix.hpp"
+#include "../stl/optional.hpp"
 
 #ifdef SHOGLE_ENABLE_IMGUI
 #include <imgui.h>
@@ -158,6 +159,15 @@ enum class r_buffer_type : uint8 {
   shader_storage,
 };
 
+enum class r_buffer_flag : uint8 {
+  none              = 0,
+  dynamic_storage   = 1 << 0,
+  // read_mappable     = 1 << 1,
+  // write_mappable    = 1 << 2,
+  // rw_mappable       = (1<<1) | (1<<2),
+};
+NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_buffer_flag);
+
 enum class r_primitive : uint8 {
   triangles = 0,
   triangle_strip,
@@ -239,75 +249,100 @@ struct r_attrib_binding {
 
 struct r_attrib_descriptor {
   r_attrib_type type;
-  uint32        binding;
-  uint32        location;
-  size_t        offset;
+  uint32 binding;
+  uint32 location;
+  size_t offset;
+};
+
+struct r_buffer_data {
+  const void* data;
+  size_t size;
+  size_t offset;
 };
 
 struct r_buffer_descriptor {
   r_buffer_type type;
-  const void*   data;
-  size_t        size;
+  r_buffer_flag flags;
+  size_t size;
+
+  weak_ref<r_buffer_data> data;
+};
+
+struct r_image_data {
+  const void* texels;
+  r_texture_format format;
+
+  uvec3 extent;
+  uvec3 offset;
+
+  uint32 layer;
+  uint32 level;
 };
 
 struct r_texture_descriptor {
-  r_texture_type      type;
-  r_texture_format    format;
+  r_texture_type type;
+  r_texture_format format;
 
-  uvec3               extent;
-  uint32              layers;
-  uint32              levels;
-  bool                gen_mipmaps;
+  uvec3 extent;
+  uint32 layers;
+  uint32 levels;
 
-  r_texture_sampler   sampler;
-  r_texture_address   addressing;
+  span_view<r_image_data> images;
+  bool gen_mipmaps{false};
+  r_texture_sampler sampler;
+  r_texture_address addressing;
+};
+
+struct r_texture_data {
+  span_view<r_image_data> images;
+  bool gen_mipmaps{false};
+  optional<r_texture_sampler> sampler;
+  optional<r_texture_address> addressing;
 };
 
 struct r_shader_descriptor {
-  r_shader_type     type;
-  std::string_view  source;
+  r_shader_type type;
+  span_view<std::string_view> source;
 };
 
 struct r_pipeline_descriptor {
-  const r_shader_handle*      stages;
-  uint32                      stage_count;
+  span_view<r_shader_handle> stages;
 
-  r_attrib_binding            attrib_binding;
-  const r_attrib_descriptor*  attrib_desc;
-  uint32                      attrib_desc_count;
+  weak_ref<r_attrib_binding> attrib_binding;
+  span_view<r_attrib_descriptor> attrib_desc;
 
-  r_primitive                 primitive;
-  r_polygon_mode              poly_mode;
-  r_front_face                front_face;
-  r_cull_mode                 cull_mode;
+  r_primitive primitive;
+  r_polygon_mode poly_mode;
+  r_front_face front_face;
+  r_cull_mode cull_mode;
 
-  r_pipeline_test             tests;
-  r_compare_op                depth_compare_op;
-  r_compare_op                stencil_compare_op;
+  r_pipeline_test tests;
+  optional<r_compare_op> depth_compare_op;
+  optional<r_compare_op> stencil_compare_op;
 };
 
-struct r_framebuffer_att {
-  r_texture_handle  handle;
-  uint32            layer;
-  uint32            level;
+struct r_framebuffer_attachment {
+  r_texture_handle handle;
+  uint32 layer;
+  uint32 level;
 };
 
 struct r_framebuffer_descriptor {
-  uvec2                     extent;
-  color4                    clear_color;
+  uvec2 extent;
+  uvec4 viewport;
+  color4 clear_color;
 
-  r_test_buffer_flag        test_buffers;
-  r_test_buffer_format      test_buffer_format;
-  r_texture_format          color_buffer_format;
+  r_test_buffer_flag test_buffers;
+  optional<r_test_buffer_format> test_buffer_format;
 
-  const r_framebuffer_att*  attachments;
-  uint32                    attachment_count;
+  span_view<r_framebuffer_attachment> attachments;
+  optional<r_texture_format> color_buffer_format;
 };
 
 struct r_draw_opts {
   uint32 count;
-  uint32 offset;
-  uint32 instances;
+  uint32 offset{0};
+  uint32 instances{0};
 };
 
 template<typename T>

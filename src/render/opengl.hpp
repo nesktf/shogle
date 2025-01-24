@@ -77,6 +77,12 @@ public:
     GLDEBUGPROC dbg;
   };
 
+  struct fbo_attachment_t {
+    texture_t* tex;
+    uint32 layer;
+    uint32 level;
+  };
+
 public:
   gl_state(gl_context& ctx) noexcept;
 
@@ -84,7 +90,8 @@ public:
   void init(const init_data_t& data) noexcept;
 
 public:
-  [[nodiscard]] buffer_t create_buffer(r_buffer_type type, const void* data, size_t size);
+  [[nodiscard]] buffer_t create_buffer(r_buffer_type type, r_buffer_flag flags, size_t size,
+                                       weak_ref<r_buffer_data> data);
   void destroy_buffer(const buffer_t& buffer) noexcept;
   bool bind_buffer(GLuint id, GLenum type) noexcept;
   void update_buffer(const buffer_t& buffer, const void* data,
@@ -99,10 +106,11 @@ public:
 
   [[nodiscard]] program_t create_program(shader_t const* const* shaders, uint32 count,
                                          r_primitive primitive);
+  void query_program_uniforms(const program_t& program, r_context::uniform_map& unif);
   void destroy_program(const program_t& program) noexcept;
   bool bind_program(GLuint id) noexcept;
   void push_uniform(uint32 loc, r_attrib_type type, const void* data) noexcept;
-  r_uniform uniform_location(GLuint program, std::string_view name) noexcept;
+  // r_uniform uniform_location(GLuint program, std::string_view name) noexcept;
 
 
   [[nodiscard]] texture_t create_texture(r_texture_type type, r_texture_format format,
@@ -111,14 +119,15 @@ public:
   void destroy_texture(const texture_t& tex) noexcept;
   void bind_texture(GLuint tex, GLenum type, uint32 index) noexcept;
   void update_texture_data(const texture_t& tex, const void* data, r_texture_format format,
-                           uvec3 offset, uint32 layer, uint32 level, bool gen_mipmaps) noexcept;
+                           uvec3 offset, uint32 layer, uint32 level) noexcept;
   void update_texture_sampler(texture_t& tex, r_texture_sampler sampler) noexcept;
   void update_texture_addressing(texture_t& tex, r_texture_address addressing) noexcept;
+  void gen_texture_mipmaps(const texture_t& tex);
 
   [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, r_test_buffer_flag buffers,
                                                  r_texture_format format);
   [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, r_test_buffer_flag buffers,
-                                                 texture_t** attachments, const uint32* levels,
+                                                 const fbo_attachment_t* attachments,
                                                  uint32 att_count);
   void destroy_framebuffer(const framebuffer_t& fbo) noexcept;
   void bind_framebuffer(GLuint id, fbo_binding binding) noexcept;
@@ -126,6 +135,9 @@ public:
                            const uvec4& vp, const color4& col) noexcept;
 
   void bind_attributes(const r_attrib_descriptor* attrs, uint32 count, size_t stride) noexcept;
+
+public:
+  const auto& tex_limits() const { return _tex_limits; }
 
 public:
   [[nodiscard]] static GLenum buffer_type_cast(r_buffer_type type) noexcept;
@@ -142,7 +154,7 @@ public:
   [[nodiscard]] static GLbitfield clear_bit_cast(r_clear_flag flags) noexcept;
 
 private:
-  GLenum& buffer_pos(GLenum type);
+  GLenum& _buffer_pos(GLenum type);
 
 private:
   gl_context& _ctx;
@@ -215,29 +227,28 @@ public:
   gl_context(r_window& win, uint32 major, uint32 minor);
 
 public:
-  r_buffer_handle create_buffer(const r_context::buffer_create_t& data) override;
-  void update_buffer(r_buffer_handle buf, const r_context::buffer_update_t& data) override;
+  r_context::ctx_meta_t query_meta() const override;
+
+  r_buffer_handle create_buffer(const r_buffer_descriptor& desc) override;
+  void update_buffer(r_buffer_handle buf, const r_buffer_data& desc) override;
   void destroy_buffer(r_buffer_handle buff) override;
 
-  r_texture_handle create_texture(const r_context::tex_create_t& data) override;
-  void update_texture(r_texture_handle tex, const r_context::tex_update_t& data) override;
+  r_texture_handle create_texture(const r_texture_descriptor& desc) override;
+  void update_texture(r_texture_handle tex, const r_texture_data& desc) override;
   void destroy_texture(r_texture_handle tex) override;
 
-  r_shader_handle create_shader(const r_context::shader_create_t& data) override;
+  r_shader_handle create_shader(const r_shader_descriptor& desc) override;
   void destroy_shader(r_shader_handle shader) override;
 
-  r_pipeline_handle create_pipeline(const r_context::pipeline_create_t& data) override;
-  r_uniform pipeline_uniform(r_pipeline_handle pipeline, std::string_view name) override;
+  r_pipeline_handle create_pipeline(const r_pipeline_descriptor& desc,
+                                    weak_ref<r_context::vertex_attrib_t> attrib,
+                                    r_context::uniform_map& uniforms) override;
   void destroy_pipeline(r_pipeline_handle pipeline) override;
 
-  r_framebuffer_handle create_framebuffer(const r_context::fb_create_t& data) override;
+  r_framebuffer_handle create_framebuffer(const r_framebuffer_descriptor& desc) override;
   void destroy_framebuffer(r_framebuffer_handle fb) override;
 
-  void submit(r_framebuffer_handle fb, const r_context::draw_list_t& frame) override;
-
-public:
-  r_api api_type() const override { return r_api::opengl; }
-  // std::string_view name_str() const override { return _name_str; }
+  void submit(const r_context::command_map& cmds) override;
 
 private:
   GLAPIENTRY static void debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity,
@@ -247,7 +258,6 @@ private:
   gl_state _state;
   uint32 _major, _minor; // Core only
   GLADloadproc _proc_fun;
-  std::string _name_str;
   gl_state::vao_t _vao;
 
   res_container<gl_state::buffer_t, r_buffer_handle> _buffers;

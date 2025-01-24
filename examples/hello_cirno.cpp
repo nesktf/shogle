@@ -68,6 +68,8 @@ int main() {
     .width = 1280,
     .height = 720,
     .title = "test - hello_cirno - ShOGLE " SHOGLE_VERSION_STRING,
+    .x11_class_name = "test",
+    .x11_instance_name = "test",
   }};
 
   ntf::r_context ctx;
@@ -89,26 +91,40 @@ int main() {
   auto load_tex = [&](std::string_view path) {
     ntf::texture_data image{path};
     NTF_ASSERT(image);
+    ntf::r_image_data img_data {
+      .texels = image.data(),
+      .format = ntf::r_texture_format::rgb8n,
+      .extent = ntf::uvec3{image.dim(), 0},
+      .offset = ntf::uvec3{0, 0, 0},
+      .layer = 0,
+      .level = 0,
+    };
     auto tex = ctx.create_texture({
       .type = ntf::r_texture_type::texture2d,
       .format = ntf::r_texture_format::rgb8n,
       .extent = ntf::uvec3{image.dim(), 0},
       .layers = 1,
       .levels = 7,
-      .gen_mipmaps = false,
+      .images = {img_data},
+      .gen_mipmaps = true,
       .sampler = ntf::r_texture_sampler::nearest,
       .addressing = ntf::r_texture_address::repeat,
     });
     NTF_ASSERT(tex);
-    ctx.update(tex, image.data(), ntf::r_texture_format::rgb8n, ntf::uvec3{0, 0, 0}, 0, 0, true);
     image.unload();
     return tex;
   };
   auto load_buffer = [&](auto& data, ntf::r_buffer_type type) {
-    auto buff = ctx.create_buffer({
-      .type = type,
+    ntf::r_buffer_data bdata{
       .data = std::addressof(data),
       .size = sizeof(data),
+      .offset = 0,
+    };
+    auto buff = ctx.create_buffer({
+      .type = type,
+      .flags = ntf::r_buffer_flag::dynamic_storage,
+      .size = sizeof(data),
+      .data = &bdata,
     });
     NTF_ASSERT(buff);
     return buff;
@@ -127,11 +143,9 @@ int main() {
 
     ntf::r_shader_handle shads[] = {vert, frag};
     auto pipe = ctx.create_pipeline({
-      .stages = shads,
-      .stage_count = 2,
+      .stages = {&shads[0], 2},
       .attrib_binding = attr_bind,
-      .attrib_desc = attr_desc.data(),
-      .attrib_desc_count = static_cast<ntf::uint32>(attr_desc.size()),
+      .attrib_desc = {attr_desc},
       .primitive = ntf::r_primitive::triangles,
       .poly_mode = ntf::r_polygon_mode::fill,
       .front_face = ntf::r_front_face::clockwise,
@@ -157,34 +171,53 @@ int main() {
   NTF_ASSERT(fumo_diffuse_it != fumo_mesh.materials.end());
   const auto& fumo_diffuse = fumo_diffuse_it->texture;
 
+  ntf::r_buffer_data fumo_data[] {
+    {
+      .data = fumo_mesh.vertices.data(),
+      .size = fumo_mesh.vertices_size(),
+      .offset = 0,
+    },
+    {
+      .data = fumo_mesh.indices.data(),
+      .size = fumo_mesh.indices_size(),
+      .offset = 0,
+    }
+  };
   auto fumo_vbo = ctx.create_buffer({
     .type = ntf::r_buffer_type::vertex,
-    .data = fumo_mesh.vertices.data(),
+    .flags = ntf::r_buffer_flag::dynamic_storage,
     .size = fumo_mesh.vertices_size(),
+    .data = &fumo_data[0],
   });
   NTF_ASSERT(fumo_vbo);
 
   auto fumo_ebo = ctx.create_buffer({
     .type = ntf::r_buffer_type::index,
-    .data = fumo_mesh.indices.data(),
+    .flags = ntf::r_buffer_flag::dynamic_storage,
     .size = fumo_mesh.indices_size(),
+    .data = &fumo_data[1],
   });
   NTF_ASSERT(fumo_ebo);
-
+  ntf::r_image_data fumo_img_data {
+    .texels = fumo_diffuse.data(),
+    .format = ntf::r_texture_format::rgb8n,
+    .extent = ntf::uvec3{fumo_diffuse.dim(), 0},
+    .offset = ntf::uvec3{0, 0, 0},
+    .layer = 0,
+    .level = 0,
+  };
   auto fumo_tex = ctx.create_texture({
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8n,
     .extent = ntf::uvec3{fumo_diffuse.dim(), 0},
     .layers = 1,
     .levels = 7,
-    .gen_mipmaps = false,
+    .images = {fumo_img_data},
+    .gen_mipmaps = true,
     .sampler = ntf::r_texture_sampler::linear,
     .addressing = ntf::r_texture_address::repeat,
   });
   NTF_ASSERT(fumo_tex);
-  ctx.update(
-    fumo_tex, fumo_diffuse.data(), ntf::r_texture_format::rgb8n, ntf::uvec3{0, 0, 0}, 0, 0, true
-  );
 
   auto cube_vbo = load_buffer(ntf::pnt_unindexed_cube_vert, ntf::r_buffer_type::vertex);
   auto quad_vbo = load_buffer(ntf::pnt_indexed_quad_vert, ntf::r_buffer_type::vertex);
@@ -202,23 +235,27 @@ int main() {
     .extent = ntf::uvec3{1280, 720, 0},
     .layers = 1,
     .levels = 1,
+    .images = {},
     .gen_mipmaps = false,
     .sampler = ntf::r_texture_sampler::nearest,
     .addressing = ntf::r_texture_address::repeat,
   });
   NTF_ASSERT(fb_tex);
-  ntf::r_framebuffer_att fb_att[] = {
-    {fb_tex, 0, 0},
+  ntf::r_framebuffer_attachment fb_att {
+    .handle = fb_tex,
+    .layer = 0,
+    .level = 0,
   };
   auto fbo = ctx.create_framebuffer({
     .extent = ntf::uvec2{1280, 720},
+    .viewport = ntf::uvec4{0, 0, 1280, 720},
+    .clear_color = ntf::color4{.3f, .3f, .3f, 1.f},
     .test_buffers = ntf::r_test_buffer_flag::both,
     .test_buffer_format = ntf::r_test_buffer_format::depth24u_stencil8u,
-    .attachments = fb_att,
-    .attachment_count = 1,
+    .attachments = {fb_att},
+    .color_buffer_format = {},
   });
   NTF_ASSERT(fbo);
-  ctx.framebuffer_viewport(fbo, ntf::uvec4{0, 0, 1280, 720});
 
   auto u_col_model = ctx.query(pipe_col, ntf::r_query_uniform, "model");
   auto u_col_proj = ctx.query(pipe_col, ntf::r_query_uniform, "proj");

@@ -68,7 +68,7 @@ void r_context::init(r_window& win, const r_context_params& params) noexcept {
 
   _frame_arena.init(1ull<<29); // 512MiB
   _win = &win;
-  _ctx_api = api;
+  _ctx_meta = _ctx->query_meta();
   _d_list = def_list->second;
   def_list->second.viewport = uvec4{0, 0, _win->fb_size()};
 }
@@ -80,7 +80,7 @@ r_context::~r_context() noexcept {
   _ctx.reset();
 
 #if SHOGLE_ENABLE_IMGUI
-  switch (_ctx_api) {
+  switch (render_api()) {
     case r_api::opengl: {
       ImGui_ImplOpenGL3_Shutdown();
       break;
@@ -108,7 +108,7 @@ void r_context::start_frame() noexcept {
 #if SHOGLE_USE_GLFW
   ImGui_ImplGlfw_NewFrame();
 #endif
-  switch (_ctx_api) {
+  switch (render_api()) {
     case r_api::opengl: ImGui_ImplOpenGL3_NewFrame(); break;
     // case r_api::vulkan: ImGui_ImplVulkan_NewFrame(); break;
     default: break;
@@ -118,11 +118,9 @@ void r_context::start_frame() noexcept {
 }
 
 void r_context::end_frame() noexcept {
-  for (auto& [fbo, list] : _draw_lists) {
-    _ctx->submit(fbo, list);
-  }
+  _ctx->submit(_draw_lists);
   ImGui::Render();
-  if (_ctx_api == r_api::opengl) {
+  if (render_api() == r_api::opengl) {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     _win->swap_buffers();
   }
@@ -133,19 +131,40 @@ void r_context::device_wait() noexcept {
 }
 
 r_buffer_handle r_context::create_buffer(const r_buffer_descriptor& desc) {
-  auto validate_descriptor = [&](buffer_create_t& data) -> bool {
-    data.size = desc.size;
-    data.type = desc.type;
-    data.data = desc.data;
+  auto validate_descriptor = [&]() -> bool {
+    if (desc.data) {
+      if (!desc.data->data) {
+        SHOGLE_LOG(error, "[ntf::r_context::create_buffer] Invalid buffer data");
+        return false;
+      }
+
+      if (desc.data->size+desc.data->offset > desc.size) {
+        SHOGLE_LOG(error, "[ntf::r_context::create_buffer] Invalid buffer data offset");
+        return false;
+      }
+    } else if (!+(desc.flags & r_buffer_flag::dynamic_storage)) {
+      SHOGLE_LOG(error,
+                 "[ntf::r_context::create_buffer] Attempted to create non dynamic "
+                 "buffer with no data!");
+      return false;
+    }
+
     return true;
   };
 
-  buffer_create_t create_data;
-  if (!validate_descriptor(create_data)) {
-    return r_buffer_handle{};
+  r_buffer_handle handle{};
+  if (!validate_descriptor()) {
+    SHOGLE_LOG(warning, "[ntf::r_context::create_buffer] Ignoring invalid descriptor");
+    return handle;
   }
 
-  auto handle = _ctx->create_buffer(create_data);
+  try {
+    handle = _ctx->create_buffer(desc);
+  } catch (const std::exception& ex) {
+    SHOGLE_LOG(error, "[ntf::r_context::create_buffer] Failed to create buffer: \"{}\"",
+               ex.what());
+    throw;
+  }
   NTF_ASSERT(handle);
   NTF_ASSERT(_buffers.find(handle) == _buffers.end());
 
@@ -153,8 +172,9 @@ r_buffer_handle r_context::create_buffer(const r_buffer_descriptor& desc) {
   NTF_ASSERT(emplaced);
 
   auto& stored = it->second;
-  stored.type = create_data.type;
-  stored.size = create_data.size;
+  stored.size = desc.size;
+  stored.type = desc.type;
+  stored.flags = desc.flags;
   return handle;
 }
 
@@ -167,18 +187,42 @@ void r_context::destroy(r_buffer_handle buff) {
   _buffers.erase(it);
 }
 
-void r_context::update(r_buffer_handle buff,
-                       const void* data, size_t size, size_t offset) {
+void r_context::update(r_buffer_handle buff, const r_buffer_data& desc) {
   NTF_ASSERT(buff);
   NTF_ASSERT(_buffers.find(buff) != _buffers.end());
+  auto& buffer = _buffers.at(buff);
 
-  NTF_ASSERT(size+offset <= _buffers.at(buff).size);
-  NTF_ASSERT(data, "Invalid buffer data");
-  _ctx->update_buffer(buff, {
-    .data = data,
-    .size = size,
-    .offset = offset,
-  });
+  auto validate_descriptor = [&]() -> bool {
+    if (!+(buffer.flags & r_buffer_flag::dynamic_storage)) {
+      SHOGLE_LOG(error, "[ntf::r_context::update] Can't update non dynamic buffer");
+      return false;
+    }
+
+    if (!desc.data) {
+      SHOGLE_LOG(error, "[ntf::r_context::update] Invalid buffer data");
+      return false;
+    }
+
+    if (desc.size+desc.offset > buffer.size) {
+      SHOGLE_LOG(error, "[ntf::r_context::update] Invalid buffer data offset");
+      return false;
+    }
+
+    return true;
+  };
+
+  if (!validate_descriptor()) {
+    SHOGLE_LOG(warning, "[ntf::r_context::update] Ignoring invalid buffer descriptor");
+    return;
+  }
+
+  try {
+    _ctx->update_buffer(buff, desc);
+  } catch (const std::exception& ex) {
+    SHOGLE_LOG(error, "[ntf::r_context::update] Failed to update buffer with id {}: \"{}\"",
+               buff.value(), ex.what());
+    throw;
+  }
 }
 
 r_buffer_type r_context::query(r_buffer_handle buff, r_query_type_t) const {
@@ -205,83 +249,115 @@ static const char* textypetostr(r_texture_type type) {
 }
 
 r_texture_handle r_context::create_texture(const r_texture_descriptor& desc) {
-  auto validate_descriptor = [&](tex_create_t& data) -> bool {
-    data.type = desc.type;
-    data.format = desc.format;
-    // data.texels = desc.texels;
-
-    // TODO: Get max texture size from the platform context
+  auto validate_descriptor = [&]() -> bool {
+    // TODO: Check max texture size
     // data.extent = glm::clamp(desc.extent, glm::uvec3{1, 1, 1}, glm::uvec3{4096, 4096, 4096});
-    data.extent = desc.extent;
-    if (desc.type == r_texture_type::cubemap && data.extent.x != data.extent.y) {
-      SHOGLE_LOG(warning, "[r_context::create_texture] "
-                 "Ignoring non square cubemap size, clamping to greater dim");
-      data.extent.x = glm::max(data.extent.x, data.extent.y);
-      data.extent.y = data.extent.x;
+
+    if (desc.layers > _ctx_meta.tex_max_layers) {
+      SHOGLE_LOG(error, "[ntf::r_context::create_texture] Texture layers too high ({} > {})",
+                 desc.layers, _ctx_meta.tex_max_layers);
+      return false;
     }
 
-    // TODO: Check max layer count
-    data.layers = desc.layers;
+    if (desc.type == r_texture_type::cubemap && desc.extent.x != desc.extent.y) {
+      SHOGLE_LOG(error, "[ntf::r_context::create_texture] Invalid cubemap size");
+      return false;
+    }
+
     if (desc.type == r_texture_type::texture3d && desc.layers > 1) {
-      SHOGLE_LOG(warning, "[r_context::create_texture] "
-                 "Ignoring multiple layers for texture3d");   
-      data.layers = 1;
+      SHOGLE_LOG(error, "[ntf::r_context::create_texture] Invalid layers for texture3d");   
+      return false;
     }
-    if (desc.type == r_texture_type::cubemap && desc.layers) {
-      SHOGLE_LOG(warning, "[r_context::create_texture] "
-                 "Ignoring invalid layers for cubemap");
-      data.layers = 6;
+    if (desc.type == r_texture_type::cubemap && desc.layers != 6) {
+      SHOGLE_LOG(error, "[ntf::r_context::create_texture] Invalid layers for cubemap");
+      return false;
     }
 
-    // data.gen_mipmaps = desc.gen_mipmaps;
-    // if (desc.gen_mipmaps && desc.levels == 1) {
-    //   SHOGLE_LOG(warning, "[r_context::create_texture] "
-    //              "Ignoring mipmaps generation for texture with level 1");
-    //   data.gen_mipmaps = false;
-    // }
-    // if (desc.gen_mipmaps && !data.texels) {
-    //   SHOGLE_LOG(warning, "[r_context::create_texture] "
-    //              "Ignoring mipmaps generation for texture with no texel data");
-    //   data.gen_mipmaps = false;
-    // }
-
-    data.levels = glm::clamp(desc.levels, uint32{0}, uint32{7});
-    if (desc.levels > 7) {
-      SHOGLE_LOG(warning, "[r_context::create_texture] "
-                 "Ignoring texture level greater than 7, clamping to 7");
-    }
-    if (desc.levels == 0) {
-      SHOGLE_LOG(warning, "[r_context::create_texture] "
-                 "Ignoring empty texture level, clamping to 1");
+    if (desc.levels > 7 || desc.levels == 0) {
+      SHOGLE_LOG(error, "[ntf::r_context::create_texture] Invalid texture level \"{}\"",
+                 desc.levels);
+      return false;
     }
 
-    data.sampler = desc.sampler;
-    data.addressing = desc.addressing;
+    if (!desc.images) {
+      if (desc.gen_mipmaps) {
+        SHOGLE_LOG(warning, "[ntf::r_context::create_texture] "
+                   "Ignoring mipmap generation for texture with no image data");
+      }
+      return true;
+    }
+
+    for (uint32 i = 0; i < desc.images.size(); ++i) {
+      const auto& img = desc.images[i];
+      const uvec3 upload_extent = img.offset+img.extent;
+
+      if (!img.texels ||
+          img.layer > desc.layers ||
+          img.level > desc.levels) {
+        SHOGLE_LOG(error, "[ntf::r_context::create_texture] Invalid image at idx {}", i);
+        return false;
+      }
+
+      if (desc.type == r_texture_type::texture1d) {
+        if (upload_extent.x > desc.extent.x) {
+          SHOGLE_LOG(error,
+                     "[ntf::r_context::create_texture] Invalid image extent at idx {}", i);
+          return false;
+        }
+      } else if (desc.type == r_texture_type::texture2d || 
+                 desc.type == r_texture_type::cubemap) {
+        if (upload_extent.x > desc.extent.x ||
+            upload_extent.y > desc.extent.y) {
+          SHOGLE_LOG(error,
+                     "[ntf::r_context::create_texture] Invalid image extent at idx {}", i);
+          return false;
+        }
+      } else {
+        if (upload_extent.x > desc.extent.x ||
+            upload_extent.y > desc.extent.y ||
+            upload_extent.z > desc.extent.z) {
+          SHOGLE_LOG(error,
+                     "[ntf::r_context::create_texture] Invalid image extent at idx {}", i);
+          return false;
+        }
+      }
+    }
+
+    if (desc.gen_mipmaps && desc.levels == 1) {
+      SHOGLE_LOG(warning, "[ntf::r_context::create_texture] "
+                 "Ignoring mipmap generation for texture with level 1");
+    }
 
     return true;
   };
 
-  tex_create_t create_data;
-  if (!validate_descriptor(create_data)) {
-    return r_texture_handle{};
+  r_texture_handle handle{};
+  if (!validate_descriptor()) {
+    SHOGLE_LOG(warning, "[ntf::r_context::create_texture] Ignoring invalid descriptor");
+    return handle;
   }
 
-  auto handle = _ctx->create_texture(create_data);
+  try {
+    handle = _ctx->create_texture(desc);
+  } catch (const std::exception& ex) {
+    SHOGLE_LOG(error, "[ntf::r_context::create_texture] Failed to create texture: \"{}\"",
+               ex.what());
+    throw;
+  }
   NTF_ASSERT(handle);
   NTF_ASSERT(_textures.find(handle) == _textures.end());
-
   auto [it, emplaced] = _textures.try_emplace(handle);
   NTF_ASSERT(emplaced);
 
   auto& stored = it->second;
   stored.refcount.store(1);
-  stored.type = create_data.type;
-  stored.format = create_data.format;
-  stored.extent = create_data.extent;
-  stored.layers = create_data.layers;
-  stored.levels = create_data.levels;
-  stored.addressing = create_data.addressing;
-  stored.sampler = create_data.sampler;
+  stored.type = desc.type;
+  stored.format = desc.format;
+  stored.extent = desc.extent;
+  stored.levels = desc.levels;
+  stored.layers = desc.layers;
+  stored.addressing = desc.addressing;
+  stored.sampler = desc.sampler;
 
   SHOGLE_LOG(verbose,
              "[ntf::r_context] TEXTURE CREATE - ID {} - EXT {}x{}x{} - TYPE {}",
@@ -309,80 +385,80 @@ void r_context::destroy(r_texture_handle tex) {
   _textures.erase(it);
 }
 
-void r_context::update(r_texture_handle tex, r_texture_sampler sampler) {
+void r_context::update(r_texture_handle tex, const r_texture_data& desc) {
+  NTF_ASSERT(tex);
   NTF_ASSERT(tex);
   NTF_ASSERT(_textures.find(tex) != _textures.end());
   auto& texture = _textures.at(tex);
-  if (texture.sampler == sampler) {
-    return;
-  } 
-  _ctx->update_texture(tex, {
-    .sampler = sampler,
-  });
-  texture.sampler = sampler;
-}
 
-void r_context::update(r_texture_handle tex, r_texture_address addressing) {
-  NTF_ASSERT(tex);
-  NTF_ASSERT(_textures.find(tex) != _textures.end());
-  auto& texture = _textures.at(tex);
-  if (texture.addressing == addressing) {
-    return;
-  }
-  _ctx->update_texture(tex, {
-    .addressing = addressing,
-  });
-  texture.addressing = addressing;
-}
+  auto validate_descriptor = [&]() -> bool {  
+    const bool do_address = desc.addressing && *desc.addressing != texture.addressing;
+    const bool do_sampler = desc.sampler && *desc.sampler != texture.sampler;
 
-void r_context::update(r_texture_handle tex,
-                       const void* texels, r_texture_format format, uvec3 offset,
-                       uint32 layer, uint32 level, bool genmips) {
-  NTF_ASSERT(tex);
-  NTF_ASSERT(_textures.find(tex) != _textures.end());
+    if (!desc.images) {
+      return do_sampler || do_address || desc.gen_mipmaps;
+    }
 
-  auto& texture = _textures.at(tex);
-  NTF_ASSERT(texels, "Invalid texture data");
-  NTF_ASSERT(level <= texture.levels, "Invalid texture level");
-  NTF_ASSERT(layer <= texture.layers, "Invalid texture layer");
-  NTF_ASSERT([&]() {
-    switch (texture.type) {
-      case r_texture_type::texture1d: {
-        return offset.x < texture.extent.x;
-        break;
+    for (uint32 i = 0; i < desc.images.size(); ++i) {
+      const auto& img = desc.images[i];
+      const uvec3 upload_extent = img.offset+img.extent;
+
+      if (!img.texels ||
+          img.layer > texture.layers ||
+          img.level > texture.levels) {
+        SHOGLE_LOG(error, "[ntf::r_context::update] Invalid image at idx {}", i);
+        return false;
       }
-      case r_texture_type::cubemap: [[fallthrough]];
-      case r_texture_type::texture2d: {
-        return
-          offset.x < texture.extent.x &&
-          offset.y < texture.extent.y;
-        break;
-      }
-      case r_texture_type::texture3d: {
-        return 
-          offset.x < texture.extent.x &&
-          offset.y < texture.extent.y &&
-          offset.z < texture.extent.z;
-        break;
+
+      if (texture.type == r_texture_type::texture1d) {
+        if (upload_extent.x > texture.extent.x) {
+          SHOGLE_LOG(error, "[ntf::r_context::update] Invalid image extent at idx {}", i);
+          return false;
+        }
+      } else if (texture.type == r_texture_type::texture2d || 
+                 texture.type == r_texture_type::cubemap) {
+        if (upload_extent.x > texture.extent.x ||
+            upload_extent.y > texture.extent.y) {
+          SHOGLE_LOG(error, "[ntf::r_context::update] Invalid image extent at idx {}", i);
+          return false;
+        }
+      } else {
+        if (upload_extent.x > texture.extent.x ||
+            upload_extent.y > texture.extent.y ||
+            upload_extent.z > texture.extent.z) {
+          SHOGLE_LOG(error, "[ntf::r_context::update] Invalid image extent at idx {}", i);
+          return false;
+        }
       }
     }
-    return true;
-  }(), "Invalid texture offset");
 
-  _ctx->update_texture(tex, {
-    .format = format,
-    .texels = texels,
-    .offset = offset,
-    .layer = layer,
-    .level = level,
-    .genmips = texture.levels > 1 ? genmips : false,
-  });
-  auto& data = _textures.find(tex)->second;
+    return true;
+  };
+
+  if (!validate_descriptor()) {
+    SHOGLE_LOG(warning, "[ntf::r_context::update] Ignoring invalid texture descriptor");
+    return;
+  }
+
+  try {
+    _ctx->update_texture(tex, desc);
+  } catch (const std::exception& ex) {
+    SHOGLE_LOG(error, "[ntf::r_context::update] Failed to update texture with id {}: \"{}\"",
+               tex.value(), ex.what());
+    return;
+  }
+
+  if (desc.addressing) {
+    texture.addressing = *desc.addressing;
+  }
+  if (desc.sampler) {
+    texture.sampler = *desc.sampler;
+  }
   SHOGLE_LOG(verbose,
              "[ntf::r_context] TEXTURE UPLOAD - ID {} - EXT {}x{}x{} - TYPE {}",
              tex.value(),
-             data.extent.x, data.extent.y, data.extent.z,
-             textypetostr(data.type));
+             texture.extent.x, texture.extent.y, texture.extent.z,
+             textypetostr(texture.type));
 }
 
 r_texture_type r_context::query(r_texture_handle tex, r_query_type_t) const {
@@ -428,47 +504,84 @@ uint32 r_context::query(r_texture_handle tex, r_query_levels_t) const {
 }
 
 r_framebuffer_handle r_context::create_framebuffer(const r_framebuffer_descriptor& desc) {
-  auto validate_descriptor = [&](fb_create_t& data) -> bool {
-    data.extent.x = desc.extent.x;
-    data.extent.y = desc.extent.y;
+  auto validate_descriptor = [&]() -> bool {
+    if (+(desc.test_buffers & r_test_buffer_flag::none) && !desc.test_buffer_format) {
+      SHOGLE_LOG(error, "[ntf::r_context::create_framebuffer] Invalid test buffer format");
+      return false;
+    }
+    if (!desc.attachments && !desc.color_buffer_format) {
+      SHOGLE_LOG(error, "[ntf::r_context::create_framebuffer] Invalid color buffer format");
+      return false;
+    }
 
-    data.attachments = desc.attachments;
-    data.attachment_count = desc.attachment_count;
-    data.buffer_format = desc.test_buffer_format;
-    data.buffers = desc.test_buffers;
-    data.color_buffer_format = desc.color_buffer_format;
-    data.clear_color = desc.clear_color;
+    for (uint32 i = 0; i < desc.attachments.size(); ++i) {
+      const auto& att = desc.attachments[i];
+      if (!att.handle || (_textures.find(att.handle) == _textures.end())) {
+        SHOGLE_LOG(error, "[ntf::r_context::create_framebuffer] Invalid texture handle at idx {}",
+                   i);
+        return false;
+      }
+      const auto& tex = _textures.at(att.handle);
+      if (att.layer > tex.layers) {
+        SHOGLE_LOG(error, "[ntf::r_context::create_framebuffer] Invalid texture layer at idx {}",
+                   i);
+        return false;
+      }
+      if (att.level > tex.levels) {
+        SHOGLE_LOG(error, "[ntf::r_context::create_framebuffer] Invalid texture level at idx {}",
+                   i);
+        return false;
+      }
+      if (tex.extent.x != desc.extent.x || tex.extent.y != desc.extent.y) {
+        SHOGLE_LOG(error, "[ntf::r_context::create_framebuffer] Invalid texture extent at idx {}",
+                   i);
+        return false;
+      }
+    }
+
+    if (desc.viewport.x+desc.viewport.z != desc.extent.x ||
+        desc.viewport.y+desc.viewport.w != desc.extent.y) {
+      SHOGLE_LOG(warning, "[ntf::r_context::create_framebuffer] Mismatching viewport size");
+    }
 
     return true;
   };
 
-  fb_create_t create_data;
-  if (!validate_descriptor(create_data)) {
-    return r_framebuffer_handle{};
+  r_framebuffer_handle handle{};
+  if (!validate_descriptor()) {
+    SHOGLE_LOG(warning, "[ntf::r_context::create_framebuffer] Ignoring invalid descriptor");
+    return handle;
   }
 
-  auto handle = _ctx->create_framebuffer(create_data);
+  try {
+    handle = _ctx->create_framebuffer(desc);
+  } catch (const std::exception& ex) {
+    SHOGLE_LOG(error, "[ntf::r_context::create_framebuffer] Failed to create framebuffer: \"{}\"",
+               ex.what());
+    throw;
+  }
   NTF_ASSERT(handle);
   NTF_ASSERT(_framebuffers.find(handle) == _framebuffers.end());
 
   auto [it, emplaced] = _framebuffers.try_emplace(handle);
   NTF_ASSERT(emplaced);
 
-  auto [_, cmd_emplaced] = _draw_lists.try_emplace(handle);
+  auto [list_it, cmd_emplaced] = _draw_lists.try_emplace(handle);
   NTF_ASSERT(cmd_emplaced);
 
   auto& stored = it->second;
-  stored.attachments.reserve(create_data.attachment_count);
-  for (uint32 i = 0; i < create_data.attachment_count; ++i) {
-    stored.attachments.push_back(create_data.attachments[i]);
-    auto& tex = _textures.at(create_data.attachments[i].handle);
+  stored.attachments.reserve(desc.attachments.size());
+  for (uint32 i = 0; i < desc.attachments.size(); ++i) {
+    stored.attachments.push_back(desc.attachments[i]);
+    auto& tex = _textures.at(desc.attachments[i].handle);
     tex.refcount++;
   }
-  stored.viewport.x = 0;
-  stored.viewport.y = 0;
-  stored.viewport.z = create_data.extent.x;
-  stored.viewport.w = create_data.extent.y;
-  stored.color = create_data.clear_color;
+  list_it->second.viewport = desc.viewport;
+  list_it->second.color = desc.clear_color;
+  stored.extent = desc.extent;
+  stored.buffers = desc.test_buffers;
+  stored.buffer_format = desc.test_buffer_format;
+  stored.color_buffer_format = desc.color_buffer_format;
 
   return handle;
 }
@@ -485,11 +598,7 @@ void r_context::destroy(r_framebuffer_handle fbo) {
 }
 
 r_shader_handle r_context::create_shader(const r_shader_descriptor& desc) {
-  shader_create_t create;
-  create.type = desc.type;
-  create.src = desc.source;
-
-  auto handle = _ctx->create_shader(create);
+  auto handle = _ctx->create_shader(desc);
   NTF_ASSERT(handle);
   NTF_ASSERT(_shaders.find(handle) == _shaders.end());
 
@@ -517,37 +626,32 @@ r_shader_type r_context::query(r_shader_handle shader, r_query_type_t) const {
 }
 
 r_pipeline_handle r_context::create_pipeline(const r_pipeline_descriptor& desc) {
-  auto validate_descriptor = [&](pipeline_create_t& data) -> bool {
-    data.shaders = desc.stages;
-    data.shader_count = desc.stage_count;
-
-    data.primitive = desc.primitive;
-    data.poly_mode = desc.poly_mode;
-    data.front_face = desc.front_face;
-    data.cull_mode = desc.cull_mode;
-    data.tests = desc.tests;
-    data.depth_ops = desc.depth_compare_op;
-    data.stencil_ops = desc.stencil_compare_op;
+  auto validate_descriptor = [&]() -> bool {
     return true;
   };
 
-  pipeline_create_t create_data;
-  if (!validate_descriptor(create_data)) {
-    return r_pipeline_handle{};
+  r_pipeline_handle handle{};
+  if (!validate_descriptor()) {
+    return handle;
   }
 
   auto layout = std::make_unique<vertex_attrib_t>();
-  layout->binding = desc.attrib_binding.binding;
-  layout->stride = desc.attrib_binding.stride;
-  layout->descriptors.resize(desc.attrib_desc_count);
+  layout->binding = desc.attrib_binding->binding;
+  layout->stride = desc.attrib_binding->stride;
+  layout->descriptors.resize(desc.attrib_desc.size());
   std::memcpy(
-    layout->descriptors.data(), desc.attrib_desc,
-    desc.attrib_desc_count*sizeof(r_attrib_descriptor)
+    layout->descriptors.data(), desc.attrib_desc.data(),
+    desc.attrib_desc.size()*sizeof(r_attrib_descriptor)
   );
+  uniform_map unif;
 
-  create_data.layout = layout.get();
-
-  auto handle = _ctx->create_pipeline(create_data);
+  try {
+    handle = _ctx->create_pipeline(desc, layout.get(), unif);
+  } catch (const std::exception& ex) {
+    SHOGLE_LOG(error, "[ntf::r_context::create_pipeline] Failed to create pipeline: \"{}\"",
+               ex.what());
+    throw;
+  }
   NTF_ASSERT(handle);
   NTF_ASSERT(_pipelines.find(handle) == _pipelines.end());
 
@@ -557,13 +661,14 @@ r_pipeline_handle r_context::create_pipeline(const r_pipeline_descriptor& desc) 
   auto& stored = it->second;
   // stored.stages = create_data.
   stored.layout = std::move(layout);
-  stored.primitive = create_data.primitive;
-  stored.poly_mode = create_data.poly_mode;
-  stored.front_face = create_data.front_face;
-  stored.cull_mode = create_data.cull_mode;
-  stored.tests = create_data.tests;
-  stored.depth_ops = create_data.depth_ops;
-  stored.stencil_ops = create_data.stencil_ops;
+  stored.uniforms = std::move(unif);
+  stored.primitive = desc.primitive;
+  stored.poly_mode = desc.poly_mode;
+  stored.front_face = desc.front_face;
+  stored.cull_mode = desc.cull_mode;
+  stored.tests = desc.tests;
+  stored.depth_ops = desc.depth_compare_op;
+  stored.stencil_ops = desc.stencil_compare_op;
 
   return handle;
 }
@@ -586,7 +691,11 @@ r_uniform r_context::query(r_pipeline_handle pipeline, r_query_uniform_t,
                            std::string_view name) const {
   NTF_ASSERT(pipeline);
   NTF_ASSERT(_pipelines.find(pipeline) != _pipelines.end());
-  return _ctx->pipeline_uniform(pipeline, name);
+  const auto& pipe = _pipelines.at(pipeline);
+  if (pipe.uniforms.find(name.data()) == pipe.uniforms.end()) {
+    return r_uniform{};
+  }
+  return pipe.uniforms.at(name.data());
 }
 
 } // namespace ntf

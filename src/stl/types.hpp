@@ -110,6 +110,58 @@ private:
   T* _ptr;
 };
 
+template<typename T>
+class span_view {
+public:
+  using const_iterator = const T*;
+
+public:
+  span_view() noexcept :
+    _data{nullptr}, _size{0} {}
+
+  span_view(const T* arr, size_t size) noexcept :
+    _data{arr}, _size{size} {}
+
+  span_view(const T& obj) noexcept :
+    _data{std::addressof(obj)}, _size{1} {}
+
+  span_view(const T* obj) noexcept :
+    _data{obj}, _size{1} {}
+
+  template<size_t N>
+  span_view(const T(&arr)[N]) noexcept :
+    _data{std::addressof(arr)}, _size{N} {}
+
+  template<typename Alloc>
+  span_view(const std::vector<T, Alloc>& vec) noexcept :
+    _data{vec.data()}, _size{vec.size()} {}
+
+  template<size_t N>
+  span_view(std::array<T, N>& arr) noexcept :
+    _data{arr.data()}, _size{N} {}
+
+public:
+  const T& operator[](size_t idx) const {
+    NTF_ASSERT(idx <= _size);
+    return _data[idx];
+  }
+
+  const T* data() const noexcept { return _data; }
+  [[nodiscard]] size_t size() const noexcept { return _size; }
+
+  bool has_data() const { return _data != nullptr && _size > 0; }
+  explicit operator bool() const { return has_data(); }
+
+  const_iterator begin() const { return _data; }
+  const_iterator cbegin() const { return _data; }
+  const_iterator end() const { return _data+_size;}
+  const_iterator cend() const { return _data+_size; }
+
+private:
+  const T* _data;
+  size_t _size;
+};
+
 template<typename... Fs>
 struct visitor_overload : Fs... { using Fs::operator()...; };
 
