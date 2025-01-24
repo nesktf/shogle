@@ -220,7 +220,8 @@ void r_context::update(r_buffer_handle buff, const r_buffer_data& desc) {
     _ctx->update_buffer(buff, desc);
   } catch (const std::exception& ex) {
     SHOGLE_LOG(error, "[ntf::r_context::update] Failed to update buffer with id {}: \"{}\"",
-               buff.value(), ex.what());
+               static_cast<r_handle_value>(buff),
+               ex.what());
     throw;
   }
 }
@@ -361,7 +362,7 @@ r_texture_handle r_context::create_texture(const r_texture_descriptor& desc) {
 
   SHOGLE_LOG(verbose,
              "[ntf::r_context] TEXTURE CREATE - ID {} - EXT {}x{}x{} - TYPE {}",
-             handle.value(),
+             static_cast<r_handle_value>(handle),
              stored.extent.x, stored.extent.y, stored.extent.z,
              textypetostr(stored.type));
 
@@ -379,7 +380,7 @@ void r_context::destroy(r_texture_handle tex) {
   auto& data = it->second;
   SHOGLE_LOG(verbose,
              "[ntf::r_context] TEXTURE DESTROY - ID {} - EXT {}x{}x{} - TYPE {}",
-             tex.value(),
+             static_cast<r_handle_value>(tex),
              data.extent.x, data.extent.y, data.extent.z,
              textypetostr(data.type));
   _textures.erase(it);
@@ -444,7 +445,8 @@ void r_context::update(r_texture_handle tex, const r_texture_data& desc) {
     _ctx->update_texture(tex, desc);
   } catch (const std::exception& ex) {
     SHOGLE_LOG(error, "[ntf::r_context::update] Failed to update texture with id {}: \"{}\"",
-               tex.value(), ex.what());
+               static_cast<r_handle_value>(tex),
+               ex.what());
     return;
   }
 
@@ -456,7 +458,7 @@ void r_context::update(r_texture_handle tex, const r_texture_data& desc) {
   }
   SHOGLE_LOG(verbose,
              "[ntf::r_context] TEXTURE UPLOAD - ID {} - EXT {}x{}x{} - TYPE {}",
-             tex.value(),
+             static_cast<r_handle_value>(tex),
              texture.extent.x, texture.extent.y, texture.extent.z,
              textypetostr(texture.type));
 }

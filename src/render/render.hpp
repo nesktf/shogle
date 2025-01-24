@@ -14,10 +14,12 @@ public: \
   constexpr _name() : _handle{r_handle_tombstone} {} \
   constexpr explicit _name(r_handle_value handle) : _handle{handle} {} \
 public: \
-  constexpr r_handle_value value() const { return _handle; } \
-  constexpr operator r_handle_value() const { return value(); } \
-  constexpr bool valid() const { return _handle != r_handle_tombstone; } \
-  constexpr explicit operator bool() const { return valid(); } \
+  constexpr explicit operator r_handle_value() const noexcept { return _handle; } \
+  constexpr bool valid() const noexcept { return _handle != r_handle_tombstone; } \
+  constexpr explicit operator bool() const noexcept { return valid(); } \
+  constexpr bool operator==(const _name& rhs) const noexcept { \
+    return _handle == static_cast<r_handle_value>(rhs); \
+  } \
 private: \
   r_handle_value _handle; \
 }; \
@@ -26,7 +28,7 @@ namespace std { \
 template<> \
 struct hash<::ntf::_name> { \
   std::size_t operator()(const ::ntf::_name& h) const noexcept { \
-    return hash<::ntf::r_handle_value>{}(h.value()); \
+    return hash<::ntf::r_handle_value>{}(static_cast<::ntf::r_handle_value>(h)); \
   } \
 }; \
 }

@@ -1395,7 +1395,7 @@ void gl_context::submit(const r_context::command_map& cmds) {
       }
 
       for (const auto& unif : cmd.uniforms) {
-        _state.push_uniform(unif->location, unif->type, unif->data);
+        _state.push_uniform(static_cast<uint32>(unif->location), unif->type, unif->data);
       }
 
       if (cmd.index_buffer) {

@@ -191,31 +191,31 @@ private:
 
     H acquire() {
       if (!_free.empty()) {
-        H pos = H{_free.front()};
+        H pos{_free.front()};
         _free.pop();
         return pos;
       }
       _res.emplace_back(T{});
-      return static_cast<H>(_res.size()-1);
+      return H{static_cast<r_handle_value>(_res.size()-1)};
     }
 
     void push(H pos) {
       NTF_ASSERT(validate(pos));
-      _free.push(pos.value());
+      _free.push(static_cast<r_handle_value>(pos));
     }
 
     T& get(H pos) {
       NTF_ASSERT(validate(pos));
-      return _res[pos.value()];
+      return _res[static_cast<r_handle_value>(pos)];
     }
 
     const T& get(H pos) const {
       NTF_ASSERT(validate(pos));
-      return _res[pos.value()];
+      return _res[static_cast<r_handle_value>(pos)];
     }
 
     bool validate(H pos) const {
-      return pos.value() < _res.size();
+      return static_cast<r_handle_value>(pos) < _res.size();
     }
 
   private:
