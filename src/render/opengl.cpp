@@ -140,7 +140,7 @@ auto gl_state::create_buffer(r_buffer_type type, r_buffer_flag flags, size_t siz
   if (auto err = GL_CHECK(glBufferStorage(gltype, size, data_ptr, glflags)); err != GL_NO_ERROR) {
     GL_CALL(glBindBuffer(gltype, last));
     GL_CALL(glDeleteBuffers(1, &id));
-    throw ntf::error<>{"[ntf::gl_state] Failed to create buffer with size {}", size};
+    throw error<>::format({"ntf::gl_state] Failed to create buffer with size {}"}, size);
   }
   _buffer_pos(gltype) = id;
 
@@ -242,7 +242,7 @@ auto gl_state::create_shader(r_shader_type type, std::string_view src) -> shader
 
     GL_CALL(glGetShaderInfoLog(id, 1024, &err_len, log.data()));
     GL_CALL(glDeleteShader(id));
-    throw ntf::error<>{"[ntf::gl_state] Failed to compile shader: {}", log};
+    throw error<>::format({"[ntf::gl_state] Failed to compile shader: {}"}, log);
   }
 
   shader_t shader;
@@ -277,7 +277,7 @@ auto gl_state::create_program(shader_t const* const* shaders, uint32 count,
 
     GL_CALL(glGetShaderInfoLog(shaders[0]->id, 1024, &err_len, log.data()));
     GL_CALL(glDeleteProgram(id));
-    throw ntf::error<>{"[ntf::gl_state] Failed to link program: {}", log};
+    throw error<>::format({"[ntf::gl_state] Failed to link program: {}"}, log);
   }
 
   for (uint32 i = 0; i < count; ++i) {

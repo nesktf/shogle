@@ -21,6 +21,7 @@
 #include <variant>
 #include <fstream>
 #include <sstream>
+#include <source_location>
 
 #include <cstring>
 #include <cstdlib>
@@ -46,40 +47,116 @@ using int64   = std::int64_t;
 using float32 = float;
 using float64 = double;
 
+template<typename... Fs>
+struct visitor_overload : Fs... { using Fs::operator()...; };
+
+template<typename... Fs>
+visitor_overload(Fs...) -> visitor_overload<Fs...>;
+
+template<typename... Ts, typename... Fs>
+constexpr decltype(auto) operator|(std::variant<Ts...>& v,
+                                   const visitor_overload<Fs...>& overload) {
+  return std::visit(overload, v);
+}
+
+template<typename... Ts, typename... Fs>
+constexpr decltype(auto) operator|(const std::variant<Ts...>& v,
+                                   const visitor_overload<Fs...>& overload) {
+  return std::visit(overload, v);
+}
+
+template<typename TL, typename... TR>
+concept same_as_any = (... or std::same_as<TL, TR>);
+
+template<typename T>
+concept has_operator_equals = requires(T a, T b) {
+  { a == b } -> std::convertible_to<bool>;
+};
+
+template<typename T>
+concept has_operator_nequals = requires(T a, T b) {
+  { a != b } -> std::convertible_to<bool>;
+};
+
+template<typename T, typename U>
+concept is_forwarding = std::is_same_v<U, std::remove_cvref_t<T>>;
+
+template<typename T>
+concept not_void = !std::is_void_v<T>;
+
+template<typename T>
+concept is_nothrow_forward_constructible = 
+  (std::is_rvalue_reference_v<T> && std::is_nothrow_move_constructible_v<T>) ||
+  (std::is_lvalue_reference_v<T> && std::is_nothrow_copy_constructible_v<T>);
+
+template<typename T>
+concept is_complete = requires(T obj) {
+  { sizeof(obj) };
+};
+
+
+template<typename... FmtArgs>
+struct error_fmt {
+  consteval error_fmt(fmt::format_string<FmtArgs...> fmt_,
+                      const std::source_location& loc_ = std::source_location::current()) :
+    fmt{fmt_}, loc{loc_} {}
+
+  fmt::format_string<FmtArgs...> fmt;
+  std::source_location loc;
+};
+
 template<typename T = void>
 class error : public std::exception {
 public:
-  template<typename... Args>
-  error(T data, fmt::format_string<Args...> format, Args&&... args)
-    noexcept(std::is_nothrow_move_constructible_v<T>) :
-    _data{std::move(data)}, _msg{fmt::format(format, std::forward<Args>(args)...)} {}
+  template<typename U>
+  error(U&& data, std::string msg,
+        const std::source_location& loc = std::source_location::current()) :
+    _data{std::forward<U>(data)}, _msg{std::move(msg)}, _loc{loc} {}
 
 public:
   const char* what() const noexcept override { return _msg.c_str();  }
-  const std::string& msg() const noexcept { return _msg; }
-  std::string& msg() noexcept { return _msg; }
+  const std::source_location& where() const noexcept { return _loc; }
+
   const T& data() const noexcept { return _data; }
   T& data() noexcept { return _data; }
+
+  const std::string& msg() const noexcept { return _msg; }
+  std::string& msg() noexcept { return _msg; }
+
+public:
+  template<is_forwarding<T> U, typename... Args>
+  static error format(U&& data, const error_fmt<Args...>& msg, Args&&... args) {
+    return {std::forward<U>(data), fmt::format(msg.fmt, std::forward<Args>(args)...), msg.loc};
+  }
 
 protected:
   T _data;
   std::string _msg;
+  std::source_location _loc;
 };
 
 template<>
 class error<void> : public std::exception {
 public:
-  template<typename... Args>
-  error(fmt::format_string<Args...> format, Args&&... args) noexcept :
-    _msg{fmt::format(format, std::forward<Args>(args)...)} {}
+  error(std::string msg, const std::source_location& loc = std::source_location::current()) :
+    _msg{std::move(msg)}, _loc{loc} {}
 
 public:
-  const char* what() const noexcept override { return _msg.c_str();  }
+  const char* what() const noexcept override { return _msg.c_str(); }
+  const std::source_location& where() const noexcept { return _loc; }
+
   const std::string& msg() const noexcept { return _msg; }
   std::string& msg() noexcept { return _msg; }
 
-protected:
+public:
+  template<typename... Args>
+  static error format(const error_fmt<Args...>& msg, Args&&... args) {
+    return {fmt::format(msg.fmt, std::forward<Args>(args)...), msg.loc};
+  }
+
+private:
   std::string _msg;
+  std::source_location _loc;
 };
 
 template<typename T>
@@ -160,53 +237,6 @@ public:
 private:
   const T* _data;
   size_t _size;
-};
-
-template<typename... Fs>
-struct visitor_overload : Fs... { using Fs::operator()...; };
-
-template<typename... Fs>
-visitor_overload(Fs...) -> visitor_overload<Fs...>;
-
-template<typename... Ts, typename... Fs>
-constexpr decltype(auto) operator|(std::variant<Ts...>& v,
-                                   const visitor_overload<Fs...>& overload) {
-  return std::visit(overload, v);
-}
-
-template<typename... Ts, typename... Fs>
-constexpr decltype(auto) operator|(const std::variant<Ts...>& v,
-                                   const visitor_overload<Fs...>& overload) {
-  return std::visit(overload, v);
-}
-
-template<typename TL, typename... TR>
-concept same_as_any = (... or std::same_as<TL, TR>);
-
-template<typename T>
-concept has_operator_equals = requires(T a, T b) {
-  { a == b } -> std::convertible_to<bool>;
-};
-
-template<typename T>
-concept has_operator_nequals = requires(T a, T b) {
-  { a != b } -> std::convertible_to<bool>;
-};
-
-template<typename T, typename U>
-concept is_forwarding = std::is_same_v<U, std::remove_cvref_t<T>>;
-
-template<typename T>
-concept not_void = !std::is_void_v<T>;
-
-template<typename T>
-concept is_nothrow_forward_constructible = 
-  (std::is_rvalue_reference_v<T> && std::is_nothrow_move_constructible_v<T>) ||
-  (std::is_lvalue_reference_v<T> && std::is_nothrow_copy_constructible_v<T>);
-
-template<typename T>
-concept is_complete = requires(T obj) {
-  { sizeof(obj) };
 };
 
 } // namespace ntf
