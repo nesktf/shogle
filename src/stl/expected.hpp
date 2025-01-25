@@ -650,4 +650,76 @@ private:
   impl::expected_storage<T, E> _storage;
 };
 
+template<typename E>
+class expected<void, E> {
+public:
+  using value_type = void;
+  using error_type = E;
+
+  template<typename U>
+  using rebind = expected<U, error_type>;
+
+public:
+  constexpr expected() = default;
+  //
+  // template<is_forwarding<T> U>
+  // constexpr expected(U&& val) :
+  //   _storage(in_place, std::forward<U>(val)) {}
+
+  template<is_forwarding<unexpected<E>> G>
+  constexpr expected(G&& val) :
+    _storage(unexpect, std::forward<G>(val).value()) {}
+
+public:
+  constexpr explicit operator bool() const noexcept { return _storage.has_value(); }
+  constexpr bool has_value() const noexcept { return _storage.has_value(); }
+
+  // constexpr const T* operator->() const noexcept { return std::addressof(_storage.get()); }
+
+  // TODO: Throw? when storage is invalid
+  // constexpr const T& operator*() const& { return _storage.get(); }
+  // constexpr T& operator*() & { return _storage.get(); }
+  // constexpr const T&& operator*() const&& { return std::move(_storage.get()); }
+  // constexpr T&& operator*() && { return std::move(_storage.get()); }
+  //
+  // constexpr const T& value() const& { return **this; }
+  // constexpr T& value() & { return **this; }
+  // constexpr const T&& value() const&& { return std::move(**this); }
+  // constexpr T&& value() && { return std::move(**this); }
+
+  // TODO: Throw? when error is invalid
+  constexpr const E& error() const& { return _storage.get_error().value(); }
+  constexpr E& error() & { return _storage.get_error().value(); }
+  constexpr const E&& error() const&& { return std::move(_storage.get_error().value()); }
+  constexpr E&& error() && { return std::move(_storage.get_error().value()); }
+
+  // template<typename U>
+  // constexpr T value_or(U&& val) & {
+  //   return _storage.has_value() ? **this : static_cast<T>(std::forward<U>(val));
+  // }
+  //
+  // template<typename U>
+  // constexpr T value_or(U&& val) && {
+  //   return _storage.has_value() ?
+  //     std::move(**this) : static_cast<T>(std::forward<U>(val));
+  // }
+
+  template<typename U>
+  constexpr E error_or(U&& err) & {
+    return !_storage.has_value() ? 
+      _storage.get_error().value() : static_cast<E>(std::forward<U>(err));
+  }
+
+  template<typename U>
+  constexpr E error_or(U&& err) && {
+    return !_storage.has_value() ?
+      std::move(_storage.get_error().value()) : static_cast<E>(std::forward<U>(err));
+  }
+
+  // TODO: More monadic operations
+
+private:
+  impl::expected_storage<void, E> _storage;
+};
+
 } // namespace ntf

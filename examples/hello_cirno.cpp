@@ -99,7 +99,7 @@ int main() {
       .layer = 0,
       .level = 0,
     };
-    auto tex = ctx.create_texture({
+    auto tex = ntf::r_texture::create(ntf::unchecked, ctx, {
       .type = ntf::r_texture_type::texture2d,
       .format = ntf::r_texture_format::rgb8n,
       .extent = ntf::uvec3{image.dim(), 0},
@@ -110,7 +110,6 @@ int main() {
       .sampler = ntf::r_texture_sampler::nearest,
       .addressing = ntf::r_texture_address::repeat,
     });
-    NTF_ASSERT(tex);
     image.unload();
     return tex;
   };
@@ -183,21 +182,20 @@ int main() {
       .offset = 0,
     }
   };
-  auto fumo_vbo = ctx.create_buffer({
+  auto fumo_vbo = ntf::r_buffer::create(ntf::unchecked, ctx, {
     .type = ntf::r_buffer_type::vertex,
     .flags = ntf::r_buffer_flag::dynamic_storage,
     .size = fumo_mesh.vertices_size(),
     .data = &fumo_data[0],
   });
-  NTF_ASSERT(fumo_vbo);
 
-  auto fumo_ebo = ctx.create_buffer({
+  auto fumo_ebo = ntf::r_buffer::create(ntf::unchecked, ctx, {
     .type = ntf::r_buffer_type::index,
     .flags = ntf::r_buffer_flag::dynamic_storage,
     .size = fumo_mesh.indices_size(),
     .data = &fumo_data[1],
   });
-  NTF_ASSERT(fumo_ebo);
+
   ntf::r_image_data fumo_img_data {
     .texels = fumo_diffuse.data(),
     .format = ntf::r_texture_format::rgb8n,
@@ -206,7 +204,7 @@ int main() {
     .layer = 0,
     .level = 0,
   };
-  auto fumo_tex = ctx.create_texture({
+  auto fumo_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8n,
     .extent = ntf::uvec3{fumo_diffuse.dim(), 0},
@@ -217,7 +215,6 @@ int main() {
     .sampler = ntf::r_texture_sampler::linear,
     .addressing = ntf::r_texture_address::repeat,
   });
-  NTF_ASSERT(fumo_tex);
 
   auto cube_vbo = load_buffer(ntf::pnt_unindexed_cube_vert, ntf::r_buffer_type::vertex);
   auto quad_vbo = load_buffer(ntf::pnt_indexed_quad_vert, ntf::r_buffer_type::vertex);
@@ -229,7 +226,7 @@ int main() {
   auto pipe_col = load_pipeline(vertex, fragment_color);
   auto pipe_tex = load_pipeline(vertex, fragment_tex);
 
-  auto fb_tex = ctx.create_texture({
+  auto fb_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8n,
     .extent = ntf::uvec3{1280, 720, 0},
@@ -240,9 +237,9 @@ int main() {
     .sampler = ntf::r_texture_sampler::nearest,
     .addressing = ntf::r_texture_address::repeat,
   });
-  NTF_ASSERT(fb_tex);
+
   ntf::r_framebuffer_attachment fb_att {
-    .handle = fb_tex,
+    .handle = fb_tex.handle(),
     .layer = 0,
     .level = 0,
   };

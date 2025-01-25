@@ -94,6 +94,7 @@ concept is_complete = requires(T obj) {
   { sizeof(obj) };
 };
 
+NTF_DECLARE_TAG_TYPE(unchecked);
 
 template<typename... FmtArgs>
 struct error_fmt {

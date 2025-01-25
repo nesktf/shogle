@@ -3,8 +3,39 @@
 #include "./render.hpp"
 #include "./window.hpp"
 
+#include "../stl/expected.hpp"
 #include "../stl/optional.hpp"
 #include "../stl/arena.hpp"
+
+#define SHOGLE_DEFINE_RENDER_TYPE_MOVE(_type) \
+void reset() noexcept {  \
+  if (has_value()) { \
+    _ctx->destroy(_handle); \
+    _ctx.reset(); \
+    _handle = {}; \
+  } \
+} \
+~_type() noexcept { reset(); } \
+_type(const _type&) = delete; \
+_type& operator=(const _type&) = delete; \
+_type(_type&& other) noexcept : \
+  _ctx{std::move(other._ctx)}, _handle{std::move(other._handle)} { \
+  if (other.has_value()) { \
+    other._ctx.reset(); \
+    other._handle = {}; \
+  } \
+} \
+_type& operator=(_type&& other) noexcept { \
+  if (std::addressof(other) == this) { \
+    return *this; \
+  } \
+  reset(); \
+  _ctx = std::move(other._ctx); \
+  _handle = std::move(other._handle); \
+  other._ctx.reset(); \
+  other._handle = {}; \
+  return *this; \
+}
 
 namespace ntf {
 
@@ -25,12 +56,10 @@ NTF_DECLARE_TAG_TYPE(r_query_levels);
 NTF_DECLARE_TAG_TYPE(r_query_stages);
 NTF_DECLARE_TAG_TYPE(r_query_uniform);
 
-enum class r_error_severity {
-  notification = 0,
-  low,
-  medium,
-  high,
-};
+using r_error = ::ntf::error<void>;
+
+template<typename T>
+using r_expected = ::ntf::expected<T, r_error>;
 
 class r_context {
 public:
@@ -146,17 +175,21 @@ public:
   void device_wait() noexcept;
 
 public:
-  [[nodiscard]] r_buffer_handle create_buffer(const r_buffer_descriptor& desc);
-  void destroy(r_buffer_handle buff);
-  void update(r_buffer_handle buff, const r_buffer_data& desc);
+  [[nodiscard]] r_expected<r_buffer_handle> create_buffer(const r_buffer_descriptor& desc);
+  [[nodiscard]] r_buffer_handle create_buffer(const r_buffer_descriptor& desc,
+                                              unchecked_t);
+  void destroy(r_buffer_handle buff) noexcept;
+  [[nodiscard]] r_expected<void> update(r_buffer_handle buff, const r_buffer_data& desc);
 
   [[nodiscard]] r_buffer_type query(r_buffer_handle buff, r_query_type_t) const;
   [[nodiscard]] size_t query(r_buffer_handle buff, r_query_size_t) const;
 
 public:
-  [[nodiscard]] r_texture_handle create_texture(const r_texture_descriptor& desc);
-  void destroy(r_texture_handle tex);
-  void update(r_texture_handle tex, const r_texture_data& update);
+  [[nodiscard]] r_expected<r_texture_handle> create_texture(const r_texture_descriptor& desc);
+  [[nodiscard]] r_texture_handle create_texture(const r_texture_descriptor& desc,
+                                                unchecked_t);
+  void destroy(r_texture_handle tex) noexcept;
+  [[nodiscard]] r_expected<void> update(r_texture_handle tex, const r_texture_data& update);
 
   [[nodiscard]] r_texture_type query(r_texture_handle tex, r_query_type_t) const;
   [[nodiscard]] r_texture_format query(r_texture_handle tex, r_query_format_t) const;
@@ -167,12 +200,13 @@ public:
   [[nodiscard]] uint32 query(r_texture_handle tex, r_query_levels_t) const;
 
 public:
-  [[nodiscard]] r_framebuffer_handle create_framebuffer(const r_framebuffer_descriptor& desc);
-  void destroy(r_framebuffer_handle fbo);
+  [[nodiscard]] auto create_framebuffer(const r_framebuffer_descriptor& desc)
+                                                               -> r_expected<r_framebuffer_handle>;
+  void destroy(r_framebuffer_handle fbo) noexcept;
 
 public:
-  [[nodiscard]] r_shader_handle create_shader(const r_shader_descriptor& desc);
-  void destroy(r_shader_handle shader);
+  [[nodiscard]] r_expected<r_shader_handle> create_shader(const r_shader_descriptor& desc);
+  void destroy(r_shader_handle shader) noexcept;
 
   [[nodiscard]] r_shader_type query(r_shader_handle shader, r_query_type_t) const;
 
@@ -308,79 +342,6 @@ struct r_platform_context {
 
   virtual void device_wait() noexcept {}
 };
-
-
-// class r_texture_view {
-// public:
-//   r_texture_view() :
-//     _ctx{}, _handle{} {}
-//   r_texture_view(r_context& ctx, r_texture_handle handle) :
-//     _ctx{ctx}, _handle{handle} {}
-//
-// public:
-//   r_texture_view& sampler(r_texture_sampler sampler) {
-//     _ctx->update(_handle, sampler);
-//     return *this;
-//   }
-//
-//   r_texture_view& addressing(r_texture_address addressing) {
-//     _ctx->update(_handle, addressing);
-//     return *this;
-//   }
-//
-//   r_texture_view& update(const void* data, size_t size, size_t offset, r_texture_format format,
-//                          uint32 layer, uint32 mipmap) {
-//     _ctx->update_data(_handle, data, size, offset, format, layer, mipmap);
-//     return *this;
-//   }
-//
-// public:
-//   [[nodiscard]] r_texture_type type() const {
-//     return _ctx->query(_handle, r_query_type);
-//   }
-//   [[nodiscard]] r_texture_sampler sampler() const {
-//     return _ctx->query(_handle, r_query_sampler);
-//   }
-//   [[nodiscard]] r_texture_address addressing() const {
-//     return _ctx->query(_handle, r_query_addressing);
-//   }
-//   [[nodiscard]] r_texture_format format() const {
-//     return _ctx->query(_handle, r_query_format);
-//   }
-//
-//   [[nodiscard]] uvec3 dim() const {
-//     return _ctx->query(_handle, r_query_extent);
-//   }
-//   [[nodiscard]] uvec2 dim2d() const {
-//     auto d = dim(); return uvec2{d.x, d.y};
-//   }
-//
-//   [[nodiscard]] uint32 layers() const {
-//     return _ctx->query(_handle, r_query_layers);
-//   }
-//   [[nodiscard]] uint32 mipmaps() const {
-//     return _ctx->query(_handle, r_query_levels);
-//   }
-//
-//   [[nodiscard]] bool is_cubemap() const {
-//     return type() == r_texture_type::cubemap;
-//   }
-//   [[nodiscard]] bool is_array() const {
-//     return !is_cubemap() && layers() > 1;
-//   }
-//   [[nodiscard]] bool has_mipmaps() const {
-//     return mipmaps() > 0;
-//   }
-//
-// public:
-//   [[nodiscard]] bool valid() const { return _ctx && _handle; }
-//   explicit operator bool() const { return valid(); }
-//   operator r_texture_handle() const { return _handle; }
-//
-// protected:
-//   weak_ref<r_context> _ctx;
-//   r_texture_handle _handle;
-// };
 
 
 template<typename F>
