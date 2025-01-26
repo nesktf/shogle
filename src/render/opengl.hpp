@@ -231,22 +231,22 @@ public:
 
   r_buffer_handle create_buffer(const r_buffer_descriptor& desc) override;
   void update_buffer(r_buffer_handle buf, const r_buffer_data& desc) override;
-  void destroy_buffer(r_buffer_handle buff) override;
+  void destroy_buffer(r_buffer_handle buff) noexcept override;
 
   r_texture_handle create_texture(const r_texture_descriptor& desc) override;
   void update_texture(r_texture_handle tex, const r_texture_data& desc) override;
-  void destroy_texture(r_texture_handle tex) override;
+  void destroy_texture(r_texture_handle tex) noexcept override;
 
   r_shader_handle create_shader(const r_shader_descriptor& desc) override;
-  void destroy_shader(r_shader_handle shader) override;
+  void destroy_shader(r_shader_handle shader) noexcept override;
 
   r_pipeline_handle create_pipeline(const r_pipeline_descriptor& desc,
                                     weak_ref<r_context::vertex_attrib_t> attrib,
                                     r_context::uniform_map& uniforms) override;
-  void destroy_pipeline(r_pipeline_handle pipeline) override;
+  void destroy_pipeline(r_pipeline_handle pipeline) noexcept override;
 
   r_framebuffer_handle create_framebuffer(const r_framebuffer_descriptor& desc) override;
-  void destroy_framebuffer(r_framebuffer_handle fb) override;
+  void destroy_framebuffer(r_framebuffer_handle fb) noexcept override;
 
   void submit(const r_context::command_map& cmds) override;
 

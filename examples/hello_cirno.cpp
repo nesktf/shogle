@@ -87,75 +87,31 @@ int main() {
     ctx.framebuffer_viewport(ntf::r_context::DEFAULT_FRAMEBUFFER, ntf::uvec4{0, 0, w, h});
   });
 
-  auto load_tex = [&](std::string_view path) {
-    ntf::texture_data image{path};
-    NTF_ASSERT(image);
-    ntf::r_image_data img_data {
-      .texels = image.data(),
-      .format = ntf::r_texture_format::rgb8n,
-      .extent = ntf::uvec3{image.dim(), 0},
-      .offset = ntf::uvec3{0, 0, 0},
-      .layer = 0,
-      .level = 0,
-    };
-    auto tex = ntf::r_texture::create(ntf::unchecked, ctx, {
-      .type = ntf::r_texture_type::texture2d,
-      .format = ntf::r_texture_format::rgb8n,
-      .extent = ntf::uvec3{image.dim(), 0},
-      .layers = 1,
-      .levels = 7,
-      .images = {img_data},
-      .gen_mipmaps = true,
-      .sampler = ntf::r_texture_sampler::nearest,
-      .addressing = ntf::r_texture_address::repeat,
-    });
-    image.unload();
-    return tex;
-  };
-  auto load_buffer = [&](auto& data, ntf::r_buffer_type type) {
-    ntf::r_buffer_data bdata{
-      .data = std::addressof(data),
-      .size = sizeof(data),
-      .offset = 0,
-    };
-    auto buff = ntf::r_buffer::create(ntf::unchecked, ctx, {
-      .type = type,
-      .flags = ntf::r_buffer_flag::dynamic_storage,
-      .size = sizeof(data),
-      .data = &bdata,
-    });
-    return buff;
-  };
-  auto load_shader = [&](std::string_view src, ntf::r_shader_type type) {
-    auto shad = ctx.create_shader({
-      .type = type,
-      .source = src,
-    });
-    NTF_ASSERT(shad);
-    return shad;
-  };
-  auto load_pipeline = [&](ntf::r_shader_handle vert, ntf::r_shader_handle frag) {
-    auto attr_bind = ntf::pnt_vertex::attrib_binding();
-    auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
+  ntf::color4 main_color{.3f, .3f, .3f, 1.f};
+  ctx.framebuffer_color(ntf::r_context::DEFAULT_FRAMEBUFFER, main_color);
+  ctx.framebuffer_clear(ntf::r_context::DEFAULT_FRAMEBUFFER, ntf::r_clear_flag::color_depth);
 
-    ntf::r_shader_handle shads[] = {vert, frag};
-    auto pipe = ctx.create_pipeline({
-      .stages = {&shads[0], 2},
-      .attrib_binding = attr_bind,
-      .attrib_desc = {attr_desc},
-      .primitive = ntf::r_primitive::triangles,
-      .poly_mode = ntf::r_polygon_mode::fill,
-      .front_face = ntf::r_front_face::clockwise,
-      .cull_mode = ntf::r_cull_mode::front_back,
-      .tests = ntf::r_pipeline_test::all,
-      .depth_compare_op = ntf::r_compare_op::less,
-      .stencil_compare_op = ntf::r_compare_op::less,
-    });
-    NTF_ASSERT(pipe);
-    return pipe;
+  ntf::texture_data<> cirno_img{"./examples/res/cirno_cpp.jpg"};
+  NTF_ASSERT(cirno_img);
+  ntf::r_image_data cirno_img_data {
+    .texels = cirno_img.data(),
+    .format = ntf::r_texture_format::rgb8n,
+    .extent = {cirno_img.dim(), 0},
+    .offset = {0, 0, 0},
+    .layer = 0,
+    .level = 0,
   };
-
-  auto tex = load_tex("./examples/res/cirno_cpp.jpg");
+  auto tex = ntf::r_texture::create(ntf::unchecked, ctx, {
+    .type = ntf::r_texture_type::texture2d,
+    .format = ntf::r_texture_format::rgb8n,
+    .extent = {cirno_img.dim(), 0},
+    .layers = 1,
+    .levels = 7,
+    .images = {cirno_img_data},
+    .gen_mipmaps = true,
+    .sampler = ntf::r_texture_sampler::nearest,
+    .addressing = ntf::r_texture_address::repeat,
+  });
 
   ntf::model_data<ntf::pnt_vertex> fumo{"./examples/res/cirno_fumo/cirno_fumo.obj"};
   NTF_ASSERT(fumo);
@@ -214,15 +170,50 @@ int main() {
     .addressing = ntf::r_texture_address::repeat,
   });
 
-  auto cube_vbo = load_buffer(ntf::pnt_unindexed_cube_vert, ntf::r_buffer_type::vertex);
-  auto quad_vbo = load_buffer(ntf::pnt_indexed_quad_vert, ntf::r_buffer_type::vertex);
-  auto quad_ebo = load_buffer(ntf::pnt_indexed_quad_ind, ntf::r_buffer_type::index);
+  auto cube_vbo = ntf::r_buffer::create(ntf::unchecked, ctx, ntf::pnt_unindexed_cube_vert,
+                                        ntf::r_buffer_type::vertex,
+                                        ntf::r_buffer_flag::dynamic_storage);
+  auto quad_vbo = ntf::r_buffer::create(ntf::unchecked, ctx, ntf::pnt_indexed_quad_vert,
+                                        ntf::r_buffer_type::vertex,
+                                        ntf::r_buffer_flag::dynamic_storage);
+  auto quad_ebo = ntf::r_buffer::create(ntf::unchecked, ctx, ntf::pnt_indexed_quad_ind,
+                                        ntf::r_buffer_type::index,
+                                        ntf::r_buffer_flag::dynamic_storage);
 
-  auto vertex = load_shader(vert_src, ntf::r_shader_type::vertex);
-  auto fragment_color = load_shader(frag_src, ntf::r_shader_type::fragment);
-  auto fragment_tex = load_shader(frag_tex_src, ntf::r_shader_type::fragment);
-  auto pipe_col = load_pipeline(vertex, fragment_color);
-  auto pipe_tex = load_pipeline(vertex, fragment_tex);
+  auto vertex = ntf::r_shader::create(ntf::unchecked, ctx, {
+    .type = ntf::r_shader_type::vertex,
+    .source = vert_src,
+  });
+  auto fragment_color = ntf::r_shader::create(ntf::unchecked, ctx, {
+    .type = ntf::r_shader_type::fragment,
+    .source = frag_src,
+  });
+  auto fragment_tex = ntf::r_shader::create(ntf::unchecked, ctx, {
+    .type = ntf::r_shader_type::fragment,
+    .source = frag_tex_src,
+  });
+
+  auto load_pipeline = [&ctx](ntf::r_shader_handle vert, ntf::r_shader_handle frag) {
+    auto attr_bind = ntf::pnt_vertex::attrib_binding();
+    auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
+
+    ntf::r_shader_handle shads[] = {vert, frag};
+    auto pipe = ntf::r_pipeline::create(ntf::unchecked, ctx, {
+      .stages = {&shads[0], 2},
+      .attrib_binding = attr_bind,
+      .attrib_desc = {attr_desc},
+      .primitive = ntf::r_primitive::triangles,
+      .poly_mode = ntf::r_polygon_mode::fill,
+      .front_face = ntf::r_front_face::clockwise,
+      .cull_mode = ntf::r_cull_mode::front_back,
+      .tests = ntf::r_pipeline_test::all,
+      .depth_compare_op = ntf::r_compare_op::less,
+      .stencil_compare_op = ntf::r_compare_op::less,
+    });
+    return pipe;
+  };
+  auto pipe_col = load_pipeline(vertex.handle(), fragment_color.handle());
+  auto pipe_tex = load_pipeline(vertex.handle(), fragment_tex.handle());
 
   auto fb_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
@@ -241,27 +232,27 @@ int main() {
     .layer = 0,
     .level = 0,
   };
-  auto fbo = ctx.create_framebuffer({
+  auto fbo = ntf::r_framebuffer::create(ntf::unchecked, ctx, {
     .extent = ntf::uvec2{1280, 720},
     .viewport = ntf::uvec4{0, 0, 1280, 720},
-    .clear_color = ntf::color4{.3f, .3f, .3f, 1.f},
+    .clear_color = ntf::color4{1.f, 0.f, 0.f, 1.f},
+    .clear_flags = ntf::r_clear_flag::color_depth,
     .test_buffers = ntf::r_test_buffer_flag::both,
     .test_buffer_format = ntf::r_test_buffer_format::depth24u_stencil8u,
     .attachments = {fb_att},
     .color_buffer_format = {},
   });
-  NTF_ASSERT(fbo);
 
-  auto u_col_model = ctx.query(pipe_col, ntf::r_query_uniform, "model");
-  auto u_col_proj = ctx.query(pipe_col, ntf::r_query_uniform, "proj");
-  auto u_col_view = ctx.query(pipe_col, ntf::r_query_uniform, "view");
-  auto u_col_color = ctx.query(pipe_col, ntf::r_query_uniform, "color");
+  auto u_col_model = pipe_col.uniform(ntf::unchecked, "model");
+  auto u_col_proj = pipe_col.uniform(ntf::unchecked, "proj");
+  auto u_col_view = pipe_col.uniform(ntf::unchecked, "view");
+  auto u_col_color = pipe_col.uniform(ntf::unchecked, "color");
 
-  auto u_tex_model = ctx.query(pipe_tex, ntf::r_query_uniform, "model");
-  auto u_tex_proj = ctx.query(pipe_tex, ntf::r_query_uniform, "proj");
-  auto u_tex_view = ctx.query(pipe_tex, ntf::r_query_uniform, "view");
-  auto u_tex_color = ctx.query(pipe_tex, ntf::r_query_uniform, "color");
-  auto u_tex_sampler = ctx.query(pipe_tex, ntf::r_query_uniform, "sampler0");
+  auto u_tex_model = pipe_tex.uniform(ntf::unchecked, "model");
+  auto u_tex_proj = pipe_tex.uniform(ntf::unchecked, "proj");
+  auto u_tex_view = pipe_tex.uniform(ntf::unchecked, "view");
+  auto u_tex_color = pipe_tex.uniform(ntf::unchecked, "color");
+  auto u_tex_sampler = pipe_tex.uniform(ntf::unchecked, "sampler0");
 
   ntf::float32 fb_ratio = 1280.f/720.f;
   auto transf_cube = ntf::transform3d<ntf::float32>{}
@@ -281,11 +272,6 @@ int main() {
   const ntf::float32 fumo_scale = 0.04f;
   auto transf_fumo = ntf::transform3d<ntf::float32>{}
     .pos(0.f, -.3f, 0.f).scale(fumo_scale).pivot_x(1.f);
-
-  ntf::color4 main_color{.3f, .3f, .3f, 1.f};
-  ntf::color4 fbo_color{1.f, 0.f, 0.f, 1.f};
-  ctx.framebuffer_color(main_color);
-  ctx.framebuffer_color(fbo, fbo_color);
 
   ntf::float32 t = 0;
   ntf::float64 avg_fps{0};
@@ -332,15 +318,12 @@ int main() {
     ImGui::End();
     ImGui::ShowDemoWindow();
 
-    ctx.framebuffer_clear(ntf::r_clear_flag::color_depth);
-    ctx.framebuffer_clear(fbo, ntf::r_clear_flag::color_depth);
-
     ctx.bind_framebuffer(ntf::r_context::DEFAULT_FRAMEBUFFER);
 
-    ctx.bind_vertex_buffer(fumo_vbo);
-    ctx.bind_index_buffer(fumo_ebo);
-    ctx.bind_pipeline(pipe_tex);
-    ctx.bind_texture(fumo_tex, 0);
+    ctx.bind_vertex_buffer(fumo_vbo.handle());
+    ctx.bind_index_buffer(fumo_ebo.handle());
+    ctx.bind_pipeline(pipe_tex.handle());
+    ctx.bind_texture(fumo_tex.handle(), 0);
     ctx.push_uniform(u_tex_model, transf_fumo.world());
     ctx.push_uniform(u_tex_proj, cam_proj_cube);
     ctx.push_uniform(u_tex_view, cam_view_cube);
@@ -353,10 +336,10 @@ int main() {
     });
     ctx.submit();
 
-    ctx.bind_vertex_buffer(quad_vbo);
-    ctx.bind_index_buffer(quad_ebo);
-    ctx.bind_pipeline(pipe_tex);
-    ctx.bind_texture(tex, 0);
+    ctx.bind_vertex_buffer(quad_vbo.handle());
+    ctx.bind_index_buffer(quad_ebo.handle());
+    ctx.bind_pipeline(pipe_tex.handle());
+    ctx.bind_texture(tex.handle(), 0);
     ctx.push_uniform(u_tex_model, transf_quad0.world());
     ctx.push_uniform(u_tex_proj, cam_proj_quad);
     ctx.push_uniform(u_tex_view, cam_view_quad);
@@ -369,10 +352,10 @@ int main() {
     });
     ctx.submit();
 
-    ctx.bind_vertex_buffer(quad_vbo);
-    ctx.bind_index_buffer(quad_ebo);
-    ctx.bind_pipeline(pipe_tex);
-    ctx.bind_texture(fb_tex, 0);
+    ctx.bind_vertex_buffer(quad_vbo.handle());
+    ctx.bind_index_buffer(quad_ebo.handle());
+    ctx.bind_pipeline(pipe_tex.handle());
+    ctx.bind_texture(fb_tex.handle(), 0);
     ctx.push_uniform(u_tex_model, transf_quad1.world());
     ctx.push_uniform(u_tex_proj, cam_proj_quad);
     ctx.push_uniform(u_tex_view, cam_view_quad);
@@ -385,10 +368,10 @@ int main() {
     });
     ctx.submit();
 
-    ctx.bind_framebuffer(fbo);
+    ctx.bind_framebuffer(fbo.handle());
 
-    ctx.bind_vertex_buffer(cube_vbo);
-    ctx.bind_pipeline(pipe_col);
+    ctx.bind_vertex_buffer(cube_vbo.handle());
+    ctx.bind_pipeline(pipe_col.handle());
     ctx.push_uniform(u_col_model, transf_cube.world());
     ctx.push_uniform(u_col_proj, cam_proj_cube);
     ctx.push_uniform(u_col_view, cam_view_cube);
@@ -400,10 +383,10 @@ int main() {
     });
     ctx.submit();
 
-    ctx.bind_vertex_buffer(quad_vbo);
-    ctx.bind_index_buffer(quad_ebo);
-    ctx.bind_pipeline(pipe_tex);
-    ctx.bind_texture(tex, 0);
+    ctx.bind_vertex_buffer(quad_vbo.handle());
+    ctx.bind_index_buffer(quad_ebo.handle());
+    ctx.bind_pipeline(pipe_tex.handle());
+    ctx.bind_texture(tex.handle(), 0);
     ctx.push_uniform(u_tex_model, transf_quad0.world());
     ctx.push_uniform(u_tex_proj, cam_proj_quad);
     ctx.push_uniform(u_tex_view, cam_view_quad);
@@ -416,21 +399,6 @@ int main() {
     });
     ctx.submit();
   });
-
-  ctx.destroy(fumo_ebo);
-  ctx.destroy(fumo_vbo);
-  ctx.destroy(fumo_tex);
-  ctx.destroy(fbo);
-  ctx.destroy(fb_tex);
-  ctx.destroy(pipe_tex);
-  ctx.destroy(pipe_col);
-  ctx.destroy(fragment_tex);
-  ctx.destroy(fragment_color);
-  ctx.destroy(vertex);
-  ctx.destroy(quad_ebo);
-  ctx.destroy(quad_vbo);
-  ctx.destroy(cube_vbo);
-  ctx.destroy(tex);
 
   return EXIT_SUCCESS;
 }

@@ -24,7 +24,7 @@
     return unexpected{r_error::format({"{}"}, ex.what())}; \
   } catch (...) { \
     SHOGLE_LOG(error, _log_pfx " " _msg ": Caught (...)"); \
-    return unexpected<r_error>{"Caught (...)"}; \
+    return unexpected{r_error{"Caught (...)"}}; \
   }
 
 namespace ntf {
@@ -135,7 +135,6 @@ r_context::~r_context() noexcept {
 
 void r_context::start_frame() noexcept {
   for (auto& [_, list] : _draw_lists) {
-    list.clear = r_clear_flag::none;
     for (auto& cmd : list.cmds) {
       cmd.get().~draw_command_t();
     }

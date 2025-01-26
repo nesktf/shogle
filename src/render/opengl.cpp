@@ -1226,7 +1226,7 @@ void gl_context::update_buffer(r_buffer_handle buf, const r_buffer_data& desc) {
   _state.update_buffer(buffer, desc.data, desc.size, desc.offset);
 }
 
-void gl_context::destroy_buffer(r_buffer_handle buf) {
+void gl_context::destroy_buffer(r_buffer_handle buf) noexcept {
   auto& buffer = _buffers.get(buf);
   _state.destroy_buffer(buffer);
   _buffers.push(buf);
@@ -1270,7 +1270,7 @@ void gl_context::update_texture(r_texture_handle tex, const r_texture_data& desc
   }
 }
 
-void gl_context::destroy_texture(r_texture_handle tex) {
+void gl_context::destroy_texture(r_texture_handle tex) noexcept {
   auto& texture = _textures.get(tex);
   _state.destroy_texture(texture);
   _textures.push(tex);
@@ -1305,7 +1305,7 @@ r_framebuffer_handle gl_context::create_framebuffer(const r_framebuffer_descript
   return handle;
 }
 
-void gl_context::destroy_framebuffer(r_framebuffer_handle fb) {
+void gl_context::destroy_framebuffer(r_framebuffer_handle fb) noexcept {
   auto& framebuffer = _framebuffers.get(fb);
   _state.destroy_framebuffer(framebuffer);
   _framebuffers.push(fb);
@@ -1320,7 +1320,7 @@ r_shader_handle gl_context::create_shader(const r_shader_descriptor& desc) {
   return handle;
 }
 
-void gl_context::destroy_shader(r_shader_handle shad) {
+void gl_context::destroy_shader(r_shader_handle shad) noexcept {
   auto& shader = _shaders.get(shad);
   _state.destroy_shader(shader);
   _shaders.push(shad);
@@ -1348,7 +1348,7 @@ r_pipeline_handle gl_context::create_pipeline(const r_pipeline_descriptor& desc,
   return handle;
 }
 
-void gl_context::destroy_pipeline(r_pipeline_handle pipeline) {
+void gl_context::destroy_pipeline(r_pipeline_handle pipeline) noexcept {
   auto& prog = _programs.get(pipeline);
   _state.destroy_program(prog);
   _programs.push(pipeline);
