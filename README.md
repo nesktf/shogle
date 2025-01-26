@@ -47,7 +47,7 @@ target_link_libraries(${PROJECT_NAME} shogle)
 ## Demos
 Build them using using the following commands
 ```sh 
-$ cmake -B build -DCMAKE_BUILD_TYPE=Debug -DSHOGLE_ENABLE_IMGUI=1 -DSHOGLE_BUILD_EXAMPLES=1
+$ cmake -B build -DCMAKE_BUILD_TYPE=Debug -DSHOGLE_ENABLE_IMGUI=1 -DSHOGLE_BUILD_DEMOS=1
 $ make -C build -j4
 ```
 
