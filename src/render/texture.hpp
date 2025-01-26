@@ -32,7 +32,7 @@ public:
       NTF_ASSERT(has_value());
       return _ctx->query(_handle, r_query_format);
     }
-    [[nodiscard]] uvec3 dim() const {
+    [[nodiscard]] uvec3 extent() const {
       NTF_ASSERT(has_value());
       return _ctx->query(_handle, r_query_extent);
     }
@@ -48,8 +48,8 @@ public:
       NTF_ASSERT(has_value());
       return type() == r_texture_type::cubemap;
     }
-    [[nodiscard]] uvec2 dim2d() const {
-      auto d = dim(); return uvec2{d.x, d.y};
+    [[nodiscard]] uvec2 extent2d() const {
+      auto d = extent(); return uvec2{d.x, d.y};
     }
     [[nodiscard]] bool is_array() const {
       return !is_cubemap() && layers() > 1;
@@ -118,7 +118,7 @@ public:
     NTF_ASSERT(has_value());
     return _ctx->query(_handle, r_query_format);
   }
-  [[nodiscard]] uvec3 dim() const {
+  [[nodiscard]] uvec3 extent() const {
     NTF_ASSERT(has_value());
     return _ctx->query(_handle, r_query_extent);
   }
@@ -134,8 +134,8 @@ public:
     NTF_ASSERT(has_value());
     return type() == r_texture_type::cubemap;
   }
-  [[nodiscard]] uvec2 dim2d() const {
-    auto d = dim(); return uvec2{d.x, d.y};
+  [[nodiscard]] uvec2 extent2d() const {
+    auto d = extent(); return uvec2{d.x, d.y};
   }
   [[nodiscard]] bool is_array() const {
     return !is_cubemap() && layers() > 1;

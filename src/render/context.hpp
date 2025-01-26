@@ -39,22 +39,13 @@ _type& operator=(_type&& other) noexcept { \
 
 namespace ntf {
 
+class r_draw_cmd;
+
 struct r_platform_context;
 
 struct r_context_params {
   optional<r_api> use_api;
 };
-
-NTF_DECLARE_TAG_TYPE(r_query_size);
-NTF_DECLARE_TAG_TYPE(r_query_type);
-NTF_DECLARE_TAG_TYPE(r_query_format);
-NTF_DECLARE_TAG_TYPE(r_query_sampler);
-NTF_DECLARE_TAG_TYPE(r_query_addressing);
-NTF_DECLARE_TAG_TYPE(r_query_extent);
-NTF_DECLARE_TAG_TYPE(r_query_layers);
-NTF_DECLARE_TAG_TYPE(r_query_levels);
-NTF_DECLARE_TAG_TYPE(r_query_stages);
-NTF_DECLARE_TAG_TYPE(r_query_uniform);
 
 using r_error = ::ntf::error<void>;
 
@@ -163,11 +154,12 @@ public:
 public:
   static constexpr r_framebuffer_handle DEFAULT_FRAMEBUFFER{};
 
-public:
-  r_context() = default;
+private:
+  r_context(r_error err) noexcept;
+  r_context(r_window& win, std::unique_ptr<r_platform_context> ctx, command_map map) noexcept;
 
 public:
-  void init(r_window& win, const r_context_params& params = {}) noexcept;
+  static r_context create(r_window& win, const r_context_params& params = {}) noexcept;
 
 public:
   void start_frame() noexcept;
@@ -175,68 +167,81 @@ public:
   void device_wait() noexcept;
 
 public:
-  [[nodiscard]] r_expected<r_buffer_handle> create_buffer(const r_buffer_descriptor& desc);
-  [[nodiscard]] r_buffer_handle create_buffer(const r_buffer_descriptor& desc,
-                                              unchecked_t);
+  [[nodiscard]] r_expected<r_buffer_handle> buffer_create(const r_buffer_descriptor& desc)
+    noexcept;
+  [[nodiscard]] r_buffer_handle buffer_create(unchecked_t, const r_buffer_descriptor& desc);
   void destroy(r_buffer_handle buff) noexcept;
-  [[nodiscard]] r_expected<void> update(r_buffer_handle buff, const r_buffer_data& desc);
 
-  [[nodiscard]] r_buffer_type query(r_buffer_handle buff, r_query_type_t) const;
-  [[nodiscard]] size_t query(r_buffer_handle buff, r_query_size_t) const;
+  r_expected<void> buffer_update(r_buffer_handle buff, const r_buffer_data& desc) noexcept;
+  void buffer_update(unchecked_t, r_buffer_handle buff, const r_buffer_data& desc);
+
+  [[nodiscard]] r_buffer_type buffer_type(r_buffer_handle buff) const;
+  [[nodiscard]] size_t buffer_size(r_buffer_handle buff) const;
 
 public:
-  [[nodiscard]] r_expected<r_texture_handle> create_texture(const r_texture_descriptor& desc);
-  [[nodiscard]] r_texture_handle create_texture(const r_texture_descriptor& desc,
-                                                unchecked_t);
+  [[nodiscard]] r_expected<r_texture_handle> texture_create(
+                                                        const r_texture_descriptor& desc) noexcept;
+  [[nodiscard]] r_texture_handle texture_create(unchecked_t,
+                                                        const r_texture_descriptor& desc);
   void destroy(r_texture_handle tex) noexcept;
-  [[nodiscard]] r_expected<void> update(r_texture_handle tex, const r_texture_data& update);
 
-  [[nodiscard]] r_texture_type query(r_texture_handle tex, r_query_type_t) const;
-  [[nodiscard]] r_texture_format query(r_texture_handle tex, r_query_format_t) const;
-  [[nodiscard]] r_texture_sampler query(r_texture_handle tex, r_query_sampler_t) const;
-  [[nodiscard]] r_texture_address query(r_texture_handle tex, r_query_addressing_t) const;
-  [[nodiscard]] uvec3 query(r_texture_handle tex, r_query_extent_t) const;
-  [[nodiscard]] uint32 query(r_texture_handle tex, r_query_layers_t) const;
-  [[nodiscard]] uint32 query(r_texture_handle tex, r_query_levels_t) const;
+  r_expected<void> texture_update(r_texture_handle tex, const r_texture_data& data) noexcept;
+  void texture_update(unchecked_t, r_texture_handle tex, const r_texture_data& data);
+  r_expected<void> texture_update(r_texture_handle tex,
+                                  span_view<r_image_data> images, bool gen_mipmaps) noexcept;
+  void texture_update(unchecked_t, r_texture_handle tex,
+                      span_view<r_image_data> images, bool gen_mipmaps);
+  r_expected<void> texture_sampler(r_texture_handle tex, r_texture_sampler sampler) noexcept;
+  void texture_sampler(unchecked_t, r_texture_handle tex, r_texture_sampler sampler);
+  r_expected<void> texture_addressing(r_texture_handle tex, r_texture_address addressing) noexcept;
+  void texture_addressing(unchecked_t, r_texture_handle tex, r_texture_address addressing);
+
+  [[nodiscard]] r_texture_type texture_type(r_texture_handle tex) const;
+  [[nodiscard]] r_texture_format texture_format(r_texture_handle tex) const;
+  [[nodiscard]] r_texture_sampler texture_sampler(r_texture_handle tex) const;
+  [[nodiscard]] r_texture_address texture_addressing(r_texture_handle tex) const;
+  [[nodiscard]] uvec3 texture_extent(r_texture_handle tex) const;
+  [[nodiscard]] uint32 texture_layers(r_texture_handle tex) const;
+  [[nodiscard]] uint32 texture_levels(r_texture_handle tex) const;
 
 public:
-  [[nodiscard]] auto create_framebuffer(const r_framebuffer_descriptor& desc)
-                                                               -> r_expected<r_framebuffer_handle>;
+  [[nodiscard]] r_expected<r_framebuffer_handle> framebuffer_create(
+                                                    const r_framebuffer_descriptor& desc) noexcept;
+  [[nodiscard]] r_framebuffer_handle framebuffer_create(unchecked_t,
+                                                    const r_framebuffer_descriptor& desc);
   void destroy(r_framebuffer_handle fbo) noexcept;
 
+  void framebuffer_clear(r_framebuffer_handle fbo, r_clear_flag flags);
+  void framebuffer_viewport(r_framebuffer_handle fbo, uvec4 vp);
+  void framebuffer_color(r_framebuffer_handle fbo, color4 color);
+
+  [[nodiscard]] r_clear_flag framebuffer_clear(r_framebuffer_handle fbo) const;
+  [[nodiscard]] uvec4 framebuffer_viewport(r_framebuffer_handle fbo) const;
+  [[nodiscard]] color4 framebuffer_color(r_framebuffer_handle fbo) const;
+
 public:
-  [[nodiscard]] r_expected<r_shader_handle> create_shader(const r_shader_descriptor& desc);
+  [[nodiscard]] r_expected<r_shader_handle> shader_create(
+                                                        const r_shader_descriptor& desc) noexcept;
+  [[nodiscard]] r_shader_handle shader_create(unchecked_t,
+                                                        const r_shader_descriptor& desc);
   void destroy(r_shader_handle shader) noexcept;
 
-  [[nodiscard]] r_shader_type query(r_shader_handle shader, r_query_type_t) const;
+  [[nodiscard]] r_shader_type shader_type(r_shader_handle shader) const;
 
 public:
-  [[nodiscard]] r_pipeline_handle create_pipeline(const r_pipeline_descriptor& desc);
-  void destroy(r_pipeline_handle pipeline);
+  [[nodiscard]] r_expected<r_pipeline_handle> pipeline_create(
+                                                       const r_pipeline_descriptor& desc) noexcept;
+  [[nodiscard]] r_pipeline_handle pipeline_create(unchecked_t,
+                                                       const r_pipeline_descriptor& desc);
+  void destroy(r_pipeline_handle pipeline) noexcept;
 
-  [[nodiscard]] r_stages_flag query(r_pipeline_handle pipeline, r_query_stages_t) const;
-  [[nodiscard]] r_uniform query(r_pipeline_handle pipeline, r_query_uniform_t,
-                                std::string_view name) const;
+  [[nodiscard]] r_stages_flag pipeline_stages(r_pipeline_handle pipeline) const;
+  [[nodiscard]] optional<r_uniform> pipeline_uniform(r_pipeline_handle pipeline,
+                                                     std::string_view name) const noexcept;
+  [[nodiscard]] r_uniform pipeline_uniform(unchecked_t, r_pipeline_handle pipeline,
+                                           std::string_view name) const;
 
 public:
-  void framebuffer_viewport(r_framebuffer_handle fbo, uvec4 vp) {
-    NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
-    _draw_lists.at(fbo).viewport = vp;
-  }
-  void framebuffer_viewport(uvec4 vp) { framebuffer_viewport(DEFAULT_FRAMEBUFFER, vp); }
-
-  void framebuffer_color(r_framebuffer_handle fbo, color4 color) {
-    NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
-    _draw_lists.at(fbo).color = color;
-  }
-  void framebuffer_color(color4 color) { framebuffer_color(DEFAULT_FRAMEBUFFER, color); }
-
-  void framebuffer_clear(r_framebuffer_handle fbo, r_clear_flag flags) {
-    NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
-    _draw_lists.at(fbo).clear = flags;
-  }
-  void framebuffer_clear(r_clear_flag flags) { framebuffer_clear(DEFAULT_FRAMEBUFFER, flags); }
-
   void bind_texture(r_texture_handle texture, uint32 index) {
     auto* ptr = _frame_arena.allocate<texture_binding_t>(1);
     ptr->handle = texture;
@@ -288,14 +293,28 @@ public:
   }
 
 public:
-  bool valid() const { return bool{_ctx}; }
+  bool valid() const { return !_err.has_value(); }
   explicit operator bool() const { return valid(); }
+
+  r_error& error() { return _err.value(); }
+  const r_error& error() const { return _err.value(); }
 
   r_api render_api() const { return _ctx_meta.api; }
   std::string_view name_str() const;
   r_window& win() { return *_win; }
 
 private:
+  void _init_buffer(buff_store_t& buff, const r_buffer_descriptor& desc);
+  void _init_texture(tex_store_t& tex, const r_texture_descriptor& desc);
+  void _init_framebuffer(r_framebuffer_handle handle, fb_store_t& fbo,
+                         const r_framebuffer_descriptor& desc);
+  void _init_shader(shader_store_t& shad, const r_shader_descriptor& desc);
+  std::unique_ptr<vertex_attrib_t> _copy_pipeline_layout(const r_pipeline_descriptor& desc);
+  void _init_pipeline(pipeline_store_t& pip, const r_pipeline_descriptor& desc,
+                      std::unique_ptr<vertex_attrib_t> layout, uniform_map uniforms);
+
+private:
+  optional<r_error> _err;
   ntf::mem_arena _frame_arena;
   weak_ref<r_window> _win;
   std::unique_ptr<r_platform_context> _ctx;

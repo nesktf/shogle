@@ -72,10 +72,9 @@ int main() {
     .x11_instance_name = "test",
   }};
 
-  ntf::r_context ctx;
-  ctx.init(window);
+  auto ctx = ntf::r_context::create(window);
   if (!ctx) {
-    ntf::logger::error("Failed to initialize context");
+    ntf::logger::error("Failed to initialize context: {}", ctx.error().what());
     return EXIT_FAILURE;
   }
 
@@ -85,7 +84,7 @@ int main() {
     }
   });
   window.viewport_event([&](ntf::uint32 w, ntf::uint32 h) {
-    ctx.framebuffer_viewport(ntf::uvec4{0, 0, w, h});
+    ctx.framebuffer_viewport(ntf::r_context::DEFAULT_FRAMEBUFFER, ntf::uvec4{0, 0, w, h});
   });
 
   auto load_tex = [&](std::string_view path) {
@@ -119,13 +118,12 @@ int main() {
       .size = sizeof(data),
       .offset = 0,
     };
-    auto buff = ctx.create_buffer({
+    auto buff = ntf::r_buffer::create(ntf::unchecked, ctx, {
       .type = type,
       .flags = ntf::r_buffer_flag::dynamic_storage,
       .size = sizeof(data),
       .data = &bdata,
     });
-    NTF_ASSERT(buff);
     return buff;
   };
   auto load_shader = [&](std::string_view src, ntf::r_shader_type type) {

@@ -333,6 +333,7 @@ struct r_framebuffer_descriptor {
   uvec2 extent;
   uvec4 viewport;
   color4 clear_color;
+  r_clear_flag clear_flags;
 
   r_test_buffer_flag test_buffers;
   optional<r_test_buffer_format> test_buffer_format;
