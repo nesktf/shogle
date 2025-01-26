@@ -2,7 +2,6 @@
 Funny C++ graphics framework that I use for my personal projects.
 
 ## Features
-- Simple setup for making quick programs using 2D and 3D graphics
 - Wrappers for GLFW, Imgui and OpenGL (might add some other backends in the future)
 - Resource loading (texture atlases, fonts, models...)
 - Some maths for physics and collisions
@@ -30,7 +29,7 @@ Only tested on Debian 12 Bookworm and Arch Linux, should work fine in other dist
 if you install the appropiate dependencies. Windows is not supported (for now).
 
 ```sh
-sudo apt install cmake libglfw3-dev libfreetype-dev libfmt-dev libglm-dev libassimp-dev
+$ sudo apt install cmake libglfw3-dev libfreetype-dev libfmt-dev libglm-dev libassimp-dev
 ```
 
 Then add the following in your project's CMakeLists.txt
@@ -45,13 +44,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 target_link_libraries(${PROJECT_NAME} shogle)
 ```
 
-## Examples
+## Demos
 Build them using using the following commands
 ```sh 
 $ cmake -B build -DCMAKE_BUILD_TYPE=Debug -DSHOGLE_ENABLE_IMGUI=1 -DSHOGLE_BUILD_EXAMPLES=1
 $ make -C build -j4
 ```
 
-You can also check out some of my projects that use this framework
+You can also check out some of my other projects that are using this framework
 - [danmaku_engine](https://github.com/nesktf/danmaku_engine) 
 - [lora_gps_tracking](https://github.com/nesktf/lora_gps_tracking) 

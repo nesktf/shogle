@@ -91,7 +91,7 @@ int main() {
   ctx.framebuffer_color(ntf::r_context::DEFAULT_FRAMEBUFFER, main_color);
   ctx.framebuffer_clear(ntf::r_context::DEFAULT_FRAMEBUFFER, ntf::r_clear_flag::color_depth);
 
-  ntf::texture_data<> cirno_img{"./examples/res/cirno_cpp.jpg"};
+  ntf::texture_data<> cirno_img{"./demos/res/cirno_cpp.jpg"};
   NTF_ASSERT(cirno_img);
   ntf::r_image_data cirno_img_data {
     .texels = cirno_img.data(),
@@ -113,7 +113,7 @@ int main() {
     .addressing = ntf::r_texture_address::repeat,
   });
 
-  ntf::model_data<ntf::pnt_vertex> fumo{"./examples/res/cirno_fumo/cirno_fumo.obj"};
+  ntf::model_data<ntf::pnt_vertex> fumo{"./demos/res/cirno_fumo/cirno_fumo.obj"};
   NTF_ASSERT(fumo);
   const auto& fumo_mesh = fumo[0];
   const auto fumo_diffuse_it = std::find_if(
