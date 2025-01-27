@@ -3,11 +3,218 @@
 #include "./fs.hpp"
 #include "../render/render.hpp"
 #include "../stl/allocator.hpp"
+#include "../stl/function.hpp"
+#include "../stl/expected.hpp"
 
 #include <nlohmann/json.hpp>
 #include <stb/stb_image.h>
 
 namespace ntf {
+
+using asset_error = error<void>;
+
+template<typename T>
+using asset_expected = expected<T, asset_error>;
+
+template<typename T>
+concept image_depth_type = same_as_any<T, uint8, uint16, float32>;
+
+template<typename T>
+struct stbi_image_delete {
+  void operator()(T* data) {
+    stbi_image_free(data);
+  }
+};
+
+template<typename Alloc>
+class alloc_image_delete {
+  Alloc _alloc;
+  size_t _n;
+
+public:
+  alloc_image_delete(size_t n, const Alloc& alloc = {}) :
+    _alloc{alloc}, _n{n} {}
+
+  void operator()(std::allocator_traits<Alloc>::pointer data) {
+    data->~T();
+    _alloc.deallocate(data, _n);
+  }
+};
+
+template<image_depth_type T>
+r_texture_format parse_image_format(uint32) {
+  // TODO: Implement this
+  return r_texture_format::rgb8n;
+}
+
+template<image_depth_type T, typename Deleter = stbi_image_delete<T>>
+class image_data {
+public:
+  using uptr_type = std::unique_ptr<T, Deleter>;
+
+public:
+  image_data() noexcept :
+    _data{nullptr}, _size{}, _dim{}, _format{} {}
+
+  explicit image_data(const Deleter& del) noexcept :
+    _data{nullptr, del}, _size{}, _dim{}, _format{} {}
+
+  image_data(uptr_type data, size_t size, uvec2 dim, r_texture_format format) noexcept :
+    _data{std::move(data)}, _size{size}, _dim{dim}, _format{format} {}
+
+public:
+  void unload() { _data.reset(); }
+
+public:
+  const T* data() const { return _data.get(); }
+  T* data() { return _data.get(); }
+
+  size_t size() const { return _size; }
+  size_t bytes() const { return sizeof(T)*size(); }
+  uvec2 dim() const { return _dim; }
+  r_texture_format format() const { return _format; }
+
+  bool has_data() const { return _data.get() != nullptr; }
+  explicit operator bool() const { return has_data(); }
+
+  r_image_data descriptor(uvec3 offset = {0, 0, 0}, uint32 layer = 0, uint32 level = 0) const {
+    return r_image_data{
+      .texels = data(),
+      .format = format(),
+      .extent = {dim(), 0},
+      .offset = offset,
+      .layer = layer,
+      .level = level,
+    };
+  }
+
+private:
+  uptr_type _data;
+  size_t _size;
+  uvec2 _dim;
+  r_texture_format _format;
+};
+
+template<typename T>
+asset_expected<image_data<T>> load_image(std::string_view path, bool flip_vertically = true) {
+  using data_t = image_data<T>;
+  std::string fpath{path.data()}; // Make sure that it is null terminated
+  int w, h, ch;
+  T* stbi_data;
+  stbi_set_flip_vertically_on_load(flip_vertically);
+  if constexpr (std::same_as<T, uint8>) {
+    stbi_data = stbi_load(fpath.data(), &w, &h, &ch, 0);
+  } else if constexpr (std::is_same_v<T, uint16>) {
+    stbi_data = stbi_load_16(fpath.data(), &w, &h, &ch, 0);
+  } else if constexpr (std::is_same_v<T, float32>) {
+    stbi_data = stbi_loadf(fpath.data(), &w, &h, &ch, 0);
+  }
+  if (!stbi_data) {
+    return unexpected{asset_error::format({"Failed to load image \"{}\": {}"},
+                                          path, stbi_failure_reason())};
+  }
+
+  SHOGLE_LOG(verbose, "[ntf::load_image] Loaded image \"{}\"", path.data());
+  return {data_t{
+    typename data_t::uptr_type{stbi_data}, static_cast<size_t>(w*h*ch),
+    uvec2{w, h}, parse_image_format<T>(static_cast<uint32>(ch))
+  }};
+}
+
+template<typename T, typename Alloc>
+auto load_image(std::string_view path, Alloc&& alloc, bool flip_vertically = true)
+                                      -> asset_expected<image_data<T, alloc_image_delete<Alloc>>> {
+  using alloc_t = alloc_image_delete<Alloc>;
+  using data_t = image_data<T, alloc_t>;
+  std::string fpath{path.data()}; // Make sure that it is null terminated
+  int w, h, ch;
+  T* stbi_data;
+  stbi_set_flip_vertically_on_load(flip_vertically);
+  if constexpr (std::is_same_v<T, uint8>) {
+    stbi_data = stbi_load(fpath.data(), &w, &h, &ch, 0);
+  } else if constexpr (std::is_same_v<T, uint16>) {
+    stbi_data = stbi_load_16(fpath.data(), &w, &h, &ch, 0);
+  } else if constexpr ( std::is_same_v<T, float32>) {
+    stbi_data = stbi_loadf(fpath.data(), &w, &h, &ch, 0);
+  }
+  if (!stbi_data) {
+    return unexpected{asset_error::format({"Failed to load image \"{}\": {}"},
+                                          path, stbi_failure_reason())};
+  }
+  size_t alloc_count = static_cast<size_t>(w*h*ch);
+  T* alloc_data = alloc.allocate(alloc_count*sizeof(T));
+  if (!alloc_data) {
+    stbi_image_free(stbi_data);
+    return unexpected{asset_error::format({"Failed to load image \"{}\": Allocation failed"},
+                                          path)};
+  }
+  std::memcpy(alloc_data, stbi_data, alloc_count*sizeof(T));
+  stbi_image_free(stbi_data);
+
+  SHOGLE_LOG(verbose, "[ntf::image_data::load] Loaded image \"{}\"", path.data());
+  return {data_t{
+    typename data_t::uptr_type{alloc_data, alloc_t{std::forward<Alloc>(alloc), alloc_count}},
+    alloc_count, uvec2{w, h}, parse_image_format<T>(static_cast<uint32>(ch))
+  }};
+}
+
+template<typename T>
+image_data<T> load_image(unchecked_t, std::string_view path, bool flip_vertically = true) {
+  using data_t = image_data<T>;
+  int w, h, ch;
+  T* stbi_data;
+  stbi_set_flip_vertically_on_load(flip_vertically);
+  if constexpr (std::same_as<T, uint8>) {
+    stbi_data = stbi_load(path.data(), &w, &h, &ch, 0);
+  } else if constexpr (std::is_same_v<T, uint16>) {
+    stbi_data = stbi_load_16(path.data(), &w, &h, &ch, 0);
+  } else if constexpr ( std::is_same_v<T, float32>) {
+    stbi_data = stbi_loadf(path.data(), &w, &h, &ch, 0);
+  }
+  if (!stbi_data) {
+    return data_t{};
+  }
+
+  SHOGLE_LOG(verbose, "[ntf::image_data::load] Loaded image \"{}\"", path.data());
+  return data_t{
+    typename data_t::uptr_type{stbi_data}, static_cast<size_t>(w*h*ch),
+    uvec2{w, h}, parse_image_format<T>(static_cast<uint32>(ch))
+  };
+}
+
+template<typename T, typename Alloc>
+auto load_image(unchecked_t, std::string_view path, Alloc&& alloc,
+                bool flip_vertically = true) -> image_data<T, alloc_image_delete<Alloc>>{
+  using alloc_t = alloc_image_delete<Alloc>;
+  using data_t = image_data<T, alloc_t>;
+  int w, h, ch;
+  T* stbi_data;
+  stbi_set_flip_vertically_on_load(flip_vertically);
+  if constexpr (std::is_same_v<T, uint8>) {
+    stbi_data = stbi_load(path.data(), &w, &h, &ch, 0);
+  } else if constexpr (std::is_same_v<T, uint16>) {
+    stbi_data = stbi_load_16(path.data(), &w, &h, &ch, 0);
+  } else if constexpr ( std::is_same_v<T, float32>) {
+    stbi_data = stbi_loadf(path.data(), &w, &h, &ch, 0);
+  }
+  if (!stbi_data) {
+    return data_t{alloc_image_delete<Alloc>{std::forward<Alloc>(alloc), 0}};
+  }
+  size_t alloc_count = static_cast<size_t>(w*h*ch);
+  T* alloc_data = alloc.allocate(alloc_count*sizeof(T));
+  if (!alloc_data) {
+    stbi_image_free(stbi_data);
+    return data_t{alloc_image_delete<Alloc>{std::forward<Alloc>(alloc), 0}};
+  }
+  std::memcpy(alloc_data, stbi_data, alloc_count*sizeof(T));
+  stbi_image_free(stbi_data);
+
+  SHOGLE_LOG(verbose, "[ntf::image_data::load] Loaded image \"{}\"", path.data());
+  return data_t{
+    typename data_t::uptr_type{alloc_data, alloc_t{std::forward<Alloc>(alloc), alloc_count}},
+      alloc_count, uvec2{w, h}, parse_image_format<T>(static_cast<uint32>(ch))
+  };
+}
 
 inline optional<std::pair<uvec2, uint>> texture_info(std::string_view path) {
   int w, h, c;

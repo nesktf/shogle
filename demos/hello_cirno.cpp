@@ -91,20 +91,17 @@ int main() {
   ctx.framebuffer_color(ntf::r_context::DEFAULT_FRAMEBUFFER, main_color);
   ctx.framebuffer_clear(ntf::r_context::DEFAULT_FRAMEBUFFER, ntf::r_clear_flag::color_depth);
 
-  ntf::texture_data<> cirno_img{"./demos/res/cirno_cpp.jpg"};
-  NTF_ASSERT(cirno_img);
-  ntf::r_image_data cirno_img_data {
-    .texels = cirno_img.data(),
-    .format = ntf::r_texture_format::rgb8n,
-    .extent = {cirno_img.dim(), 0},
-    .offset = {0, 0, 0},
-    .layer = 0,
-    .level = 0,
-  };
+  auto cirno_img = ntf::load_image<ntf::uint8>("./demos/res/cirno_cpp.jpg");
+  if (!cirno_img) {
+    ntf::logger::error("[main] Failed to load cirno image: {}", cirno_img.error().what());
+    return EXIT_FAILURE;
+  }
+
+  auto cirno_img_data = cirno_img->descriptor();
   auto tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8n,
-    .extent = {cirno_img.dim(), 0},
+    .extent = {cirno_img->dim(), 0},
     .layers = 1,
     .levels = 7,
     .images = {cirno_img_data},
