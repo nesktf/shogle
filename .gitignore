@@ -1,6 +1,3 @@
-.rofi_scan
 build*
 imgui.ini
 .cache/
-_temp/
-todo.md
