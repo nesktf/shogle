@@ -1,11 +1,9 @@
 #pragma once
 
+#include "../render/vertex.hpp"
 #include "./texture.hpp"
-#include "./meshes.hpp"
 
-#include <assimp/scene.h>
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
+#include "../math/quaternion.hpp"
 
 namespace ntf {
 
@@ -15,261 +13,462 @@ enum class r_material_type {
 };
 
 template<typename Vertex>
-struct assimp_mesh_loader;
+struct mesh_data {
+  struct mesh {
+    std::string name;
+    uint32 material;
+
+    uint32 faces;
+    vec_span indices;
+
+    vec_span vertices;
+
+    size_t vertex_size() const { return vertices.count; }
+
+    bool has_indices() const { return indices.index != VSPAN_TOMBSTONE; }
+    bool has_vertices() const { return vertices.index != VSPAN_TOMBSTONE; }
+  };
+
+  std::vector<mesh> meshes;
+  std::vector<Vertex> vertices;
+  std::vector<uint32> indices;
+
+  size_t size() const { return meshes.size(); }
+
+  size_t vertex_size() const { return vertices.size(); }
+
+  bool has_vertices() const { return !vertices.empty(); }
+  bool has_indices() const { return !indices.empty(); }
+};
+
+template<size_t num_weights>
+struct mesh_data<soa_vertices<num_weights>> {
+  struct mesh {
+    std::string name;
+    uint32 material;
+
+    uint32 faces;
+    vec_span indices;
+
+    vec_span positions;
+    vec_span normals;
+    vec_span uvs;
+    vec_span tangents; // bitangents too
+    vec_span weights;
+    vec_span colors;
+
+    // Should always have at least one position per vertex
+    size_t vertex_size() const { return positions.count; }
+
+    bool has_indices() const { return indices.index != VSPAN_TOMBSTONE; }
+    bool has_positions() const { return positions.index != VSPAN_TOMBSTONE; }
+    bool has_normals() const { return normals.index != VSPAN_TOMBSTONE; }
+    bool has_uvs() const { return uvs.index != VSPAN_TOMBSTONE; }
+    bool has_tangents() const { return tangents.index != VSPAN_TOMBSTONE; }
+    bool has_weights() const { return weights.index != VSPAN_TOMBSTONE; }
+    bool has_colors() const { return colors.index != VSPAN_TOMBSTONE; }
+  };
+
+  std::vector<mesh> meshes;
+  soa_vertices<num_weights> vertices;
+  std::vector<uint32> indices;
+
+  size_t size() const { return meshes.size(); }
+  size_t vertex_size() const { return vertices.positions.size(); }
+
+  bool has_positions() const { return !vertices.positions.empty(); }
+  bool has_normals() const { return !vertices.normals.empty(); }
+  bool has_uvs() const { return !vertices.uvs.empty(); }
+  bool has_tangents() const { return !vertices.tangents.empty(); }
+  bool has_colors() const { return !vertices.colors.empty(); }
+  bool has_weights() const { return !vertices.weights.empty(); }
+};
+
+struct armature_data {
+  struct armature {
+    std::string name;
+    vec_span bones;
+  };
+  struct bone {
+    std::string name;
+    uint32 parent;
+    mat4 local;
+    mat4 inv_model;
+  };
+
+  std::vector<armature> data;
+  std::vector<bone> bones;
+
+  size_t size() const { return data.size(); }
+  size_t bone_size() const { return bones.size(); }
+};
+
+struct animation_data {
+  struct animation {
+    std::string name;
+    float64 duration;
+    float64 tps;
+    vec_span frames;
+  };
+
+  struct key_frame {
+    uint32 bone;
+    vec_span pkeys;
+    vec_span rkeys;
+    vec_span skeys;
+  };
+
+  template<typename T>
+  using key_t = std::pair<float64, T>;
+
+  std::vector<animation> data;
+  std::vector<key_frame> kframes;
+  std::vector<key_t<vec3>> pkeys;
+  std::vector<key_t<vec3>> skeys;
+  std::vector<key_t<quat>> rkeys;
+
+  size_t size() const { return data.size(); }
+};
+
+struct material_data {
+  struct material {
+    std::string name;
+    vec_span textures;
+  };
+  struct texture_entry {
+    ntf::r_material_type type;
+    uint32 index;
+  };
+
+  std::vector<material> data;
+  std::vector<texture_entry> textures;
+  std::vector<std::string> paths;
+
+  size_t size() const { return data.size(); }
+};
+
+template<typename Vertex>
+struct model_data {
+  armature_data armatures;
+  animation_data animations;
+  material_data materials;
+  mesh_data<Vertex> meshes;
+
+  bool has_armatures() const { return armatures.size() != 0; }
+  bool has_animations() const { return animations.size() != 0; }
+  bool has_materials() const { return materials.size() != 0; }
+  bool has_meshes() const { return meshes.size() != 0; }
+};
+
+enum class model_loader_flags {
+  none          = 0,
+  triangulate   = 1 << 0,
+  flip_uvs      = 1 << 1,
+  calc_tangents = 1 << 2,
+};
+NTF_DEFINE_ENUM_CLASS_FLAG_OPS(model_loader_flags);
+
+constexpr model_loader_flags def_model_loader_flags = 
+  model_loader_flags::triangulate | model_loader_flags::flip_uvs;
+
+namespace impl {
+
+template<typename T>
+concept model_loader_parse = requires(T loader,
+                                      const std::string& path,
+                                      model_loader_flags flags) {
+  { loader.parse(path, flags) } -> same_as_any<void, asset_expected<void>>;
+};
+
+template<typename T>
+concept model_loader_guarded_parse = requires(T loader,
+                                              const std::string& path,
+                                              model_loader_flags flags) {
+  { loader.parse(path, flags) } -> std::same_as<asset_expected<void>>;
+};
 
 template<typename T, typename Vertex>
-concept is_vertex_loader = is_complete<T> && requires(T obj, const aiMesh& mesh, uint32 index) {
-  { obj(mesh, index) } -> std::convertible_to<Vertex>;
+concept model_loader_meshes = requires(T loader,
+                                       mesh_data<Vertex>& data
+) {
+  { loader.get_meshes(data) } -> std::same_as<void>;
 };
-// It should check for undefined assimp_mesh_loader
-// static_assert(!is_vertex_loader<assimp_mesh_loader<void>, void>);
 
-template<>
-struct assimp_mesh_loader<pnt_vertex> {
-  constexpr pnt_vertex operator()(const aiMesh& mesh, uint32 index) {
-    pnt_vertex vert;
-    auto& ai_pos = mesh.mVertices[index];
-    auto& ai_norm = mesh.mNormals[index];
+template<typename T>
+concept model_loader_armatures = requires(T loader,
+                                          armature_data& data
+) {
+  { loader.get_armatures(data) } -> std::same_as<void>;
+};
 
-    vert.position.x = ai_pos.x;
-    vert.position.y = ai_pos.y;
-    vert.position.z = ai_pos.z;
+template<typename T>
+concept model_loader_animations = requires(T loader,
+                                           animation_data& data
+) {
+  { loader.get_animations(data) } -> std::same_as<void>;
+};
 
-    vert.normal.x = ai_norm.x;
-    vert.normal.y = ai_norm.y;
-    vert.normal.z = ai_norm.z;
+template<typename T>
+concept model_loader_materials = requires(T loader,
+                                          material_data& data
+) {
+  { loader.get_materials(data) } -> std::same_as<void>;
+};
 
-    if (mesh.mTextureCoords[0]) {
-      auto& ai_uv = mesh.mTextureCoords[0][index];
-      vert.uv.x = ai_uv.x;
-      vert.uv.y = ai_uv.y;
+template<typename T, typename Vertex>
+concept model_loader =
+  (model_loader_parse<T> || model_loader_guarded_parse<T>) && model_loader_meshes<T, Vertex>;
+
+template<typename Vertex, bool>
+struct load_model_ret {
+  using type = asset_expected<model_data<Vertex>>;
+};
+
+template<typename Vertex>
+struct load_model_ret<Vertex, false> {
+  using type = model_data<Vertex>;
+};
+
+template<typename Vertex, model_loader<Vertex> Loader, bool checked>
+load_model_ret<Vertex, checked>::type load_model(const std::string& path,
+                                                   model_loader_flags flags,
+                                                   Loader&& loader) {
+  if constexpr (model_loader_guarded_parse<Loader>) {
+    auto ret = loader.parse(path, flags);
+    if constexpr (checked) {
+      if (!ret) {
+        SHOGLE_LOG(error, "[ntf::load_model] Failed to load model \"{}\": {}",
+                   path, ret.error().what());
+        return unexpected{std::move(ret.error())};
+      }
     } else {
-      vert.uv.x = 0;
-      vert.uv.y = 0;
+      NTF_ASSERT(ret);
     }
-
-    return vert;
-  };
-};
-static_assert(is_vertex_loader<assimp_mesh_loader<pnt_vertex>, pnt_vertex>);
-
-template<>
-struct assimp_mesh_loader<pn_vertex> {
-  constexpr pn_vertex operator()(const aiMesh& mesh, uint32 index) {
-    pn_vertex vert;
-    auto& ai_pos = mesh.mVertices[index];
-    auto& ai_norm = mesh.mNormals[index];
-
-    vert.position.x = ai_pos.x;
-    vert.position.y = ai_pos.y;
-    vert.position.z = ai_pos.z;
-
-    vert.normal.x = ai_norm.x;
-    vert.normal.y = ai_norm.y;
-    vert.normal.z = ai_norm.z;
-
-    return vert;
-  };
-};
-static_assert(is_vertex_loader<assimp_mesh_loader<pn_vertex>, pn_vertex>);
-
-template<typename Vertex, typename Alloc = std::allocator<Vertex>>
-class model_data {
-public:
-  using allocator_type = Alloc;
-  using vertex_type = Vertex;
-
-  struct material_data {
-    template<typename MatAlloc>
-    material_data(const MatAlloc& alloc) :
-      texture(alloc) {}
-
-    r_material_type type;
-    texture_data<rebind_alloc_t<uint8, Alloc>> texture;
-  };
-
-  struct mesh_data {
-    template<typename MeshAlloc>
-    mesh_data(const MeshAlloc& alloc) :
-      name(alloc), vertices(alloc), indices(alloc), materials(alloc) {}
-
-    std::basic_string<char, std::char_traits<char>, rebind_alloc_t<char, Alloc>> name;
-    std::vector<vertex_type, Alloc> vertices;
-    std::vector<uint32, rebind_alloc_t<uint32, Alloc>> indices;
-    std::vector<material_data, rebind_alloc_t<material_data, Alloc>> materials;
-
-    [[nodiscard]] size_t vertices_size() const { return vertices.size()*sizeof(vertex_type); }
-    [[nodiscard]] size_t indices_size() const { return indices.size()*sizeof(uint32); }
-  };
-
-  using mesh_vec = std::vector<mesh_data, rebind_alloc_t<mesh_data, Alloc>>;
-
-  using value_type = vertex_type;
-  using iterator = mesh_vec::iterator;
-  using const_iterator = mesh_vec::const_iterator;
-
-public:
-  model_data()
-  noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
-    _meshes(Alloc{}) {}
-
-  explicit model_data(const Alloc& alloc)
-  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _meshes(alloc) {}
-
-  explicit model_data(std::string_view path)
-  noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
-    _meshes(Alloc{}) { load(path); }
-
-  template<is_vertex_loader<Vertex> MeshLoader>
-  model_data(std::string_view path, MeshLoader&& mesh_loader)
-  noexcept(std::is_nothrow_default_constructible_v<Alloc>) : 
-    _meshes(Alloc{}) { load(path, std::forward<MeshLoader>(mesh_loader)); }
-
-  explicit model_data(std::string_view path, const Alloc& alloc)
-  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _meshes(alloc) { load(path); }
-
-  template<is_vertex_loader<Vertex> MeshLoader>
-  model_data(std::string_view path, const Alloc& alloc, MeshLoader&& mesh_loader)
-  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _meshes(alloc) { load(path, std::forward<MeshLoader>(mesh_loader)); }
-
-public:
-  template<is_vertex_loader<Vertex> MeshLoader = assimp_mesh_loader<Vertex>>
-  void load(std::string_view path, MeshLoader&& mesh_loader = {}) noexcept {
-    NTF_ASSERT(!has_data());
-    Assimp::Importer import;
-    const aiScene* scene = import.ReadFile(path.data(), aiProcess_Triangulate);
-    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-      SHOGLE_LOG(error, "[ntf::model_data] ASSIMP error: {}", import.GetErrorString());
-      return;
-    }
-
-    auto dir = file_dir(path);
-    if (!dir) {
-      SHOGLE_LOG(error, "[ntf::model_data] Invalid file path: \"{}\"", path);
-      return;
-    }
-    std::vector<std::string> loaded_materials; // Maybe use the allocator here?
-
-    auto load_material = [&](mesh_data& mesh, aiMaterial* mat, aiTextureType type) {
-      NTF_ASSERT(mat);
-
-      for (uint32 i = 0; i < mat->GetTextureCount(type); ++i) {
-        aiString filename;
-        mat->GetTexture(type, i, &filename);
-        auto tex_path = *dir + "/" + std::string{filename.C_Str()};
-        bool skip = false;
-
-        for (const auto& mat_path : loaded_materials) {
-          if (std::strcmp(mat_path.data(), tex_path.data()) == 0) {
-            skip = true;
-            break;
-          }
-        }
-        if (skip) {
-          continue;
-        }
-
-        decltype(material_data::texture) tex_data{_meshes.get_allocator()};
-        tex_data.load(tex_path);
-        if (!tex_data) {
-          SHOGLE_LOG(error, "[ntf::model_data] Failed to load texture: \"{}\"", tex_path);
-          continue;
-        }
-        mesh.materials.emplace_back(_meshes.get_allocator());
-        auto& mat = mesh.materials.back();
-        mat.type = assimp_material_cast(type);
-        mat.texture = std::move(tex_data);
-        SHOGLE_LOG(verbose, "[ntf::model_data] Found texture \"{}\" for model \"{}\"",
-                   tex_path, path);
-        loaded_materials.emplace_back(std::move(tex_path));
+  } else {
+    if constexpr (checked && !noexcept(loader.parse(path, flags))) {
+      try {
+        loader.parse(path, flags);
+      } catch (asset_error& err) {
+        SHOGLE_LOG(error, "[ntf::load_model] Failed to load model \"{}\": {}", path, err.what());
+        return unexpected{std::move(err)};
+      } catch (const std::exception& err) {
+        SHOGLE_LOG(error, "[ntf::load_model] Failed to load model \"{}\": {}", path, err.what());
+        return unexpected{asset_error::format({"{}"}, err.what())};
+      } catch (...) {
+        SHOGLE_LOG(error, "[ntf::load_model] Failed to load model \"{}\": Caught (...)", path);
+        return unexpected{asset_error{"Caught (...)"}};
       }
-    };
-
-    _meshes.reserve(scene->mNumMeshes);
-    SHOGLE_LOG(verbose, "[ntf::model_data] Found {} mesh(es) for model \"{}\"",
-               scene->mNumMeshes, path);
-    for (uint32 i = 0; i < scene->mNumMeshes; ++i) {
-      mesh_data mesh{_meshes.get_allocator()};
-      aiMesh* ai_mesh = scene->mMeshes[i];
-      NTF_ASSERT(ai_mesh);
-
-      // Vertices
-      mesh.vertices.reserve(ai_mesh->mNumVertices);
-      for (uint32 j = 0; j < ai_mesh->mNumVertices; ++j) {
-        mesh.vertices.emplace_back(mesh_loader(*ai_mesh, j));
-      }
-
-      // Indices
-      // mesh.indices.reserve(ai_mesh->mNumFaces);
-      for (uint32 j = 0; j < ai_mesh->mNumFaces; ++j) {
-        auto& face = ai_mesh->mFaces[j];
-        for (uint32 k = 0; k < face.mNumIndices; ++k) {
-          mesh.indices.emplace_back(face.mIndices[k]);
-        }
-      }
-
-      // Materials
-      if (ai_mesh->mMaterialIndex > 0) {
-        aiMaterial* mat = scene->mMaterials[ai_mesh->mMaterialIndex];
-        load_material(mesh, mat, aiTextureType_DIFFUSE);
-        load_material(mesh, mat, aiTextureType_SPECULAR);
-      }
-
-      mesh.name.resize(ai_mesh->mName.length);
-      std::memcpy(mesh.name.data(), ai_mesh->mName.C_Str(), ai_mesh->mName.length);
-      SHOGLE_LOG(verbose, "[ntf::model_data] Loaded mesh \"{}\" for \"{}\"", mesh.name, path);
-      _meshes.emplace_back(std::move(mesh));
+    } else {
+      loader.parse(path, flags);
     }
   }
 
-  void unload() noexcept {
-    NTF_ASSERT(has_data());
-    _meshes.clear();
+  // Assume everything else doesn't throw
+  model_data<Vertex> model;
+
+  if constexpr (model_loader_armatures<Loader>) {
+    loader.get_armatures(model.armatures);
   }
 
-public:
-  const mesh_vec& meshes() const { return _meshes; }
-  // mesh_vec& meshes() { return _meshes; }
-  [[nodiscard]] uint32 mesh_count() const { return _meshes.size(); }
-
-  [[nodiscard]] bool has_data() const { return mesh_count() > 0; }
-  explicit operator bool() const { return has_data(); }
-
-  // iterator begin() { return _meshes.begin(); }
-  const_iterator begin() const { return _meshes.begin(); }
-  const_iterator cbegin() const { return _meshes.cbegin(); }
-
-  // iterator end() { return _meshes.end(); }
-  const_iterator end() const { return _meshes.end(); }
-  const_iterator cend() const { return _meshes.cend(); }
-
-  // mesh_data& operator[](uint32 index) {
-  //   NTF_ASSERT(index < _meshes.size());
-  //   return _meshes[index];
-  // }
-  const mesh_data& operator[](uint32 index) const {
-    NTF_ASSERT(index < _meshes.size());
-    return _meshes[index];
+  if constexpr (model_loader_animations<Loader>) {
+    loader.get_animations(model.animations);
   }
 
-public:
-  [[nodiscard]] static inline r_material_type assimp_material_cast(aiTextureType type) {
-    switch (type) {
-      case aiTextureType_SPECULAR: return r_material_type::specular;
-      case aiTextureType_DIFFUSE:  return r_material_type::diffuse;
+  if constexpr (model_loader_materials<Loader>) {
+    loader.get_materials(model.materials);
+  }
 
-      default: break;
+  loader.get_meshes(model.meshes);
+
+  if constexpr (checked) {
+    return {std::move(model)};
+  } else {
+    return model;
+  }
+}
+
+} // namespace impl
+
+template<is_aos_vertex Vertex, size_t num_weights>
+mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
+  mesh_data<Vertex> out;
+  auto& out_verts = out.vertices;
+  out.meshes.reserve(data.size());
+  out_verts.resize(data.vertex_size());
+
+  uint32 offset = 0;
+  const auto& in_verts = data.vertices;
+  for (const auto& mesh : data.meshes) {
+    NTF_ASSERT(mesh.has_positions());
+    const size_t mesh_verts = mesh.vertex_size();
+    {
+      uint32 count = 0;
+      mesh.positions.for_each(in_verts.positions, [&](const vec3& pos) {
+        out_verts[offset+count].set_position(pos);
+        ++count;
+      });
     }
 
-    // TODO: Handle more material types :p
-    NTF_UNREACHABLE();
+    if constexpr (vert_has_normals<Vertex>) {
+      if (mesh.has_normals()) {
+        uint32 count = 0;
+        NTF_ASSERT(mesh.normals.count == mesh_verts);
+        mesh.normals.for_each(in_verts.normals, [&](const vec3& norm) {
+          out_verts[offset+count].set_normal(norm);
+          ++count;
+        });
+      } else {
+        const vec3 def{0.f, 0.f, 0.f};
+        for (uint32 count = 0; count < mesh_verts; ++count) { 
+          out_verts[offset+count].set_normal(def);
+        }
+      }
+    }
+
+    if constexpr (vert_has_uvs<Vertex>) {
+      if (mesh.has_uvs()) {
+        uint32 count = 0;
+        NTF_ASSERT(mesh.uvs.count == mesh_verts);
+        mesh.uvs.for_each(in_verts.uvs, [&](const vec2& uv) {
+          out_verts[offset+count].set_uv(uv);
+          ++count;
+        });
+      } else {
+        const vec2 def{0.f, 0.f};
+        for (uint32 count = 0; count < mesh_verts; ++count) { 
+          out_verts[offset+count].set_uv(def);
+        }
+      }
+    }
+
+    if constexpr (vert_has_tangents<Vertex>) {
+      if (mesh.has_tangents()) {
+        uint32 count = 0;
+        NTF_ASSERT(mesh.tangents.count == mesh_verts);
+        mesh.tangents.for_each(in_verts.tangents, [&](const vec3& tang) {
+          out_verts[offset+count].set_tangent(tang);
+          ++count;
+        });
+        count = 0;
+        mesh.bitangents.for_each(in_verts.bitangents, [&](const vec3& bitang) {
+          out_verts[offset+count].set_bitangent(bitang);
+          ++count;
+        });
+      } else {
+        const vec3 def{0.f, 0.f, 0.f};
+        for (uint32 count = 0; count < mesh_verts; ++count) { 
+          out_verts[offset+count].set_tangent(def);
+          out_verts[offset+count].set_bitangent(def);
+        }
+      }
+    }
+
+    if constexpr (vert_has_colors<Vertex>) {
+      if (mesh.has_colors()) {
+        uint32 count = 0;
+        NTF_ASSERT(mesh.colors.count == mesh_verts);
+        mesh.colors.for_each(in_verts.colors, [&](const color4& col) {
+          out_verts[offset+count].set_color(col);
+          ++count;
+        });
+
+      } else {
+        const color4 def{0.f, 0.f, 0.f, 0.f};
+        for (uint32 count = 0; count < mesh_verts; ++count) { 
+          out_verts[offset+count].set_color(def);
+        }
+      }
+    }
+
+    if constexpr (vert_has_weights<Vertex, num_weights>) {
+      if (mesh.has_weights()) {
+        uint32 count = 0;
+        NTF_ASSERT(mesh.weights.count == mesh_verts);
+        mesh.weights.for_each(in_verts.weights, [&](const vertex_weights<num_weights>& weights) {
+          out_verts[offset+count].set_weights(weights);
+          ++count;
+        });
+      } else {
+        const vertex_weights<num_weights> def;
+        for (uint32 count = 0; count < mesh_verts; ++count) { 
+          out_verts[offset+count].set_weights(def);
+        }
+      }
+    }
+
+    out.meshes.emplace_back(
+      mesh.name, mesh.material, mesh.faces, mesh.indices, mesh.positions
+    );
+
+    offset += mesh_verts;
+  }
+
+  return out;
+}
+
+class assimp_loader {
+public:
+  using vert_type = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>;
+
+public:
+  assimp_loader();
+  ~assimp_loader() noexcept;
+
+  asset_expected<void> parse(const std::string& path, model_loader_flags flags);
+
+  void get_armatures(armature_data& data);
+  void get_animations(animation_data& data);
+  void get_materials(material_data& data);
+
+  template<typename Vertex>
+  void get_meshes(mesh_data<Vertex>& data) {
+    if constexpr (is_soa_vertex<Vertex>) {
+      static_assert(std::is_same_v<Vertex, vert_type>, "Invalid vertex type");
+      return parse_meshes(data);
+    } else {
+      mesh_data<vert_type> meshes;
+      parse_meshes(meshes);
+      data = soa_to_aos<Vertex>(meshes);
+    }
   }
 
 private:
-  mesh_vec _meshes;
+  void parse_meshes(mesh_data<vert_type>& data);
+
+private:
+  void* _importer;
+  std::unordered_map<std::string, std::pair<uint32,mat4>> _bone_map;
+  std::string _path, _dir;
 };
+
+static_assert(impl::model_loader<assimp_loader, assimp_loader::vert_type>);
+static_assert(impl::model_loader_materials<assimp_loader>);
+static_assert(impl::model_loader_animations<assimp_loader>);
+static_assert(impl::model_loader_armatures<assimp_loader>);
+
+template<
+  typename Vertex = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>, 
+  impl::model_loader<Vertex> Loader = assimp_loader
+>
+model_data<Vertex> load_model(
+  unchecked_t,
+  const std::string& path,
+  model_loader_flags flags = def_model_loader_flags,
+  Loader&& loader = {}
+) {
+  return impl::load_model<Vertex, Loader, false>(path, flags, std::forward<Loader>(loader));
+}
+
+template<
+  typename Vertex = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>,
+  impl::model_loader<Vertex> Loader = assimp_loader
+>
+asset_expected<model_data<Vertex>> load_model(
+  const std::string& path, 
+  model_loader_flags flags = def_model_loader_flags,
+  Loader&& loader = {}
+) {
+  return impl::load_model<Vertex, Loader, true>(path, flags, std::forward<Loader>(loader));
+}
 
 } // namespace ntf

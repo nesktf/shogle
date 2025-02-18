@@ -3,10 +3,9 @@ A list of things that i want to do, just so i keep focused and don't drift off o
 
 ## Higher priority
 - Use simple POD like types for asset data
-    - Design the POD types for models, meshes, materials, fonts and atlases
+    - Design the POD types for fonts and atlases
 - Rewrite the asset loaders to use expected\<T\> and the POD types
 - Use the OpenGL texture formats properly
-- Provide a way to load assets using an arena or some other allocator
 - Finish rewriting the camera class
 - Revisit the system to upload drawing commands to the render context.
     - Also add support for uniform buffers
@@ -22,7 +21,7 @@ A list of things that i want to do, just so i keep focused and don't drift off o
     - Maybe something like the font rendering system in BGFX?
     - Or maybe some wrapper class for each common asset type (models, atlas, fonts) like the old
     way i was doing things.
-- Skeletal animation system
+- Import more material data from models
 - Sound system
 - 2D & 3D physics systems
 - Lighting system
@@ -32,6 +31,7 @@ A list of things that i want to do, just so i keep focused and don't drift off o
 - Some kind of assset management system
     - Could rewrite the asset pool? Maybe using the fixed size arena or something similar
     - Maybe add some virtual filesystem
+- Provide a way to load assets using an arena or some other allocator
 - GLM replacement
 - Make our render context own the OpenGL context, instead of implicitly using the GLFW one
 - Vulkan renderer

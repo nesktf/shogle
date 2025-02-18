@@ -32,3 +32,8 @@
 #ifndef SHOGLE_USE_STL_COMPLEX
 #define SHOGLE_USE_STL_COMPLEX NTF_ENABLE
 #endif
+
+// Asset things
+#ifndef SHOGLE_ASSIMP_WEIGHTS
+#define SHOGLE_ASSIMP_WEIGHTS 4
+#endif

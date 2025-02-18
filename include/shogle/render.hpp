@@ -4,3 +4,4 @@
 
 #include "../../src/render/context.hpp"
 #include "../../src/render/transform.hpp"
+#include "../../src/render/vertex.hpp"

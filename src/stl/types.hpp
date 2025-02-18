@@ -240,4 +240,28 @@ private:
   size_t _size;
 };
 
+constexpr uint32 VSPAN_TOMBSTONE = std::numeric_limits<uint32>::max();
+struct vec_span {
+  uint32 index;
+  uint32 count;
+
+  template<typename T, typename Fun>
+  void for_each(std::vector<T>& vec, Fun&& f) const {
+    NTF_ASSERT(index != VSPAN_TOMBSTONE);
+    NTF_ASSERT(index+count <= vec.size());
+    for (uint32 i = index; i < count; ++i) {
+      f(vec[i]);
+    }
+  }
+
+  template<typename T, typename Fun>
+  void for_each(const std::vector<T>& vec, Fun&& f) const {
+    NTF_ASSERT(index != VSPAN_TOMBSTONE);
+    NTF_ASSERT(index+count <= vec.size());
+    for (uint32 i = index; i < count; ++i) {
+      f(vec[i]);
+    }
+  }
+};
+
 } // namespace ntf
