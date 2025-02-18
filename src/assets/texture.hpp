@@ -139,7 +139,7 @@ load_image_ret<T, typename Loader::template deleter<T>, checked>::type load_imag
     NTF_ASSERT(width && height && channels);
     return image_data{
       std::move(ptr),
-      static_cast<size_t>(width*height*channels)*sizeof(T),
+      static_cast<size_t>(width*height*channels),
       uvec2{width, height},
       parse_image_format<T>(channels)
     };
