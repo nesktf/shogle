@@ -87,20 +87,21 @@ int main() {
     ctx.framebuffer_viewport(ntf::r_context::DEFAULT_FRAMEBUFFER, ntf::uvec4{0, 0, w, h});
   });
 
-  auto cirno_img = ntf::load_image<ntf::uint8>("./demos/res/cirno_cpp.jpg");
+  const auto image_flag = ntf::image_load_flags::flip_vertically;
+  auto cirno_img = ntf::load_image<ntf::uint8>("./demos/res/cirno_cpp.jpg", image_flag);
   if (!cirno_img) {
     ntf::logger::error("[main] Failed to load cirno image: {}", cirno_img.error().what());
     return EXIT_FAILURE;
   }
 
-  const auto fumo_flag = ntf::model_loader_flags::triangulate;
+  const auto fumo_flag = ntf::model_load_flags::triangulate;
   auto fumo = ntf::load_model<ntf::pnt_vertex>("./demos/res/cirno_fumo/cirno_fumo.obj", fumo_flag);
   if (!fumo) {
     ntf::logger::error("[main] Failed to load fumo model: {}", fumo.error().what());
     return EXIT_FAILURE;
   }
 
-  auto fumo_diffuse = ntf::load_image<ntf::uint8>(fumo->materials.paths[0]);
+  auto fumo_diffuse = ntf::load_image<ntf::uint8>(fumo->materials.paths[0], image_flag);
   if (!fumo_diffuse) {
     ntf::logger::error("[main] Failed to load fumo material: {}", fumo_diffuse.error().what());
     return EXIT_FAILURE;

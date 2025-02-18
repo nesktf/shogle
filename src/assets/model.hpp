@@ -7,11 +7,6 @@
 
 namespace ntf {
 
-enum class r_material_type {
-  diffuse = 0,
-  specular,
-};
-
 template<typename Vertex>
 struct mesh_data {
   struct mesh {
@@ -187,27 +182,27 @@ struct model_data {
   bool has_meshes() const { return meshes.size() != 0; }
 };
 
-enum class model_loader_flags {
+enum class model_load_flags {
   none          = 0,
   triangulate   = 1 << 0,
   flip_uvs      = 1 << 1,
   calc_tangents = 1 << 2,
 };
-NTF_DEFINE_ENUM_CLASS_FLAG_OPS(model_loader_flags);
+NTF_DEFINE_ENUM_CLASS_FLAG_OPS(model_load_flags);
 
 namespace impl {
 
 template<typename T>
 concept model_loader_parse = requires(T loader,
                                       const std::string& path,
-                                      model_loader_flags flags) {
+                                      model_load_flags flags) {
   { loader.parse(path, flags) } -> same_as_any<void, asset_expected<void>>;
 };
 
 template<typename T>
 concept model_loader_guarded_parse = requires(T loader,
                                               const std::string& path,
-                                              model_loader_flags flags) {
+                                              model_load_flags flags) {
   { loader.parse(path, flags) } -> std::same_as<asset_expected<void>>;
 };
 
@@ -255,7 +250,7 @@ struct load_model_ret<Vertex, false> {
 
 template<typename Vertex, model_loader<Vertex> Loader, bool checked>
 load_model_ret<Vertex, checked>::type load_model(const std::string& path,
-                                                   model_loader_flags flags,
+                                                   model_load_flags flags,
                                                    Loader&& loader) {
   if constexpr (model_loader_guarded_parse<Loader>) {
     auto ret = loader.parse(path, flags);
@@ -439,7 +434,7 @@ public:
   assimp_loader();
   ~assimp_loader() noexcept;
 
-  asset_expected<void> parse(const std::string& path, model_loader_flags flags);
+  asset_expected<void> parse(const std::string& path, model_load_flags flags);
 
   void get_armatures(armature_data& data);
   void get_animations(animation_data& data);
@@ -478,7 +473,7 @@ template<
 model_data<Vertex> load_model(
   unchecked_t,
   const std::string& path,
-  model_loader_flags flags,
+  model_load_flags flags,
   Loader&& loader = {}
 ) {
   return impl::load_model<Vertex, Loader, false>(path, flags, std::forward<Loader>(loader));
@@ -490,7 +485,7 @@ template<
 >
 asset_expected<model_data<Vertex>> load_model(
   const std::string& path, 
-  model_loader_flags flags,
+  model_load_flags flags,
   Loader&& loader = {}
 ) {
   return impl::load_model<Vertex, Loader, true>(path, flags, std::forward<Loader>(loader));

@@ -1,45 +1,16 @@
 #pragma once
 
-#include "./fs.hpp"
+#include "./asset.hpp"
+
 #include "../render/render.hpp"
-#include "../stl/allocator.hpp"
 #include "../stl/function.hpp"
-#include "../stl/expected.hpp"
 
 #include <nlohmann/json.hpp>
-#include <stb/stb_image.h>
 
 namespace ntf {
 
-using asset_error = error<void>;
-
-template<typename T>
-using asset_expected = expected<T, asset_error>;
-
 template<typename T>
 concept image_depth_type = same_as_any<T, uint8, uint16, float32>;
-
-template<typename T>
-struct stbi_image_delete {
-  void operator()(T* data) {
-    stbi_image_free(data);
-  }
-};
-
-template<typename Alloc>
-class alloc_image_delete {
-  Alloc _alloc;
-  size_t _n;
-
-public:
-  alloc_image_delete(size_t n, const Alloc& alloc = {}) :
-    _alloc{alloc}, _n{n} {}
-
-  void operator()(std::allocator_traits<Alloc>::pointer data) {
-    data->~T();
-    _alloc.deallocate(data, _n);
-  }
-};
 
 template<image_depth_type T>
 r_texture_format parse_image_format(uint32) {
@@ -47,7 +18,7 @@ r_texture_format parse_image_format(uint32) {
   return r_texture_format::rgb8n;
 }
 
-template<image_depth_type T, typename Deleter = stbi_image_delete<T>>
+template<image_depth_type T, typename Deleter = std::default_delete<T>>
 class image_data {
 public:
   using uptr_type = std::unique_ptr<T, Deleter>;
@@ -95,422 +66,383 @@ private:
   r_texture_format _format;
 };
 
-template<typename T>
-asset_expected<image_data<T>> load_image(std::string_view path, bool flip_vertically = true) {
-  using data_t = image_data<T>;
-  std::string fpath{path.data()}; // Make sure that it is null terminated
-  int w, h, ch;
-  T* stbi_data;
-  stbi_set_flip_vertically_on_load(flip_vertically);
-  if constexpr (std::same_as<T, uint8>) {
-    stbi_data = stbi_load(fpath.data(), &w, &h, &ch, 0);
-  } else if constexpr (std::is_same_v<T, uint16>) {
-    stbi_data = stbi_load_16(fpath.data(), &w, &h, &ch, 0);
-  } else if constexpr (std::is_same_v<T, float32>) {
-    stbi_data = stbi_loadf(fpath.data(), &w, &h, &ch, 0);
-  }
-  if (!stbi_data) {
-    return unexpected{asset_error::format({"Failed to load image \"{}\": {}"},
-                                          path, stbi_failure_reason())};
-  }
+enum class image_load_flags {
+  none = 0,
+  flip_vertically = 1 << 0,
+};
+NTF_DEFINE_ENUM_CLASS_FLAG_OPS(image_load_flags);
 
-  SHOGLE_LOG(verbose, "[ntf::load_image] Loaded image \"{}\"", path.data());
-  return {data_t{
-    typename data_t::uptr_type{stbi_data}, static_cast<size_t>(w*h*ch),
-    uvec2{w, h}, parse_image_format<T>(static_cast<uint32>(ch))
-  }};
-}
-
-template<typename T, typename Alloc>
-auto load_image(std::string_view path, Alloc&& alloc, bool flip_vertically = true)
-                                      -> asset_expected<image_data<T, alloc_image_delete<Alloc>>> {
-  using alloc_t = alloc_image_delete<Alloc>;
-  using data_t = image_data<T, alloc_t>;
-  std::string fpath{path.data()}; // Make sure that it is null terminated
-  int w, h, ch;
-  T* stbi_data;
-  stbi_set_flip_vertically_on_load(flip_vertically);
-  if constexpr (std::is_same_v<T, uint8>) {
-    stbi_data = stbi_load(fpath.data(), &w, &h, &ch, 0);
-  } else if constexpr (std::is_same_v<T, uint16>) {
-    stbi_data = stbi_load_16(fpath.data(), &w, &h, &ch, 0);
-  } else if constexpr ( std::is_same_v<T, float32>) {
-    stbi_data = stbi_loadf(fpath.data(), &w, &h, &ch, 0);
-  }
-  if (!stbi_data) {
-    return unexpected{asset_error::format({"Failed to load image \"{}\": {}"},
-                                          path, stbi_failure_reason())};
-  }
-  size_t alloc_count = static_cast<size_t>(w*h*ch);
-  T* alloc_data = alloc.allocate(alloc_count*sizeof(T));
-  if (!alloc_data) {
-    stbi_image_free(stbi_data);
-    return unexpected{asset_error::format({"Failed to load image \"{}\": Allocation failed"},
-                                          path)};
-  }
-  std::memcpy(alloc_data, stbi_data, alloc_count*sizeof(T));
-  stbi_image_free(stbi_data);
-
-  SHOGLE_LOG(verbose, "[ntf::image_data::load] Loaded image \"{}\"", path.data());
-  return {data_t{
-    typename data_t::uptr_type{alloc_data, alloc_t{std::forward<Alloc>(alloc), alloc_count}},
-    alloc_count, uvec2{w, h}, parse_image_format<T>(static_cast<uint32>(ch))
-  }};
-}
-
-template<typename T>
-image_data<T> load_image(unchecked_t, std::string_view path, bool flip_vertically = true) {
-  using data_t = image_data<T>;
-  int w, h, ch;
-  T* stbi_data;
-  stbi_set_flip_vertically_on_load(flip_vertically);
-  if constexpr (std::same_as<T, uint8>) {
-    stbi_data = stbi_load(path.data(), &w, &h, &ch, 0);
-  } else if constexpr (std::is_same_v<T, uint16>) {
-    stbi_data = stbi_load_16(path.data(), &w, &h, &ch, 0);
-  } else if constexpr ( std::is_same_v<T, float32>) {
-    stbi_data = stbi_loadf(path.data(), &w, &h, &ch, 0);
-  }
-  if (!stbi_data) {
-    return data_t{};
-  }
-
-  SHOGLE_LOG(verbose, "[ntf::image_data::load] Loaded image \"{}\"", path.data());
-  return data_t{
-    typename data_t::uptr_type{stbi_data}, static_cast<size_t>(w*h*ch),
-    uvec2{w, h}, parse_image_format<T>(static_cast<uint32>(ch))
-  };
-}
-
-template<typename T, typename Alloc>
-auto load_image(unchecked_t, std::string_view path, Alloc&& alloc,
-                bool flip_vertically = true) -> image_data<T, alloc_image_delete<Alloc>>{
-  using alloc_t = alloc_image_delete<Alloc>;
-  using data_t = image_data<T, alloc_t>;
-  int w, h, ch;
-  T* stbi_data;
-  stbi_set_flip_vertically_on_load(flip_vertically);
-  if constexpr (std::is_same_v<T, uint8>) {
-    stbi_data = stbi_load(path.data(), &w, &h, &ch, 0);
-  } else if constexpr (std::is_same_v<T, uint16>) {
-    stbi_data = stbi_load_16(path.data(), &w, &h, &ch, 0);
-  } else if constexpr ( std::is_same_v<T, float32>) {
-    stbi_data = stbi_loadf(path.data(), &w, &h, &ch, 0);
-  }
-  if (!stbi_data) {
-    return data_t{alloc_image_delete<Alloc>{std::forward<Alloc>(alloc), 0}};
-  }
-  size_t alloc_count = static_cast<size_t>(w*h*ch);
-  T* alloc_data = alloc.allocate(alloc_count*sizeof(T));
-  if (!alloc_data) {
-    stbi_image_free(stbi_data);
-    return data_t{alloc_image_delete<Alloc>{std::forward<Alloc>(alloc), 0}};
-  }
-  std::memcpy(alloc_data, stbi_data, alloc_count*sizeof(T));
-  stbi_image_free(stbi_data);
-
-  SHOGLE_LOG(verbose, "[ntf::image_data::load] Loaded image \"{}\"", path.data());
-  return data_t{
-    typename data_t::uptr_type{alloc_data, alloc_t{std::forward<Alloc>(alloc), alloc_count}},
-      alloc_count, uvec2{w, h}, parse_image_format<T>(static_cast<uint32>(ch))
-  };
-}
-
-inline optional<std::pair<uvec2, uint>> texture_info(std::string_view path) {
-  int w, h, c;
-  if (!stbi_info(path.data(), &w, &h, &c)) {
-    // SHOGLE_LOG(error, "[ntf::texture_info] Failed to open texture: {}", stbi_failure_reason());
-    return nullopt;
-  }
-  return std::make_pair(uvec2{w, h}, static_cast<uint32>(c));
-}
-
-template<typename Alloc = std::allocator<uint8>>
-class texture_data {
-public:
-  using allocator_type = Alloc;
-
-public:
-  texture_data()
-  noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
-    _alloc{Alloc{}} {}
-
-  explicit texture_data(const Alloc& alloc)
-  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _alloc{alloc} {}
-
-  explicit texture_data(std::string_view path) noexcept { load(path); }
-
-  texture_data(std::string_view path, const Alloc& alloc)
-  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _alloc{alloc} { load(path); }
-
-public:
-  void load(std::string_view path) noexcept {
-    NTF_ASSERT(!has_data());
-    stbi_set_flip_vertically_on_load(true);
-    int w, h, ch;
-    uint8* stbi_data = stbi_load(path.data(), &w, &h, &ch, 0);
-    if (!stbi_data) {
-      SHOGLE_LOG(error, "[ntf::texture_data] Failed to load image \"{}\", {}",
-                 path, stbi_failure_reason());
-      return;
-    }
-
-    size_t alloc_sz = w*h*ch*sizeof(uint8);
-    if constexpr (std::is_same_v<Alloc, std::allocator<uint8>>) {
-      // stbi just mallocs, so no need to copy anything if not using a custom allocator
-      _data = stbi_data;
-    } else {
-      uint8* alloc_data = _alloc.allocate(alloc_sz);
-      if (!alloc_data) {
-        stbi_image_free(stbi_data);
-        return;
-      }
-
-      std::memcpy(alloc_data, stbi_data, alloc_sz);
-      stbi_image_free(stbi_data);
-      _data = alloc_data;
-    }
-
-    _dim = uvec2{w, h};
-    _face_bytes = alloc_sz;
-    _format = r_texture_format::rgb8u;
-  }
-
-  void unload() noexcept {
-    NTF_ASSERT(has_data());
-
-    if constexpr (std::is_same_v<Alloc, std::allocator<uint8>>) {
-      stbi_image_free(_data);
-    } else {
-      _alloc.deallocate(_data, _face_bytes);
-    }
-
-    _data = nullptr;
-  }
-
-public:
-  const uint8* data() const { return _data; }
-  uint8* data() { return _data; }
-  constexpr size_t count() const { return 1; }
-  size_t size() const { return _face_bytes; }
-  uvec2 dim() const { return _dim; }
-  r_texture_format format() const { return _format; }
-
-  bool has_data() const { return _data != nullptr; }
-  explicit operator bool() const { return has_data(); }
-
-private:
-  [[maybe_unused]] Alloc _alloc;
-  uint8* _data{nullptr};
-  size_t _face_bytes{0};
-  uvec2 _dim{0, 0};
-  r_texture_format _format;
-
-public:
-  ~texture_data() noexcept {
-    if (has_data()) {
-      unload();
-    }
-  }
-
-  // use case for copying?
-  texture_data(const texture_data&) = delete;
-  texture_data& operator=(const texture_data&) = delete;
-
-  texture_data(texture_data&& t) noexcept :
-    // _alloc(std::move(t._alloc)),
-    _data(std::move(t._data)),
-    _face_bytes(std::move(t._face_bytes)),
-    _dim(std::move(t._dim)),
-    _format(std::move(t._format)) { t._face_bytes = 0; t._data = nullptr; }
-  texture_data& operator=(texture_data&& t) noexcept {
-    if (std::addressof(t) == this) {
-      return *this;
-    }
-
-    if (has_data()) {
-      unload();
-    }
-
-    // _alloc = std::move(t._alloc);
-    _data = std::move(t._data);
-    _face_bytes = std::move(t._face_bytes);
-    _dim = std::move(t._dim);
-    _format = std::move(t._format);
-
-    t._data = nullptr;
-    t._face_bytes = 0;
-
-    return *this;
-  }
+template<typename Loader, typename T>
+concept checked_image_loader_type = requires(Loader loader,
+                                             const std::string& path,
+                                             uint32& w, uint32& h, uint32& ch,
+                                             image_load_flags flags) {
+  { loader.template load<T>(path, w, h, ch, flags) }
+    -> std::same_as<asset_expected<std::unique_ptr<T, typename Loader::template deleter<T>>>>;
 };
 
-template<typename Alloc = std::allocator<uint8>>
-class cubemap_data {
-private:
-  static constexpr size_t face_count = 6;
-
-public:
-  using allocator_type = Alloc;
-
-public:
-  cubemap_data() noexcept(noexcept(Alloc{})) :
-    _alloc(Alloc{}) { _zero_array(); }
-  explicit cubemap_data(const Alloc& alloc) noexcept :
-    _alloc(alloc) { _zero_array(); }
-
-  explicit cubemap_data(std::array<std::string_view, face_count> paths) noexcept { 
-    _zero_array();
-    load(paths);
-  }
-  cubemap_data(std::array<std::string_view, face_count> paths, const Alloc& alloc) noexcept :
-    _alloc(alloc) {
-    _zero_array();
-    load(paths);
-  }
-
-public:
-  void load(std::array<std::string_view, face_count> paths) noexcept {
-    NTF_ASSERT(!has_data());
-    int w, h, ch;
-    uint8* stbi_data[face_count] = {0};
-    for (uint32 i = 0; i < face_count; ++i) {
-      uint8* curr_data = stbi_load(paths[i].data(), &w, &h, &ch, 0);
-      if (!curr_data) {
-        for (uint32 j = i-1; j >= 0; --j) {
-          stbi_image_free(stbi_data[j]);
-        }
-        return;
-      }
-      stbi_data[i] = curr_data;
-    }
-
-    size_t alloc_sz = w*h*ch*sizeof(uint8);
-    if constexpr (std::is_same_v<Alloc, std::allocator<uint8>>) {
-      std::memcpy(_data.data(), stbi_data, sizeof(uint8*)*face_count);
-    } else {
-      uint8* alloc_data = _alloc.allocate(alloc_sz*face_count);
-      if (!alloc_data) {
-        for (uint32 i = 0; i < face_count; ++i) {
-          stbi_image_free(stbi_data[i]);
-        }
-        return;
-      }
-
-      size_t offset = 0;
-      for (uint32 i = 0; i < face_count; ++i) {
-        uint8* pos = reinterpret_cast<uint8*>(impl::ptr_add(alloc_data, offset));
-        std::memcpy(pos, stbi_data[i], alloc_sz);
-        _data[i] = pos;
-        offset += alloc_sz;
-      }
-    }
-
-    _dim = uvec2{w, h};
-    _face_bytes = alloc_sz;
-    _format = r_texture_format::rgb8u;
-  }
-
-  void load(std::string_view json_path) noexcept {
-    NTF_ASSERT(!has_data());
-    auto dir = file_dir(json_path);
-    if (!dir) {
-      return;
-    }
-
-    using json = nlohmann::json;
-    std::ifstream f{json_path.data()};
-    json data = json::parse(f);
-    auto content = data["content"];
-    if (content.size() != face_count) {
-      return;
-    }
-
-    std::string paths[face_count];
-    std::array<std::string_view, face_count> load_paths;
-    for (uint32 i = 0; i < face_count; ++i) {
-      auto& curr = content[i];
-      paths[i] = dir.value()+"/"+curr["path"].get<std::string>();
-      load_paths[i] = paths[i];
-    }
-
-    load(load_paths);
-  }
-
-  void unload() noexcept {
-    NTF_ASSERT(has_data());
-    if constexpr (std::is_same_v<Alloc, std::allocator<uint8>>) {
-      for (uint i = 0; i < face_count; ++i) {
-        stbi_image_free(_data[i]);
-      }
-    } else {
-      _alloc.deallocate(_data[0], face_count*_face_bytes);
-    }
-
-    _zero_array();
-    _face_bytes = 0;
-  }
-
-private:
-  void _zero_array() { std::fill(_data.data(), _data.data()+face_count, nullptr); }
-
-public:
-  const uint8* const* data() const { return _data.data(); }
-  uint8** data() { return _data.data(); }
-  constexpr size_t count() const { return face_count; }
-  size_t size() const { return _face_bytes; }
-  uvec2 dim() const { return _dim; }
-  r_texture_format format() const { return _format; }
-
-  bool has_data() const { return _face_bytes > 0; }
-  explicit operator bool() const { return has_data(); }
-
-private:
-  [[maybe_unused]] Alloc _alloc;
-  std::array<uint8*, face_count> _data;
-  uvec2 _dim{0, 0};
-  size_t _face_bytes{0};
-  r_texture_format _format;
-
-public:
-  ~cubemap_data() noexcept {
-    if (has_data()) {
-      unload();
-    }
-  }
-
-  // use case for copying?
-  cubemap_data(const cubemap_data&) = delete;
-  cubemap_data& operator=(const cubemap_data&) = delete;
-  
-  cubemap_data(cubemap_data&& c) noexcept :
-    _alloc(std::move(c._alloc)),
-    _data(std::move(c._data)),
-    _dim(std::move(c._dim)),
-    _face_bytes(std::move(c._face_bytes)),
-    _format(std::move(c._format)) { c._zero_array(); c._face_bytes = 0; }
-  cubemap_data& operator=(cubemap_data&& c) noexcept {
-    if (std::addressof(c) == this) {
-      return *this;
-    }
-
-    if (has_data()) {
-      unload();
-    }
-
-    _alloc = std::move(c._alloc);
-    _data = std::move(c._data);
-    _dim = std::move(c._dim);
-    _face_bytes = std::move(c._face_bytes);
-    _format = std::move(c._format);
-
-    c._zero_array();
-    c._face_bytes = 0;
-
-    return *this;
-  }
+template<typename Loader, typename T>
+concept unchecked_image_loader_type = requires(Loader loader,
+                                               const std::string& path,
+                                               uint32& w, uint32& h, uint32& ch,
+                                               image_load_flags flags) {
+  { loader.template load<T>(unchecked_t{}, path, w, h, ch, flags) }
+    -> std::same_as<std::unique_ptr<T, typename Loader::template deleter<T>>>;
 };
 
+template<typename Loader, typename T>
+concept image_loader_type =
+  checked_image_loader_type<Loader, T> || unchecked_image_loader_type<Loader, T>;
+
+namespace impl {
+
+constexpr std::array<const char*, 4> img_RGBA_str = { "R", "RG", "RGB", "RGBA", };
+
+template<typename>
+struct img_depth_str {
+  static constexpr const char* value = "";
+};
+
+template<>
+struct img_depth_str<uint8> {
+  static constexpr const char* value = "8 bit unsigned";
+};
+
+template<>
+struct img_depth_str<uint16> {
+  static constexpr const char* value = "16 bit unsigned";
+};
+
+template<>
+struct img_depth_str<float32> {
+  static constexpr const char* value = "32 bit float";
+};
+
+template<typename T, typename Deleter, bool>
+struct load_image_ret {
+  using type = asset_expected<image_data<T, Deleter>>;
+};
+
+template<typename T, typename Deleter>
+struct load_image_ret<T, Deleter, false> {
+  using type = image_data<T, Deleter>;
+};
+
+template<image_depth_type T, image_loader_type<T> Loader, bool checked>
+load_image_ret<T, typename Loader::template deleter<T>, checked>::type load_image(
+  const std::string& path,
+  image_load_flags flags,
+  Loader&& loader
+) {
+  uint32 width = 0, height = 0, channels = 0;
+  auto make_data = [&](auto ptr) {
+    NTF_ASSERT(width && height && channels);
+    return image_data{
+      std::move(ptr),
+      static_cast<size_t>(width*height*channels)*sizeof(T),
+      uvec2{width, height},
+      parse_image_format<T>(channels)
+    };
+  };
+
+  if constexpr (checked) {
+    try {
+      if constexpr (checked_image_loader_type<Loader, T>) {
+        auto ret = loader.template load<T>(path, width, height, channels, flags);
+        if (!ret) { // Check asset_expected
+          return unexpected{std::move(ret.error())};
+        }
+        return make_data(std::move(*ret));
+      } else {
+        auto ret = loader.template load<T>(::ntf::unchecked, path, width, height, channels, flags);
+        if (!ret) { // Check unique_ptr
+          return unexpected{asset_error{"Image loader returned nullptr"}};
+        }
+        return make_data(std::move(*ret));
+      }
+    } catch (asset_error& err) {
+      return unexpected{std::move(err)};
+    } catch (const std::exception& err) {
+      return unexpected{asset_error::format({"{}"}, err.what())};
+    } catch (...) {
+      return unexpected{asset_error{"Unknown error"}};
+    }
+  } else if constexpr (checked_image_loader_type<Loader, T>) {
+    auto ret = loader.template load<T>(path, width, height, channels, flags);
+    NTF_ASSERT(ret); // Check asset_expected
+    return make_data(std::move(*ret));
+  } else {
+    auto ret = loader.template load<T>(::ntf::unchecked, path, width, height, channels, flags);
+    NTF_ASSERT(ret); // Check unique_ptr
+    return make_data(std::move(ret));
+  }
+}
+
+} // namespace impl
+
+class stb_image_loader {
+public:
+  template<typename T>
+  struct deleter {
+    void operator()(T* data) { stb_image_loader::stbi_delete(data); }
+  };
+
+  template<typename T>
+  using stbi_ptr = std::unique_ptr<T, deleter<T>>;
+
+public:
+  template<image_depth_type T>
+  auto load(const std::string& path,
+            uint32& w, uint32& h, uint32& ch,
+            image_load_flags flags) -> asset_expected<stbi_ptr<T>> {
+    if constexpr (std::same_as<T, uint8>) {
+      return load_rgb8u(path, w, h, ch, flags);
+    } else if constexpr (std::same_as<T, uint16>) {
+      return load_rgb16u(path, w, h, ch, flags);
+    } else if constexpr (std::same_as<T, float32>) {
+      return load_rgb32f(path, w, h, ch, flags);
+    } else {
+      NTF_UNREACHABLE();
+    }
+  }
+
+  template<image_depth_type T>
+  auto load(unchecked_t,
+            const std::string& path,
+            uint32& w, uint32& h, uint32& ch,
+            image_load_flags flags) -> stbi_ptr<T> {
+    if constexpr (std::same_as<T, uint8>) {
+      return load_rgb8u(unchecked, path, w, h, ch, flags);
+    } else if constexpr (std::same_as<T, uint16>) {
+      return load_rgb16u(unchecked, path, w, h, ch, flags);
+    } else if constexpr (std::same_as<T, float32>) {
+      return load_rgb32f(unchecked, path, w, h, ch, flags);
+    } else {
+      NTF_UNREACHABLE();
+    }
+  }
+
+private:
+  static void stbi_delete(void* data);
+
+  auto load_rgb8u(const std::string& path,
+                  uint32& w, uint32& h, uint32& ch,
+                  image_load_flags flags) -> asset_expected<stbi_ptr<uint8>>;
+
+  auto load_rgb8u(unchecked_t,
+                  const std::string& path,
+                  uint32& w, uint32& h, uint32& ch,
+                  image_load_flags flags) -> stbi_ptr<uint8>;
+
+  auto load_rgb16u(const std::string& path,
+                   uint32& w, uint32& h, uint32& ch,
+                   image_load_flags flags) -> asset_expected<stbi_ptr<uint16>>;
+
+  auto load_rgb16u(unchecked_t,
+                   const std::string& path,
+                   uint32& w, uint32& h, uint32& ch,
+                   image_load_flags flags) -> stbi_ptr<uint16>;
+
+  auto load_rgb32f(const std::string& path,
+                   uint32& w, uint32& h, uint32& ch,
+                   image_load_flags flags) -> asset_expected<stbi_ptr<float32>>;
+
+  auto load_rgb32f(unchecked_t,
+                   const std::string& path,
+                   uint32& w, uint32& h, uint32& ch,
+                   image_load_flags flags) -> stbi_ptr<float32>;
+};
+static_assert(checked_image_loader_type<stb_image_loader, uint8>);
+static_assert(checked_image_loader_type<stb_image_loader, uint16>);
+static_assert(checked_image_loader_type<stb_image_loader, float32>);
+static_assert(unchecked_image_loader_type<stb_image_loader, uint8>);
+static_assert(unchecked_image_loader_type<stb_image_loader, uint16>);
+static_assert(unchecked_image_loader_type<stb_image_loader, float32>);
+
+
+template<image_depth_type T, checked_image_loader_type<T> Loader = stb_image_loader>
+asset_expected<image_data<T, typename Loader::template deleter<T>>> load_image(
+  const std::string& path,
+  image_load_flags flags = image_load_flags::none,
+  Loader&& loader = {}
+) {
+  return impl::load_image<T, Loader, true>(path, flags, std::forward<Loader>(loader));
+}
+
+template<image_depth_type T, unchecked_image_loader_type<T> Loader = stb_image_loader>
+asset_expected<image_data<T, typename Loader::template deleter<T>>> load_image(
+  unchecked_t,
+  const std::string& path,
+  image_load_flags flags = image_load_flags::none,
+  Loader&& loader = {}
+) {
+  return impl::load_image<T, Loader, false>(path, flags, std::forward<Loader>(loader));
+}
+
+// template<typename Alloc = std::allocator<uint8>>
+// class cubemap_data {
+// private:
+//   static constexpr size_t face_count = 6;
+//
+// public:
+//   using allocator_type = Alloc;
+//
+// public:
+//   cubemap_data() noexcept(noexcept(Alloc{})) :
+//     _alloc(Alloc{}) { _zero_array(); }
+//   explicit cubemap_data(const Alloc& alloc) noexcept :
+//     _alloc(alloc) { _zero_array(); }
+//
+//   explicit cubemap_data(std::array<std::string_view, face_count> paths) noexcept { 
+//     _zero_array();
+//     load(paths);
+//   }
+//   cubemap_data(std::array<std::string_view, face_count> paths, const Alloc& alloc) noexcept :
+//     _alloc(alloc) {
+//     _zero_array();
+//     load(paths);
+//   }
+//
+// public:
+//   void load(std::array<std::string_view, face_count> paths) noexcept {
+//     NTF_ASSERT(!has_data());
+//     int w, h, ch;
+//     uint8* stbi_data[face_count] = {0};
+//     for (uint32 i = 0; i < face_count; ++i) {
+//       uint8* curr_data = stbi_load(paths[i].data(), &w, &h, &ch, 0);
+//       if (!curr_data) {
+//         for (uint32 j = i-1; j >= 0; --j) {
+//           stbi_image_free(stbi_data[j]);
+//         }
+//         return;
+//       }
+//       stbi_data[i] = curr_data;
+//     }
+//
+//     size_t alloc_sz = w*h*ch*sizeof(uint8);
+//     if constexpr (std::is_same_v<Alloc, std::allocator<uint8>>) {
+//       std::memcpy(_data.data(), stbi_data, sizeof(uint8*)*face_count);
+//     } else {
+//       uint8* alloc_data = _alloc.allocate(alloc_sz*face_count);
+//       if (!alloc_data) {
+//         for (uint32 i = 0; i < face_count; ++i) {
+//           stbi_image_free(stbi_data[i]);
+//         }
+//         return;
+//       }
+//
+//       size_t offset = 0;
+//       for (uint32 i = 0; i < face_count; ++i) {
+//         uint8* pos = reinterpret_cast<uint8*>(impl::ptr_add(alloc_data, offset));
+//         std::memcpy(pos, stbi_data[i], alloc_sz);
+//         _data[i] = pos;
+//         offset += alloc_sz;
+//       }
+//     }
+//
+//     _dim = uvec2{w, h};
+//     _face_bytes = alloc_sz;
+//     _format = r_texture_format::rgb8u;
+//   }
+//
+//   void load(std::string_view json_path) noexcept {
+//     NTF_ASSERT(!has_data());
+//     auto dir = file_dir(json_path);
+//     if (!dir) {
+//       return;
+//     }
+//
+//     using json = nlohmann::json;
+//     std::ifstream f{json_path.data()};
+//     json data = json::parse(f);
+//     auto content = data["content"];
+//     if (content.size() != face_count) {
+//       return;
+//     }
+//
+//     std::string paths[face_count];
+//     std::array<std::string_view, face_count> load_paths;
+//     for (uint32 i = 0; i < face_count; ++i) {
+//       auto& curr = content[i];
+//       paths[i] = dir.value()+"/"+curr["path"].get<std::string>();
+//       load_paths[i] = paths[i];
+//     }
+//
+//     load(load_paths);
+//   }
+//
+//   void unload() noexcept {
+//     NTF_ASSERT(has_data());
+//     if constexpr (std::is_same_v<Alloc, std::allocator<uint8>>) {
+//       for (uint i = 0; i < face_count; ++i) {
+//         stbi_image_free(_data[i]);
+//       }
+//     } else {
+//       _alloc.deallocate(_data[0], face_count*_face_bytes);
+//     }
+//
+//     _zero_array();
+//     _face_bytes = 0;
+//   }
+//
+// private:
+//   void _zero_array() { std::fill(_data.data(), _data.data()+face_count, nullptr); }
+//
+// public:
+//   const uint8* const* data() const { return _data.data(); }
+//   uint8** data() { return _data.data(); }
+//   constexpr size_t count() const { return face_count; }
+//   size_t size() const { return _face_bytes; }
+//   uvec2 dim() const { return _dim; }
+//   r_texture_format format() const { return _format; }
+//
+//   bool has_data() const { return _face_bytes > 0; }
+//   explicit operator bool() const { return has_data(); }
+//
+// private:
+//   [[maybe_unused]] Alloc _alloc;
+//   std::array<uint8*, face_count> _data;
+//   uvec2 _dim{0, 0};
+//   size_t _face_bytes{0};
+//   r_texture_format _format;
+//
+// public:
+//   ~cubemap_data() noexcept {
+//     if (has_data()) {
+//       unload();
+//     }
+//   }
+//
+//   // use case for copying?
+//   cubemap_data(const cubemap_data&) = delete;
+//   cubemap_data& operator=(const cubemap_data&) = delete;
+//   
+//   cubemap_data(cubemap_data&& c) noexcept :
+//     _alloc(std::move(c._alloc)),
+//     _data(std::move(c._data)),
+//     _dim(std::move(c._dim)),
+//     _face_bytes(std::move(c._face_bytes)),
+//     _format(std::move(c._format)) { c._zero_array(); c._face_bytes = 0; }
+//   cubemap_data& operator=(cubemap_data&& c) noexcept {
+//     if (std::addressof(c) == this) {
+//       return *this;
+//     }
+//
+//     if (has_data()) {
+//       unload();
+//     }
+//
+//     _alloc = std::move(c._alloc);
+//     _data = std::move(c._data);
+//     _dim = std::move(c._dim);
+//     _face_bytes = std::move(c._face_bytes);
+//     _format = std::move(c._format);
+//
+//     c._zero_array();
+//     c._face_bytes = 0;
+//
+//     return *this;
+//   }
+// };
+//
 } // namespace ntf

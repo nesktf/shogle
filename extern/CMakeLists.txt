@@ -6,9 +6,6 @@ set(EXTERN_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 list(APPEND EXTERN_INCLUDE "${EXTERN_PATH}")
 
-# stb_image
-list(APPEND EXTERN_SOURCE "${EXTERN_PATH}/stb/stb_image.c")
-
 # glad
 list(APPEND EXTERN_SOURCE "${EXTERN_PATH}/glad/glad.c")
 

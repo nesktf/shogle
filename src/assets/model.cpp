@@ -149,15 +149,15 @@ void log_bones(const std::vector<armature_data::armature>& armatures,
 }
 #endif
 
-uint32 parse_process_flags(model_loader_flags flags) {
+uint32 parse_process_flags(model_load_flags flags) {
   uint32 out = 0;
-  if (+(flags & model_loader_flags::triangulate)) {
+  if (+(flags & model_load_flags::triangulate)) {
     out |= aiProcess_Triangulate;
   }
-  if (+(flags & model_loader_flags::flip_uvs)) {
+  if (+(flags & model_load_flags::flip_uvs)) {
     out |= aiProcess_FlipUVs;
   }
-  if (+(flags & model_loader_flags::calc_tangents)) {
+  if (+(flags & model_load_flags::calc_tangents)) {
     out |= aiProcess_CalcTangentSpace;
   }
   return out;
@@ -186,7 +186,7 @@ assimp_loader::~assimp_loader() noexcept {
   delete importer;
 }
 
-asset_expected<void> assimp_loader::parse(const std::string& path, model_loader_flags flags) {
+asset_expected<void> assimp_loader::parse(const std::string& path, model_load_flags flags) {
   Assimp::Importer* importer = static_cast<Assimp::Importer*>(_importer);
   importer->SetPropertyBool(AI_CONFIG_IMPORT_REMOVE_EMPTY_BONES, true);
 
