@@ -270,7 +270,7 @@ asset_expected<image_data<T, typename Loader::template deleter<T>>> load_image(
 }
 
 template<image_depth_type T, unchecked_image_loader_type<T> Loader = stb_image_loader>
-asset_expected<image_data<T, typename Loader::template deleter<T>>> load_image(
+image_data<T, typename Loader::template deleter<T>> load_image(
   unchecked_t,
   const std::string& path,
   image_load_flags flags = image_load_flags::none,
