@@ -23,19 +23,43 @@ struct mesh_data {
 
     vec_span vertices;
 
-    size_t vertex_size() const { return vertices.count; }
+    size_t vertex_count() const { return vertices.count; }
+    size_t index_count() const { return indices.count; }
 
     bool has_indices() const { return indices.index != VSPAN_TOMBSTONE; }
     bool has_vertices() const { return vertices.index != VSPAN_TOMBSTONE; }
+
+    size_t vertices_size() const { return vertex_count()*sizeof(Vertex); }
+    size_t indices_size() const { return index_count()*sizeof(uint32); }
+
+    Vertex* vertex_data(std::vector<Vertex>& verts) const {
+      NTF_ASSERT(vertices.index < verts.size());
+      return &verts[vertices.index];
+    }
+
+    const Vertex* vertex_data(const std::vector<Vertex>& verts) const {
+      NTF_ASSERT(vertices.index < verts.size());
+      return &verts[vertices.index];
+    }
+
+    uint32* index_data(std::vector<uint32>& inds) const {
+      NTF_ASSERT(indices.index < inds.size());
+      return &inds[indices.index];
+    }
+
+    const uint32* index_data(const std::vector<uint32>& inds) const {
+      NTF_ASSERT(indices.index < inds.size());
+      return &inds[indices.index];
+    }
   };
 
-  std::vector<mesh> meshes;
+  std::vector<mesh> data;
   std::vector<Vertex> vertices;
   std::vector<uint32> indices;
 
-  size_t size() const { return meshes.size(); }
+  size_t size() const { return data.size(); }
 
-  size_t vertex_size() const { return vertices.size(); }
+  size_t vertex_count() const { return vertices.size(); }
 
   bool has_vertices() const { return !vertices.empty(); }
   bool has_indices() const { return !indices.empty(); }
@@ -58,7 +82,8 @@ struct mesh_data<soa_vertices<num_weights>> {
     vec_span colors;
 
     // Should always have at least one position per vertex
-    size_t vertex_size() const { return positions.count; }
+    size_t vertex_count() const { return positions.count; }
+    size_t index_count() const { return indices.count; }
 
     bool has_indices() const { return indices.index != VSPAN_TOMBSTONE; }
     bool has_positions() const { return positions.index != VSPAN_TOMBSTONE; }
@@ -67,14 +92,16 @@ struct mesh_data<soa_vertices<num_weights>> {
     bool has_tangents() const { return tangents.index != VSPAN_TOMBSTONE; }
     bool has_weights() const { return weights.index != VSPAN_TOMBSTONE; }
     bool has_colors() const { return colors.index != VSPAN_TOMBSTONE; }
+
+    size_t indices_size() const { return index_count()*sizeof(uint32); }
   };
 
-  std::vector<mesh> meshes;
+  std::vector<mesh> data;
   soa_vertices<num_weights> vertices;
   std::vector<uint32> indices;
 
-  size_t size() const { return meshes.size(); }
-  size_t vertex_size() const { return vertices.positions.size(); }
+  size_t size() const { return data.size(); }
+  size_t vertex_count() const { return vertices.positions.size(); }
 
   bool has_positions() const { return !vertices.positions.empty(); }
   bool has_normals() const { return !vertices.normals.empty(); }
@@ -167,9 +194,6 @@ enum class model_loader_flags {
   calc_tangents = 1 << 2,
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(model_loader_flags);
-
-constexpr model_loader_flags def_model_loader_flags = 
-  model_loader_flags::triangulate | model_loader_flags::flip_uvs;
 
 namespace impl {
 
@@ -293,14 +317,14 @@ template<is_aos_vertex Vertex, size_t num_weights>
 mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
   mesh_data<Vertex> out;
   auto& out_verts = out.vertices;
-  out.meshes.reserve(data.size());
-  out_verts.resize(data.vertex_size());
+  out.data.reserve(data.size());
+  out_verts.resize(data.vertex_count());
 
   uint32 offset = 0;
   const auto& in_verts = data.vertices;
-  for (const auto& mesh : data.meshes) {
+  for (const auto& mesh : data.data) {
     NTF_ASSERT(mesh.has_positions());
-    const size_t mesh_verts = mesh.vertex_size();
+    const size_t mesh_verts = mesh.vertex_count();
     {
       uint32 count = 0;
       mesh.positions.for_each(in_verts.positions, [&](const vec3& pos) {
@@ -396,9 +420,10 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
       }
     }
 
-    out.meshes.emplace_back(
+    out.data.emplace_back(
       mesh.name, mesh.material, mesh.faces, mesh.indices, mesh.positions
     );
+    out.indices = data.indices;
 
     offset += mesh_verts;
   }
@@ -453,7 +478,7 @@ template<
 model_data<Vertex> load_model(
   unchecked_t,
   const std::string& path,
-  model_loader_flags flags = def_model_loader_flags,
+  model_loader_flags flags,
   Loader&& loader = {}
 ) {
   return impl::load_model<Vertex, Loader, false>(path, flags, std::forward<Loader>(loader));
@@ -465,7 +490,7 @@ template<
 >
 asset_expected<model_data<Vertex>> load_model(
   const std::string& path, 
-  model_loader_flags flags = def_model_loader_flags,
+  model_loader_flags flags,
   Loader&& loader = {}
 ) {
   return impl::load_model<Vertex, Loader, true>(path, flags, std::forward<Loader>(loader));

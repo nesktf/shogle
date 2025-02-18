@@ -765,10 +765,10 @@ void shogle_render_loop(r_context& ctx, LoopObj&& obj) {
 }
 
 template<fixed_loop_object LoopObj>
-void shogle_render_loop(r_context& ctx, uint32 ups, LoopObj&& obj) {
+void shogle_render_loop(r_context& ctx, const uint32& ups, LoopObj&& obj) {
   using namespace std::literals;
 
-  const auto fixed_elapsed_time =
+  auto fixed_elapsed_time =
     std::chrono::duration<float64>{std::chrono::microseconds{1000000/ups}};
 
   using clock = std::chrono::steady_clock;
@@ -781,6 +781,7 @@ void shogle_render_loop(r_context& ctx, uint32 ups, LoopObj&& obj) {
   r_window& window = ctx.win();
   duration lag = 0s;
   while (!window.should_close()) {
+    fixed_elapsed_time = std::chrono::duration<float64>{std::chrono::microseconds{1000000/ups}};
     time_point start_time = clock::now();
     auto elapsed_time = start_time - last_time;
     last_time = start_time;
@@ -816,10 +817,10 @@ void shogle_render_loop(r_context& ctx, uint32 ups, LoopObj&& obj) {
 }
 
 template<fixed_render_func RFunc, fixed_update_func UFunc>
-void shogle_render_loop(r_context& ctx, uint32 ups, RFunc&& render, UFunc&& fixed_update) {
+void shogle_render_loop(r_context& ctx, const uint32& ups, RFunc&& render, UFunc&& fixed_update) {
   using namespace std::literals;
 
-  const auto fixed_elapsed_time =
+  auto fixed_elapsed_time =
     std::chrono::duration<float64>{std::chrono::microseconds{1000000/ups}};
 
   using clock = std::chrono::steady_clock;
@@ -832,6 +833,7 @@ void shogle_render_loop(r_context& ctx, uint32 ups, RFunc&& render, UFunc&& fixe
   duration lag = 0s;
   r_window& window = ctx.win();
   while (!window.should_close()) {
+    fixed_elapsed_time = std::chrono::duration<float64>{std::chrono::microseconds{1000000/ups}};
     time_point start_time = clock::now();
     auto elapsed_time = start_time - last_time;
     last_time = start_time;

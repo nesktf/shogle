@@ -48,20 +48,20 @@ using float32 = float;
 using float64 = double;
 
 template<typename... Fs>
-struct visitor_overload : Fs... { using Fs::operator()...; };
+struct overload : Fs... { using Fs::operator()...; };
 
 template<typename... Fs>
-visitor_overload(Fs...) -> visitor_overload<Fs...>;
+overload(Fs...) -> overload<Fs...>;
 
 template<typename... Ts, typename... Fs>
 constexpr decltype(auto) operator|(std::variant<Ts...>& v,
-                                   const visitor_overload<Fs...>& overload) {
+                                   const overload<Fs...>& overload) {
   return std::visit(overload, v);
 }
 
 template<typename... Ts, typename... Fs>
 constexpr decltype(auto) operator|(const std::variant<Ts...>& v,
-                                   const visitor_overload<Fs...>& overload) {
+                                   const overload<Fs...>& overload) {
   return std::visit(overload, v);
 }
 

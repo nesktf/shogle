@@ -421,7 +421,7 @@ void assimp_loader::parse_meshes(mesh_data<vert_type>& data) {
   const aiScene* scene = importer->GetScene();
 
   uint32 vertex_count = 0, index_count = 0;
-  auto& meshes = data.meshes;
+  auto& meshes = data.data;
   auto& indices = data.indices;
   auto& vertices = data.vertices;
 
