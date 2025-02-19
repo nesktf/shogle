@@ -250,59 +250,50 @@ struct load_model_ret<Vertex, false> {
 
 template<typename Vertex, model_loader<Vertex> Loader, bool checked>
 load_model_ret<Vertex, checked>::type load_model(const std::string& path,
-                                                   model_load_flags flags,
-                                                   Loader&& loader) {
-  if constexpr (model_loader_guarded_parse<Loader>) {
-    auto ret = loader.parse(path, flags);
-    if constexpr (checked) {
-      if (!ret) {
-        SHOGLE_LOG(error, "[ntf::load_model] Failed to load model \"{}\": {}",
-                   path, ret.error().what());
-        return unexpected{std::move(ret.error())};
-      }
-    } else {
-      NTF_ASSERT(ret);
+                                                 model_load_flags flags,
+                                                 Loader&& loader) {
+  using model_t = model_data<Vertex>;
+  auto make_data = [&]() {
+    // Assume everything else doesn't throw
+    model_data<Vertex> model;
+
+    if constexpr (model_loader_armatures<Loader>) {
+      loader.get_armatures(model.armatures);
     }
-  } else {
-    if constexpr (checked && !noexcept(loader.parse(path, flags))) {
-      try {
+
+    if constexpr (model_loader_animations<Loader>) {
+      loader.get_animations(model.animations);
+    }
+
+    if constexpr (model_loader_materials<Loader>) {
+      loader.get_materials(model.materials);
+    }
+
+    loader.get_meshes(model.meshes);
+
+    return model;
+  };
+
+  if constexpr (checked) {
+    return asset_expected<model_t>::catch_error([&]() -> asset_expected<model_t> {
+      if constexpr (model_loader_guarded_parse<Loader>) {
+        auto ret = loader.parse(path, flags);
+        if (!ret) {
+          return unexpected{std::move(ret.error())};
+        }
+      } else {
         loader.parse(path, flags);
-      } catch (asset_error& err) {
-        SHOGLE_LOG(error, "[ntf::load_model] Failed to load model \"{}\": {}", path, err.what());
-        return unexpected{std::move(err)};
-      } catch (const std::exception& err) {
-        SHOGLE_LOG(error, "[ntf::load_model] Failed to load model \"{}\": {}", path, err.what());
-        return unexpected{asset_error::format({"{}"}, err.what())};
-      } catch (...) {
-        SHOGLE_LOG(error, "[ntf::load_model] Failed to load model \"{}\": Caught (...)", path);
-        return unexpected{asset_error{"Caught (...)"}};
       }
+      return make_data();
+    });
+  } else {
+    if constexpr (model_loader_guarded_parse<Loader>) {
+      auto ret = loader.parse(path, flags);
+      NTF_ASSERT(ret);
     } else {
       loader.parse(path, flags);
     }
-  }
-
-  // Assume everything else doesn't throw
-  model_data<Vertex> model;
-
-  if constexpr (model_loader_armatures<Loader>) {
-    loader.get_armatures(model.armatures);
-  }
-
-  if constexpr (model_loader_animations<Loader>) {
-    loader.get_animations(model.animations);
-  }
-
-  if constexpr (model_loader_materials<Loader>) {
-    loader.get_materials(model.materials);
-  }
-
-  loader.get_meshes(model.meshes);
-
-  if constexpr (checked) {
-    return {std::move(model)};
-  } else {
-    return model;
+    return make_data();
   }
 }
 

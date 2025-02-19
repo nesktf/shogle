@@ -576,10 +576,47 @@ public:
 template<typename T, typename E>
 using expected_storage = expected_storage_movea<T, E>;
 
+template<typename, typename>
+struct expected_catcher {};
+
+template<typename T, typename Expected>
+struct expected_catcher<::ntf::error<T>, Expected> {
+  template<is_forwarding<T> U, typename Fun>
+  static Expected catch_error(U&& obj, Fun&& f,
+                              std::source_location l = std::source_location::current()) noexcept {
+    try {
+      return f();
+    } catch (::ntf::error<T>& ex) {
+      return unexpected{std::move(ex)};
+    } catch (const std::exception& ex) {
+      return unexpected{::ntf::error<T>{std::forward<T>(obj), ex.what(), l}};
+    } catch (...) {
+      return unexpected{::ntf::error<T>{std::forward<T>(obj), "Unknown error", l}};
+    }
+  }
+};
+
+template<typename Expected>
+struct expected_catcher<::ntf::error<void>, Expected> {
+  template<typename Fun>
+  static Expected catch_error(Fun&& f,
+                              std::source_location l = std::source_location::current()) noexcept {
+    try {
+      return f();
+    } catch (::ntf::error<void>& ex) {
+      return unexpected{std::move(ex)};
+    } catch (const std::exception& ex) {
+      return unexpected{::ntf::error<void>{ex.what(), l}};
+    } catch (...) {
+      return unexpected{::ntf::error<void>{"Unknown error", l}};
+    }
+  }
+};
+
 } // namespace impl
 
 template<typename T, typename E>
-class expected {
+class expected : public impl::expected_catcher<E, expected<T, E>> {
 public:
   using value_type = T;
   using error_type = E;
@@ -651,7 +688,7 @@ private:
 };
 
 template<typename E>
-class expected<void, E> {
+class expected<void, E> : public impl::expected_catcher<E, expected<void, E>> {
 public:
   using value_type = void;
   using error_type = E;

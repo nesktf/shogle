@@ -134,6 +134,7 @@ load_image_ret<T, typename Loader::template deleter<T>, checked>::type load_imag
   image_load_flags flags,
   Loader&& loader
 ) {
+  using image_data_t = image_data<T, typename Loader::template deleter<T>>;
   uint32 width = 0, height = 0, channels = 0;
   auto make_data = [&](auto ptr) {
     NTF_ASSERT(width && height && channels);
@@ -146,7 +147,7 @@ load_image_ret<T, typename Loader::template deleter<T>, checked>::type load_imag
   };
 
   if constexpr (checked) {
-    try {
+    return asset_expected<image_data_t>::catch_error([&]() -> asset_expected<image_data_t> {
       if constexpr (checked_image_loader_type<Loader, T>) {
         auto ret = loader.template load<T>(path, width, height, channels, flags);
         if (!ret) { // Check asset_expected
@@ -160,13 +161,7 @@ load_image_ret<T, typename Loader::template deleter<T>, checked>::type load_imag
         }
         return make_data(std::move(*ret));
       }
-    } catch (asset_error& err) {
-      return unexpected{std::move(err)};
-    } catch (const std::exception& err) {
-      return unexpected{asset_error::format({"{}"}, err.what())};
-    } catch (...) {
-      return unexpected{asset_error{"Unknown error"}};
-    }
+    });
   } else if constexpr (checked_image_loader_type<Loader, T>) {
     auto ret = loader.template load<T>(path, width, height, channels, flags);
     NTF_ASSERT(ret); // Check asset_expected
