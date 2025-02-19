@@ -11,19 +11,6 @@ using asset_error = error<void>;
 template<typename T>
 using asset_expected = expected<T, asset_error>;
 
-template<typename T, typename Fun>
-asset_expected<T> catch_asset_error(Fun&& f) noexcept {
-  try {
-    return f();
-  } catch (asset_error& ex) {
-    return unexpected{std::move(ex)};
-  } catch (const std::exception& ex) {
-    return unexpected{asset_error::format({"{}"}, ex.what())};
-  } catch (...) {
-    return unexpected{asset_error{"Unknown error"}};
-  }
-}
-
 enum class r_material_type {
   diffuse = 0,
   specular,
