@@ -416,7 +416,7 @@ void gl_state::push_uniform(uint32 loc, r_attrib_type type, const void* data) no
   };
 }
 
-void gl_state::query_program_uniforms(const program_t& prog, r_context::uniform_map& unif) {
+void gl_state::query_program_uniforms(const program_t& prog, r_context_data::uniform_map& unif) {
   NTF_ASSERT(unif.empty());
   int count;
   GL_CALL(glGetProgramiv(prog.id, GL_ACTIVE_UNIFORMS, &count));
@@ -1194,8 +1194,8 @@ gl_context::gl_context() :
 
 gl_context::~gl_context() noexcept {}
 
-r_context::ctx_meta_t gl_context::query_meta() const {
-  r_context::ctx_meta_t meta;
+r_context_data::ctx_meta gl_context::query_meta() const {
+  r_context_data::ctx_meta meta;
   meta.api = r_api::opengl;
   GL_CALL(meta.name_str = reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
   GL_CALL(meta.vendor_str = reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
@@ -1322,8 +1322,8 @@ void gl_context::destroy_shader(r_shader_handle shad) noexcept {
 }
 
 r_pipeline_handle gl_context::create_pipeline(const r_pipeline_descriptor& desc,
-                                              weak_ref<r_context::vertex_attrib_t> attrib,
-                                              r_context::uniform_map& uniforms) {
+                                              weak_ref<r_context_data::vertex_layout> layout,
+                                              r_context_data::uniform_map& uniforms) {
   NTF_ASSERT(desc.stages);
   std::vector<gl_state::shader_t*> shads;
   shads.reserve(desc.stages.size());
@@ -1335,7 +1335,7 @@ r_pipeline_handle gl_context::create_pipeline(const r_pipeline_descriptor& desc,
   );
 
   _state.query_program_uniforms(prog, uniforms);
-  prog.layout = attrib;
+  prog.layout = layout;
 
   NTF_ASSERT(prog.id);
   auto handle = _programs.acquire();
@@ -1349,7 +1349,7 @@ void gl_context::destroy_pipeline(r_pipeline_handle pipeline) noexcept {
   _programs.push(pipeline);
 }
 
-void gl_context::submit(win_handle_t win, const r_context::command_map& cmds) {
+void gl_context::submit(win_handle_t win, const r_context_data::command_map& cmds) {
   r_window::gl_set_current(win);
   _state.bind_vao(_vao.id);
   for (const auto& [fb, list] : cmds) {

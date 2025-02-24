@@ -37,10 +37,9 @@ auto r_context_create_impl(const r_context_params& params)
 {
   r_api api = params.use_api.value_or(r_api::opengl);
 
-  r_context::command_map map;
+  r_context_data::command_map map;
   auto [it, emplaced] = map.try_emplace(r_context::DEFAULT_FRAMEBUFFER);
   NTF_ASSERT(emplaced);
-  it->second.viewport = uvec4{0, 0, params.window->fb_size()};
 
   std::unique_ptr<r_platform_context> ctx;
   win_handle_t win = params.window->handle();
@@ -106,11 +105,7 @@ auto r_context_create_impl(const r_context_params& params)
 #endif
 #endif
 
-  if constexpr (checked) {
-    return r_expected<r_context>{in_place, win, std::move(ctx), std::move(map)};
-  } else {
-    return r_context{win, std::move(ctx), std::move(map)};
-  }
+  return r_context{std::make_unique<r_context_data>(win, std::move(ctx), std::move(map))};
 }
 
 } // namespace
@@ -123,68 +118,47 @@ r_context r_context::create(unchecked_t, const r_context_params& params) {
   return r_context_create_impl<false>(params);
 }
 
-r_context::r_context(win_handle_t win, std::unique_ptr<r_platform_context> ctx,
-                     command_map map) noexcept :
-  _win{win}, _ctx{std::move(ctx)}, _draw_lists(std::move(map)) {
-  _frame_arena.init(1ull<<29); // 512 MiB
-  _d_list = _draw_lists.at(DEFAULT_FRAMEBUFFER);
+r_context_data::buffer_store::buffer_store(const r_buffer_descriptor& desc) noexcept :
+  type{desc.type}, flags{desc.flags}, size{desc.size} {}
+
+r_context_data::texture_store::texture_store(const r_texture_descriptor& desc) noexcept :
+  refcount{1}, type{desc.type}, format{desc.format}, extent{desc.extent},
+  levels{desc.levels}, layers{desc.layers}, addressing{desc.addressing}, sampler{desc.sampler} {}
+
+r_context_data::shader_store::shader_store(const r_shader_descriptor& desc) noexcept :
+  type{desc.type} {}
+
+r_context_data::framebuffer_store::framebuffer_store(
+  const r_framebuffer_descriptor& desc
+) noexcept :
+  extent{desc.extent}, buffers{desc.test_buffers},
+  buffer_format{desc.test_buffer_format}, color_buffer_format{desc.color_buffer_format}
+{ attachments.reserve(desc.attachments.size()); }
+
+r_context_data::pipeline_store::pipeline_store(
+  const r_pipeline_descriptor& desc,
+  std::unique_ptr<vertex_layout> layout,
+  uniform_map uniforms,
+  r_stages_flag stages_
+) noexcept :
+  stages{stages_},
+  primitive{desc.primitive}, poly_mode{desc.poly_mode},
+  front_face{desc.front_face}, cull_mode{desc.cull_mode},
+  tests{desc.tests}, depth_ops{desc.depth_compare_op}, stencil_ops{desc.stencil_compare_op},
+  layout{std::move(layout)}, uniforms(std::move(uniforms)) {}
+
+r_context_data::r_context_data(win_handle_t win_,
+                               std::unique_ptr<r_platform_context> pctx_,
+                               command_map map_) noexcept :
+  win{win_}, platform{std::move(pctx_)}, draw_lists(std::move(map_)), d_cmd{}
+{
+  frame_arena.init(1ull<<29); // 512 MiB
+  d_list = draw_lists.at(r_context::DEFAULT_FRAMEBUFFER);
 }
 
-r_context::r_context(r_context&& other) noexcept :
-  _frame_arena{std::move(other._frame_arena)},
-  _win{std::move(other._win)},
-  _ctx{std::move(other._ctx)},
-  _buffers(std::move(other._buffers)),
-  _textures(std::move(other._textures)),
-  _framebuffers(std::move(other._framebuffers)),
-  _shaders(std::move(other._shaders)),
-  _pipelines(std::move(other._pipelines)),
-  _draw_lists(std::move(other._draw_lists)),
-  _d_list{std::move(other._d_list)},
-  _d_cmd{std::move(other._d_cmd)} {}
-
-r_context& r_context::operator=(r_context&& other) noexcept {
-  if (std::addressof(other) == this) {
-    return *this;
-  }
-
-  if (_ctx) {
+r_context_data::~r_context_data() noexcept {
 #if SHOGLE_ENABLE_IMGUI
-    switch (_ctx->query_meta().api) {
-      case r_api::opengl: {
-        ImGui_ImplOpenGL3_Shutdown();
-        break;
-      }
-      default: break;
-    }
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-#endif
-    _ctx.reset();
-  }
-
-  _frame_arena = std::move(other._frame_arena);
-  _win = std::move(other._win);
-  _ctx = std::move(other._ctx);
-  _buffers = std::move(other._buffers);
-  _textures = std::move(other._textures);
-  _framebuffers = std::move(other._framebuffers);
-  _shaders = std::move(other._shaders);
-  _pipelines = std::move(other._pipelines);
-  _draw_lists = std::move(other._draw_lists);
-  _d_list = std::move(other._d_list);
-  _d_cmd = std::move(other._d_cmd);
-
-  return *this;
-}
-
-r_context::~r_context() noexcept {
-  if (!_ctx) {
-    return;
-  }
-
-#if SHOGLE_ENABLE_IMGUI
-  switch (_ctx->query_meta().api) {
+  switch (platform->query_meta().api) {
     case r_api::opengl: {
       ImGui_ImplOpenGL3_Shutdown();
       break;
@@ -194,23 +168,22 @@ r_context::~r_context() noexcept {
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
 #endif
-  // _ctx.reset();
 }
 
-void r_context::start_frame() noexcept {
-  for (auto& [_, list] : _draw_lists) {
+void r_context_view::start_frame() noexcept {
+  for (auto& [_, list] : _data->draw_lists) {
     for (auto& cmd : list.cmds) {
-      cmd.get().~draw_command_t();
+      cmd.get().~draw_command();
     }
     list.cmds.clear();
   }
-  _frame_arena.reset();
+  _data->frame_arena.reset();
 
 #if SHOGLE_ENABLE_IMGUI
 #if SHOGLE_USE_GLFW
   ImGui_ImplGlfw_NewFrame();
 #endif
-  switch (_ctx->query_meta().api) {
+  switch (_data->platform->query_meta().api) {
     case r_api::opengl: ImGui_ImplOpenGL3_NewFrame(); break;
     // case r_api::vulkan: ImGui_ImplVulkan_NewFrame(); break;
     default: break;
@@ -219,18 +192,60 @@ void r_context::start_frame() noexcept {
 #endif
 }
 
-void r_context::end_frame() noexcept {
-  _ctx->submit(_win, _draw_lists);
+void r_context_view::end_frame() noexcept {
+  _data->platform->submit(_data->win, _data->draw_lists);
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-  _ctx->swap_buffers(_win);
+  _data->platform->swap_buffers(_data->win);
 }
 
-void r_context::device_wait() noexcept {
-  _ctx->device_wait();
+void r_context_view::device_wait() noexcept {
+  _data->platform->device_wait();
 }
 
-r_expected<r_buffer_handle> r_context::buffer_create(const r_buffer_descriptor& desc) noexcept {
+void r_context_view::bind_texture(
+  r_texture_handle texture,
+  uint32 index
+) noexcept {
+  auto* ptr = _data->frame_arena.allocate<r_context_data::texture_binding>(1);
+  ptr->handle = texture;
+  ptr->index = index;
+  _data->d_cmd.textures.emplace_back(ptr);
+}
+
+void r_context_view::bind_framebuffer(r_framebuffer_handle fbo) noexcept {
+  NTF_ASSERT(_data->draw_lists.find(fbo) != _data->draw_lists.end());
+  _data->d_list = _data->draw_lists.at(fbo);
+}
+
+void r_context_view::bind_vertex_buffer(r_buffer_handle buffer) noexcept {
+  _data->d_cmd.vertex_buffer = buffer;
+}
+
+void r_context_view::bind_index_buffer(r_buffer_handle buffer) noexcept {
+  _data->d_cmd.index_buffer = buffer;
+}
+
+void r_context_view::bind_pipeline(r_pipeline_handle pipeline) noexcept {
+  _data->d_cmd.pipeline = pipeline;
+}
+
+void r_context_view::draw_opts(r_draw_opts opts) noexcept {
+  _data->d_cmd.count = opts.count;
+  _data->d_cmd.offset = opts.offset;
+  _data->d_cmd.instances = opts.instances;
+}
+
+void r_context_view::submit() noexcept {
+  auto* cmd = _data->frame_arena.allocate<r_context_data::draw_command>(1);
+  weak_ref<r_context_data::draw_command> ref = std::construct_at(cmd, std::move(_data->d_cmd));
+  _data->d_list->cmds.emplace_back(ref);
+  _data->d_cmd = {};
+}
+
+r_expected<r_buffer_handle> r_context_view::buffer_create(
+  const r_buffer_descriptor& desc
+) noexcept {
   if (desc.data) {
     RET_ERROR_IF(!desc.data->data,
                  "[ntf::r_context::buffer_create]",
@@ -247,54 +262,50 @@ r_expected<r_buffer_handle> r_context::buffer_create(const r_buffer_descriptor& 
 
   r_buffer_handle handle{};
   try {
-    handle = _ctx->create_buffer(desc);
+    handle = _data->platform->create_buffer(desc);
     NTF_ASSERT(handle);
   }
   RET_ERROR_CATCH("[ntf::r_context::buffer_create]",
                   "Failed to create buffer");
 
-  [[maybe_unused]] auto [it, emplaced] = _buffers.try_emplace(handle);
+  [[maybe_unused]] auto [it, emplaced] = _data->buffers.try_emplace(handle, desc);
   NTF_ASSERT(emplaced);
-
-  _init_buffer(it->second, desc);
 
   return handle;
 }
 
-r_buffer_handle r_context::buffer_create(unchecked_t, const r_buffer_descriptor& desc) {
-  auto handle = _ctx->create_buffer(desc);
+r_buffer_handle r_context_view::buffer_create(
+  unchecked_t,
+  const r_buffer_descriptor& desc
+) {
+  auto handle = _data->platform->create_buffer(desc);
   NTF_ASSERT(handle);
-  NTF_ASSERT(_buffers.find(handle) == _buffers.end());
+  NTF_ASSERT(_data->buffers.find(handle) == _data->buffers.end());
 
-  [[maybe_unused]] auto [it, emplaced] = _buffers.try_emplace(handle);
+  [[maybe_unused]] auto [it, emplaced] = _data->buffers.try_emplace(handle, desc);
   NTF_ASSERT(emplaced);
-
-  _init_buffer(it->second, desc);
 
   return handle;
 }
 
-void r_context::_init_buffer(buff_store_t& buff, const r_buffer_descriptor& desc) {
-  buff.size = desc.size;
-  buff.type = desc.type;
-  buff.flags = desc.flags;
-}
-
-void r_context::destroy(r_buffer_handle buff) noexcept {
+void r_context_view::destroy(r_buffer_handle buff) noexcept {
   if (!buff) {
     return;
   }
-  auto it = _buffers.find(buff);
-  if (it == _buffers.end()) {
+  auto it = _data->buffers.find(buff);
+  if (it == _data->buffers.end()) {
     return;
   }
 
-  _ctx->destroy_buffer(buff);
-  _buffers.erase(it);
+  _data->platform->destroy_buffer(buff);
+  _data->buffers.erase(it);
 }
 
-r_expected<void> r_context::buffer_update(r_buffer_handle buf, const r_buffer_data& des) noexcept {
-  RET_ERROR_IF(!des.data,
+r_expected<void> r_context_view::buffer_update(
+  r_buffer_handle buf,
+  const r_buffer_data& desc
+) noexcept {
+  RET_ERROR_IF(!desc.data,
                "[ntf::r_context::buffer_update]",
                "Invalid buffer data");
 
@@ -302,8 +313,8 @@ r_expected<void> r_context::buffer_update(r_buffer_handle buf, const r_buffer_da
                "[ntf::r_context::buffer_update]",
                "Invalid handle");
 
-  auto it = _buffers.find(buf);
-  RET_ERROR_IF(it == _buffers.end(),
+  auto it = _data->buffers.find(buf);
+  RET_ERROR_IF(it == _data->buffers.end(),
                "[ntf::r_context::buffer_update]",
                "Invalid handle");
   
@@ -312,12 +323,12 @@ r_expected<void> r_context::buffer_update(r_buffer_handle buf, const r_buffer_da
                "[ntf::r_context::buffer_update]",
                "Can't update non dynamic buffer");
 
-  RET_ERROR_IF(des.size+des.offset > buffer.size,
+  RET_ERROR_IF(desc.size+desc.offset > buffer.size,
                "[ntf::r_context::buffer_update]",
                "Invalid buffer data offset");
 
   try {
-    _ctx->update_buffer(buf, des);
+    _data->platform->update_buffer(buf, desc);
   } 
   RET_ERROR_CATCH("[ntf::r_context::buffer_update]",
                   "Failed to update buffer");
@@ -325,37 +336,36 @@ r_expected<void> r_context::buffer_update(r_buffer_handle buf, const r_buffer_da
   return {};
 }
 
-void r_context::buffer_update(unchecked_t, r_buffer_handle buf, const r_buffer_data& des) {
+void r_context_view::buffer_update(
+  unchecked_t,
+  r_buffer_handle buf,
+  const r_buffer_data& des
+) {
   NTF_ASSERT(buf);
-  NTF_ASSERT(_buffers.find(buf) != _buffers.end());
-  _ctx->update_buffer(buf, des);
+  NTF_ASSERT(_data->buffers.find(buf) != _data->buffers.end());
+  _data->platform->update_buffer(buf, des);
 }
 
-r_buffer_type r_context::buffer_type(r_buffer_handle buff) const {
+r_buffer_type r_context_view::buffer_type(
+  r_buffer_handle buff
+) const {
   NTF_ASSERT(buff);
-  NTF_ASSERT(_buffers.find(buff) != _buffers.end());
-  return _buffers.at(buff).type;
+  NTF_ASSERT(_data->buffers.find(buff) != _data->buffers.end());
+  return _data->buffers.at(buff).type;
 }
 
-size_t r_context::buffer_size(r_buffer_handle buff) const {
+size_t r_context_view::buffer_size(
+  r_buffer_handle buff
+) const {
   NTF_ASSERT(buff);
-  NTF_ASSERT(_buffers.find(buff) != _buffers.end());
-  return _buffers.at(buff).size;
+  NTF_ASSERT(_data->buffers.find(buff) != _data->buffers.end());
+  return _data->buffers.at(buff).size;
 }
 
-// static const char* textypetostr(r_texture_type type) {
-//   switch (type) {
-//     case r_texture_type::texture1d: return "TEX1D";
-//     case r_texture_type::texture2d: return "TEX2D";
-//     case r_texture_type::texture3d: return "TEX3D";
-//     case r_texture_type::cubemap:   return "CUBEMAP";
-//   }
-//
-//   NTF_UNREACHABLE();
-// }
-
-r_expected<r_texture_handle> r_context::texture_create(const r_texture_descriptor& desc) noexcept {
-  auto ctx_meta = _ctx->query_meta();
+r_expected<r_texture_handle> r_context_view::texture_create(
+  const r_texture_descriptor& desc
+) noexcept {
+  auto ctx_meta = _data->platform->query_meta();
   RET_ERROR_IF(desc.layers > ctx_meta.tex_max_layers,
                "[ntf::r_context::texture_create]",
                "Texture layers to high ({} > {})",
@@ -462,59 +472,43 @@ r_expected<r_texture_handle> r_context::texture_create(const r_texture_descripto
 
   r_texture_handle handle{};
   try {
-    handle = _ctx->create_texture(desc);
+    handle = _data->platform->create_texture(desc);
     NTF_ASSERT(handle);
   } 
   RET_ERROR_CATCH("[ntf::r_context::texture_create]",
                   "Failed to create texture handle");
 
-  NTF_ASSERT(_textures.find(handle) == _textures.end());
+  NTF_ASSERT(_data->textures.find(handle) == _data->textures.end());
 
-  auto [it, emplaced] = _textures.try_emplace(handle);
+  auto [it, emplaced] = _data->textures.try_emplace(handle, desc);
   NTF_ASSERT(emplaced);
-
-  _init_texture(it->second, desc);
 
   return handle;
 }
 
-r_texture_handle r_context::texture_create(unchecked_t, const r_texture_descriptor& desc) {
-  auto handle = _ctx->create_texture(desc);
+r_texture_handle r_context_view::texture_create(
+  unchecked_t,
+  const r_texture_descriptor& desc
+) {
+  auto handle = _data->platform->create_texture(desc);
   NTF_ASSERT(handle);
-  NTF_ASSERT(_textures.find(handle) == _textures.end());
+  NTF_ASSERT(_data->textures.find(handle) == _data->textures.end());
 
-  [[maybe_unused]] auto [it, emplaced] = _textures.try_emplace(handle);
+  [[maybe_unused]] auto [it, emplaced] = _data->textures.try_emplace(handle, desc);
   NTF_ASSERT(emplaced);
-
-  _init_texture(it->second, desc);
 
   return handle;
 }
 
-void r_context::_init_texture(tex_store_t& stored, const r_texture_descriptor& desc) {
-  stored.refcount.store(1);
-  stored.type = desc.type;
-  stored.format = desc.format;
-  stored.extent = desc.extent;
-  stored.levels = desc.levels;
-  stored.layers = desc.layers;
-  stored.addressing = desc.addressing;
-  stored.sampler = desc.sampler;
-
-  // SHOGLE_LOG(verbose,
-  //            "[ntf::r_context] TEXTURE CREATE - ID {} - EXT {}x{}x{} - TYPE {}",
-  //            static_cast<r_handle_value>(handle),
-  //            stored.extent.x, stored.extent.y, stored.extent.z,
-  //            textypetostr(stored.type));
-}
-
-void r_context::destroy(r_texture_handle tex) noexcept {
+void r_context_view::destroy(
+  r_texture_handle tex
+) noexcept {
   if (!tex) {
     return;
   }
 
-  auto it = _textures.find(tex);
-  if (it == _textures.end()) {
+  auto it = _data->textures.find(tex);
+  if (it == _data->textures.end()) {
     return;
   }
 
@@ -522,23 +516,20 @@ void r_context::destroy(r_texture_handle tex) noexcept {
     return;
   }
 
-  _ctx->destroy_texture(tex);
-  _textures.erase(it);
-  // SHOGLE_LOG(verbose,
-  //            "[ntf::r_context] TEXTURE DESTROY - ID {} - EXT {}x{}x{} - TYPE {}",
-  //            static_cast<r_handle_value>(tex),
-  //            data.extent.x, data.extent.y, data.extent.z,
-  //            textypetostr(data.type));
+  _data->platform->destroy_texture(tex);
+  _data->textures.erase(it);
 }
 
-r_expected<void> r_context::texture_update(r_texture_handle tex,
-                                           const r_texture_data& data) noexcept {
+r_expected<void> r_context_view::texture_update(
+  r_texture_handle tex,
+  const r_texture_data& data
+) noexcept {
   RET_ERROR_IF(!tex,
                "[ntf::r_context::texture_update]",
                "Invalid handle");
 
-  auto it = _textures.find(tex);
-  RET_ERROR_IF(it == _textures.end(),
+  auto it = _data->textures.find(tex);
+  RET_ERROR_IF(it == _data->textures.end(),
                "[ntf::r_context::texture_update]",
                "Invalid handle");
 
@@ -594,7 +585,7 @@ r_expected<void> r_context::texture_update(r_texture_handle tex,
   }
 
   try {
-    _ctx->update_texture(tex, data);
+    _data->platform->update_texture(tex, data);
   } 
   RET_ERROR_CATCH("[ntf::r_context::texture_update]",
                   "Failed to update texture");
@@ -606,23 +597,21 @@ r_expected<void> r_context::texture_update(r_texture_handle tex,
     texture.sampler = *data.sampler;
   }
 
-  // SHOGLE_LOG(verbose,
-  //            "[ntf::r_context] TEXTURE UPLOAD - ID {} - EXT {}x{}x{} - TYPE {}",
-  //            static_cast<r_handle_value>(tex),
-  //            texture.extent.x, texture.extent.y, texture.extent.z,
-  //            textypetostr(texture.type));
-
   return {};
 }
 
-void r_context::texture_update(unchecked_t, r_texture_handle tex, const r_texture_data& data) {
+void r_context_view::texture_update(
+  unchecked_t,
+  r_texture_handle tex,
+  const r_texture_data& data
+) {
   NTF_ASSERT(tex);
 
-  auto it = _textures.find(tex);
-  NTF_ASSERT(it != _textures.end());
+  auto it = _data->textures.find(tex);
+  NTF_ASSERT(it != _data->textures.end());
 
   auto& texture = it->second;
-  _ctx->update_texture(tex, data);
+  _data->platform->update_texture(tex, data);
 
   if (data.addressing) {
     texture.addressing = *data.addressing;
@@ -632,94 +621,144 @@ void r_context::texture_update(unchecked_t, r_texture_handle tex, const r_textur
   }
 }
 
-r_expected<void> r_context::texture_update(r_texture_handle tex,
-                                           span_view<r_image_data> images, bool mips) noexcept {
+r_expected<void> r_context_view::texture_update(
+  r_texture_handle tex,
+  span_view<r_image_data> images,
+  bool mips
+) noexcept {
   return texture_update(tex, r_texture_data{
     .images = images,
     .gen_mipmaps = mips,
   });
 }
 
-void r_context::texture_update(unchecked_t, r_texture_handle tex,
-                               span_view<r_image_data> images, bool mips) {
+void r_context_view::texture_update(
+  unchecked_t,
+  r_texture_handle tex,
+  span_view<r_image_data> images,
+  bool mips
+) {
   texture_update(::ntf::unchecked, tex, r_texture_data{
     .images = images,
     .gen_mipmaps = mips,
   });
 }
 
-r_expected<void> r_context::texture_sampler(r_texture_handle tex,
-                                            r_texture_sampler sampler) noexcept {
+r_expected<void> r_context_view::texture_sampler(
+  r_texture_handle tex,
+  r_texture_sampler sampler
+) noexcept {
   return texture_update(tex, r_texture_data{
     .sampler = sampler,
   });
 }
 
-void r_context::texture_sampler(unchecked_t, r_texture_handle tex,
-                                r_texture_sampler sampler) {
+void r_context_view::texture_sampler(
+  unchecked_t,
+  r_texture_handle tex,
+  r_texture_sampler sampler
+) {
   texture_update(::ntf::unchecked, tex, r_texture_data{
     .sampler = sampler,
   });
 }
 
-r_expected<void> r_context::texture_addressing(r_texture_handle tex,
-                                               r_texture_address addressing) noexcept {
+r_expected<void> r_context_view::texture_addressing(
+  r_texture_handle tex,
+  r_texture_address addressing
+) noexcept {
   return texture_update(tex, r_texture_data{
     .addressing = addressing,
   });
 }
 
-void r_context::texture_addressing(unchecked_t, r_texture_handle tex,
-                                   r_texture_address addressing) {
+void r_context_view::texture_addressing(
+  unchecked_t,
+  r_texture_handle tex,
+  r_texture_address addressing
+) {
   texture_update(::ntf::unchecked, tex, r_texture_data{
     .addressing = addressing,
   });
 }
 
-r_texture_type r_context::texture_type(r_texture_handle tex) const {
+r_texture_type r_context_view::texture_type(
+  r_texture_handle tex
+) const {
   NTF_ASSERT(tex);
-  NTF_ASSERT(_textures.find(tex) != _textures.end());
-  return _textures.at(tex).type;
+  NTF_ASSERT(_data->textures.find(tex) != _data->textures.end());
+  return _data->textures.at(tex).type;
 }
 
-r_texture_format r_context::texture_format(r_texture_handle tex) const {
+r_texture_format r_context_view::texture_format(
+  r_texture_handle tex
+) const {
   NTF_ASSERT(tex);
-  NTF_ASSERT(_textures.find(tex) != _textures.end());
-  return _textures.at(tex).format;
+  NTF_ASSERT(_data->textures.find(tex) != _data->textures.end());
+  return _data->textures.at(tex).format;
 }
 
-r_texture_sampler r_context::texture_sampler(r_texture_handle tex) const {
+r_texture_sampler r_context_view::texture_sampler(
+  r_texture_handle tex
+) const {
   NTF_ASSERT(tex);
-  NTF_ASSERT(_textures.find(tex) != _textures.end());
-  return _textures.at(tex).sampler;
+  NTF_ASSERT(_data->textures.find(tex) != _data->textures.end());
+  return _data->textures.at(tex).sampler;
 }
 
-r_texture_address r_context::texture_addressing(r_texture_handle tex) const {
+r_texture_address r_context_view::texture_addressing(
+  r_texture_handle tex
+) const {
   NTF_ASSERT(tex);
-  NTF_ASSERT(_textures.find(tex) != _textures.end());
-  return _textures.at(tex).addressing;
+  NTF_ASSERT(_data->textures.find(tex) != _data->textures.end());
+  return _data->textures.at(tex).addressing;
 }
 
-uvec3 r_context::texture_extent(r_texture_handle tex) const {
+uvec3 r_context_view::texture_extent(
+  r_texture_handle tex
+) const {
   NTF_ASSERT(tex);
-  NTF_ASSERT(_textures.find(tex) != _textures.end());
-  return _textures.at(tex).extent;
+  NTF_ASSERT(_data->textures.find(tex) != _data->textures.end());
+  return _data->textures.at(tex).extent;
 }
 
-uint32 r_context::texture_layers(r_texture_handle tex) const {
+uint32 r_context_view::texture_layers(
+  r_texture_handle tex
+) const {
   NTF_ASSERT(tex);
-  NTF_ASSERT(_textures.find(tex) != _textures.end());
-  return _textures.at(tex).layers;
+  NTF_ASSERT(_data->textures.find(tex) != _data->textures.end());
+  return _data->textures.at(tex).layers;
 }
 
-uint32 r_context::texture_levels(r_texture_handle tex) const {
+uint32 r_context_view::texture_levels(
+  r_texture_handle tex
+) const {
   NTF_ASSERT(tex);
-  NTF_ASSERT(_textures.find(tex) != _textures.end());
-  return _textures.at(tex).levels;
+  NTF_ASSERT(_data->textures.find(tex) != _data->textures.end());
+  return _data->textures.at(tex).levels;
 }
 
-r_expected<r_framebuffer_handle> r_context::framebuffer_create(
-                                                   const r_framebuffer_descriptor& desc) noexcept {
+void r_context_view::_populate_attachments(
+  r_context_data::framebuffer_store& fb,
+  const r_framebuffer_descriptor& desc,
+  r_framebuffer_handle handle
+) {
+  for (uint32 i = 0; i < desc.attachments.size(); ++i) {
+    fb.attachments.push_back(desc.attachments[i]);
+    auto& tex = _data->textures.at(desc.attachments[i].handle);
+    tex.refcount++;
+  }
+
+  _data->draw_lists[handle] = {};
+  auto& list = _data->draw_lists.at(handle);
+  list.viewport = desc.viewport;
+  list.color = desc.clear_color;
+  list.clear = desc.clear_flags;
+}
+
+r_expected<r_framebuffer_handle> r_context_view::framebuffer_create(
+  const r_framebuffer_descriptor& desc
+) noexcept {
   RET_ERROR_IF(+(desc.test_buffers & r_test_buffer_flag::none) && !desc.test_buffer_format,
                "[ntf::r_context::framebuffer_create]",
                "Invalid test buffer format");
@@ -730,12 +769,12 @@ r_expected<r_framebuffer_handle> r_context::framebuffer_create(
 
   for (uint32 i = 0; i < desc.attachments.size(); ++i) {
     const auto& att = desc.attachments[i];
-    RET_ERROR_IF(!att.handle || (_textures.find(att.handle) == _textures.end()),
+    RET_ERROR_IF(!att.handle || (_data->textures.find(att.handle) == _data->textures.end()),
                  "[ntf::r_context::framebuffer_create]",
                  "Invalid texture handle at index {}",
                  i);
 
-    const auto& tex = _textures.at(att.handle);
+    const auto& tex = _data->textures.at(att.handle);
     RET_ERROR_IF(att.layer > tex.layers,
                  "[ntf::r_context::framebuffer_create]",
                  "Invalid texture layer at index {}",
@@ -759,196 +798,157 @@ r_expected<r_framebuffer_handle> r_context::framebuffer_create(
 
   r_framebuffer_handle handle{};
   try {
-    handle = _ctx->create_framebuffer(desc);
+    handle = _data->platform->create_framebuffer(desc);
     NTF_ASSERT(handle);
   }
   RET_ERROR_CATCH("[ntf::r_context::framebuffer_create]",
                   "Failed to create framebuffer handle");
 
-  NTF_ASSERT(_framebuffers.find(handle) == _framebuffers.end());
+  NTF_ASSERT(_data->framebuffers.find(handle) == _data->framebuffers.end());
 
-  [[maybe_unused]] auto [it, emplaced] = _framebuffers.try_emplace(handle);
+  [[maybe_unused]] auto [it, emplaced] = _data->framebuffers.try_emplace(handle, desc);
   NTF_ASSERT(emplaced);
 
-  _init_framebuffer(handle, it->second, desc);
+  _populate_attachments(it->second, desc, handle);
 
   return handle;
 }
 
-r_framebuffer_handle r_context::framebuffer_create(unchecked_t,
-                                                   const r_framebuffer_descriptor& desc) {
-  auto handle = _ctx->create_framebuffer(desc);
+r_framebuffer_handle r_context_view::framebuffer_create(
+  unchecked_t,
+  const r_framebuffer_descriptor& desc
+) {
+  auto handle = _data->platform->create_framebuffer(desc);
   NTF_ASSERT(handle);
-  NTF_ASSERT(_framebuffers.find(handle) == _framebuffers.end());
+  NTF_ASSERT(_data->framebuffers.find(handle) == _data->framebuffers.end());
 
-  [[maybe_unused]] auto [it, emplaced] = _framebuffers.try_emplace(handle);
+  [[maybe_unused]] auto [it, emplaced] = _data->framebuffers.try_emplace(handle, desc);
   NTF_ASSERT(emplaced);
 
-  _init_framebuffer(handle, it->second, desc);
+  _populate_attachments(it->second, desc, handle);
 
   return handle;
 }
 
-void r_context::_init_framebuffer(r_framebuffer_handle handle, fb_store_t& fbo,
-                                  const r_framebuffer_descriptor& desc) {
-  fbo.attachments.reserve(desc.attachments.size());
-  for (uint32 i = 0; i < desc.attachments.size(); ++i) {
-    fbo.attachments.push_back(desc.attachments[i]);
-    auto& tex = _textures.at(desc.attachments[i].handle);
-    tex.refcount++;
-  }
-  fbo.extent = desc.extent;
-  fbo.buffers = desc.test_buffers;
-  fbo.buffer_format = desc.test_buffer_format;
-  fbo.color_buffer_format = desc.color_buffer_format;
-
-  _draw_lists[handle] = {};
-  auto& list = _draw_lists.at(handle);
-  list.viewport = desc.viewport;
-  list.color = desc.clear_color;
-  list.clear = desc.clear_flags;
-}
-
-void r_context::destroy(r_framebuffer_handle fbo) noexcept {
+void r_context_view::destroy(
+  r_framebuffer_handle fbo
+) noexcept {
   if (!fbo) {
     return;
   }
-  auto it = _framebuffers.find(fbo);
-  if (it == _framebuffers.end()) {
+  auto it = _data->framebuffers.find(fbo);
+  if (it == _data->framebuffers.end()) {
     return;
   }
 
-  _ctx->destroy_framebuffer(fbo);
+  _data->platform->destroy_framebuffer(fbo);
   for (auto att : it->second.attachments) {
     destroy(att.handle); // decreases refcount and maybe destroys
   }
-  _framebuffers.erase(it);
+  _data->framebuffers.erase(it);
 }
 
-void r_context::framebuffer_clear(r_framebuffer_handle fbo, r_clear_flag flags) {
-  NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
-  _draw_lists.at(fbo).clear = flags;
+void r_context_view::framebuffer_clear(
+  r_framebuffer_handle fbo,
+  r_clear_flag flags
+) {
+  NTF_ASSERT(_data->draw_lists.find(fbo) != _data->draw_lists.end());
+  _data->draw_lists.at(fbo).clear = flags;
 }
 
-r_clear_flag r_context::framebuffer_clear(r_framebuffer_handle fbo) const {
-  NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
-  return _draw_lists.at(fbo).clear;
+r_clear_flag r_context_view::framebuffer_clear(
+  r_framebuffer_handle fbo
+) const {
+  NTF_ASSERT(_data->draw_lists.find(fbo) != _data->draw_lists.end());
+  return _data->draw_lists.at(fbo).clear;
 }
 
-void r_context::framebuffer_viewport(r_framebuffer_handle fbo, uvec4 vp) {
-  NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
-  _draw_lists.at(fbo).viewport = vp;
+void r_context_view::framebuffer_viewport(
+  r_framebuffer_handle fbo,
+  uvec4 vp
+) {
+  NTF_ASSERT(_data->draw_lists.find(fbo) != _data->draw_lists.end());
+  _data->draw_lists.at(fbo).viewport = vp;
 }
 
-uvec4 r_context::framebuffer_viewport(r_framebuffer_handle fbo) const {
-  NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
-  return _draw_lists.at(fbo).viewport;
+uvec4 r_context_view::framebuffer_viewport(
+  r_framebuffer_handle fbo
+) const {
+  NTF_ASSERT(_data->draw_lists.find(fbo) != _data->draw_lists.end());
+  return _data->draw_lists.at(fbo).viewport;
 }
 
-void r_context::framebuffer_color(r_framebuffer_handle fbo, color4 color) {
-  NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
-  _draw_lists.at(fbo).color = color;
+void r_context_view::framebuffer_color(r_framebuffer_handle fbo, color4 color) {
+  NTF_ASSERT(_data->draw_lists.find(fbo) != _data->draw_lists.end());
+  _data->draw_lists.at(fbo).color = color;
 }
 
-color4 r_context::framebuffer_color(r_framebuffer_handle fbo) const {
-  NTF_ASSERT(_draw_lists.find(fbo) != _draw_lists.end());
-  return _draw_lists.at(fbo).color;
+color4 r_context_view::framebuffer_color(
+  r_framebuffer_handle fbo
+) const {
+  NTF_ASSERT(_data->draw_lists.find(fbo) != _data->draw_lists.end());
+  return _data->draw_lists.at(fbo).color;
 }
 
-r_expected<r_shader_handle> r_context::shader_create(const r_shader_descriptor& desc) noexcept {
+r_expected<r_shader_handle> r_context_view::shader_create(
+  const r_shader_descriptor& desc
+) noexcept {
   r_shader_handle handle{};
   try {
-    handle = _ctx->create_shader(desc);
+    handle = _data->platform->create_shader(desc);
     NTF_ASSERT(handle);
   }
   RET_ERROR_CATCH("[ntf::r_context::shader_create]",
                   "Failed to create shader handle");
 
-  [[maybe_unused]] auto [it, emplaced] = _shaders.try_emplace(handle);
+  [[maybe_unused]] auto [it, emplaced] = _data->shaders.try_emplace(handle, desc);
   NTF_ASSERT(emplaced);
-
-  _init_shader(it->second, desc);
 
   return handle;
 }
 
-r_shader_handle r_context::shader_create(unchecked_t, const r_shader_descriptor& desc) {
-  auto handle = _ctx->create_shader(desc);
+r_shader_handle r_context_view::shader_create(
+  unchecked_t,
+  const r_shader_descriptor& desc
+) {
+  auto handle = _data->platform->create_shader(desc);
   NTF_ASSERT(handle);
-  NTF_ASSERT(_shaders.find(handle) == _shaders.end());
+  NTF_ASSERT(_data->shaders.find(handle) == _data->shaders.end());
 
-  [[maybe_unused]] auto [it, emplaced] = _shaders.try_emplace(handle);
+  [[maybe_unused]] auto [it, emplaced] = _data->shaders.try_emplace(handle, desc);
   NTF_ASSERT(emplaced);
-
-  _init_shader(it->second, desc);
 
   return handle;
 }
 
-void r_context::_init_shader(shader_store_t& shad, const r_shader_descriptor& desc) {
-  shad.type = desc.type;
-}
-
-void r_context::destroy(r_shader_handle shader) noexcept {
+void r_context_view::destroy(
+  r_shader_handle shader
+) noexcept {
   if (!shader) {
     return;
   }
 
-  auto it = _shaders.find(shader);
-  if (it == _shaders.end()) {
+  auto it = _data->shaders.find(shader);
+  if (it == _data->shaders.end()) {
     return;
   }
 
-  _ctx->destroy_shader(shader);
-  _shaders.erase(it);
+  _data->platform->destroy_shader(shader);
+  _data->shaders.erase(it);
 }
 
-r_shader_type r_context::shader_type(r_shader_handle shader) const {
+r_shader_type r_context_view::shader_type(
+  r_shader_handle shader
+) const {
   NTF_ASSERT(shader);
-  NTF_ASSERT(_shaders.find(shader) != _shaders.end());
-  return _shaders.at(shader).type;
+  NTF_ASSERT(_data->shaders.find(shader) != _data->shaders.end());
+  return _data->shaders.at(shader).type;
 }
 
-r_expected<r_pipeline_handle> r_context::pipeline_create(
-                                                      const r_pipeline_descriptor& desc) noexcept {
-  // TODO: validation
-  auto layout = _copy_pipeline_layout(desc);
-  uniform_map uniforms;
-  r_pipeline_handle handle{};
-  try {
-    _ctx->create_pipeline(desc, layout.get(), uniforms);
-    NTF_ASSERT(handle);
-  }
-  RET_ERROR_CATCH("[ntf::r_context::pipeline_create]",
-                  "Failed to create pipeline");
-
-  [[maybe_unused]] auto [it, emplaced] = _pipelines.try_emplace(handle);
-  NTF_ASSERT(emplaced);
-
-  _init_pipeline(it->second, desc, std::move(layout), std::move(uniforms));
-
-  return handle;
-}
-
-r_pipeline_handle r_context::pipeline_create(unchecked_t, const r_pipeline_descriptor& desc) {
-  auto layout = _copy_pipeline_layout(desc);
-  uniform_map uniforms;
-
-  auto handle = _ctx->create_pipeline(desc, layout.get(), uniforms);
-  NTF_ASSERT(handle);
-  NTF_ASSERT(_pipelines.find(handle) == _pipelines.end());
-
-  [[maybe_unused]] auto [it, emplaced] = _pipelines.try_emplace(handle);
-  NTF_ASSERT(emplaced);
-
-  _init_pipeline(it->second, desc, std::move(layout), std::move(uniforms));
-
-  return handle;
-}
-
-auto r_context::_copy_pipeline_layout(const r_pipeline_descriptor& desc)
-                                                              -> std::unique_ptr<vertex_attrib_t> {
-  auto layout = std::make_unique<vertex_attrib_t>();
+auto r_context_view::_copy_pipeline_layout(
+  const r_pipeline_descriptor& desc
+) -> std::unique_ptr<r_context_data::vertex_layout> {
+  auto layout = std::make_unique<r_context_data::vertex_layout>();
   layout->binding = desc.attrib_binding->binding;
   layout->stride = desc.attrib_binding->stride;
   layout->descriptors.resize(desc.attrib_desc.size());
@@ -959,47 +959,83 @@ auto r_context::_copy_pipeline_layout(const r_pipeline_descriptor& desc)
   return layout;
 }
 
-void r_context::_init_pipeline(pipeline_store_t& pip, const r_pipeline_descriptor& desc,
-                               std::unique_ptr<vertex_attrib_t> layout, uniform_map uniforms) {
-  // stored.stages = create_data.
-  pip.layout = std::move(layout);
-  pip.uniforms = std::move(uniforms);
-  pip.primitive = desc.primitive;
-  pip.poly_mode = desc.poly_mode;
-  pip.front_face = desc.front_face;
-  pip.cull_mode = desc.cull_mode;
-  pip.tests = desc.tests;
-  pip.depth_ops = desc.depth_compare_op;
-  pip.stencil_ops = desc.stencil_compare_op;
+r_expected<r_pipeline_handle> r_context_view::pipeline_create(
+  const r_pipeline_descriptor& desc
+) noexcept {
+  // TODO: validation
+  auto layout = _copy_pipeline_layout(desc);
+  r_context_data::uniform_map uniforms;
+  r_pipeline_handle handle{};
+  try {
+    _data->platform->create_pipeline(desc, layout.get(), uniforms);
+    NTF_ASSERT(handle);
+  }
+  RET_ERROR_CATCH("[ntf::r_context::pipeline_create]",
+                  "Failed to create pipeline");
+
+  r_stages_flag stages{}; // TODO: parse stages
+  [[maybe_unused]] auto [it, emplaced] = _data->pipelines.try_emplace(
+    handle, desc, std::move(layout), std::move(uniforms), stages
+  );
+  NTF_ASSERT(emplaced);
+
+  return handle;
 }
 
-void r_context::destroy(r_pipeline_handle pipeline) noexcept {
+r_pipeline_handle r_context_view::pipeline_create(
+  unchecked_t,
+  const r_pipeline_descriptor& desc
+) {
+  auto layout = _copy_pipeline_layout(desc);
+  r_context_data::uniform_map uniforms;
+
+  auto handle = _data->platform->create_pipeline(desc, layout.get(), uniforms);
+  NTF_ASSERT(handle);
+  NTF_ASSERT(_data->pipelines.find(handle) == _data->pipelines.end());
+
+  r_stages_flag stages{}; // TODO: parse stages
+  [[maybe_unused]] auto [it, emplaced] = _data->pipelines.try_emplace(
+    handle, desc, std::move(layout), std::move(uniforms), stages
+  );
+  NTF_ASSERT(emplaced);
+
+  return handle;
+}
+
+
+void r_context_view::destroy(
+  r_pipeline_handle pipeline
+) noexcept {
   if (!pipeline) {
     return;
   }
 
-  auto it = _pipelines.find(pipeline);
-  if (it == _pipelines.end()) {
+  auto it = _data->pipelines.find(pipeline);
+  if (it == _data->pipelines.end()) {
     return;
   }
 
-  _ctx->destroy_pipeline(pipeline);
-  _pipelines.erase(it);
+  _data->platform->destroy_pipeline(pipeline);
+  _data->pipelines.erase(it);
 }
 
-r_stages_flag r_context::pipeline_stages(r_pipeline_handle pipeline) const {
+r_stages_flag r_context_view::pipeline_stages(
+  r_pipeline_handle pipeline
+) const {
   NTF_ASSERT(pipeline);
-  NTF_ASSERT(_pipelines.find(pipeline) != _pipelines.end());
-  return _pipelines.at(pipeline).stages;
+  NTF_ASSERT(_data->pipelines.find(pipeline) != _data->pipelines.end());
+  return _data->pipelines.at(pipeline).stages;
 }
 
-optional<r_uniform> r_context::pipeline_uniform(r_pipeline_handle pipeline,
-                                                std::string_view name) const noexcept {
+optional<r_uniform> r_context_view::pipeline_uniform(
+  r_pipeline_handle pipeline,
+  std::string_view name
+) const noexcept {
   if (!pipeline) {
     return nullopt;
   }
-  auto it = _pipelines.find(pipeline);
-  if (it == _pipelines.end()) {
+  auto it = _data->pipelines.find(pipeline);
+  if (it == _data->pipelines.end()) {
     return nullopt;
   }
 
@@ -1012,12 +1048,15 @@ optional<r_uniform> r_context::pipeline_uniform(r_pipeline_handle pipeline,
   return unif_it->second;
 }
 
-r_uniform r_context::pipeline_uniform(unchecked_t, r_pipeline_handle pipeline,
-                                      std::string_view name) const {
+r_uniform r_context_view::pipeline_uniform(
+  unchecked_t,
+  r_pipeline_handle pipeline,
+  std::string_view name
+) const {
   NTF_ASSERT(pipeline);
 
-  auto it = _pipelines.find(pipeline);
-  NTF_ASSERT(it != _pipelines.end());
+  auto it = _data->pipelines.find(pipeline);
+  NTF_ASSERT(it != _data->pipelines.end());
 
   const auto& pip = it->second;
   auto unif_it = pip.uniforms.find(name.data());

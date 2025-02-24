@@ -89,13 +89,19 @@ static auto init_ctx() {
     std::exit(EXIT_FAILURE);
   }
 
+  const ntf::color4 main_color{.3f, .3f, .3f, 1.f};
+  const auto clear_flags = ntf::r_clear_flag::color_depth;
+  const auto vp = ntf::uvec4{0, 0, window->fb_size()};
+
+  ctx->framebuffer_color(ntf::r_context::DEFAULT_FRAMEBUFFER, main_color);
+  ctx->framebuffer_clear(ntf::r_context::DEFAULT_FRAMEBUFFER, clear_flags);
+  ctx->framebuffer_viewport(ntf::r_context::DEFAULT_FRAMEBUFFER, vp);;
+
   return std::make_pair(std::move(*window), std::move(*ctx));
 }
 
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
-
-  auto [window, ctx] = init_ctx();
 
   const auto image_flag = ntf::image_load_flags::flip_vertically;
   auto cirno_img = ntf::load_image<ntf::uint8>("./demos/res/cirno_cpp.jpg", image_flag);
@@ -121,9 +127,7 @@ int main() {
   const auto& fumo_verts = fumo->meshes.vertices;
   const auto& fumo_inds = fumo->meshes.indices;
 
-  ntf::color4 main_color{.3f, .3f, .3f, 1.f};
-  ctx.framebuffer_color(ntf::r_context::DEFAULT_FRAMEBUFFER, main_color);
-  ctx.framebuffer_clear(ntf::r_context::DEFAULT_FRAMEBUFFER, ntf::r_clear_flag::color_depth);
+  auto [window, ctx] = init_ctx();
 
   auto cirno_img_data = cirno_img->descriptor();
   auto tex = ntf::r_texture::create(ntf::unchecked, ctx, {
@@ -319,7 +323,6 @@ int main() {
     ctx.framebuffer_viewport(ntf::r_context::DEFAULT_FRAMEBUFFER, ntf::uvec4{0, 0, w, h});
     fb_ratio = static_cast<ntf::float32>(w)/static_cast<ntf::float32>(h);
     cam_proj_fumo = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);
-    // cam_proj_quad = glm::ortho(0.f, static_cast<float>(w), 0.f, static_cast<float>(h), .1f, 100.f);
   });
 
   ntf::shogle_render_loop(window, ctx, ups, ntf::overload{

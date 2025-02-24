@@ -44,7 +44,7 @@ public:
   struct program_t {
     GLuint id{0};
     GLenum primitive;
-    weak_ref<r_context::vertex_attrib_t> layout;
+    weak_ref<r_context_data::vertex_layout> layout;
   };
 
   struct texture_t {
@@ -106,7 +106,7 @@ public:
 
   [[nodiscard]] program_t create_program(shader_t const* const* shaders, uint32 count,
                                          r_primitive primitive);
-  void query_program_uniforms(const program_t& program, r_context::uniform_map& unif);
+  void query_program_uniforms(const program_t& program, r_context_data::uniform_map& unif);
   void destroy_program(const program_t& program) noexcept;
   bool bind_program(GLuint id) noexcept;
   void push_uniform(uint32 loc, r_attrib_type type, const void* data) noexcept;
@@ -227,7 +227,7 @@ public:
   gl_context();
 
 public:
-  r_context::ctx_meta_t query_meta() const override;
+  r_context_data::ctx_meta query_meta() const override;
 
   r_buffer_handle create_buffer(const r_buffer_descriptor& desc) override;
   void update_buffer(r_buffer_handle buf, const r_buffer_data& desc) override;
@@ -241,14 +241,14 @@ public:
   void destroy_shader(r_shader_handle shader) noexcept override;
 
   r_pipeline_handle create_pipeline(const r_pipeline_descriptor& desc,
-                                    weak_ref<r_context::vertex_attrib_t> attrib,
-                                    r_context::uniform_map& uniforms) override;
+                                    weak_ref<r_context_data::vertex_layout> attrib,
+                                    r_context_data::uniform_map& uniforms) override;
   void destroy_pipeline(r_pipeline_handle pipeline) noexcept override;
 
   r_framebuffer_handle create_framebuffer(const r_framebuffer_descriptor& desc) override;
   void destroy_framebuffer(r_framebuffer_handle fb) noexcept override;
 
-  void submit(win_handle_t win, const r_context::command_map& cmds) override;
+  void submit(win_handle_t win, const r_context_data::command_map& cmds) override;
   void swap_buffers(win_handle_t win) override;
 
 private:
