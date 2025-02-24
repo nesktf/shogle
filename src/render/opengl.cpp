@@ -1183,16 +1183,11 @@ void gl_context::debug_callback(GLenum src, GLenum type, GLuint id, GLenum sever
   }
 }
 
-gl_context::gl_context(r_window& win, uint32 major, uint32 minor) :
-  _state{*this}, _major{major}, _minor{minor} {
-  if (!gladLoadGLLoader(win.proc_loader())) {
-    throw ntf::error<>{"[ntf::gl_context] Failed to load GLAD"};
-  }
-  _proc_fun = win.proc_loader();
+gl_context::gl_context() :
+  _state{*this} {
   _state.init(gl_state::init_data_t{
     .dbg = gl_context::debug_callback,
   });
-
   _vao = _state.create_vao();
   _state.bind_vao(_vao.id);
 }
@@ -1354,7 +1349,8 @@ void gl_context::destroy_pipeline(r_pipeline_handle pipeline) noexcept {
   _programs.push(pipeline);
 }
 
-void gl_context::submit(const r_context::command_map& cmds) {
+void gl_context::submit(win_handle_t win, const r_context::command_map& cmds) {
+  r_window::gl_set_current(win);
   _state.bind_vao(_vao.id);
   for (const auto& [fb, list] : cmds) {
     _state.prepare_draw_target(fb ? _framebuffers.get(fb).id : gl_state::DEFAULT_FBO,
@@ -1423,6 +1419,10 @@ void gl_context::submit(const r_context::command_map& cmds) {
       }
     }
   }
+}
+
+void gl_context::swap_buffers(win_handle_t win) {
+  r_window::gl_swap_buffers(win);
 }
 
 // void gl_context::draw_text(const font& font, vec2 pos, float scale, std::string_view text) const {

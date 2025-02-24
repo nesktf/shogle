@@ -29,50 +29,54 @@
 
 namespace ntf {
 
-r_context::r_context(r_error err) noexcept :
-  _err{std::move(err)}, _win{}, _ctx{} {}
+namespace {
 
-r_context::r_context(r_window& win, std::unique_ptr<r_platform_context> ctx,
-                     command_map map) noexcept :
-  _err{}, _win{win}, _ctx{std::move(ctx)}, _draw_lists(std::move(map)) {
-  _ctx_meta = _ctx->query_meta();
-  _frame_arena.init(1ull<<29); // 512 MiB
-  _d_list = _draw_lists.at(DEFAULT_FRAMEBUFFER);
-}
-
-r_context r_context::create(r_window& win, const r_context_params& params) noexcept {
+template<bool checked>
+auto r_context_create_impl(const r_context_params& params)
+  -> std::conditional_t<checked, r_expected<r_context>, r_context>
+{
   r_api api = params.use_api.value_or(r_api::opengl);
-  r_window::ctx_params_t win_params {
-    .api = api,
-    .gl_maj = 4,
-    .gl_min = 6,
-  };
 
-  if (!win.init_context(win_params)) {
-    return r_context{{"Failed to initialize window context"}};
-  }
+  r_context::command_map map;
+  auto [it, emplaced] = map.try_emplace(r_context::DEFAULT_FRAMEBUFFER);
+  NTF_ASSERT(emplaced);
+  it->second.viewport = uvec4{0, 0, params.window->fb_size()};
 
   std::unique_ptr<r_platform_context> ctx;
-  try {
+  win_handle_t win = params.window->handle();
+  auto init_ctx = [&]() {
     switch (api) {
       case r_api::opengl: {
-        ctx = std::make_unique<gl_context>(win, 4, 6);
+        r_window::gl_set_current(win);
+        r_window::gl_set_swap_interval(params.swap_interval);
+        auto proc = r_window::gl_load_proc();
+        if (!gladLoadGLLoader(proc)) {
+          throw ntf::error<>{"Failed to load GLAD"};
+        }
+        ctx = std::make_unique<gl_context>();
         break;
       }
       default: {
-        NTF_ASSERT(false, "Not implemented");
+        return false;
         break;
       }
     }
-  } catch (r_error& err) {
-    win.reset();
-    return r_context{std::move(err)};
-  } catch (const std::exception& ex) {
-    win.reset();
-    return r_context{r_error::format({"Failed To create context: {}"}, ex.what())};
-  } catch (...) {
-    win.reset();
-    return r_context{{"Failed to create context: (...) caught"}};
+    return true;
+  };
+
+  if constexpr (checked) {
+    try {
+      init_ctx();
+    } catch (r_error& err) {
+      return unexpected{std::move(err)};
+    } catch (const std::exception& ex) {
+      return unexpected{r_error::format({"Failed To create context: {}"}, ex.what())};
+    } catch (...) {
+      return unexpected{r_error{"Failed to create context: (...) caught"}};
+    }
+  } else {
+    auto ret = init_ctx();
+    NTF_ASSERT(ret);
   }
 
 #if SHOGLE_ENABLE_IMGUI
@@ -86,40 +90,101 @@ r_context r_context::create(r_window& win, const r_context_params& params) noexc
 #if SHOGLE_USE_GLFW
   switch (api) {
     case r_api::opengl: {
-      ImGui_ImplGlfw_InitForOpenGL(win._handle, true);
+      ImGui_ImplGlfw_InitForOpenGL(win, true);
       ImGui_ImplOpenGL3_Init("#version 130");
       break;
     }
     case r_api::vulkan: {
-      ImGui_ImplGlfw_InitForVulkan(win._handle, true);
+      ImGui_ImplGlfw_InitForVulkan(win, true);
       break;
     }
     default: {
-      ImGui_ImplGlfw_InitForOther(win._handle, true);
+      ImGui_ImplGlfw_InitForOther(win, true);
       break;
     }
   }
 #endif
 #endif
 
-  command_map map;
-  auto [it, emplaced] = map.try_emplace(DEFAULT_FRAMEBUFFER);
-  if (!emplaced) {
-    return r_context{{"Failed to init default framebuffer"}};
+  if constexpr (checked) {
+    return r_expected<r_context>{in_place, win, std::move(ctx), std::move(map)};
+  } else {
+    return r_context{win, std::move(ctx), std::move(map)};
   }
-  it->second.viewport = uvec4{0, 0, win.fb_size()};
+}
 
-  return r_context{win, std::move(ctx), std::move(map)};
+} // namespace
+
+r_expected<r_context> r_context::create(const r_context_params& params) noexcept {
+  return r_context_create_impl<true>(params);
+}
+
+r_context r_context::create(unchecked_t, const r_context_params& params) {
+  return r_context_create_impl<false>(params);
+}
+
+r_context::r_context(win_handle_t win, std::unique_ptr<r_platform_context> ctx,
+                     command_map map) noexcept :
+  _win{win}, _ctx{std::move(ctx)}, _draw_lists(std::move(map)) {
+  _frame_arena.init(1ull<<29); // 512 MiB
+  _d_list = _draw_lists.at(DEFAULT_FRAMEBUFFER);
+}
+
+r_context::r_context(r_context&& other) noexcept :
+  _frame_arena{std::move(other._frame_arena)},
+  _win{std::move(other._win)},
+  _ctx{std::move(other._ctx)},
+  _buffers(std::move(other._buffers)),
+  _textures(std::move(other._textures)),
+  _framebuffers(std::move(other._framebuffers)),
+  _shaders(std::move(other._shaders)),
+  _pipelines(std::move(other._pipelines)),
+  _draw_lists(std::move(other._draw_lists)),
+  _d_list{std::move(other._d_list)},
+  _d_cmd{std::move(other._d_cmd)} {}
+
+r_context& r_context::operator=(r_context&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  if (_ctx) {
+#if SHOGLE_ENABLE_IMGUI
+    switch (_ctx->query_meta().api) {
+      case r_api::opengl: {
+        ImGui_ImplOpenGL3_Shutdown();
+        break;
+      }
+      default: break;
+    }
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+#endif
+    _ctx.reset();
+  }
+
+  _frame_arena = std::move(other._frame_arena);
+  _win = std::move(other._win);
+  _ctx = std::move(other._ctx);
+  _buffers = std::move(other._buffers);
+  _textures = std::move(other._textures);
+  _framebuffers = std::move(other._framebuffers);
+  _shaders = std::move(other._shaders);
+  _pipelines = std::move(other._pipelines);
+  _draw_lists = std::move(other._draw_lists);
+  _d_list = std::move(other._d_list);
+  _d_cmd = std::move(other._d_cmd);
+
+  return *this;
 }
 
 r_context::~r_context() noexcept {
   if (!_ctx) {
     return;
   }
-  _ctx.reset();
 
 #if SHOGLE_ENABLE_IMGUI
-  switch (render_api()) {
+  switch (_ctx->query_meta().api) {
     case r_api::opengl: {
       ImGui_ImplOpenGL3_Shutdown();
       break;
@@ -129,8 +194,7 @@ r_context::~r_context() noexcept {
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
 #endif
-
-  _win->reset();
+  // _ctx.reset();
 }
 
 void r_context::start_frame() noexcept {
@@ -146,7 +210,7 @@ void r_context::start_frame() noexcept {
 #if SHOGLE_USE_GLFW
   ImGui_ImplGlfw_NewFrame();
 #endif
-  switch (render_api()) {
+  switch (_ctx->query_meta().api) {
     case r_api::opengl: ImGui_ImplOpenGL3_NewFrame(); break;
     // case r_api::vulkan: ImGui_ImplVulkan_NewFrame(); break;
     default: break;
@@ -156,12 +220,10 @@ void r_context::start_frame() noexcept {
 }
 
 void r_context::end_frame() noexcept {
-  _ctx->submit(_draw_lists);
+  _ctx->submit(_win, _draw_lists);
   ImGui::Render();
-  if (render_api() == r_api::opengl) {
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    _win->swap_buffers();
-  }
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+  _ctx->swap_buffers(_win);
 }
 
 void r_context::device_wait() noexcept {
@@ -293,10 +355,11 @@ size_t r_context::buffer_size(r_buffer_handle buff) const {
 // }
 
 r_expected<r_texture_handle> r_context::texture_create(const r_texture_descriptor& desc) noexcept {
-  RET_ERROR_IF(desc.layers > _ctx_meta.tex_max_layers,
+  auto ctx_meta = _ctx->query_meta();
+  RET_ERROR_IF(desc.layers > ctx_meta.tex_max_layers,
                "[ntf::r_context::texture_create]",
                "Texture layers to high ({} > {})",
-               desc.layers, _ctx_meta.tex_max_layers);
+               desc.layers, ctx_meta.tex_max_layers);
 
   RET_ERROR_IF(desc.type == r_texture_type::cubemap && desc.extent.x != desc.extent.y,
                "[ntf::r_context::texture_create]",
@@ -328,16 +391,16 @@ r_expected<r_texture_handle> r_context::texture_create(const r_texture_descripto
 
   switch (desc.type) {
     case r_texture_type::texture1d: {
-      const auto max_ext = _ctx_meta.tex_max_extent;
+      const auto max_ext = ctx_meta.tex_max_extent;
       RET_ERROR_IF(desc.extent.x > max_ext,
                    "[ntf::r_context::texture_create]",
                    "Requested texture is too big ({} > {})",
-                   desc.extent.x, _ctx_meta.tex_max_extent);
+                   desc.extent.x, ctx_meta.tex_max_extent);
       break;
     }
     case r_texture_type::cubemap: [[fallthrough]];
     case r_texture_type::texture2d: {
-      const auto max_ext = _ctx_meta.tex_max_extent;
+      const auto max_ext = ctx_meta.tex_max_extent;
       RET_ERROR_IF(desc.extent.x > max_ext ||
                    desc.extent.y > max_ext,
                    "[ntf::r_context::texture_create]",
@@ -346,7 +409,7 @@ r_expected<r_texture_handle> r_context::texture_create(const r_texture_descripto
       break;
     }
     case r_texture_type::texture3d: {
-      const auto max_ext = _ctx_meta.tex_max_extent3d;
+      const auto max_ext = ctx_meta.tex_max_extent3d;
       RET_ERROR_IF(desc.extent.x > max_ext ||
                    desc.extent.y > max_ext ||
                    desc.extent.z > max_ext,

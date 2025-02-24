@@ -7,96 +7,118 @@
 #include "../stl/function.hpp"
 #include "../stl/optional.hpp"
 
+#include <variant>
+
 namespace ntf {
 
-struct r_window_params {
-  uint32 width = 1280;
-  uint32 height = 720;
-  std::string_view title = "test";
+template<typename... Ts>
+using r_win_ctx_params = std::variant<weak_ref<Ts>...>;
 
-  std::string_view x11_class_name;
-  std::string_view x11_instance_name;
+struct r_win_gl_params {
+  uint32 ver_major;
+  uint32 ver_minor;
 };
 
+struct r_win_vk_params {};
+
+struct r_win_params {
+  uint32 width;
+  uint32 height;
+
+  const char* title;
+  const char* x11_class_name;
+  const char* x11_instance_name;
+
+  r_win_ctx_params<r_win_gl_params, r_win_vk_params> ctx_params;
+};
+
+#if SHOGLE_USE_GLFW
+using win_handle_t = GLFWwindow*;
+#endif
+
 class r_window {
+public:
+  template<typename Signature>
+  using callback_type = std::function<Signature>;
+
+  using viewport_fun = callback_type<void(r_window&,uint32,uint32)>;
+  using key_fun = callback_type<void(r_window&,keycode,scancode,keystate,keymod)>;
+  using cursor_fun = callback_type<void(r_window&,float64,float64)>;
+  using scroll_fun = callback_type<void(r_window&,float64,float64)>;
+
+#if SHOGLE_USE_GLFW
 private:
-  struct ctx_params_t {
-    r_api api;
-    uint32 gl_maj;
-    uint32 gl_min;
-    optional<uint32> swap_interval;
-  };
+  static void fb_callback(win_handle_t handle, int w, int h);
+  static void key_callback(win_handle_t handle, int code, int scan, int state, int mod);
+  static void cursor_callback(win_handle_t handle, double xpos, double ypos);
+  static void scroll_callback(win_handle_t handle, double xoff, double yoff);
+#endif
 
 public:
-  using viewport_fun = ntf::inplace_function<void(uint32,uint32)>;
-  using key_fun = ntf::inplace_function<void(keycode,scancode,keystate,keymod)>;
-  using cursor_fun = ntf::inplace_function<void(float64,float64)>;
-  using scroll_fun = ntf::inplace_function<void(float64,float64)>;
+  r_window(win_handle_t handle, r_api ctx_api);
 
 public:
-  r_window(const r_window_params& params = {}) :
-    _init_params(params) {}
+  [[nodiscard]] static r_expected<r_window> create(const r_win_params& params);
+  [[nodiscard]] static r_window create(unchecked_t, const r_win_params& params);
 
 public:
-  void viewport_event(viewport_fun callback);
-  void key_event(key_fun callback);
-  void cursor_event(cursor_fun callback);
-  void scroll_event(scroll_fun callback);
+  template<typename F>
+  void viewport_event(F&& callback) {
+    _vp_event = std::forward<F>(callback);
+  }
 
-  void title(std::string_view title);
+  template<typename F>
+  void key_event(F&& callback) {
+    _key_event = std::forward<F>(callback);
+  }
 
+  template<typename F>
+  void cursor_event(F&& callback) {
+    _cur_event = std::forward<F>(callback);
+  }
+
+  template<typename F>
+  void scroll_event(F&& callback) {
+    _scl_event = std::forward<F>(callback);
+  }
+
+  void title(const std::string& title);
   void close();
-
   void poll_events();
 
 public:
+  win_handle_t handle() const { return _handle; }
+  r_api ctx_api() const { return _ctx_api; }
+
   bool should_close() const;
   bool poll_key(keycode key, keystate state) const;
   uvec2 win_size() const;
   uvec2 fb_size() const;
 
-  [[nodiscard]] bool valid() const { return _handle != nullptr; }
-  explicit operator bool() const { return valid(); }
-
-#if SHOGLE_USE_GLFW
-  GLADloadproc proc_loader() {
-    return reinterpret_cast<GLADloadproc>(glfwGetProcAddress);
-  }
-  bool create_surface(VkInstance instance, VkSurfaceKHR* surface,
-                      const VkAllocationCallbacks* alloc) {
-    return glfwCreateWindowSurface(instance, _handle, alloc, surface);
-  }
-#endif
-
 private:
-  void swap_buffers();
-  bool init_context(ctx_params_t ctx_params);
-  void reset();
-
-private:
-#if SHOGLE_USE_GLFW
-  static void fb_callback(GLFWwindow* handle, int w, int h);
-  static void key_callback(GLFWwindow* handle, int code, int scan, int state, int mod);
-  static void cursor_callback(GLFWwindow* handle, double xpos, double ypos);
-  static void scroll_callback(GLFWwindow* handle, double xoff, double yoff);
-#endif
-
-private:
-#if SHOGLE_USE_GLFW
-  GLFWwindow* _handle{nullptr};
-#endif
-  r_window_params _init_params;
-  r_api _ctx_api;
-  viewport_fun _viewport_event;
-  key_fun _key_event;
-  cursor_fun _cursor_event;
-  scroll_fun _scroll_event;
+  void _bind_callbacks();
+  void _reset(bool destroy);
 
 public:
-  NTF_DECLARE_NO_MOVE_NO_COPY(r_window);
+  static bool vk_surface(win_handle_t handle,
+                         VkInstance instance, VkSurfaceKHR* surface,
+                         const VkAllocationCallbacks* alloc);
+  static void gl_set_current(win_handle_t handle);
+  static void gl_set_swap_interval(uint32 interval);
+  static void gl_swap_buffers(win_handle_t handle);
+  static GLADloadproc gl_load_proc();
 
 private:
-  friend class r_context;
+  win_handle_t _handle;
+  r_api _ctx_api;
+
+  viewport_fun _vp_event;
+  key_fun _key_event;
+  cursor_fun _cur_event;
+  scroll_fun _scl_event;
+
+public:
+  NTF_DECLARE_MOVE_ONLY(r_window);
 };
 
 } // namespace ntf

@@ -2,6 +2,7 @@
 
 #include "../math/matrix.hpp"
 #include "../stl/optional.hpp"
+#include "../stl/expected.hpp"
 
 #ifdef SHOGLE_ENABLE_IMGUI
 #include <imgui.h>
@@ -62,6 +63,11 @@ class r_window;
 
 using r_handle_value = uint32;
 constexpr r_handle_value r_handle_tombstone = std::numeric_limits<r_handle_value>::max();
+
+using r_error = ::ntf::error<void>;
+
+template<typename T>
+using r_expected = ::ntf::expected<T, r_error>;
 
 } // namespace ntf
 

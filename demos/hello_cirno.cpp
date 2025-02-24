@@ -61,31 +61,41 @@ void main()  {
 
 )glsl";
 
-
-int main() {
-  ntf::logger::set_level(ntf::log_level::verbose);
-  ntf::r_window window{ntf::r_window_params{
+static auto init_ctx() {
+  ntf::r_win_gl_params gl_params {
+    .ver_major = 4,
+    .ver_minor = 6,
+  };
+  auto window = ntf::r_window::create({
     .width = 1280,
     .height = 720,
     .title = "test - hello_cirno - ShOGLE " SHOGLE_VERSION_STRING,
     .x11_class_name = "test",
-    .x11_instance_name = "test",
-  }};
-
-  auto ctx = ntf::r_context::create(window);
-  if (!ctx) {
-    ntf::logger::error("Failed to initialize context: {}", ctx.error().what());
-    return EXIT_FAILURE;
+    .x11_instance_name = nullptr,
+    .ctx_params = &gl_params,
+  });
+  if (!window) {
+    ntf::logger::error("Failed to create window: {}", window.error().what());
+    std::exit(EXIT_FAILURE);
   }
 
-  window.key_event([&](ntf::keycode code, auto, ntf::keystate state, auto) {
-    if (code == ntf::keycode::key_escape && state == ntf::keystate::press) {
-      window.close();
-    }
+  auto ctx = ntf::r_context::create({
+    .window = *window,
+    .use_api = ntf::r_api::opengl,
+    .swap_interval = 0,
   });
-  window.viewport_event([&](ntf::uint32 w, ntf::uint32 h) {
-    ctx.framebuffer_viewport(ntf::r_context::DEFAULT_FRAMEBUFFER, ntf::uvec4{0, 0, w, h});
-  });
+  if (!ctx) {
+    ntf::logger::error("Failed to initialize context: {}", ctx.error().what());
+    std::exit(EXIT_FAILURE);
+  }
+
+  return std::make_pair(std::move(*window), std::move(*ctx));
+}
+
+int main() {
+  ntf::logger::set_level(ntf::log_level::verbose);
+
+  auto [window, ctx] = init_ctx();
 
   const auto image_flag = ntf::image_load_flags::flip_vertically;
   auto cirno_img = ntf::load_image<ntf::uint8>("./demos/res/cirno_cpp.jpg", image_flag);
@@ -262,7 +272,7 @@ int main() {
   auto transf_cube = ntf::transform3d<ntf::float32>{}
     .pos(0.f, 0.f, 0.f).scale(1.f);
   ntf::mat4 cam_view_cube = glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -3.f});
-  ntf::mat4 cam_proj_cube = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);
+  ntf::mat4 cam_proj_fumo = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);
   ntf::vec4 color_cube {0.f, 1.f, 0.f, 1.f};
 
   auto transf_quad0 = ntf::transform2d<ntf::float32>{}
@@ -271,11 +281,12 @@ int main() {
     .pos(350.f, 0.f).scale(ntf::vec2{fb_ratio*300.f, 300.f});
   ntf::mat4 cam_view_quad = glm::translate(glm::mat4{1.f}, glm::vec3{640.f, 360.f, -3.f});
   ntf::mat4 cam_proj_quad = glm::ortho(0.f, 1280.f, 0.f, 720.f, .1f, 100.f);
+  auto cam_proj_cube = cam_proj_fumo;
   ntf::vec4 color_quad {1.f, 1.f, 1.f, 1.f};
 
   const ntf::float32 fumo_scale = 0.04f;
   auto transf_fumo = ntf::transform3d<ntf::float32>{}
-    .pos(0.f, -.3f, 0.f).scale(fumo_scale).pivot_x(1.f);
+    .pos(0.f, -.3f, 0.f).scale(fumo_scale);
 
   ntf::float32 t = 0;
   ntf::float64 avg_fps{0};
@@ -284,24 +295,49 @@ int main() {
   ntf::float32 t2 = 0;
   ntf::uint32 ups = 60;
 
-  ntf::shogle_render_loop(ctx, ups, ntf::overload{
+  bool do_things = true;
+
+  window.key_event([&](ntf::r_window& win, ntf::keycode code, auto, ntf::keystate state, auto) {
+    const float ts = 4.f;
+    if (state == ntf::keystate::press) {
+      if (code == ntf::keycode::key_escape) {
+        win.close();
+      }
+      if (code == ntf::keycode::key_space) {
+        do_things = !do_things;
+      }
+
+      if (code == ntf::keycode::key_left) {
+        t -= ts/static_cast<float>(ups);
+      } else if (code == ntf::keycode::key_right) {
+        t += ts/static_cast<float>(ups);
+      }
+    }
+  });
+
+  window.viewport_event([&](ntf::r_window&, ntf::uint32 w, ntf::uint32 h) {
+    ctx.framebuffer_viewport(ntf::r_context::DEFAULT_FRAMEBUFFER, ntf::uvec4{0, 0, w, h});
+    fb_ratio = static_cast<ntf::float32>(w)/static_cast<ntf::float32>(h);
+    cam_proj_fumo = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);
+    // cam_proj_quad = glm::ortho(0.f, static_cast<float>(w), 0.f, static_cast<float>(h), .1f, 100.f);
+  });
+
+  ntf::shogle_render_loop(window, ctx, ups, ntf::overload{
     [&](ntf::uint32 ups) {
-      ntf::float32 dt = 1/static_cast<ntf::float32>(ups);
-      t = ntf::ode_euler<ntf::float32>{}(0.f, t, dt, [](...) { return glm::pi<ntf::float32>(); });
+      if (do_things) {
+        ntf::float32 dt = 1/static_cast<ntf::float32>(ups);
+        t += glm::pi<float>()*dt;
+      }
 
       transf_cube
-        .rot(ntf::axisquat(t, ntf::vec3{0.f, 1.f, 0.f}))
-        .scale(ntf::vec3{1.f, .5f + std::abs(std::sin(t)), 1.f})
+        .rot(t, ntf::vec3{0.f, 1.f, 0.f})
+        .scale_y(.5f + std::abs(std::sin(t)))
         .offset_y(-0.5f);
       transf_quad0.roll(-t);
       transf_quad1.roll(t);
       transf_fumo
-        .rot(ntf::axisquat(glm::pi<ntf::float32>()*.5f*t, ntf::vec3{0.f, 1.f, 0.f}))
-        .scale(ntf::vec3{
-          fumo_scale,
-          fumo_scale*.5f+fumo_scale*.5f*std::abs(std::sin(glm::pi<ntf::float32>()*t)),
-          fumo_scale
-        });
+        .rot(glm::pi<ntf::float32>()*.5f*t, ntf::vec3{0.f, 1.f, 0.f})
+        .scale_y(fumo_scale*.5f+fumo_scale*.5f*std::abs(std::sin(glm::pi<ntf::float32>()*t)));
     },
     [&](ntf::float64 dt, ntf::float64) {
       // Using an ode solver instead of t+=dt just because
@@ -323,13 +359,17 @@ int main() {
 
       const ntf::uint32 ups_min = 1;
       const ntf::uint32 ups_max = 85;
-      ImGui::Begin("test");
+      const auto gui_flags =
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize;
+      ImGui::Begin("test", nullptr, gui_flags);
+        ImGui::SetWindowPos(ImVec2{0, 0});
+        ImGui::SetWindowSize(ImVec2{250, 100});
         ImGui::Text("Delta time: %f", dt);
         ImGui::Text("Avg fps: %f", avg_fps);
         ImGui::Text("FDelta time: %f", 1/static_cast<float>(ups));
         ImGui::SliderScalar("ups", ImGuiDataType_U32, &ups, &ups_min, &ups_max);
       ImGui::End();
-      ImGui::ShowDemoWindow();
+      // ImGui::ShowDemoWindow();
 
       ctx.bind_framebuffer(ntf::r_context::DEFAULT_FRAMEBUFFER);
 
@@ -338,7 +378,7 @@ int main() {
       ctx.bind_pipeline(pipe_tex.handle());
       ctx.bind_texture(fumo_tex.handle(), 0);
       ctx.push_uniform(u_tex_model, transf_fumo.world());
-      ctx.push_uniform(u_tex_proj, cam_proj_cube);
+      ctx.push_uniform(u_tex_proj, cam_proj_fumo);
       ctx.push_uniform(u_tex_view, cam_view_cube);
       ctx.push_uniform(u_tex_color, color_quad);
       ctx.push_uniform(u_tex_sampler, 0);

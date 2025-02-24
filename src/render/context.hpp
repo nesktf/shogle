@@ -14,13 +14,10 @@ class r_draw_cmd;
 struct r_platform_context;
 
 struct r_context_params {
+  weak_ref<r_window> window;
   optional<r_api> use_api;
+  uint32 swap_interval;
 };
-
-using r_error = ::ntf::error<void>;
-
-template<typename T>
-using r_expected = ::ntf::expected<T, r_error>;
 
 class r_context {
 public:
@@ -124,12 +121,12 @@ public:
 public:
   static constexpr r_framebuffer_handle DEFAULT_FRAMEBUFFER{};
 
-private:
-  r_context(r_error err) noexcept;
-  r_context(r_window& win, std::unique_ptr<r_platform_context> ctx, command_map map) noexcept;
+public:
+  r_context(win_handle_t win, std::unique_ptr<r_platform_context> ctx, command_map map) noexcept;
 
 public:
-  static r_context create(r_window& win, const r_context_params& params = {}) noexcept;
+  static r_expected<r_context> create(const r_context_params& params) noexcept;
+  static r_context create(unchecked_t, const r_context_params& params);
 
 public:
   void start_frame() noexcept;
@@ -264,15 +261,8 @@ public:
   }
 
 public:
-  bool valid() const { return !_err.has_value(); }
-  explicit operator bool() const { return valid(); }
-
-  r_error& error() { return _err.value(); }
-  const r_error& error() const { return _err.value(); }
-
-  r_api render_api() const { return _ctx_meta.api; }
+  // r_api render_api() const { return _ctx->query_meta().api; }
   std::string_view name_str() const;
-  r_window& win() { return *_win; }
 
 private:
   void _init_buffer(buff_store_t& buff, const r_buffer_descriptor& desc);
@@ -285,11 +275,9 @@ private:
                       std::unique_ptr<vertex_attrib_t> layout, uniform_map uniforms);
 
 private:
-  optional<r_error> _err;
   ntf::mem_arena _frame_arena;
-  weak_ref<r_window> _win;
+  win_handle_t _win;
   std::unique_ptr<r_platform_context> _ctx;
-  ctx_meta_t _ctx_meta;
 
   std::unordered_map<r_buffer_handle, buff_store_t> _buffers;
   std::unordered_map<r_texture_handle, tex_store_t> _textures;
@@ -302,7 +290,7 @@ private:
   draw_command_t _d_cmd{};
 
 public:
-  NTF_DECLARE_NO_MOVE_NO_COPY(r_context);
+  NTF_DECLARE_MOVE_ONLY(r_context);
 };
 
 struct r_platform_context {
@@ -328,9 +316,10 @@ struct r_platform_context {
   virtual r_framebuffer_handle create_framebuffer(const r_framebuffer_descriptor& desc) = 0;
   virtual void destroy_framebuffer(r_framebuffer_handle fb) noexcept = 0;
 
-  virtual void submit(const r_context::command_map&) = 0;
+  virtual void submit(win_handle_t win, const r_context::command_map&) = 0;
 
   virtual void device_wait() noexcept {}
+  virtual void swap_buffers(win_handle_t win) = 0;
 };
 
 namespace impl {
@@ -731,7 +720,7 @@ concept nonfixed_loop_object = delta_time_func<T> || has_render_member<T>;
 
 
 template<nonfixed_loop_object LoopObj>
-void shogle_render_loop(r_context& ctx, LoopObj&& obj) {
+void shogle_render_loop(r_window& window, r_context& ctx, LoopObj&& obj) {
   using namespace std::literals;
 
   using clock = std::chrono::steady_clock;
@@ -741,7 +730,6 @@ void shogle_render_loop(r_context& ctx, LoopObj&& obj) {
   SHOGLE_LOG(debug, "[ntf::shogle_main_loop] Main loop started");
 
   time_point last_time = clock::now();
-  r_window& window = ctx.win();
   while (!window.should_close()) {
     time_point start_time = clock::now();
     auto elapsed_time = start_time - last_time;
@@ -765,7 +753,7 @@ void shogle_render_loop(r_context& ctx, LoopObj&& obj) {
 }
 
 template<fixed_loop_object LoopObj>
-void shogle_render_loop(r_context& ctx, const uint32& ups, LoopObj&& obj) {
+void shogle_render_loop(r_window& window, r_context& ctx, const uint32& ups, LoopObj&& obj) {
   using namespace std::literals;
 
   auto fixed_elapsed_time =
@@ -778,7 +766,6 @@ void shogle_render_loop(r_context& ctx, const uint32& ups, LoopObj&& obj) {
   SHOGLE_LOG(debug, "[ntf::shogle_main_loop] Fixed main loop started at {} ups", ups);
 
   time_point last_time = clock::now();
-  r_window& window = ctx.win();
   duration lag = 0s;
   while (!window.should_close()) {
     fixed_elapsed_time = std::chrono::duration<float64>{std::chrono::microseconds{1000000/ups}};
@@ -817,7 +804,8 @@ void shogle_render_loop(r_context& ctx, const uint32& ups, LoopObj&& obj) {
 }
 
 template<fixed_render_func RFunc, fixed_update_func UFunc>
-void shogle_render_loop(r_context& ctx, const uint32& ups, RFunc&& render, UFunc&& fixed_update) {
+void shogle_render_loop(r_window& window, r_context& ctx, const uint32& ups,
+                        RFunc&& render, UFunc&& fixed_update) {
   using namespace std::literals;
 
   auto fixed_elapsed_time =
@@ -831,7 +819,6 @@ void shogle_render_loop(r_context& ctx, const uint32& ups, RFunc&& render, UFunc
 
   time_point last_time = clock::now();
   duration lag = 0s;
-  r_window& window = ctx.win();
   while (!window.should_close()) {
     fixed_elapsed_time = std::chrono::duration<float64>{std::chrono::microseconds{1000000/ups}};
     time_point start_time = clock::now();

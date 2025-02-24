@@ -627,6 +627,10 @@ public:
 public:
   constexpr expected() = default;
 
+  template<typename... Args>
+  constexpr expected(in_place_t, Args&&... args) :
+    _storage(in_place, std::forward<Args>(args)...) {}
+
   template<is_forwarding<T> U>
   constexpr expected(U&& val) :
     _storage(in_place, std::forward<U>(val)) {}
@@ -640,6 +644,7 @@ public:
   constexpr bool has_value() const noexcept { return _storage.has_value(); }
 
   constexpr const T* operator->() const noexcept { return std::addressof(_storage.get()); }
+  constexpr T* operator->() noexcept { return std::addressof(_storage.get()); }
 
   // TODO: Throw? when storage is invalid
   constexpr const T& operator*() const& { return _storage.get(); }

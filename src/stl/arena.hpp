@@ -121,11 +121,7 @@ private:
   size_t _allocated{0};
 
 public:
-  ~mem_arena() noexcept;
-  mem_arena(const mem_arena&) = delete;
-  mem_arena(mem_arena&&) = delete;
-  mem_arena& operator=(const mem_arena&) = delete;
-  mem_arena& operator=(mem_arena&&) = delete;
+  NTF_DECLARE_MOVE_ONLY(mem_arena);
 };
 
 template<typename T>

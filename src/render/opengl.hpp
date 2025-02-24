@@ -224,7 +224,7 @@ private:
   };
 
 public:
-  gl_context(r_window& win, uint32 major, uint32 minor);
+  gl_context();
 
 public:
   r_context::ctx_meta_t query_meta() const override;
@@ -248,7 +248,8 @@ public:
   r_framebuffer_handle create_framebuffer(const r_framebuffer_descriptor& desc) override;
   void destroy_framebuffer(r_framebuffer_handle fb) noexcept override;
 
-  void submit(const r_context::command_map& cmds) override;
+  void submit(win_handle_t win, const r_context::command_map& cmds) override;
+  void swap_buffers(win_handle_t win) override;
 
 private:
   GLAPIENTRY static void debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity,
@@ -256,8 +257,6 @@ private:
 
 private:
   gl_state _state;
-  uint32 _major, _minor; // Core only
-  GLADloadproc _proc_fun;
   gl_state::vao_t _vao;
 
   res_container<gl_state::buffer_t, r_buffer_handle> _buffers;

@@ -49,4 +49,27 @@ mem_arena::~mem_arena() noexcept {
   }
 }
 
+mem_arena::mem_arena(mem_arena&& other) noexcept :
+  _base{std::move(other._base)},
+  _max_size{std::move(other._max_size)},
+  _allocated{std::move(other._allocated)} { other._base = nullptr; }
+
+mem_arena& mem_arena::operator=(mem_arena&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  if (_base) {
+    munmap(_base, _max_size);
+  }
+
+  _base = std::move(other._base);
+  _max_size = std::move(other._max_size);
+  _allocated = std::move(other._allocated);
+
+  other._base = nullptr;
+
+  return *this;
+}
+
 } // namespace ntf

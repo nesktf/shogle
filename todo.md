@@ -11,7 +11,6 @@ A list of things that i want to do, just so i keep focused and don't drift off o
     - Also add support for uniform buffers
 
 ## Medium priotity
-- Fix the circular dependency between the window class and the render context class somehow.
 - Rewrite the transform graph system.
     - Maybe design some kind of scene system
 - Fix the messy code for expected\<T\>
