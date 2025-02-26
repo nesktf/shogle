@@ -1172,27 +1172,30 @@ void gl_context::debug_callback(GLenum src, GLenum type, GLuint id, GLenum sever
   }();
 
   if (type == GL_DEBUG_TYPE_ERROR) {
-    SHOGLE_LOG(error, "[ntf::gl_context][GL_DEBUG][{}][{}][{}][{}]\n\t{}",
+    SHOGLE_LOG(error, "[ntf::gl_context][GL_DEBUG][{}][{}][{}][{}] {}",
                severity_msg, type_msg, src_msg, id, msg);
   } else if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
-    SHOGLE_LOG(verbose, "[ntf::gl_context][GL_DEBUG][{}][{}][{}][{}]\n\t{}",
+    SHOGLE_LOG(verbose, "[ntf::gl_context][GL_DEBUG][{}][{}][{}][{}] {}",
                severity_msg, type_msg, src_msg, id, msg);
   } else {
-    SHOGLE_LOG(debug, "[ntf::gl_context][GL_DEBUG][{}][{}][{}][{}]\n\t{}",
+    SHOGLE_LOG(debug, "[ntf::gl_context][GL_DEBUG][{}][{}][{}][{}] {}",
                severity_msg, type_msg, src_msg, id, msg);
   }
 }
 
-gl_context::gl_context() :
+gl_context::gl_context() noexcept :
   _state{*this} {
   _state.init(gl_state::init_data_t{
     .dbg = gl_context::debug_callback,
   });
   _vao = _state.create_vao();
   _state.bind_vao(_vao.id);
+  SHOGLE_LOG(verbose, "[ntf::gl_context] OpenGL context created");
 }
 
-gl_context::~gl_context() noexcept {}
+gl_context::~gl_context() noexcept {
+  SHOGLE_LOG(verbose, "[ntf::gl_context] OpenGL context destroyed");
+}
 
 r_context_data::ctx_meta gl_context::query_meta() const {
   r_context_data::ctx_meta meta;

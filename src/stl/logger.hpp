@@ -1,13 +1,18 @@
 #pragma once
 
 #include <fmt/format.h>
-// #include <fmt/chrono.h>
 
 #define NTF_LOG_ERROR_COL "[0;31m"
 #define NTF_LOG_WARNING_COL "[0;33m"
 #define NTF_LOG_INFO_COLOR "[0;34m"
 #define NTF_LOG_DEBUG_COLOR "[0;32m"
 #define NTF_LOG_VERBOSE_COLOR "[0;37m"
+
+#define NTF_LOG_PRINT_TIME
+
+#ifdef NTF_LOG_PRINT_TIME
+#include <fmt/chrono.h>
+#endif
 
 namespace ntf {
 
@@ -50,32 +55,32 @@ public:
 
   template<typename... Args>
   static inline void fatal(fmt::format_string<Args...> format, Args&&... args) {
-    _log(log_level::error, "F", NTF_LOG_ERROR_COL, format, std::forward<Args>(args)...);
+    _log(log_level::error, "FATAL", NTF_LOG_ERROR_COL, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   static inline void error(fmt::format_string<Args...> format, Args&&... args) {
-    _log(log_level::error, "E", NTF_LOG_ERROR_COL, format, std::forward<Args>(args)...);
+    _log(log_level::error, "ERROR", NTF_LOG_ERROR_COL, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   static inline void warning(fmt::format_string<Args...> format, Args&&... args) {
-    _log(log_level::warning, "W", NTF_LOG_WARNING_COL, format, std::forward<Args>(args)...);
+    _log(log_level::warning, "WARNING", NTF_LOG_WARNING_COL, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   static inline void info(fmt::format_string<Args...> format, Args&&... args) {
-    _log(log_level::info, "I", NTF_LOG_INFO_COLOR, format, std::forward<Args>(args)...);
+    _log(log_level::info, "INFO", NTF_LOG_INFO_COLOR, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   static inline void debug(fmt::format_string<Args...> format, Args&&... args) {
-    _log(log_level::debug, "D", NTF_LOG_DEBUG_COLOR, format, std::forward<Args>(args)...);
+    _log(log_level::debug, "DEBUG", NTF_LOG_DEBUG_COLOR, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   static inline void verbose(fmt::format_string<Args...> format, Args&&... args) {
-    _log(log_level::verbose, "V", NTF_LOG_VERBOSE_COLOR, format, std::forward<Args>(args)...);
+    _log(log_level::verbose, "VERBOSE", NTF_LOG_VERBOSE_COLOR, format, std::forward<Args>(args)...);
   }
 
 private:

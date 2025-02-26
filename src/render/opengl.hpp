@@ -224,7 +224,7 @@ private:
   };
 
 public:
-  gl_context();
+  gl_context() noexcept;
 
 public:
   r_context_data::ctx_meta query_meta() const override;

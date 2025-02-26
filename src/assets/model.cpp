@@ -1,10 +1,9 @@
 #include "./model.hpp"
+#include "./filesystem.hpp"
 
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
-
-#include <unordered_set>
 
 // #define LOG_BONE_THINGIES
 

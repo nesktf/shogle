@@ -1,11 +1,25 @@
 #pragma once
 
 #include "../math/matrix.hpp"
+
 #include "../stl/optional.hpp"
 #include "../stl/expected.hpp"
 
-#ifdef SHOGLE_ENABLE_IMGUI
+#include "../stl/ptr.hpp"
+
+#include <glad/glad.h>
+
+#if SHOGLE_ENABLE_IMGUI
 #include <imgui.h>
+#include <imgui_impl_opengl3.h> // Should work fine with OGL 4.x
+#endif
+
+#if SHOGLE_USE_GLFW
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#if SHOGLE_ENABLE_IMGUI
+#include <imgui_impl_glfw.h>
+#endif
 #endif
 
 #define SHOGLE_DECLARE_RENDER_HANDLE(_name) \

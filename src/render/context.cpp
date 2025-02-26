@@ -1,11 +1,5 @@
 #include "./opengl.hpp"
 
-#if SHOGLE_USE_GLFW
-#include <imgui_impl_glfw.h>
-#endif
-
-#include <imgui_impl_opengl3.h> // Should work fine with OGL 4.x
-
 #define RET_ERROR(_log_pfx, _fmt, ...) \
   SHOGLE_LOG(error, _log_pfx " " _fmt __VA_OPT__(,) __VA_ARGS__); \
   return unexpected<r_error>{r_error::format({_fmt} __VA_OPT__(,) __VA_ARGS__)}
@@ -116,6 +110,19 @@ r_expected<r_context> r_context::create(const r_context_params& params) noexcept
 
 r_context r_context::create(unchecked_t, const r_context_params& params) {
   return r_context_create_impl<false>(params);
+}
+
+r_context::r_context(uptr_base data) noexcept :
+  uptr_base{std::move(data)}, r_context_view{uptr_base::get()}
+{ 
+  auto meta = _data->platform->query_meta();
+  SHOGLE_LOG(debug, "[ntf::r_context][CONSTRUCT] {} ver {} [{} - {}]",
+             meta.api == r_api::opengl ? "OpenGL" : "Vulkan",
+             meta.version_str, meta.vendor_str, meta.name_str);
+}
+
+r_context::~r_context() noexcept {
+  SHOGLE_LOG(debug, "[ntf::r_context][DESTROY]");
 }
 
 r_context_data::buffer_store::buffer_store(const r_buffer_descriptor& desc) noexcept :

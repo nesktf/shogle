@@ -1,9 +1,10 @@
 #pragma once
 
-#include "./asset.hpp"
+#include "./types.hpp"
 
-#include "../render/render.hpp"
 #include "../stl/function.hpp"
+
+#include "../render/types.hpp"
 
 #include <nlohmann/json.hpp>
 

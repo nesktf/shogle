@@ -1,7 +1,8 @@
 #pragma once
 
-#include "./assets.hpp"
-#include "../render/render.hpp"
+#include "./types.hpp"
+
+#include "../render/types.hpp"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H

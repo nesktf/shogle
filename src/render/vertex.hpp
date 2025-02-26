@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./render.hpp"
+#include "./types.hpp"
 
 namespace ntf {
 

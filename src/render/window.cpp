@@ -20,7 +20,7 @@ auto r_window_create_impl(const r_win_params& params)
         NTF_ASSERT(false, "[ntf::r_window] Failed to initialize GLFW: {}", err);
       }
     }
-    SHOGLE_LOG(verbose, "[ntf::r_window] GLFW initialized");
+    SHOGLE_LOG(verbose, "[ntf::r_window][OTHER] GLFW initialized");
   }
 
   r_api ctx_api;
@@ -65,7 +65,7 @@ auto r_window_create_impl(const r_win_params& params)
   }
   ++win_count;
 
-  SHOGLE_LOG(verbose, "[ntf::r_window] GLFW window created");
+  SHOGLE_LOG(debug, "[ntf::r_window] GLFW window created");
   if constexpr (checked) {
     return r_expected<r_window>{::ntf::in_place, handle, ctx_api};
   } else {
@@ -91,10 +91,10 @@ void r_window::_reset(bool destroy) {
 #if SHOGLE_USE_GLFW
   if (destroy && _handle) {
     glfwDestroyWindow(_handle);
-    SHOGLE_LOG(verbose, "[ntf::r_window] GLFW window destroyed");
+    SHOGLE_LOG(debug, "[ntf::r_window][CONSTRUCT]");
     if (--win_count == 0) {
       glfwTerminate();
-      SHOGLE_LOG(verbose, "[ntf::r_window] GLFW terminated");
+      SHOGLE_LOG(verbose, "[ntf::r_window][OTHER] GLFW terminated");
     }
   } else {
     _handle = nullptr;

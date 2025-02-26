@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./render.hpp"
+#include "./types.hpp"
 #include "./window.hpp"
 
 #include "../stl/expected.hpp"
@@ -383,15 +383,14 @@ private:
   using uptr_base = std::unique_ptr<r_context_data>;
 
 public:
-  r_context(uptr_base data) noexcept :
-    uptr_base{std::move(data)}, r_context_view{uptr_base::get()} {}
+  r_context(uptr_base data) noexcept;
 
 public:
   static r_expected<r_context> create(const r_context_params& params) noexcept;
   static r_context create(unchecked_t, const r_context_params& params);
 
 public:
-  ~r_context() = default;
+  ~r_context() noexcept;
 
   r_context(const r_context&) = delete;
   r_context& operator=(const r_context&) = delete;
