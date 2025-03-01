@@ -2,65 +2,6 @@
 #include "shogle/assets.hpp"
 #include "shogle/math.hpp"
 
-constexpr std::string_view vert_src = R"glsl(
-#version 460 core
-
-layout (location = 0) in vec3 att_coords;
-layout (location = 1) in vec3 att_normals;
-layout (location = 2) in vec2 att_texcoords;
-
-out vec2 tex_coord;
-
-uniform mat4 model;
-uniform mat4 proj;
-uniform mat4 view;
-
-void main() {
-  gl_Position = proj*view*model*vec4(att_coords, 1.0f);
-  tex_coord = att_texcoords;
-}
-)glsl";
-
-constexpr std::string_view frag_src = R"glsl(
-#version 460 core
-
-out vec4 frag_color;
-
-uniform vec4 color;
-
-void main() {
-  vec4 out_color = color;
-
-  if (out_color.a < 0.1) {
-    discard;
-  }
-
-  frag_color = out_color;
-}
-)glsl";
-
-
-constexpr std::string_view frag_tex_src = R"glsl(
-#version 460 core
-
-in vec2 tex_coord;
-out vec4 frag_color;
-
-uniform vec4 color;
-uniform sampler2D sampler0;
-
-void main()  {
-  vec4 out_color = color * texture(sampler0, tex_coord);
-
-  if (out_color.a < 0.1) {
-    discard;
-  }
-
-  frag_color = out_color;
-}
-
-)glsl";
-
 static auto init_ctx() {
   ntf::r_win_gl_params gl_params {
     .ver_major = 4,
@@ -100,6 +41,24 @@ static auto init_ctx() {
   return std::make_pair(std::move(*window), std::move(*ctx));
 }
 
+static ntf::sprite_atlas_data load_atlas_thingy() {
+  ntf::grid_atlas_loader grid;
+
+  auto coso = grid.parse("./demos/res/2hus.json");
+  if (!coso) {
+    ntf::logger::error("[main] Failed to load atlas: {}", coso.error().what());
+    std::exit(EXIT_FAILURE);
+  }
+
+  return ntf::sprite_atlas_data{
+    grid.image_path(),
+    grid.sprites(),
+    grid.indices(),
+    grid.groups(),
+    *grid.sequences()
+  };
+}
+
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
 
@@ -127,6 +86,25 @@ int main() {
   const auto& fumo_verts = fumo->meshes.vertices;
   const auto& fumo_inds = fumo->meshes.indices;
 
+  auto atlas = load_atlas_thingy();
+  auto atlas_img = ntf::load_image<ntf::uint8>(atlas.image_path);
+  if (!atlas_img) {
+    ntf::logger::error("[main] Failed to load atlas image: {}", atlas_img.error().what());
+    return EXIT_FAILURE;
+  }
+  ntf::logger::debug("{} {}", atlas_img->dim().x, atlas_img->dim().y);
+  ntf::logger::debug("{}", atlas.sprites.size());
+  for (const auto& sprite : atlas) {
+    ntf::logger::info("{} {} - {} {}",
+                      sprite.offset.x, sprite.offset.y,
+                      sprite.offset.z, sprite.offset.w);
+  }
+
+  auto vert_src = *ntf::file_contents("./demos/res/shaders/vert_base.vs.glsl");
+  auto frag_col_src = *ntf::file_contents("./demos/res/shaders/frag_color.fs.glsl");
+  auto frag_tex_src = *ntf::file_contents("./demos/res/shaders/frag_tex.fs.glsl");
+  auto vert_atl_src = *ntf::file_contents("./demos/res/shaders/vert_atlas.vs.glsl");
+
   auto [window, ctx] = init_ctx();
 
   auto cirno_img_data = cirno_img->descriptor();
@@ -137,6 +115,20 @@ int main() {
     .layers = 1,
     .levels = 7,
     .images = {cirno_img_data},
+    .gen_mipmaps = true,
+    .sampler = ntf::r_texture_sampler::nearest,
+    .addressing = ntf::r_texture_address::repeat,
+  });
+
+  auto atlas_img_data = atlas_img->descriptor();
+  atlas_img_data.format = ntf::r_texture_format::rgba8n;
+  auto atlas_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
+    .type = ntf::r_texture_type::texture2d,
+    .format = ntf::r_texture_format::rgba8n,
+    .extent = {atlas_img->dim(), 0},
+    .layers = 1,
+    .levels = 7,
+    .images = {atlas_img_data},
     .gen_mipmaps = true,
     .sampler = ntf::r_texture_sampler::nearest,
     .addressing = ntf::r_texture_address::repeat,
@@ -200,15 +192,19 @@ int main() {
 
   auto vertex = ntf::r_shader::create(ntf::unchecked, ctx, {
     .type = ntf::r_shader_type::vertex,
-    .source = vert_src,
+    .source = {vert_src},
   });
   auto fragment_color = ntf::r_shader::create(ntf::unchecked, ctx, {
     .type = ntf::r_shader_type::fragment,
-    .source = frag_src,
+    .source = {frag_col_src},
   });
   auto fragment_tex = ntf::r_shader::create(ntf::unchecked, ctx, {
     .type = ntf::r_shader_type::fragment,
-    .source = frag_tex_src,
+    .source = {frag_tex_src},
+  });
+  auto vertex_atlas = ntf::r_shader::create(ntf::unchecked, ctx, {
+    .type = ntf::r_shader_type::vertex,
+    .source = {vert_atl_src},
   });
 
   auto load_pipeline = [&ctx](ntf::r_shader_handle vert, ntf::r_shader_handle frag) {
@@ -232,6 +228,7 @@ int main() {
   };
   auto pipe_col = load_pipeline(vertex.handle(), fragment_color.handle());
   auto pipe_tex = load_pipeline(vertex.handle(), fragment_tex.handle());
+  auto pipe_atl = load_pipeline(vertex_atlas.handle(), fragment_tex.handle());
 
   auto fb_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
@@ -272,6 +269,13 @@ int main() {
   auto u_tex_color = pipe_tex.uniform(ntf::unchecked, "color");
   auto u_tex_sampler = pipe_tex.uniform(ntf::unchecked, "sampler0");
 
+  auto u_atl_model = pipe_atl.uniform(ntf::unchecked, "model");
+  auto u_atl_proj = pipe_atl.uniform(ntf::unchecked, "proj");
+  auto u_atl_view = pipe_atl.uniform(ntf::unchecked, "view");
+  auto u_atl_offset = pipe_atl.uniform(ntf::unchecked, "offset");
+  auto u_atl_color = pipe_atl.uniform(ntf::unchecked, "color");
+  auto u_atl_sampler = pipe_atl.uniform(ntf::unchecked, "sampler0");
+
   ntf::float32 fb_ratio = 1280.f/720.f;
   auto transf_cube = ntf::transform3d<ntf::float32>{}
     .pos(0.f, 0.f, 0.f).scale(1.f);
@@ -292,12 +296,26 @@ int main() {
   auto transf_fumo = ntf::transform3d<ntf::float32>{}
     .pos(0.f, -.3f, 0.f).scale(fumo_scale);
 
+  const ntf::float32 rin_scale = 300.f;
+  const auto& rin_seq = atlas.sequence_at(*atlas.find_sequence("rin.dance"));
+  auto rin_base_index = rin_seq.entries.index;
+  auto rin_count = rin_seq.entries.count;
+
+  const ntf::vec4* rin_uvs = &atlas.sprites[atlas.indices[rin_base_index]].offset;
+  const auto rin_aspect = atlas.sprites[atlas.indices[rin_base_index]].aspect();
+  // const ntf::uvec2* rin_dim = &atlas.sprites[rin_seq.entries.index].dim;
+
+  auto transf_rin = ntf::transform2d<ntf::float32>{}
+    .pos(0.f, -200.f).scale(rin_scale*rin_aspect, -rin_scale);
+
   ntf::float32 t = 0;
   ntf::float64 avg_fps{0};
   ntf::float64 fps[120] = {0};
   ntf::uint8 fps_counter{0};
   ntf::float32 t2 = 0;
   ntf::uint32 ups = 60;
+  ntf::uint32 rin_counter = 0;
+  ntf::uint32 rin_curr_index = rin_base_index;
 
   bool do_things = true;
 
@@ -325,11 +343,19 @@ int main() {
     cam_proj_fumo = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);
   });
 
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   ntf::shogle_render_loop(window, ctx, ups, ntf::overload{
     [&](ntf::uint32 ups) {
       if (do_things) {
         ntf::float32 dt = 1/static_cast<ntf::float32>(ups);
         t += glm::pi<float>()*dt;
+      }
+
+      if (++rin_counter == 3) {
+        rin_curr_index = ((rin_curr_index-rin_base_index+1) % rin_count)+rin_base_index;
+        rin_uvs = &atlas.sprites[atlas.indices[rin_curr_index]].offset;
+        rin_counter = 0;
       }
 
       transf_cube
@@ -372,7 +398,7 @@ int main() {
         ImGui::Text("FDelta time: %f", 1/static_cast<float>(ups));
         ImGui::SliderScalar("ups", ImGuiDataType_U32, &ups, &ups_min, &ups_max);
       ImGui::End();
-      // ImGui::ShowDemoWindow();
+      ImGui::ShowDemoWindow();
 
       ctx.bind_framebuffer(ntf::r_context::DEFAULT_FRAMEBUFFER);
 
@@ -401,6 +427,23 @@ int main() {
       ctx.push_uniform(u_tex_view, cam_view_quad);
       ctx.push_uniform(u_tex_color, color_quad);
       ctx.push_uniform(u_tex_sampler, 0);
+      ctx.draw_opts({
+        .count = 6,
+        .offset = 0,
+        .instances = 0,
+      });
+      ctx.submit();
+
+      ctx.bind_vertex_buffer(quad_vbo.handle());
+      ctx.bind_index_buffer(quad_ebo.handle());
+      ctx.bind_pipeline(pipe_atl.handle());
+      ctx.bind_texture(atlas_tex.handle(), 0);
+      ctx.push_uniform(u_atl_model, transf_rin.world());
+      ctx.push_uniform(u_atl_proj, cam_proj_quad);
+      ctx.push_uniform(u_atl_view, cam_view_quad);
+      ctx.push_uniform(u_atl_color, color_quad);
+      ctx.push_uniform(u_atl_offset, *rin_uvs);
+      ctx.push_uniform(u_atl_sampler, 0);
       ctx.draw_opts({
         .count = 6,
         .offset = 0,

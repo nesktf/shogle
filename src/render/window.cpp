@@ -83,7 +83,11 @@ r_window r_window::create(unchecked_t, const r_win_params& params) {
 }
 
 r_window::r_window(win_handle_t handle, r_api ctx_api) :
-  _handle{handle}, _ctx_api{ctx_api} { _bind_callbacks(); }
+  _handle{handle}, _ctx_api{ctx_api}
+{ 
+  glfwSetWindowUserPointer(_handle, this);
+  _bind_callbacks();
+}
 
 r_window::~r_window() noexcept { _reset(true); }
 
@@ -108,9 +112,11 @@ r_window::r_window(r_window&& other) noexcept :
   _vp_event{std::move(other._vp_event)},
   _key_event{std::move(other._key_event)},
   _cur_event{std::move(other._cur_event)},
-  _scl_event{std::move(other._scl_event)} {
+  _scl_event{std::move(other._scl_event)}
+{
   other._reset(false);
-  _bind_callbacks();
+  glfwSetWindowUserPointer(_handle, this);
+  // _bind_callbacks();
 }
 
 r_window& r_window::operator=(r_window&& other) noexcept {
@@ -127,7 +133,8 @@ r_window& r_window::operator=(r_window&& other) noexcept {
   _cur_event = std::move(other._cur_event);
 
   other._reset(false);
-  _bind_callbacks();
+  glfwSetWindowUserPointer(_handle, this);
+  // _bind_callbacks();
 
   return *this;
 }
@@ -135,7 +142,6 @@ r_window& r_window::operator=(r_window&& other) noexcept {
 void r_window::_bind_callbacks() {
 #if SHOGLE_USE_GLFW
   NTF_ASSERT(_handle);
-  glfwSetWindowUserPointer(_handle, this);
   glfwSetFramebufferSizeCallback(_handle, r_window::fb_callback);
   glfwSetKeyCallback(_handle, r_window::key_callback);
   glfwSetCursorPosCallback(_handle, r_window::cursor_callback);

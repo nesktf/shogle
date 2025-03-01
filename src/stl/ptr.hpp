@@ -84,25 +84,149 @@ private:
   size_t _size;
 };
 
+template<typename T, typename Deleter = std::default_delete<T>>
+requires(!std::is_pointer_v<T>)
+class unique_array {
+public:
+  using value_type = T;
+  using iterator = T*;
+  using const_iterator = const T*;
+
+  using uptr_type = std::unique_ptr<T[], Deleter>;
+
+public:
+  unique_array() noexcept :
+    _arr{nullptr}, _sz{0} {}
+
+  unique_array(const Deleter& del) noexcept :
+    _arr{nullptr, del}, _sz{0} {}
+
+  explicit unique_array(uptr_type arr, size_t sz) noexcept :
+    _arr{std::move(arr)}, _sz{sz} {}
+
+  unique_array(T* ptr, size_t sz) noexcept :
+    _arr{ptr}, _sz{sz} {}
+
+  unique_array(T* ptr, size_t sz, const Deleter& del) noexcept :
+    _arr{ptr, del}, _sz{sz} {}
+
+public:
+  size_t size() const noexcept { return _sz; }
+
+  value_type* get() noexcept { return _arr.get(); }
+  const value_type* get() const noexcept { return _arr.get(); }
+
+  value_type& operator[](size_t idx) {
+    NTF_ASSERT(idx < _sz);
+    return _arr[idx];
+  }
+  const value_type& operator[](size_t idx) const {
+    NTF_ASSERT(idx < _sz);
+    return _arr[idx];
+  }
+
+  value_type* at(size_t idx) noexcept {
+    if (!valid() || idx >= _sz) {
+      return nullptr;
+    }
+    return &_arr[idx];
+  }
+
+  const value_type* at(size_t idx) const noexcept {
+    if (!valid() || idx >= _sz) {
+      return nullptr;
+    }
+    return &_arr[idx];
+  }
+
+  bool valid() const noexcept { return _arr.get() != nullptr; }
+  explicit operator bool() const noexcept { return valid(); }
+
+  iterator begin() noexcept { return get(); }
+  const_iterator begin() const noexcept { return get(); }
+  const_iterator cbegin() const noexcept { return get(); }
+
+  iterator end() noexcept { return get()+_sz; }
+  const_iterator end() const noexcept { return get()+_sz; }
+  const_iterator cend() const noexcept { return get()+_sz; }
+
+public:
+  void reset() noexcept {
+    _arr.reset();
+    _sz = 0;
+  }
+
+  void reset(T* ptr, size_t sz) noexcept {
+    _arr.reset(ptr),
+    _sz = sz;
+  }
+
+  [[nodiscard]] std::pair<T*, size_t> release() noexcept {
+    return std::make_pair(_arr.release(), _sz);
+  }
+
+  template<typename F>
+  void for_each(F&& fun) noexcept(noexcept(fun(*get()))) {
+    if (!valid() || _sz == 0) {
+      return;
+    }
+    for (auto it = begin(); it != end(); ++it) {
+      fun(*it);
+    }
+  }
+
+  template<typename F>
+  void for_each(F&& fun) const noexcept(noexcept(fun(*get()))) {
+    if (!valid() || _sz == 0) {
+      return;
+    }
+    for (auto it = begin(); it != end(); ++it) {
+      fun(*it);
+    }
+  }
+
+public:
+  static unique_array<T, std::default_delete<T>> from_vector(
+    const std::vector<T, std::allocator<T>>& vec
+  ) {
+    T* arr = vec.get_allocator().allocate(vec.size());
+    for (size_t i = 0; i < vec.size(); ++i) {
+      std::construct_at(arr+i, vec[i]);
+    }
+    return unique_array<T, std::default_delete<T>>{arr, vec.size()};
+  }
+
+private:
+  uptr_type _arr;
+  size_t _sz;
+
+public:
+  ~unique_array() = default;
+  unique_array(const unique_array&) = delete;
+  unique_array& operator=(const unique_array&) = delete;
+  unique_array(unique_array&&) = default;
+  unique_array& operator=(unique_array&&) = default;
+};
+
 constexpr uint32 VSPAN_TOMBSTONE = std::numeric_limits<uint32>::max();
 struct vec_span {
   uint32 index;
   uint32 count;
 
-  template<typename T, typename Fun>
-  void for_each(std::vector<T>& vec, Fun&& f) const {
+  template<typename Vec, typename Fun>
+  void for_each(Vec& vec, Fun&& f) const {
     NTF_ASSERT(index != VSPAN_TOMBSTONE);
     NTF_ASSERT(index+count <= vec.size());
-    for (uint32 i = index; i < count; ++i) {
+    for (uint32 i = index; i < index+count; ++i) {
       f(vec[i]);
     }
   }
 
-  template<typename T, typename Fun>
-  void for_each(const std::vector<T>& vec, Fun&& f) const {
+  template<typename Vec, typename Fun>
+  void for_each(const Vec& vec, Fun&& f) const {
     NTF_ASSERT(index != VSPAN_TOMBSTONE);
     NTF_ASSERT(index+count <= vec.size());
-    for (uint32 i = index; i < count; ++i) {
+    for (uint32 i = index; i < index+count; ++i) {
       f(vec[i]);
     }
   }

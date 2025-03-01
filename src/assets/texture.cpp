@@ -100,4 +100,16 @@ auto stb_image_loader::load_rgb32f(unchecked_t,
   return stbi_load_impl<float32, false>(path, w, h, ch, flags);
 }
 
+optional<texture_meta> stb_image_loader::parse_meta(const std::string& path) {
+  int w, h, ch;
+  if (stbi_info(path.c_str(), &w, &h, &ch)) {
+    return texture_meta {
+      .width = static_cast<uint32>(w),
+      .height = static_cast<uint32>(h),
+      .channels = static_cast<uint32>(ch),
+    };
+  }
+  return nullopt;
+}
+
 } // namespace ntf

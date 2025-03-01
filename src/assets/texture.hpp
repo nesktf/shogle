@@ -10,6 +10,12 @@
 
 namespace ntf {
 
+struct texture_meta {
+  uint32 width;
+  uint32 height;
+  uint32 channels;
+};
+
 template<typename T>
 concept image_depth_type = same_as_any<T, uint8, uint16, float32>;
 
@@ -217,6 +223,8 @@ public:
       NTF_UNREACHABLE();
     }
   }
+
+  static optional<texture_meta> parse_meta(const std::string& path);
 
 private:
   static void stbi_delete(void* data);
