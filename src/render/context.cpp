@@ -250,6 +250,48 @@ void r_context_view::submit() noexcept {
   _data->d_cmd = {};
 }
 
+void r_context_view::submit(const r_draw_command& cmd) noexcept {
+  _data->d_list = _data->draw_lists.at(cmd.target);
+  _data->d_cmd.pipeline = cmd.pipeline;
+
+  _data->d_cmd.count = cmd.draw_count;
+  _data->d_cmd.offset = cmd.draw_offset;
+  _data->d_cmd.instances = cmd.draw_instances;
+
+  for (const auto& buff : cmd.buffers) {
+    if (buff.type == r_buffer_type::index) {
+      _data->d_cmd.index_buffer = buff.buffer;
+    } else {
+      _data->d_cmd.vertex_buffer = buff.buffer;
+    }
+  }
+
+  for (const auto& tex : cmd.textures) {
+    auto* ptr = _data->frame_arena.allocate<r_context_data::texture_binding>(1);
+    ptr->handle = tex.texture;
+    ptr->index = tex.location;
+    _data->d_cmd.textures.emplace_back(ptr);
+  }
+
+  for (const auto& unif : cmd.uniforms) {
+    auto* desc = _data->frame_arena.allocate<r_context_data::uniform_descriptor>(1);
+
+    size_t data_sz = r_attrib_type_size(unif.type);
+    auto* data = _data->frame_arena.allocate(data_sz, unif.alignment);
+    std::memcpy(data, unif.data, data_sz);
+
+    desc->location = unif.location;
+    desc->type = unif.type;
+    desc->data = data;
+    _data->d_cmd.uniforms.emplace_back(desc);
+  }
+
+  auto* lcmd = _data->frame_arena.allocate<r_context_data::draw_command>(1);
+  weak_ref<r_context_data::draw_command> ref = std::construct_at(lcmd, std::move(_data->d_cmd));
+  _data->d_list->cmds.emplace_back(ref);
+  _data->d_cmd = {};
+}
+
 r_expected<r_buffer_handle> r_context_view::buffer_create(
   const r_buffer_descriptor& desc
 ) noexcept {

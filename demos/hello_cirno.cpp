@@ -400,103 +400,149 @@ int main() {
       ImGui::End();
       ImGui::ShowDemoWindow();
 
-      ctx.bind_framebuffer(ntf::r_context::DEFAULT_FRAMEBUFFER);
 
-      ctx.bind_vertex_buffer(fumo_vbo.handle());
-      ctx.bind_index_buffer(fumo_ebo.handle());
-      ctx.bind_pipeline(pipe_tex.handle());
-      ctx.bind_texture(fumo_tex.handle(), 0);
-      ctx.push_uniform(u_tex_model, transf_fumo.world());
-      ctx.push_uniform(u_tex_proj, cam_proj_fumo);
-      ctx.push_uniform(u_tex_view, cam_view_cube);
-      ctx.push_uniform(u_tex_color, color_quad);
-      ctx.push_uniform(u_tex_sampler, 0);
-      ctx.draw_opts({
-        .count = static_cast<ntf::uint32>(fumo_mesh.indices.count),
-        .offset = 0,
-        .instances = 0,
+      // Buffer bindings
+      const ntf::r_buffer_binding fumo_bbind[] = {
+        {fumo_vbo.handle(), ntf::r_buffer_type::vertex, ntf::nullopt},
+        {fumo_ebo.handle(), ntf::r_buffer_type::index, ntf::nullopt},
+      };
+      const ntf::r_buffer_binding quad_bbind[] = {
+        {quad_vbo.handle(), ntf::r_buffer_type::vertex, ntf::nullopt},
+        {quad_ebo.handle(), ntf::r_buffer_type::index, ntf::nullopt},
+      };
+      const ntf::r_buffer_binding cube_bbind[] = {
+        {cube_vbo.handle(), ntf::r_buffer_type::vertex, ntf::nullopt},
+      };
+
+      // Texture bindings
+      const ntf::r_texture_binding fumo_tbind[] = {
+        {.texture = fumo_tex.handle(), .location = 0},
+      };
+      const ntf::r_texture_binding cino_tbind[] = {
+        {.texture = tex.handle(), .location = 0},
+      };
+      const ntf::r_texture_binding rin_tbind[] = {
+        {.texture = atlas_tex.handle(), .location = 0},
+      };
+      const ntf::r_texture_binding fb_tbind[] = {
+        {.texture = fb_tex.handle(), .location = 0},
+      };
+
+      // Uniforms
+      const ntf::r_push_constant fumo_unifs[] = {
+        ntf::r_fmt_pconst(u_tex_model, transf_fumo.world()),
+        ntf::r_fmt_pconst(u_tex_proj, cam_proj_fumo),
+        ntf::r_fmt_pconst(u_tex_view, cam_view_cube),
+        ntf::r_fmt_pconst(u_tex_color, color_quad),
+        ntf::r_fmt_pconst(u_tex_sampler, 0),
+      };
+      const ntf::r_push_constant cino_unifs[] = {
+        ntf::r_fmt_pconst(u_tex_model, transf_quad0.world()),
+        ntf::r_fmt_pconst(u_tex_proj, cam_proj_quad),
+        ntf::r_fmt_pconst(u_tex_view, cam_view_quad),
+        ntf::r_fmt_pconst(u_tex_color, color_quad),
+        ntf::r_fmt_pconst(u_tex_sampler, 0),
+      };
+      const ntf::r_push_constant fb_unifs[] = {
+        ntf::r_fmt_pconst(u_tex_model, transf_quad1.world()),
+        ntf::r_fmt_pconst(u_tex_proj, cam_proj_quad),
+        ntf::r_fmt_pconst(u_tex_view, cam_view_quad),
+        ntf::r_fmt_pconst(u_tex_color, color_quad),
+        ntf::r_fmt_pconst(u_tex_sampler, 0),
+      };
+      const ntf::r_push_constant rin_unifs[] = {
+        ntf::r_fmt_pconst(u_atl_model, transf_rin.world()),
+        ntf::r_fmt_pconst(u_atl_proj, cam_proj_quad),
+        ntf::r_fmt_pconst(u_atl_view, cam_view_quad),
+        ntf::r_fmt_pconst(u_atl_color, color_quad),
+        ntf::r_fmt_pconst(u_atl_offset, *rin_uvs),
+        ntf::r_fmt_pconst(u_atl_sampler, 0),
+      };
+      const ntf::r_push_constant cube_unifs[] = {
+        ntf::r_fmt_pconst(u_col_model, transf_cube.world()),
+        ntf::r_fmt_pconst(u_col_proj, cam_proj_cube),
+        ntf::r_fmt_pconst(u_col_view, cam_view_cube),
+        ntf::r_fmt_pconst(u_col_color, color_cube),
+      };
+
+      // Fumo
+      ctx.submit({
+        .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
+        .pipeline = pipe_tex.handle(),
+        .buffers = {&fumo_bbind[0], std::size(fumo_bbind)},
+        .textures = {&fumo_tbind[0], std::size(fumo_tbind)},
+        .uniforms = {&fumo_unifs[0], std::size(fumo_unifs)},
+        .draw_count = static_cast<ntf::uint32>(fumo_mesh.indices.count),
+        .draw_offset = 0,
+        .draw_instances = 0,
+        .sort_group = 0,
       });
-      ctx.submit();
 
-      ctx.bind_vertex_buffer(quad_vbo.handle());
-      ctx.bind_index_buffer(quad_ebo.handle());
-      ctx.bind_pipeline(pipe_tex.handle());
-      ctx.bind_texture(tex.handle(), 0);
-      ctx.push_uniform(u_tex_model, transf_quad0.world());
-      ctx.push_uniform(u_tex_proj, cam_proj_quad);
-      ctx.push_uniform(u_tex_view, cam_view_quad);
-      ctx.push_uniform(u_tex_color, color_quad);
-      ctx.push_uniform(u_tex_sampler, 0);
-      ctx.draw_opts({
-        .count = 6,
-        .offset = 0,
-        .instances = 0,
+      // Cirno quad
+      ctx.submit({
+        .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
+        .pipeline = pipe_tex.handle(),
+        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
+        .textures = {&cino_tbind[0], std::size(cino_tbind)},
+        .uniforms = {&cino_unifs[0], std::size(cino_unifs)},
+        .draw_count = 6,
+        .draw_offset = 0,
+        .draw_instances = 0,
+        .sort_group = 0,
       });
-      ctx.submit();
 
-      ctx.bind_vertex_buffer(quad_vbo.handle());
-      ctx.bind_index_buffer(quad_ebo.handle());
-      ctx.bind_pipeline(pipe_atl.handle());
-      ctx.bind_texture(atlas_tex.handle(), 0);
-      ctx.push_uniform(u_atl_model, transf_rin.world());
-      ctx.push_uniform(u_atl_proj, cam_proj_quad);
-      ctx.push_uniform(u_atl_view, cam_view_quad);
-      ctx.push_uniform(u_atl_color, color_quad);
-      ctx.push_uniform(u_atl_offset, *rin_uvs);
-      ctx.push_uniform(u_atl_sampler, 0);
-      ctx.draw_opts({
-        .count = 6,
-        .offset = 0,
-        .instances = 0,
+      // Rin sprite
+      ctx.submit({
+        .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
+        .pipeline = pipe_atl.handle(),
+        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
+        .textures = {&rin_tbind[0], std::size(rin_tbind)},
+        .uniforms = {&rin_unifs[0], std::size(rin_unifs)},
+        .draw_count = 6,
+        .draw_offset = 0,
+        .draw_instances = 0,
+        .sort_group = 0,
       });
-      ctx.submit();
 
-      ctx.bind_vertex_buffer(quad_vbo.handle());
-      ctx.bind_index_buffer(quad_ebo.handle());
-      ctx.bind_pipeline(pipe_tex.handle());
-      ctx.bind_texture(fb_tex.handle(), 0);
-      ctx.push_uniform(u_tex_model, transf_quad1.world());
-      ctx.push_uniform(u_tex_proj, cam_proj_quad);
-      ctx.push_uniform(u_tex_view, cam_view_quad);
-      ctx.push_uniform(u_tex_color, color_quad);
-      ctx.push_uniform(u_tex_sampler, 0);
-      ctx.draw_opts({
-        .count = 6,
-        .offset = 0,
-        .instances = 0,
+      // Framebuffer viewport
+      ctx.submit({
+        .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
+        .pipeline = pipe_tex.handle(),
+        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
+        .textures = {&fb_tbind[0], std::size(fb_tbind)},
+        .uniforms = {&fb_unifs[0], std::size(fb_unifs)},
+        .draw_count = 6,
+        .draw_offset = 0,
+        .draw_instances = 0,
+        .sort_group = 0,
+      });;
+
+
+      // Cube
+      ctx.submit({
+        .target = fbo.handle(),
+        .pipeline = pipe_col.handle(),
+        .buffers = {&cube_bbind[0], std::size(cube_bbind)},
+        .textures = {},
+        .uniforms = {&cube_unifs[0], std::size(cube_unifs)},
+        .draw_count = 36,
+        .draw_offset = 0,
+        .draw_instances = 0,
+        .sort_group = 0,
       });
-      ctx.submit();
 
-      ctx.bind_framebuffer(fbo.handle());
-
-      ctx.bind_vertex_buffer(cube_vbo.handle());
-      ctx.bind_pipeline(pipe_col.handle());
-      ctx.push_uniform(u_col_model, transf_cube.world());
-      ctx.push_uniform(u_col_proj, cam_proj_cube);
-      ctx.push_uniform(u_col_view, cam_view_cube);
-      ctx.push_uniform(u_col_color, color_cube);
-      ctx.draw_opts({
-        .count = 36,
-        .offset = 0,
-        .instances = 0,
+      // Other Cirno quad
+      ctx.submit({
+        .target = fbo.handle(),
+        .pipeline = pipe_tex.handle(),
+        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
+        .textures = {&cino_tbind[0], std::size(cino_tbind)},
+        .uniforms = {&cino_unifs[0], std::size(cino_unifs)},
+        .draw_count = 6,
+        .draw_offset = 0,
+        .draw_instances = 0,
+        .sort_group = 0,
       });
-      ctx.submit();
-
-      ctx.bind_vertex_buffer(quad_vbo.handle());
-      ctx.bind_index_buffer(quad_ebo.handle());
-      ctx.bind_pipeline(pipe_tex.handle());
-      ctx.bind_texture(tex.handle(), 0);
-      ctx.push_uniform(u_tex_model, transf_quad0.world());
-      ctx.push_uniform(u_tex_proj, cam_proj_quad);
-      ctx.push_uniform(u_tex_view, cam_view_quad);
-      ctx.push_uniform(u_tex_color, color_quad);
-      ctx.push_uniform(u_tex_sampler, 0);
-      ctx.draw_opts({
-        .count = 6,
-        .offset = 0,
-        .instances = 0,
-      });
-      ctx.submit();
     }
   });
 

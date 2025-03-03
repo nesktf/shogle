@@ -196,6 +196,7 @@ public:
   void bind_pipeline(r_pipeline_handle pipeline) noexcept;
   void draw_opts(r_draw_opts opts) noexcept;
   void submit() noexcept;
+  void submit(const r_draw_command& cmd) noexcept;
 
   template<typename T>
   requires(r_attrib_traits<T>::is_attrib)

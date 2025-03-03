@@ -368,10 +368,43 @@ struct r_draw_opts {
   uint32 instances{0};
 };
 
+struct r_buffer_binding {
+  r_buffer_handle buffer;
+  r_buffer_type type;
+  optional<uint32> location;
+};
+
+struct r_texture_binding {
+  r_texture_handle texture;
+  uint32 location;
+};
+
+struct r_push_constant {
+  r_uniform location;
+  const void* data;
+  r_attrib_type type;
+  size_t alignment;
+};
+
+struct r_draw_command {
+  r_framebuffer_handle target;
+  r_pipeline_handle pipeline;
+  span_view<r_buffer_binding> buffers;
+  span_view<r_texture_binding> textures;
+  span_view<r_push_constant> uniforms;
+  uint32 draw_count;
+  uint32 draw_offset;
+  uint32 draw_instances;
+  uint32 sort_group;
+};
+
 template<typename T>
 struct r_attrib_traits {
   static constexpr bool is_attrib = false;
 };
+
+template<typename T>
+concept is_shader_attribute = r_attrib_traits<T>::is_attrib;
 
 constexpr inline size_t r_attrib_type_size(r_attrib_type type) {
   constexpr size_t int_sz = sizeof(int32);
@@ -448,6 +481,16 @@ SHOGLE_DECLARE_ATTRIB_TRAIT(int32,    r_attrib_type::i32);
 SHOGLE_DECLARE_ATTRIB_TRAIT(ivec2,    r_attrib_type::ivec2);
 SHOGLE_DECLARE_ATTRIB_TRAIT(ivec3,    r_attrib_type::ivec3);
 SHOGLE_DECLARE_ATTRIB_TRAIT(ivec4,    r_attrib_type::ivec4);
+
+template<is_shader_attribute T>
+constexpr r_push_constant r_fmt_pconst(r_uniform location, const T& data) {
+  return r_push_constant{
+    .location = location,
+    .data = std::addressof(data),
+    .type = r_attrib_traits<T>::tag,
+    .alignment = alignof(T),
+  };
+}
 
 } // namespace ntf
 
