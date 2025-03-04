@@ -2,7 +2,50 @@
 
 #include "./types.hpp"
 
+#if !defined(NDEBUG)
+#define NTF_EXPECTED_THROW(cond, ...) \
+  NTF_ASSERT(cond, "bad_unexpected_access")
+#define NTF_EXPECTED_NOEXCEPT noexcept
+#else
+#if defined(NTF_EXPECTED_ENABLE_EXCEPTIONS) && NTF_EXPECTED_ENABLE_EXCEPTIONS
+#define NTF_EXPECTED_THROW(cond, T, ...) \
+  if (!cond) { throw ::ntf::bad_expected_access<T>{__VA_ARGS__}; }
+#define NTF_EXPECTED_NOEXCEPT
+#else
+#define NTF_EXPECTED_THROW(cond, ...)
+#define NTF_EXPECTED_NOEXCEPT noexcept
+#endif
+#endif
+
 namespace ntf {
+
+template<typename>
+class bad_expected_access;
+
+template<>
+class bad_expected_access<void> : public std::exception {
+public:
+  bad_expected_access() = default;
+
+public:
+  const char* what() const noexcept override { return "bad_expected_access"; }
+};
+
+template<typename E>
+class bad_expected_access : public bad_expected_access<void> {
+public:
+  explicit bad_expected_access(E err) :
+    _err{std::move(err)} {}
+
+public:
+  E& error() & noexcept { return _err; }
+  const E& error() const& noexcept { return _err; }
+  E&& error() && noexcept { return std::move(_err); }
+  const E&& error() const&& noexcept { return std::move(_err); }
+
+private:
+  E _err;
+};
 
 template<not_void E>
 class unexpected {
@@ -74,17 +117,7 @@ unexpected<typename std::decay_t<E>> make_unexpected(E&& e) {
   return unexpected<typename std::decay_t<E>>{std::forward<E>(e)};
 }
 
-
-struct in_place_t {
-  constexpr explicit in_place_t() = default;
-};
-constexpr inline in_place_t in_place{};
-
-struct unexpect_t {
-  constexpr explicit unexpect_t() = default;
-};
-constexpr inline unexpect_t unexpect{};
-
+NTF_DECLARE_TAG_TYPE(unexpect);
 
 namespace impl {
 
@@ -615,6 +648,58 @@ struct expected_catcher<::ntf::error<void>, Expected> {
 
 } // namespace impl
 
+template<typename, typename>
+class expected;
+
+template<typename T>
+struct is_expected : public std::false_type {};
+
+template<typename T>
+struct is_expected<expected<T, void>> : public std::false_type {};
+
+template<typename T, typename E>
+struct is_expected<expected<T, E>> : public std::true_type {};
+
+template<typename T>
+constexpr bool is_expected_v = is_expected<T>::value;
+
+
+template<typename Exp, typename T>
+struct is_expected_t : public std::false_type{};
+
+template<typename T>
+struct is_expected_t<expected<T, void>, T> : public std::false_type{};
+
+template<typename T, typename E>
+struct is_expected_t<expected<T, E>, T> : public std::true_type{};
+
+template<typename Exp, typename T>
+constexpr bool is_expected_t_v = is_expected_t<Exp, T>::value;
+
+
+template<typename Exp, typename E>
+struct is_expected_e : public std::false_type{};
+
+template<typename T>
+struct is_expected_e<expected<T, void>, void> : public std::false_type{};
+
+template<typename T, typename E>
+struct is_expected_e<expected<T, E>, E> : public std::true_type{};
+
+template<typename Exp, typename E>
+constexpr bool is_expected_e_v = is_expected_e<Exp, E>::value;
+
+
+template<typename T>
+concept is_expected_type = is_expected_v<T>;
+
+template<typename T, typename Exp>
+concept is_expected_with_type = is_expected_t_v<Exp, T>;
+
+template<typename E, typename Exp>
+concept is_expected_with_error = is_expected_e_v<Exp, E>;
+
+
 template<typename T, typename E>
 class expected : public impl::expected_catcher<E, expected<T, E>> {
 public:
@@ -631,6 +716,10 @@ public:
   constexpr expected(in_place_t, Args&&... args) :
     _storage(in_place, std::forward<Args>(args)...) {}
 
+  template<typename U, typename... Args>
+  constexpr expected(in_place_t, std::initializer_list<U> l, Args&&... args) :
+    _storage(in_place, l, std::forward<Args>(args)...) {}
+
   template<is_forwarding<T> U>
   constexpr expected(U&& val) :
     _storage(in_place, std::forward<U>(val)) {}
@@ -646,47 +735,343 @@ public:
   constexpr const T* operator->() const noexcept { return std::addressof(_storage.get()); }
   constexpr T* operator->() noexcept { return std::addressof(_storage.get()); }
 
-  // TODO: Throw? when storage is invalid
-  constexpr const T& operator*() const& { return _storage.get(); }
-  constexpr T& operator*() & { return _storage.get(); }
-  constexpr const T&& operator*() const&& { return std::move(_storage.get()); }
-  constexpr T&& operator*() && { return std::move(_storage.get()); }
+  constexpr const T& operator*() const& NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(*this, E, std::as_const(_storage.get_error().value()));
+    return _storage.get();
+  }
+  constexpr T& operator*() & NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(*this, E, std::as_const(_storage.get_error().value()));
+    return _storage.get();
+  }
+  constexpr const T&& operator*() const&& NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(*this, E, std::move(_storage.get_error().value()));
+    return std::move(_storage.get());
+  }
+  constexpr T&& operator*() && NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(*this, E, std::move(_storage.get_error().value()));
+    return std::move(_storage.get());
+  }
 
   constexpr const T& value() const& { return **this; }
   constexpr T& value() & { return **this; }
   constexpr const T&& value() const&& { return std::move(**this); }
   constexpr T&& value() && { return std::move(**this); }
 
-  // TODO: Throw? when error is invalid
-  constexpr const E& error() const& { return _storage.get_error().value(); }
-  constexpr E& error() & { return _storage.get_error().value(); }
-  constexpr const E&& error() const&& { return std::move(_storage.get_error().value()); }
-  constexpr E&& error() && { return std::move(_storage.get_error().value()); }
-
-  template<typename U>
-  constexpr T value_or(U&& val) & {
-    return _storage.has_value() ? **this : static_cast<T>(std::forward<U>(val));
+  constexpr const E& error() const& NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return _storage.get_error().value();
+  }
+  constexpr E& error() & NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return _storage.get_error().value();
+  }
+  constexpr const E&& error() const&& NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return std::move(_storage.get_error().value());
+  }
+  constexpr E&& error() && NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return std::move(_storage.get_error().value());
   }
 
-  template<typename U>
+public:
+  template<typename... Args>
+  requires(std::is_nothrow_constructible_v<T, Args...>)
+  constexpr T& emplace(Args&&... args) noexcept {
+    _storage.get().~T();
+    _storage.construct(std::forward<Args>(args)...);
+    return *this;
+  }
+
+  template<typename U, typename... Args>
+  requires(std::is_nothrow_constructible_v<T, std::initializer_list<U>&, Args...>)
+  constexpr T& emplace(std::initializer_list<U> l, Args&&... args) noexcept {
+    _storage.get().~T();
+    _storage.construct(l, std::forward<Args>(args)...);
+    return *this;
+  }
+
+  template<typename U = std::remove_cv_t<T>>
+  requires(std::convertible_to<T, U> && std::is_copy_constructible_v<T>)
+  constexpr T value_or(U&& val) const& {
+    return *this ?
+      _storage.get() : static_cast<T>(std::forward<U>(val));
+  }
+
+  template<typename U = std::remove_cv_t<T>>
+  requires(std::convertible_to<T, U> && std::is_move_constructible_v<T>)
   constexpr T value_or(U&& val) && {
-    return _storage.has_value() ?
-      std::move(**this) : static_cast<T>(std::forward<U>(val));
+    return *this ?
+      std::move(_storage.get()) : static_cast<T>(std::forward<U>(val));
   }
 
-  template<typename U>
-  constexpr E error_or(U&& err) & {
-    return !_storage.has_value() ? 
-      _storage.get_error().value() : static_cast<E>(std::forward<U>(err));
+  template<typename G = E>
+  requires(std::convertible_to<E, G> && std::is_copy_constructible_v<E>)
+  constexpr E error_or(G&& err) const& {
+    return !*this ?
+      _storage.get_error().value() : static_cast<E>(std::forward<G>(err));
   }
 
-  template<typename U>
-  constexpr E error_or(U&& err) && {
-    return !_storage.has_value() ?
-      std::move(_storage.get_error().value()) : static_cast<E>(std::forward<U>(err));
+  template<typename G = E>
+  requires(std::convertible_to<E, G> && std::is_move_constructible_v<E>)
+  constexpr E error_or(G&& err) && {
+    return !*this ?
+      std::move(_storage.get_error().value()) : static_cast<E>(std::forward<G>(err));
   }
 
-  // TODO: More monadic operations
+public:
+  template<typename F>
+  requires(std::is_invocable_v<F, T>)
+  constexpr auto and_then(F&& f) & {
+    using U = std::remove_cvref_t<std::invoke_result_t<F, decltype(_storage.get())>>;
+    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return std::invoke(std::forward<F>(f), _storage.get());
+    } else {
+      return U{unexpect, _storage.get_error().value()};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, T>)
+  constexpr auto and_then(F&& f) const& {
+    using U = std::remove_cvref_t<std::invoke_result_t<F, decltype(_storage.get())>>;
+    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return std::invoke(std::forward<F>(f), _storage.get());
+    } else {
+      return U{unexpect, _storage.get_error().value()};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, T>)
+  constexpr auto and_then(F&& f) && {
+    using U = std::remove_cvref_t<std::invoke_result_t<F, decltype(std::move(_storage.get()))>>;
+    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return std::invoke(std::forward<F>(f), std::move(_storage.get()));
+    } else {
+      return U{unexpect, std::move(_storage.get_error().value())};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, T>)
+  constexpr auto and_then(F&& f) const&& {
+    using U = std::remove_cvref_t<std::invoke_result_t<F, decltype(std::move(_storage.get()))>>;
+    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return std::invoke(std::forward<F>(f), std::move(_storage.get()));
+    } else {
+      return U{unexpect, std::move(_storage.get_error().value())};
+    }
+  }
+
+
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto or_else(F&& f) & {
+    using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
+    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return G{in_place, _storage.get()};
+    } else {
+      return std::invoke(std::forward<F>(f), _storage.get_error().value());
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto or_else(F&& f) const& {
+    using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
+    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return G{in_place, _storage.get()};
+    } else {
+      return std::invoke(std::forward<F>(f), _storage.get_error().value());
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto or_else(F&& f) && {
+    using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
+    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return G{in_place, std::move(_storage.get())};
+    } else {
+      return std::invoke(std::forward<F>(f), std::move(_storage.get_error().value()));
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto or_else(F&& f) const&& {
+    using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
+    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return G{in_place, std::move(_storage.get())};
+    } else {
+      return std::invoke(std::forward<F>(f), std::move(_storage.get_error().value()));
+    }
+  }
+
+
+  template<typename F>
+  requires(std::is_invocable_v<F, T>)
+  constexpr auto transform(F&& f) & {
+    using U = std::remove_cv_t<std::invoke_result_t<F, decltype(_storage.get())>>;
+    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      if constexpr (std::is_void_v<U>) {
+        std::invoke(std::forward<F>(f), _storage.get());
+        return expected<void, E>{};
+      } else {
+        return expected<U, E>{in_place, std::invoke(std::forward<F>(f), _storage.get())};
+      }
+    } else {
+      return expected<U, E>{unexpect, _storage.get_error().value()};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, T>)
+  constexpr auto transform(F&& f) const& {
+    using U = std::remove_cv_t<std::invoke_result_t<F, decltype(_storage.get())>>;
+    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      if constexpr (std::is_void_v<U>) {
+        std::invoke(std::forward<F>(f), _storage.get());
+        return expected<void, E>{};
+      } else {
+        return expected<U, E>{in_place, std::invoke(std::forward<F>(f), _storage.get())};
+      }
+    } else {
+      return expected<U, E>{unexpect, _storage.get_error().value()};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, T>)
+  constexpr auto transform(F&& f) && {
+    using U = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(_storage.get()))>>;
+    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      if constexpr (std::is_void_v<U>) {
+        std::invoke(std::forward<F>(f), std::move(_storage.get()));
+        return expected<void, E>{};
+      } else {
+        return expected<U, E>{in_place,
+                              std::invoke(std::forward<F>(f), std::move(_storage.get()))};
+      }
+    } else {
+      return expected<U, E>{unexpect, std::move(_storage.get_error().value())};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, T>)
+  constexpr auto transform(F&& f) const&& {
+    using U = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(_storage.get()))>>;
+    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      if constexpr (std::is_void_v<U>) {
+        std::invoke(std::forward<F>(f), std::move(_storage.get()));
+        return expected<void, E>{};
+      } else {
+        return expected<U, E>{in_place,
+                              std::invoke(std::forward<F>(f), std::move(_storage.get()))};
+      }
+    } else {
+      return expected<U, E>{unexpect, std::move(_storage.get_error().value())};
+    }
+  }
+
+
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto transform_error(F&& f) & {
+    using G = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
+    static_assert(!std::is_void_v<G>, "F has to return an error value");
+    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      return expected<T, G>{in_place, _storage.get()};
+    } else {
+      return expected<T, G>{
+        unexpect,
+        std::invoke(std::forward<F>(f), _storage.get_error().value())
+      };
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto transform_error(F&& f) const& {
+    using G = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
+    static_assert(!std::is_void_v<G>, "F has to return an error value");
+    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      return expected<T, G>{in_place, _storage.get()};
+    } else {
+      return expected<T, G>{
+        unexpect,
+        std::invoke(std::forward<F>(f), _storage.get_error().value())
+      };
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto transform_error(F&& f) && {
+    using G = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    static_assert(!std::is_void_v<G>, "F has to return an error value");
+    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      return expected<T, G>{in_place, std::move(_storage.get())};
+    } else {
+      return expected<T, G>{
+        unexpect,
+        std::invoke(std::forward<F>(f), std::move(_storage.get_error().value()))
+      };
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto transform_error(F&& f) const&& {
+    using G = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    static_assert(!std::is_void_v<G>, "F has to return an error value");
+    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      return expected<T, G>{in_place, std::move(_storage.get())};
+    } else {
+      return expected<T, G>{
+        unexpect,
+        std::invoke(std::forward<F>(f), std::move(_storage.get_error().value()))
+      };
+    }
+  }
 
 private:
   impl::expected_storage<T, E> _storage;
@@ -703,10 +1088,17 @@ public:
 
 public:
   constexpr expected() = default;
-  //
-  // template<is_forwarding<T> U>
-  // constexpr expected(U&& val) :
-  //   _storage(in_place, std::forward<U>(val)) {}
+
+  constexpr expected(in_place_t) :
+    _storage(in_place) {}
+
+  template<typename... Args>
+  constexpr expected(unexpect_t, Args&&... args) :
+    _storage(unexpect, std::forward<Args>(args)...) {}
+
+  template<typename U, typename... Args>
+  constexpr expected(unexpect_t, std::initializer_list<U> l, Args&&... args) :
+    _storage(unexpect, l, std::forward<Args>(args)...) {}
 
   template<is_forwarding<unexpected<E>> G>
   constexpr expected(G&& val) :
@@ -716,49 +1108,287 @@ public:
   constexpr explicit operator bool() const noexcept { return _storage.has_value(); }
   constexpr bool has_value() const noexcept { return _storage.has_value(); }
 
-  // constexpr const T* operator->() const noexcept { return std::addressof(_storage.get()); }
-
-  // TODO: Throw? when storage is invalid
-  // constexpr const T& operator*() const& { return _storage.get(); }
-  // constexpr T& operator*() & { return _storage.get(); }
-  // constexpr const T&& operator*() const&& { return std::move(_storage.get()); }
-  // constexpr T&& operator*() && { return std::move(_storage.get()); }
-  //
-  // constexpr const T& value() const& { return **this; }
-  // constexpr T& value() & { return **this; }
-  // constexpr const T&& value() const&& { return std::move(**this); }
-  // constexpr T&& value() && { return std::move(**this); }
-
-  // TODO: Throw? when error is invalid
-  constexpr const E& error() const& { return _storage.get_error().value(); }
-  constexpr E& error() & { return _storage.get_error().value(); }
-  constexpr const E&& error() const&& { return std::move(_storage.get_error().value()); }
-  constexpr E&& error() && { return std::move(_storage.get_error().value()); }
-
-  // template<typename U>
-  // constexpr T value_or(U&& val) & {
-  //   return _storage.has_value() ? **this : static_cast<T>(std::forward<U>(val));
-  // }
-  //
-  // template<typename U>
-  // constexpr T value_or(U&& val) && {
-  //   return _storage.has_value() ?
-  //     std::move(**this) : static_cast<T>(std::forward<U>(val));
-  // }
-
-  template<typename U>
-  constexpr E error_or(U&& err) & {
-    return !_storage.has_value() ? 
-      _storage.get_error().value() : static_cast<E>(std::forward<U>(err));
+  constexpr const E& error() const& NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return _storage.get_error().value();
+  }
+  constexpr E& error() & NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return _storage.get_error().value();
+  }
+  constexpr const E&& error() const&& NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return std::move(_storage.get_error().value());
+  }
+  constexpr E&& error() && NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return std::move(_storage.get_error().value());
   }
 
-  template<typename U>
-  constexpr E error_or(U&& err) && {
-    return !_storage.has_value() ?
-      std::move(_storage.get_error().value()) : static_cast<E>(std::forward<U>(err));
+public:
+  constexpr void emplace() noexcept { _storage = {in_place}; }
+
+  template<typename G = E>
+  requires(std::convertible_to<E, G> && std::is_copy_constructible_v<E>)
+  constexpr E error_or(G&& err) const& {
+    return !*this ?
+      _storage.get_error().value() : static_cast<E>(std::forward<G>(err));
   }
 
-  // TODO: More monadic operations
+  template<typename G = E>
+  requires(std::convertible_to<E, G> && std::is_move_constructible_v<E>)
+  constexpr E error_or(G&& err) && {
+    return !*this ?
+      std::move(_storage.get_error().value()) : static_cast<E>(std::forward<G>(err));
+  }
+
+public:
+  template<typename F>
+  requires(std::is_invocable_v<F>)
+  constexpr auto and_then(F&& f) & {
+    using U = std::remove_cvref_t<std::invoke_result_t<F>>;
+    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return std::invoke(std::forward<F>(f));
+    } else {
+      return U{unexpect, _storage.get_error().value()};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F>)
+  constexpr auto and_then(F&& f) const& {
+    using U = std::remove_cvref_t<std::invoke_result_t<F>>;
+    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return std::invoke(std::forward<F>(f));
+    } else {
+      return U{unexpect, _storage.get_error().value()};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F>)
+  constexpr auto and_then(F&& f) && {
+    using U = std::remove_cvref_t<std::invoke_result_t<F>>;
+    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return std::invoke(std::forward<F>(f));
+    } else {
+      return U{unexpect, std::move(_storage.get_error().value())};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F>)
+  constexpr auto and_then(F&& f) const&& {
+    using U = std::remove_cvref_t<std::invoke_result_t<F>>;
+    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return std::invoke(std::forward<F>(f));
+    } else {
+      return U{unexpect, std::move(_storage.get_error().value())};
+    }
+  }
+
+
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto or_else(F&& f) & {
+    using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
+    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return G{};
+    } else {
+      return std::invoke(std::forward<F>(f), _storage.get_error().value());
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto or_else(F&& f) const& {
+    using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
+    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return G{};
+    } else {
+      return std::invoke(std::forward<F>(f), _storage.get_error().value());
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto or_else(F&& f) && {
+    using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return G{};
+    } else {
+      return std::invoke(std::forward<F>(f), std::move(_storage.get_error().value()));
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto or_else(F&& f) const&& {
+    using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+
+    if (*this) {
+      return G{};
+    } else {
+      return std::invoke(std::forward<F>(f), std::move(_storage.get_error().value()));
+    }
+  }
+
+
+  template<typename F>
+  requires(std::is_invocable_v<F>)
+  constexpr auto transform(F&& f) & {
+    using U = std::remove_cv_t<std::invoke_result_t<F>>;
+    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      if constexpr (std::is_void_v<U>) {
+        std::invoke(std::forward<F>(f));
+        return expected<void, E>{};
+      } else {
+        return expected<U, E>{in_place, std::invoke(std::forward<F>(f))};
+      }
+    } else {
+      return expected<U, E>{unexpect, _storage.get_error().value()};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F>)
+  constexpr auto transform(F&& f) const& {
+    using U = std::remove_cv_t<std::invoke_result_t<F>>;
+    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      if constexpr (std::is_void_v<U>) {
+        std::invoke(std::forward<F>(f));
+        return expected<void, E>{};
+      } else {
+        return expected<U, E>{in_place, std::invoke(std::forward<F>(f))};
+      }
+    } else {
+      return expected<U, E>{unexpect, _storage.get_error().value()};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F>)
+  constexpr auto transform(F&& f) && {
+    using U = std::remove_cv_t<std::invoke_result_t<F>>;
+    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      if constexpr (std::is_void_v<U>) {
+        std::invoke(std::forward<F>(f));
+        return expected<void, E>{};
+      } else {
+        return expected<U, E>{in_place, std::invoke(std::forward<F>(f))};
+      }
+    } else {
+      return expected<U, E>{unexpect, std::move(_storage.get_error().value())};
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F>)
+  constexpr auto transform(F&& f) const&& {
+    using U = std::remove_cv_t<std::invoke_result_t<F>>;
+    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      if constexpr (std::is_void_v<U>) {
+        std::invoke(std::forward<F>(f));
+        return expected<void, E>{};
+      } else {
+        return expected<U, E>{in_place, std::invoke(std::forward<F>(f))};
+      }
+    } else {
+      return expected<U, E>{unexpect, std::move(_storage.get_error().value())};
+    }
+  }
+
+
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto transform_error(F&& f) & {
+    using G = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
+    static_assert(!std::is_void_v<G>, "F has to return an error value");
+    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      return expected<void, G>{};
+    } else {
+      return expected<void, G>{
+        unexpect,
+        std::invoke(std::forward<F>(f), _storage.get_error().value())
+      };
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto transform_error(F&& f) const& {
+    using G = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
+    static_assert(!std::is_void_v<G>, "F has to return an error value");
+    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      return expected<void, G>{};
+    } else {
+      return expected<void, G>{
+        unexpect,
+        std::invoke(std::forward<F>(f), _storage.get_error().value())
+      };
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto transform_error(F&& f) && {
+    using G = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    static_assert(!std::is_void_v<G>, "F has to return an error value");
+    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      return expected<void, G>{};
+    } else {
+      return expected<void, G>{
+        unexpect,
+        std::invoke(std::forward<F>(f), std::move(_storage.get_error().value()))
+      };
+    }
+  }
+  template<typename F>
+  requires(std::is_invocable_v<F, E>)
+  constexpr auto transform_error(F&& f) const&& {
+    using G = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    static_assert(!std::is_void_v<G>, "F has to return an error value");
+    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
+                  "F can't return a reference type");
+
+    if (*this) {
+      return expected<void, G>{};
+    } else {
+      return expected<void, G>{
+        unexpect,
+        std::invoke(std::forward<F>(f), std::move(_storage.get_error().value()))
+      };
+    }
+  }
 
 private:
   impl::expected_storage<void, E> _storage;

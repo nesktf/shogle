@@ -96,6 +96,8 @@ concept is_complete = requires(T obj) {
 };
 
 NTF_DECLARE_TAG_TYPE(unchecked);
+using in_place_t = std::in_place_t;
+constexpr inline in_place_t in_place{};
 
 template<typename... FmtArgs>
 struct error_fmt {
