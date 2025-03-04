@@ -720,6 +720,14 @@ public:
   constexpr expected(in_place_t, std::initializer_list<U> l, Args&&... args) :
     _storage(in_place, l, std::forward<Args>(args)...) {}
 
+  template<typename... Args>
+  constexpr expected(unexpect_t, Args&&... args) :
+    _storage(unexpect, std::forward<Args>(args)...) {}
+
+  template<typename U, typename... Args>
+  constexpr expected(unexpect_t, std::initializer_list<U> l, Args&&... args) :
+    _storage(unexpect, l, std::forward<Args>(args)...) {}
+
   template<is_forwarding<T> U>
   constexpr expected(U&& val) :
     _storage(in_place, std::forward<U>(val)) {}
