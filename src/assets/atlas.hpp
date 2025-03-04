@@ -155,6 +155,172 @@ public:
   array_type<sprite_data::group> groups;
 };
 
+enum class atlas_load_flags {
+  none = 0,
+  flip_y = 1 << 0,
+  flip_x = 1 << 1,
+};
+NTF_DEFINE_ENUM_CLASS_FLAG_OPS(atlas_load_flags);
+
+template<typename Loader>
+concept checked_atlas_loader_type = requires(Loader loader,
+                                             const std::string& path,
+                                             atlas_load_flags flags,
+                                             typename Loader::data_t& data) {
+  { loader.parse(path, flags) } -> std::same_as<asset_expected<typename Loader::data_t>>;
+  { loader.image_path(data) } -> std::same_as<std::string>;
+  { loader.sprites(data) } -> std::same_as<sprite_atlas_data::template array_type<sprite_data>>;
+};
+
+template<typename Loader>
+concept unchecked_atlas_loader_type = requires(Loader loader,
+                                               const std::string& path,
+                                               atlas_load_flags flags,
+                                               typename Loader::data_t& data) {
+  { loader.parse(unchecked_t{}, path, flags) } -> std::same_as<typename Loader::data_t>;
+  { loader.image_path(data) } -> std::same_as<std::string>;
+  { loader.sprites(data) } -> std::same_as<sprite_atlas_data::template array_type<sprite_data>>;
+};
+
+template<typename T>
+concept atlas_loader_type = checked_atlas_loader_type<T> || unchecked_atlas_loader_type<T>;
+
+template<typename Loader>
+concept atlas_loader_with_groups = atlas_loader_type<Loader> &&
+                                   requires(Loader loader,
+                                            typename Loader::data_t& data) {
+  { loader.indices(data) } -> std::same_as<sprite_atlas_data::template array_type<atlas_index>>;
+  { loader.groups(data) }
+    -> same_as_any<
+      sprite_atlas_data::template array_type<sprite_data::group>,
+      optional<sprite_atlas_data::template array_type<sprite_data::group>>
+    >;
+};
+
+template<typename Loader>
+concept atlas_loader_with_sequences = atlas_loader_type<Loader> &&
+                                      requires(Loader loader,
+                                               typename Loader::data_t data) {
+  { loader.indices(data) } -> std::same_as<sprite_atlas_data::template array_type<atlas_index>>;
+  { loader.sequences(data) }
+    -> same_as_any<
+      sprite_atlas_data::template array_type<sprite_data::sequence>,
+      optional<sprite_atlas_data::template array_type<sprite_data::sequence>>
+    >;
+};
+
+namespace impl {
+
+template<atlas_loader_type Loader, bool checked>
+auto load_atlas(
+  const std::string& path,
+  atlas_load_flags flags,
+  Loader&& loader
+) -> std::conditional_t<checked, asset_expected<sprite_atlas_data>, sprite_atlas_data> {
+  using atlas_data_t = sprite_atlas_data;
+  using ret_t = std::conditional_t<checked, asset_expected<atlas_data_t>, atlas_data_t>;
+
+  // TODO: Maybe rewrite this unholy mess, somehow
+  auto parse_ret_data = [&](auto&& data) -> ret_t {
+    if constexpr (atlas_loader_with_groups<Loader> && atlas_loader_with_sequences<Loader>) {
+      auto groups = loader.groups(data);
+      auto seqs = loader.sequences(data);
+      using gret_t = decltype(groups);
+      using sret_t = decltype(seqs);
+      if constexpr (is_optional_type<gret_t> && is_optional_type<sret_t>) {
+        if (groups && seqs) {
+          return atlas_data_t {
+            loader.image_path(data),
+            loader.sprites(data),
+            loader.indices(data),
+            std::move(*groups),
+            std::move(*seqs)
+          };
+        } else if (groups) {
+          return atlas_data_t {
+            loader.image_path(data),
+            loader.sprites(data),
+            loader.indices(data),
+            std::move(*groups),
+          };
+        } else if (seqs) {
+          return atlas_data_t {
+            loader.image_path(data),
+            loader.sprites(data),
+            loader.indices(data),
+            std::move(*seqs),
+          };
+        } else {
+          return atlas_data_t {
+            loader.image_path(data),
+            loader.sprites(data),
+          };
+        }
+      } else if constexpr (is_optional_type<gret_t>) {
+        if (groups) {
+          return atlas_data_t {
+            loader.image_path(data),
+            loader.sprites(data),
+            loader.indices(data),
+            std::move(*groups),
+            std::move(seqs)
+          };
+        } else {
+          return atlas_data_t {
+            loader.image_path(data),
+            loader.sprites(data),
+            loader.indices(data),
+            std::move(seqs)
+          };
+        }
+      } else if constexpr (is_optional_type<sret_t>) {
+        if (seqs) {
+          return atlas_data_t {
+            loader.image_path(data),
+            loader.sprites(data),
+            loader.indices(data),
+            std::move(groups),
+            std::move(*seqs)
+          };
+        } else {
+          return atlas_data_t {
+            loader.image_path(data),
+            loader.sprites(data),
+            loader.indices(data),
+            std::move(groups),
+          };
+        }
+      } else {
+        return atlas_data_t {
+          loader.image_path(data),
+          loader.sprites(data),
+          loader.indices(data),
+          std::move(groups),
+          std::move(seqs)
+        };
+      }
+    }
+  };
+
+  if constexpr (checked) {
+    return asset_expected<atlas_data_t>::catch_error([&]() -> asset_expected<atlas_data_t> {
+      if constexpr (checked_atlas_loader_type<Loader>) {
+        return loader.parse(path, flags).and_then(parse_ret_data);
+      } else {
+        return parse_ret_data(loader.parse(unchecked, path, flags));
+      }
+    });
+  } else if constexpr (unchecked_atlas_loader_type<Loader>) {
+    return parse_ret_data(loader.parse(unchecked, path, flags));
+  } else {
+    auto ret = loader.parse(path, flags);
+    NTF_ASSERT(ret);
+    return parse_ret_data(std::move(*ret));
+  }
+}
+
+} // namespace impl
+
 class grid_atlas_loader {
 public:
   template<typename T>
@@ -163,26 +329,50 @@ public:
   template<typename T>
   using array_type = unique_array<T, deleter<T>>;
 
-public:
-  grid_atlas_loader() noexcept :
-    _img_path{}, _sprites{}, _groups{}, _sequences{} {}
+  struct data_t {
+    std::string img_path;
+    array_type<sprite_data> sprites;
+    array_type<sprite_data::group> groups;
+    array_type<sprite_data::sequence> sequences;
+    std::vector<atlas_index> indices;
+  };
 
 public:
-  asset_expected<void> parse(const std::string& path);
+  grid_atlas_loader() = default;
 
 public:
-  std::string image_path();
-  array_type<sprite_data> sprites();
-  array_type<atlas_index> indices();
-  array_type<sprite_data::group> groups();
-  optional<array_type<sprite_data::sequence>> sequences();
+  asset_expected<data_t> parse(const std::string& path, atlas_load_flags flags);
+  data_t parse(unchecked_t, const std::string& path, atlas_load_flags flags);
 
-private:
-  std::string _img_path;
-  std::vector<sprite_data> _sprites;
-  std::vector<sprite_data::group> _groups;
-  std::vector<sprite_data::sequence> _sequences;
-  std::vector<atlas_index> _indices;
+public:
+  std::string image_path(data_t& data);
+  array_type<sprite_data> sprites(data_t& data);
+  array_type<sprite_data::group> groups(data_t& data);
+  optional<array_type<sprite_data::sequence>> sequences(data_t& data);
+  array_type<atlas_index> indices(data_t& data);
 };
+static_assert(checked_atlas_loader_type<grid_atlas_loader>);
+static_assert(unchecked_atlas_loader_type<grid_atlas_loader>);
+static_assert(atlas_loader_with_sequences<grid_atlas_loader>);
+static_assert(atlas_loader_with_groups<grid_atlas_loader>);
+
+template<atlas_loader_type Loader = grid_atlas_loader>
+asset_expected<sprite_atlas_data> load_atlas(
+  const std::string& path,
+  atlas_load_flags flags = atlas_load_flags::none,
+  Loader&& loader = {}
+) {
+  return impl::load_atlas<Loader, true>(path, flags, std::forward<Loader>(loader));
+}
+
+template<atlas_loader_type Loader = grid_atlas_loader>
+sprite_atlas_data load_atlas(
+  unchecked_t,
+  const std::string& path,
+  atlas_load_flags flags = atlas_load_flags::none,
+  Loader&& loader = {}
+) {
+  return impl::load_atlas<Loader, false>(path, flags, std::forward<Loader>(loader));
+}
 
 } // namespace ntf

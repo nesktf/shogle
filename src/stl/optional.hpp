@@ -15,6 +15,18 @@ using optional = std::optional<T>;
 using nullopt_t = std::nullopt_t;
 constexpr nullopt_t nullopt = std::nullopt;
 
+template<typename T>
+struct is_optional : public std::false_type{};
+
+template<typename T>
+struct is_optional<optional<T>> : public std::true_type{};
+
+template<typename T>
+constexpr bool is_optional_v = is_optional<T>::value;
+
+template<typename T>
+concept is_optional_type = is_optional_v<T>;
+
 #else
 namespace impl {
 

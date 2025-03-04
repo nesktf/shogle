@@ -41,24 +41,6 @@ static auto init_ctx() {
   return std::make_pair(std::move(*window), std::move(*ctx));
 }
 
-static ntf::sprite_atlas_data load_atlas_thingy() {
-  ntf::grid_atlas_loader grid;
-
-  auto coso = grid.parse("./demos/res/2hus.json");
-  if (!coso) {
-    ntf::logger::error("[main] Failed to load atlas: {}", coso.error().what());
-    std::exit(EXIT_FAILURE);
-  }
-
-  return ntf::sprite_atlas_data{
-    grid.image_path(),
-    grid.sprites(),
-    grid.indices(),
-    grid.groups(),
-    *grid.sequences()
-  };
-}
-
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
 
@@ -68,6 +50,22 @@ int main() {
     ntf::logger::error("[main] Failed to load cirno image: {}", cirno_img.error().what());
     return EXIT_FAILURE;
   }
+
+  auto atlas = ntf::load_atlas("./demos/res/2hus.json", ntf::atlas_load_flags::flip_y);
+  if (!atlas) {
+    ntf::logger::error("[main] Failed to load atlas: {}", atlas.error().what());
+    return EXIT_FAILURE;
+  }
+  auto atlas_img = ntf::load_image<ntf::uint8>(atlas->image_path, image_flag);
+  if (!atlas_img) {
+    ntf::logger::error("[main] Failed to load atlas image: {}", atlas_img.error().what());
+    return EXIT_FAILURE;
+  }
+
+  auto vert_src = *ntf::file_contents("./demos/res/shaders/vert_base.vs.glsl");
+  auto frag_col_src = *ntf::file_contents("./demos/res/shaders/frag_color.fs.glsl");
+  auto frag_tex_src = *ntf::file_contents("./demos/res/shaders/frag_tex.fs.glsl");
+  auto vert_atl_src = *ntf::file_contents("./demos/res/shaders/vert_atlas.vs.glsl");
 
   const auto fumo_flag = ntf::model_load_flags::triangulate;
   auto fumo = ntf::load_model<ntf::pnt_vertex>("./demos/res/cirno_fumo/cirno_fumo.obj", fumo_flag);
@@ -85,25 +83,6 @@ int main() {
   const auto& fumo_mesh = fumo->meshes.data[0];
   const auto& fumo_verts = fumo->meshes.vertices;
   const auto& fumo_inds = fumo->meshes.indices;
-
-  auto atlas = load_atlas_thingy();
-  auto atlas_img = ntf::load_image<ntf::uint8>(atlas.image_path);
-  if (!atlas_img) {
-    ntf::logger::error("[main] Failed to load atlas image: {}", atlas_img.error().what());
-    return EXIT_FAILURE;
-  }
-  ntf::logger::debug("{} {}", atlas_img->dim().x, atlas_img->dim().y);
-  ntf::logger::debug("{}", atlas.sprites.size());
-  for (const auto& sprite : atlas) {
-    ntf::logger::info("{} {} - {} {}",
-                      sprite.offset.x, sprite.offset.y,
-                      sprite.offset.z, sprite.offset.w);
-  }
-
-  auto vert_src = *ntf::file_contents("./demos/res/shaders/vert_base.vs.glsl");
-  auto frag_col_src = *ntf::file_contents("./demos/res/shaders/frag_color.fs.glsl");
-  auto frag_tex_src = *ntf::file_contents("./demos/res/shaders/frag_tex.fs.glsl");
-  auto vert_atl_src = *ntf::file_contents("./demos/res/shaders/vert_atlas.vs.glsl");
 
   auto [window, ctx] = init_ctx();
 
@@ -297,12 +276,12 @@ int main() {
     .pos(0.f, -.3f, 0.f).scale(fumo_scale);
 
   const ntf::float32 rin_scale = 300.f;
-  const auto& rin_seq = atlas.sequence_at(*atlas.find_sequence("rin.dance"));
+  const auto& rin_seq = atlas->sequence_at(*atlas->find_sequence("rin.dance"));
   auto rin_base_index = rin_seq.entries.index;
   auto rin_count = rin_seq.entries.count;
 
-  const ntf::vec4* rin_uvs = &atlas.sprites[atlas.indices[rin_base_index]].offset;
-  const auto rin_aspect = atlas.sprites[atlas.indices[rin_base_index]].aspect();
+  const ntf::vec4* rin_uvs = &atlas->sprites[atlas->indices[rin_base_index]].offset;
+  const auto rin_aspect = atlas->sprites[atlas->indices[rin_base_index]].aspect();
   // const ntf::uvec2* rin_dim = &atlas.sprites[rin_seq.entries.index].dim;
 
   auto transf_rin = ntf::transform2d<ntf::float32>{}
@@ -354,7 +333,7 @@ int main() {
 
       if (++rin_counter == 3) {
         rin_curr_index = ((rin_curr_index-rin_base_index+1) % rin_count)+rin_base_index;
-        rin_uvs = &atlas.sprites[atlas.indices[rin_curr_index]].offset;
+        rin_uvs = &atlas->sprites[atlas->indices[rin_curr_index]].offset;
         rin_counter = 0;
       }
 
