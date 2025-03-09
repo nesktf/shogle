@@ -87,142 +87,6 @@ private:
   size_t _size;
 };
 
-template<typename T, typename Alloc>
-requires(standard_allocator_type<Alloc, std::remove_pointer_t<std::decay_t<T>>>)
-class allocator_delete {
-public:
-  allocator_delete()
-  noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
-    _alloc{} {}
-
-  allocator_delete(Alloc&& alloc)
-  noexcept(std::is_nothrow_move_constructible_v<Alloc>) :
-    _alloc{std::move(alloc)} {}
-
-  allocator_delete(const Alloc& alloc)
-  noexcept(std::is_nothrow_copy_constructible_v<Alloc>):
-    _alloc{alloc} {}
-
-  template<typename U>
-  requires(std::convertible_to<T*, U*>)
-  allocator_delete(const allocator_delete<U, Alloc>& other)
-  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _alloc{other._alloc} {}
-
-public:
-  void operator()(T* ptr) noexcept(std::is_nothrow_destructible_v<T>) {
-    static_assert(is_complete<T>, "Cannot destroy incomplete type");
-    if constexpr (!std::is_trivially_destructible_v<T>) {
-      ptr->~T();
-    }
-    _alloc.deallocate(ptr, 1);
-  }
-
-  const Alloc& get_allocator() const { return _alloc; }
-
-private:
-  Alloc _alloc;
-};
-
-template<typename T, typename Alloc>
-class allocator_delete<T[], Alloc> {
-public:
-  allocator_delete()
-  noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
-    _alloc{} {}
-
-  allocator_delete(Alloc&& alloc_)
-  noexcept(std::is_nothrow_move_constructible_v<Alloc>) :
-    _alloc{std::move(alloc_)} {}
-
-  allocator_delete(const Alloc& alloc_)
-  noexcept(std::is_nothrow_copy_constructible_v<Alloc>):
-    _alloc{alloc_} {}
-
-  template<typename U>
-  requires(std::convertible_to<T(*)[], U(*)[]>)
-  allocator_delete(const allocator_delete<U[], Alloc>& other)
-  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _alloc{other._alloc} {}
-
-public:
-  template<typename U = T>
-  requires(std::convertible_to<T(*)[], U(*)[]>)
-  void operator()(U* ptr, size_t n) noexcept(std::is_nothrow_destructible_v<T>) {
-    static_assert(is_complete<T>, "Cannot destroy incomplete type");
-    if constexpr (!std::is_trivially_destructible_v<T>) {
-      for (size_t i = 0; i < n; ++i) {
-        static_cast<T*>(ptr+i)->~T();
-      }
-    }
-    _alloc.deallocate(ptr, n);
-  }
-
-  const Alloc& get_allocator() const { return _alloc; }
-
-private:
-  Alloc _alloc;
-};
-
-template<typename T>
-class allocator_delete<T, std::allocator<T>> {
-public:
-  allocator_delete() noexcept = default;
-
-  allocator_delete(std::allocator<T>&&) noexcept {}
-
-  allocator_delete(const std::allocator<T>&) noexcept {}
-
-  template<typename U>
-  requires(std::convertible_to<T*, U*>)
-  allocator_delete(const allocator_delete<U, std::allocator<T>>&) noexcept {}
-
-public:
-  void operator()(T* ptr) const noexcept(std::is_nothrow_destructible_v<T>) {
-    static_assert(is_complete<T>, "Cannot destroy incomplete type");
-    if constexpr (!std::is_trivially_destructible_v<T>) {
-      ptr->~T();
-    }
-    std::allocator<T>{}.deallocate(ptr, 1);
-  }
-
-  const std::allocator<T>& get_allocator() const { return std::allocator<T>{}; }
-};
-
-template<typename T>
-class allocator_delete<T[], std::allocator<T>> {
-public:
-  allocator_delete() noexcept = default;
-
-  allocator_delete(std::allocator<T>&&) noexcept {}
-
-  allocator_delete(const std::allocator<T>&) noexcept {}
-
-  template<typename U>
-  requires(std::convertible_to<T(*)[], U(*)[]>)
-  allocator_delete(const allocator_delete<U[], std::allocator<T>>&) noexcept {}
-
-public:
-  template<typename U = T>
-  requires(std::convertible_to<T(*)[], U(*)[]>)
-  void operator()(U* ptr, size_t n) const noexcept(std::is_nothrow_destructible_v<T>) {
-    static_assert(is_complete<T>, "Cannot destroy incomplete type");
-    if constexpr (!std::is_trivially_destructible_v<T>) {
-      for (size_t i = 0; i < n; ++i) {
-        static_cast<T*>(ptr+i)->~T();
-      }
-    }
-    std::allocator<T>{}.deallocate(ptr, n);
-  }
-
-  const std::allocator<T>& get_allocator() const { return std::allocator<T>{}; }
-};
-
-template<typename Deleter, typename T>
-concept array_deleter_type = requires(Deleter& del, T* arr, size_t n) {
-  { del(arr, n) } -> std::same_as<void>;
-} || std::same_as<std::default_delete<T[]>, Deleter>;
-
 namespace impl {
 
 template<typename T, typename Deleter>
@@ -384,6 +248,11 @@ public:
 };
 
 } // namespace impl
+
+template<typename Deleter, typename T>
+concept array_deleter_type = requires(Deleter& del, T* arr, size_t n) {
+  { del(arr, n) } -> std::same_as<void>;
+} || std::same_as<std::default_delete<T[]>, Deleter>;
 
 template<typename T, array_deleter_type<T> Deleter = allocator_delete<T[], std::allocator<T>>>
 requires(!std::is_pointer_v<T>)

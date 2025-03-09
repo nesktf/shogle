@@ -8,7 +8,7 @@ template<typename P>
 class basic_memory_arena {
 public:
   template<typename T>
-  using bind_adaptor = allocator_adaptor<T, P>;
+  using bind_adaptor = alloc_adaptor<T, P>;
 
 protected:
   struct arena_block {
@@ -34,7 +34,7 @@ public:
   size_t blocks() const noexcept { return _block_count; }
 
   template<typename T>
-  allocator_adaptor<T, P> make_adaptor();
+  alloc_adaptor<T, P> make_adaptor();
 
 protected:
   arena_block* _insert_block(size_t size) noexcept;
@@ -236,8 +236,8 @@ void basic_memory_arena<P>::clear(bool reallocate) noexcept {
 
 template<typename P>
 template<typename T>
-auto basic_memory_arena<P>::make_adaptor() -> allocator_adaptor<T, P> {
-  return allocator_adaptor<T, P>{static_cast<T&>(*this)};
+auto basic_memory_arena<P>::make_adaptor() -> alloc_adaptor<T, P> {
+  return alloc_adaptor<T, P>{static_cast<T&>(*this)};
 }
 
 template<typename T>
