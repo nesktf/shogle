@@ -1,8 +1,11 @@
 #pragma once
 
 #include "./types.hpp"
+#include "../stl/allocator.hpp"
 
 namespace ntf {
+
+NTF_DECLARE_TAG_TYPE(uninitialized);
 
 template<typename T>
 class weak_ref {
@@ -84,7 +87,305 @@ private:
   size_t _size;
 };
 
-template<typename T, typename Deleter = std::default_delete<T>>
+template<typename T, typename Alloc>
+requires(standard_allocator_type<Alloc, std::remove_pointer_t<std::decay_t<T>>>)
+class allocator_delete {
+public:
+  allocator_delete()
+  noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
+    _alloc{} {}
+
+  allocator_delete(Alloc&& alloc)
+  noexcept(std::is_nothrow_move_constructible_v<Alloc>) :
+    _alloc{std::move(alloc)} {}
+
+  allocator_delete(const Alloc& alloc)
+  noexcept(std::is_nothrow_copy_constructible_v<Alloc>):
+    _alloc{alloc} {}
+
+  template<typename U>
+  requires(std::convertible_to<T*, U*>)
+  allocator_delete(const allocator_delete<U, Alloc>& other)
+  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
+    _alloc{other._alloc} {}
+
+public:
+  void operator()(T* ptr) noexcept(std::is_nothrow_destructible_v<T>) {
+    static_assert(is_complete<T>, "Cannot destroy incomplete type");
+    if constexpr (!std::is_trivially_destructible_v<T>) {
+      ptr->~T();
+    }
+    _alloc.deallocate(ptr, 1);
+  }
+
+  const Alloc& get_allocator() const { return _alloc; }
+
+private:
+  Alloc _alloc;
+};
+
+template<typename T, typename Alloc>
+class allocator_delete<T[], Alloc> {
+public:
+  allocator_delete()
+  noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
+    _alloc{} {}
+
+  allocator_delete(Alloc&& alloc_)
+  noexcept(std::is_nothrow_move_constructible_v<Alloc>) :
+    _alloc{std::move(alloc_)} {}
+
+  allocator_delete(const Alloc& alloc_)
+  noexcept(std::is_nothrow_copy_constructible_v<Alloc>):
+    _alloc{alloc_} {}
+
+  template<typename U>
+  requires(std::convertible_to<T(*)[], U(*)[]>)
+  allocator_delete(const allocator_delete<U[], Alloc>& other)
+  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
+    _alloc{other._alloc} {}
+
+public:
+  template<typename U = T>
+  requires(std::convertible_to<T(*)[], U(*)[]>)
+  void operator()(U* ptr, size_t n) noexcept(std::is_nothrow_destructible_v<T>) {
+    static_assert(is_complete<T>, "Cannot destroy incomplete type");
+    if constexpr (!std::is_trivially_destructible_v<T>) {
+      for (size_t i = 0; i < n; ++i) {
+        static_cast<T*>(ptr+i)->~T();
+      }
+    }
+    _alloc.deallocate(ptr, n);
+  }
+
+  const Alloc& get_allocator() const { return _alloc; }
+
+private:
+  Alloc _alloc;
+};
+
+template<typename T>
+class allocator_delete<T, std::allocator<T>> {
+public:
+  allocator_delete() noexcept = default;
+
+  allocator_delete(std::allocator<T>&&) noexcept {}
+
+  allocator_delete(const std::allocator<T>&) noexcept {}
+
+  template<typename U>
+  requires(std::convertible_to<T*, U*>)
+  allocator_delete(const allocator_delete<U, std::allocator<T>>&) noexcept {}
+
+public:
+  void operator()(T* ptr) const noexcept(std::is_nothrow_destructible_v<T>) {
+    static_assert(is_complete<T>, "Cannot destroy incomplete type");
+    if constexpr (!std::is_trivially_destructible_v<T>) {
+      ptr->~T();
+    }
+    std::allocator<T>{}.deallocate(ptr, 1);
+  }
+
+  const std::allocator<T>& get_allocator() const { return std::allocator<T>{}; }
+};
+
+template<typename T>
+class allocator_delete<T[], std::allocator<T>> {
+public:
+  allocator_delete() noexcept = default;
+
+  allocator_delete(std::allocator<T>&&) noexcept {}
+
+  allocator_delete(const std::allocator<T>&) noexcept {}
+
+  template<typename U>
+  requires(std::convertible_to<T(*)[], U(*)[]>)
+  allocator_delete(const allocator_delete<U[], std::allocator<T>>&) noexcept {}
+
+public:
+  template<typename U = T>
+  requires(std::convertible_to<T(*)[], U(*)[]>)
+  void operator()(U* ptr, size_t n) const noexcept(std::is_nothrow_destructible_v<T>) {
+    static_assert(is_complete<T>, "Cannot destroy incomplete type");
+    if constexpr (!std::is_trivially_destructible_v<T>) {
+      for (size_t i = 0; i < n; ++i) {
+        static_cast<T*>(ptr+i)->~T();
+      }
+    }
+    std::allocator<T>{}.deallocate(ptr, n);
+  }
+
+  const std::allocator<T>& get_allocator() const { return std::allocator<T>{}; }
+};
+
+template<typename Deleter, typename T>
+concept array_deleter_type = requires(Deleter& del, T* arr, size_t n) {
+  { del(arr, n) } -> std::same_as<void>;
+} || std::same_as<std::default_delete<T[]>, Deleter>;
+
+namespace impl {
+
+template<typename T, typename Deleter>
+class unique_array_storage {
+public:
+  unique_array_storage(T* arr_, size_t sz_)
+  noexcept(std::is_nothrow_default_constructible_v<Deleter>) :
+    arr{arr_}, sz{sz_}, del{} {}
+
+  unique_array_storage(T* arr_, size_t sz_, const Deleter& del_)
+  noexcept(std::is_nothrow_copy_constructible_v<Deleter>) :
+    arr{arr_}, sz{sz_}, del{del_} {}
+
+public:
+  void reset(T* arr_ = nullptr, size_t sz_ = 0)
+  noexcept(noexcept(del(arr, sz))) {
+    if (arr) {
+      del(arr, sz);
+    }
+    arr = arr_;
+    sz = sz_;
+  }
+
+  Deleter& get_deleter() noexcept { return del; }
+  const Deleter& get_deleter() const noexcept { return del; }
+
+public:
+  ~unique_array_storage() noexcept(noexcept(del(arr, sz))) {
+    if (!arr) {
+      return;
+    }
+    del(arr, sz);
+  }
+
+  unique_array_storage(unique_array_storage&& other)
+  noexcept(std::is_nothrow_move_constructible_v<Deleter>) :
+    arr{other.arr}, sz{other.sz}, del{std::move(other.del)} { other.arr = nullptr; }
+
+  unique_array_storage& operator=(unique_array_storage&& other)
+  noexcept(std::is_nothrow_move_assignable_v<Deleter>) {
+    reset(other.arr, other.sz);
+
+    del = std::move(other.del);
+
+    other.arr = nullptr;
+
+    return *this;
+  }
+
+  unique_array_storage(const unique_array_storage&) = delete;
+  unique_array_storage& operator=(const unique_array_storage&) = delete;
+
+public:
+  T* arr;
+  size_t sz;
+  Deleter del;
+};
+
+template<typename T>
+class unique_array_storage<T, allocator_delete<T[], std::allocator<T>>> {
+public:
+  unique_array_storage(T* arr_, size_t sz_) noexcept :
+    arr{arr_}, sz{sz_} {}
+
+  unique_array_storage(T* arr_, size_t sz_, 
+                       const allocator_delete<T[], std::allocator<T>>&) noexcept :
+    arr{arr_}, sz{sz_} {}
+
+public:
+  void reset(T* arr_ = nullptr, size_t sz_ = 0)
+  noexcept(std::is_nothrow_destructible_v<T>) {
+    if (arr) {
+      allocator_delete<T[], std::allocator<T>>{}(arr, sz);
+    }
+    arr = arr_;
+    sz = sz_;
+  }
+
+  const allocator_delete<T[], std::allocator<T>>& get_deleter() const noexcept { return {}; }
+
+public:
+  ~unique_array_storage() noexcept(std::is_nothrow_destructible_v<T>) {
+    if (!arr) {
+      return;
+    }
+    allocator_delete<T[], std::allocator<T>>{}(arr, sz);
+  }
+
+  unique_array_storage(unique_array_storage&& other) noexcept :
+    arr{other.arr}, sz{other.sz} { other.arr = nullptr; }
+
+  unique_array_storage& operator=(unique_array_storage&& other) noexcept {
+    reset(other.arr, other.sz);
+
+    other.arr = nullptr;
+
+    return *this;
+  }
+
+  unique_array_storage(const unique_array_storage&) = delete;
+  unique_array_storage& operator=(const unique_array_storage&) = delete;
+
+public:
+  T* arr;
+  size_t sz;
+};
+
+template<typename T>
+class unique_array_storage<T, std::default_delete<T[]>> {
+public:
+  unique_array_storage(T* arr_, size_t sz_) noexcept :
+    arr{arr_}, sz{sz_} {}
+
+  unique_array_storage(T* arr_, size_t sz_,
+                       const std::default_delete<T[]>&) noexcept :
+    arr{arr_}, sz{sz_} {}
+
+public:
+  void reset(T* arr_ = nullptr, size_t sz_ = 0)
+  noexcept(std::is_nothrow_destructible_v<T>) {
+    if (arr) {
+      std::default_delete<T[]>{}(arr);
+    }
+    arr = arr_;
+    sz = sz_;
+  }
+
+  const std::default_delete<T>& get_deleter() const noexcept { return {}; }
+
+public:
+  ~unique_array_storage() noexcept(std::is_nothrow_destructible_v<T>) {
+    if (!arr) {
+      return;
+    }
+    // std::default_delete<T[]> calls ::operator delete[]
+    // So it should ONLY be used for pointers acquired from ::operator new[]
+    // NOT from std::allocator<T>::allocate;
+    // use allocator_delete<T[], std::allocator<T>> instead in that case
+    std::default_delete<T[]>{}(arr);
+  }
+
+  unique_array_storage(unique_array_storage&& other) noexcept :
+    arr{other.arr}, sz{other.sz} { other.arr = nullptr; }
+
+  unique_array_storage& operator=(unique_array_storage&& other) noexcept {
+    reset(other.arr, other.sz);
+
+    other.arr = nullptr;
+
+    return *this;
+  }
+
+  unique_array_storage(const unique_array_storage&) = delete;
+  unique_array_storage& operator=(const unique_array_storage&) = delete;
+
+public:
+  T* arr;
+  size_t sz;
+};
+
+} // namespace impl
+
+template<typename T, array_deleter_type<T> Deleter = allocator_delete<T[], std::allocator<T>>>
 requires(!std::is_pointer_v<T>)
 class unique_array {
 public:
@@ -95,79 +396,91 @@ public:
   using uptr_type = std::unique_ptr<T[], Deleter>;
 
 public:
-  unique_array() noexcept :
-    _arr{nullptr}, _sz{0} {}
+  unique_array()
+  noexcept(std::is_nothrow_default_constructible_v<Deleter>) :
+    _arr{nullptr, 0} {}
 
-  unique_array(const Deleter& del) noexcept :
-    _arr{nullptr, del}, _sz{0} {}
+  unique_array(std::nullptr_t)
+  noexcept(std::is_nothrow_default_constructible_v<Deleter>) :
+    _arr{nullptr, 0} {}
 
-  explicit unique_array(uptr_type arr, size_t sz) noexcept :
-    _arr{std::move(arr)}, _sz{sz} {}
+  unique_array(const Deleter& del)
+  noexcept(std::is_nothrow_copy_constructible_v<Deleter>) :
+    _arr{nullptr, 0, del} {}
 
-  unique_array(T* ptr, size_t sz) noexcept :
-    _arr{ptr}, _sz{sz} {}
+  unique_array(T* arr, size_t sz)
+  noexcept(std::is_nothrow_default_constructible_v<Deleter>) :
+    _arr{arr, sz} {}
 
-  unique_array(T* ptr, size_t sz, const Deleter& del) noexcept :
-    _arr{ptr, del}, _sz{sz} {}
+  unique_array(T* arr, size_t sz, const Deleter& del)
+  noexcept(std::is_nothrow_copy_constructible_v<Deleter>) :
+    _arr{arr, sz, del} {}
+
+  unique_array(uptr_type&& arr, size_t sz)
+  noexcept(std::is_nothrow_copy_constructible_v<Deleter>) :
+    _arr{arr.release(), sz, arr.get_deleter()} {}
 
 public:
-  size_t size() const noexcept { return _sz; }
+  size_t size() const noexcept { return _arr.sz; }
 
-  value_type* get() noexcept { return _arr.get(); }
-  const value_type* get() const noexcept { return _arr.get(); }
+  value_type* get() noexcept { return _arr.arr; }
+  const value_type* get() const noexcept { return _arr.arr; }
+
+  bool valid() const noexcept { return get() != nullptr; }
+  explicit operator bool() const noexcept { return valid(); }
 
   value_type& operator[](size_t idx) {
-    NTF_ASSERT(idx < _sz);
-    return _arr[idx];
+    NTF_ASSERT(idx < size());
+    return get()[idx];
   }
   const value_type& operator[](size_t idx) const {
-    NTF_ASSERT(idx < _sz);
-    return _arr[idx];
+    NTF_ASSERT(idx < size());
+    return get()[idx];
   }
 
   value_type* at(size_t idx) noexcept {
-    if (!valid() || idx >= _sz) {
+    if (!valid() || idx >= size()) {
       return nullptr;
     }
-    return &_arr[idx];
+    return get()+idx;
   }
 
   const value_type* at(size_t idx) const noexcept {
-    if (!valid() || idx >= _sz) {
+    if (!valid() || idx >= size()) {
       return nullptr;
     }
-    return &_arr[idx];
+    return get()+idx;
   }
 
-  bool valid() const noexcept { return _arr.get() != nullptr; }
-  explicit operator bool() const noexcept { return valid(); }
+  Deleter& get_deleter() noexcept { return _arr.get_deleter(); }
+  const Deleter& get_deleter() const noexcept { return _arr.get_deleter(); }
 
   iterator begin() noexcept { return get(); }
   const_iterator begin() const noexcept { return get(); }
   const_iterator cbegin() const noexcept { return get(); }
 
-  iterator end() noexcept { return get()+_sz; }
-  const_iterator end() const noexcept { return get()+_sz; }
-  const_iterator cend() const noexcept { return get()+_sz; }
+  iterator end() noexcept { return get()+size(); }
+  const_iterator end() const noexcept { return get()+size(); }
+  const_iterator cend() const noexcept { return get()+size(); }
 
 public:
-  void reset() noexcept {
+  void reset() noexcept(noexcept(_arr.reset())) {
     _arr.reset();
-    _sz = 0;
   }
 
-  void reset(T* ptr, size_t sz) noexcept {
-    _arr.reset(ptr),
-    _sz = sz;
+  void reset(T* ptr, size_t sz) noexcept(noexcept(_arr.reset(ptr, sz))) {
+    _arr.reset(ptr, sz);
   }
 
   [[nodiscard]] std::pair<T*, size_t> release() noexcept {
-    return std::make_pair(_arr.release(), _sz);
+    auto* ptr = get();
+    _arr.arr = nullptr;
+    return std::make_pair(ptr, size());
   }
 
   template<typename F>
   void for_each(F&& fun) noexcept(noexcept(fun(*get()))) {
-    if (!valid() || _sz == 0) {
+    if (!valid() || size() == 0) {
       return;
     }
     for (auto it = begin(); it != end(); ++it) {
@@ -177,7 +490,7 @@ public:
 
   template<typename F>
   void for_each(F&& fun) const noexcept(noexcept(fun(*get()))) {
-    if (!valid() || _sz == 0) {
+    if (!valid() || size() == 0) {
       return;
     }
     for (auto it = begin(); it != end(); ++it) {
@@ -186,26 +499,82 @@ public:
   }
 
 public:
-  static unique_array<T, std::default_delete<T>> from_vector(
-    const std::vector<T, std::allocator<T>>& vec
+  template<typename Cont>
+  static auto from_container(
+    Cont&& container
   ) {
-    T* arr = vec.get_allocator().allocate(vec.size());
-    for (size_t i = 0; i < vec.size(); ++i) {
-      std::construct_at(arr+i, vec[i]);
+    using alloc_type = std::remove_cvref_t<decltype(container.get_allocator())>;
+    static_assert(standard_allocator_type<alloc_type, T>);
+    T* arr = container.get_allocator().allocate(container.size());
+    size_t i = 0;
+    for (auto it = container.begin(); it != container.end(); ++it) {
+      std::construct_at(arr+i, std::forward<T>(*it));
+      ++i;
     }
-    return unique_array<T, std::default_delete<T>>{arr, vec.size()};
+    return unique_array<T, allocator_delete<T[], alloc_type>>{
+      arr, 
+      container.size(),
+      allocator_delete<T[], alloc_type>{container.get_allocator()}
+    };
+  }
+
+  template<typename Cont, standard_allocator_type<T> Alloc>
+  static auto from_container(
+    Cont&& container, Alloc&& alloc
+  ) -> unique_array<T, allocator_delete<T[], Alloc>> {
+    T* arr = alloc.allocate(container.size());
+    size_t i = 0;
+    for (auto it = container.begin(); it != container.end(); ++it) {
+      std::construct_at(arr+i, std::forward<T>(*it));
+      ++i;
+    }
+    return {arr, container.size(), allocator_delete<T[], Alloc>{alloc}};
+  }
+
+  template<standard_allocator_type<T> Alloc = std::allocator<T>>
+  static auto from_allocator(
+    size_t sz, const T& copy_obj, Alloc&& alloc = {}
+  ) -> unique_array<T, allocator_delete<T[], Alloc>>{
+    auto del = allocator_delete<T[], Alloc>{alloc};
+    try {
+      auto* arr = alloc.allocate(sz);
+      if (!arr) {
+        return {del};
+      }
+      for (size_t i = 0; i < sz; ++i) {
+        std::construct_at(arr+i, copy_obj);
+      }
+      return {arr, sz, del};
+    } catch (...) {
+      return {del};
+    }
+  }
+
+  template<standard_allocator_type<T> Alloc = std::allocator<T>>
+  static auto from_allocator(
+    uninitialized_t, size_t sz, Alloc&& alloc = {}
+  ) -> unique_array<T, allocator_delete<T[], Alloc>> {
+    allocator_delete<T[], Alloc> del{alloc};
+    try {
+      auto* arr = alloc.allocate(sz);
+      if (!arr) {
+        return {del};
+      }
+      return {arr, sz, del};
+    } catch (...) {
+      return {del};
+    }
   }
 
 private:
-  uptr_type _arr;
-  size_t _sz;
+  impl::unique_array_storage<T, Deleter> _arr;
 
 public:
-  ~unique_array() = default;
+  ~unique_array() noexcept = default;
   unique_array(const unique_array&) = delete;
   unique_array& operator=(const unique_array&) = delete;
-  unique_array(unique_array&&) = default;
-  unique_array& operator=(unique_array&&) = default;
+  unique_array(unique_array&&) noexcept = default;
+  unique_array& operator=(unique_array&&) noexcept = default;
 };
 
 constexpr uint32 VSPAN_TOMBSTONE = std::numeric_limits<uint32>::max();

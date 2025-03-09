@@ -102,12 +102,21 @@ public:
   }
 
 public:
-  constexpr bool operator==(const allocator_adaptor& rhs) const noexcept {
+  constexpr bool operator==(const allocator_adaptor&) const noexcept {
     return true;
   }
   constexpr bool operator!=(const allocator_adaptor& rhs) const noexcept {
     return !(*this == rhs);
   }
+};
+
+template<typename Alloc, typename T>
+concept standard_allocator_type = requires(Alloc alloc, Alloc alloc2,
+                                           T* ptr, size_t n) {
+  { alloc.allocate(n) } -> std::convertible_to<T*>;
+  { alloc.deallocate(ptr, n) } -> std::same_as<void>;
+  { alloc == alloc2 } -> std::convertible_to<bool>;
+  { alloc != alloc2 } -> std::convertible_to<bool>;
 };
 
 } // namespace ntf

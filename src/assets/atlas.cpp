@@ -218,7 +218,7 @@ auto grid_atlas_loader::sequences(data_t& data) -> optional<array_type<sprite_da
 
 auto grid_atlas_loader::indices(data_t& data) -> array_type<atlas_index> {
   NTF_ASSERT(!data.indices.empty());
-  return array_type<atlas_index>::from_vector(data.indices);
+  return array_type<atlas_index>::from_container(data.indices);
 }
 
 } // namespace ntf

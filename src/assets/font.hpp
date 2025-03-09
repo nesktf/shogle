@@ -4,65 +4,54 @@
 
 #include "../render/types.hpp"
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
-
 namespace ntf {
 
 struct font_glyph {
   uvec2 size;
-  uvec2 bearing;
-  uint64 advance;
+  ivec2 bearing;
+  ivec2 advance;
+  uint32 x_offset;
 };
 
 template<typename T>
-using glyph_map = std::unordered_map<T, font_glyph>;
+concept font_glyph_identifier = std::is_integral_v<T>;
 
-template<typename T>
-requires(std::is_integral_v<T>)
+template<font_glyph_identifier T>
 struct bitmap_font_data {
 public:
+  using texel_array = unique_array<uint8>;
+  using glyph_map = std::unordered_map<T, font_glyph>;
 
 public:
-  bitmap_font_data(glyph_map<T> glyphs_) noexcept :
+  bitmap_font_data(texel_array texels_, glyph_map glyphs_) noexcept :
+    texels{std::move(texels_)},
     glyphs{std::move(glyphs_)} {}
 
 public:
-  glyph_map<T> glyphs;
+  texel_array texels;
+  glyph_map glyphs;
 };
 
 class ft2_bitmap_loader {
+public:
+  struct data_t {
+    unique_array<uint8> texels;
+    bitmap_font_data<uint8>::glyph_map glyphs;
+  };
+
 public:
   ft2_bitmap_loader() noexcept;
   ~ft2_bitmap_loader() noexcept;
 
 public:
-  asset_expected<void> parse(const std::string& path, uvec2 pixel_size);
+  asset_expected<data_t> parse(const std::string& path, std::string_view chars, uvec2 pixel_sz);
 
 public:
-  template<typename T>
-  glyph_map<T> glyphs(std::string_view chars) {
-    glyph_map<T> out;
-    for (auto ch : chars) {
-      auto glyph = _get_glyph(static_cast<uint64>(ch));
-      if (!glyph) {
-        SHOGLE_LOG(warning, "[ntf::ft2_bitmap_loader] Failed to load character \"{}\"", ch);
-        continue;
-      }
-      auto [_, emplaced] = out.try_emplace(ch, *glyph);
-      if (!emplaced) {
-        SHOGLE_LOG(warning, "[ntf::ft2_bitmap_loader] Duplicate character \"{}\"", ch);
-      }
-    }
-    return out;
-  }
+  unique_array<uint8>&& texels(data_t& data) { return std::move(data.texels); }
+  bitmap_font_data<uint8>::glyph_map&& glyphs(data_t& data) { return std::move(data.glyphs); }
 
 private:
-  optional<font_glyph> _get_glyph(uint64 code);
-
-private:
-  void* _ft2_things;
-  bool _has_face;
+  void* _ft2_lib;
 };
 
 // struct basic_font_data {

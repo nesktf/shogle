@@ -68,6 +68,7 @@ enum class r_api : uint8 {
   vulkan,
 };
 class r_context;
+class r_context_view;
 
 enum class r_win_api : uint8 {
   glfw,
@@ -364,8 +365,9 @@ struct r_framebuffer_descriptor {
 
 struct r_draw_opts {
   uint32 count;
-  uint32 offset{0};
-  uint32 instances{0};
+  uint32 offset;
+  uint32 instances;
+  uint32 sort_group;
 };
 
 struct r_buffer_binding {
@@ -392,10 +394,8 @@ struct r_draw_command {
   span_view<r_buffer_binding> buffers;
   span_view<r_texture_binding> textures;
   span_view<r_push_constant> uniforms;
-  uint32 draw_count;
-  uint32 draw_offset;
-  uint32 draw_instances;
-  uint32 sort_group;
+  r_draw_opts draw_opts;
+  std::function<void(r_context_view)> on_render;
 };
 
 template<typename T>

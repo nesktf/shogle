@@ -39,6 +39,7 @@ public:
     uint32 count;
     uint32 offset;
     uint32 instances;
+    std::function<void()> on_render;
   };
 
   struct draw_list {

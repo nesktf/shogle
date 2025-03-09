@@ -30,7 +30,7 @@ public:
 struct sprite_atlas_data {
 public:
   template<typename T>
-  using array_type = unique_array<T, std::default_delete<T>>;
+  using array_type = unique_array<T>;
 
   using value_type = sprite_data;
   using iterator = array_type<value_type>::iterator;
@@ -324,10 +324,7 @@ auto load_atlas(
 class grid_atlas_loader {
 public:
   template<typename T>
-  using deleter = std::default_delete<T>;
-
-  template<typename T>
-  using array_type = unique_array<T, deleter<T>>;
+  using array_type = unique_array<T>;
 
   struct data_t {
     std::string img_path;

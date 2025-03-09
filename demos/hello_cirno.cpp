@@ -44,6 +44,14 @@ static auto init_ctx() {
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
 
+  
+  ntf::ft2_bitmap_loader loader;
+  auto coso = loader.parse("./demos/res/CousineNerdFont-Regular.ttf",
+                           "abcdefghijklmnopqrstuvwxyz!?[]{},.-_0123456789", {48, 48});
+  NTF_ASSERT(coso);
+  auto f_glyphs = loader.glyphs(*coso);
+  auto f_tex = loader.texels(*coso);
+
   const auto image_flag = ntf::image_load_flags::flip_vertically;
   auto cirno_img = ntf::load_image<ntf::uint8>("./demos/res/cirno_cpp.jpg", image_flag);
   if (!cirno_img) {
@@ -444,6 +452,25 @@ int main() {
         ntf::r_fmt_pconst(u_col_color, color_cube),
       };
 
+      ntf::r_draw_opts fumo_opts {
+        .count = static_cast<ntf::uint32>(fumo_mesh.indices.count),
+        .offset = 0,
+        .instances = 0,
+        .sort_group = 0,
+      };
+      ntf::r_draw_opts quad_opts {
+        .count = 6,
+        .offset = 0,
+        .instances = 0,
+        .sort_group = 0,
+      };
+      ntf::r_draw_opts cube_opts {
+        .count = 36,
+        .offset = 0,
+        .instances = 0,
+        .sort_group = 0,
+      };
+
       // Fumo
       ctx.submit({
         .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
@@ -451,10 +478,8 @@ int main() {
         .buffers = {&fumo_bbind[0], std::size(fumo_bbind)},
         .textures = {&fumo_tbind[0], std::size(fumo_tbind)},
         .uniforms = {&fumo_unifs[0], std::size(fumo_unifs)},
-        .draw_count = static_cast<ntf::uint32>(fumo_mesh.indices.count),
-        .draw_offset = 0,
-        .draw_instances = 0,
-        .sort_group = 0,
+        .draw_opts = fumo_opts,
+        .on_render = {},
       });
 
       // Cirno quad
@@ -464,10 +489,8 @@ int main() {
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},
         .textures = {&cino_tbind[0], std::size(cino_tbind)},
         .uniforms = {&cino_unifs[0], std::size(cino_unifs)},
-        .draw_count = 6,
-        .draw_offset = 0,
-        .draw_instances = 0,
-        .sort_group = 0,
+        .draw_opts = quad_opts,
+        .on_render = {},
       });
 
       // Rin sprite
@@ -477,10 +500,8 @@ int main() {
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},
         .textures = {&rin_tbind[0], std::size(rin_tbind)},
         .uniforms = {&rin_unifs[0], std::size(rin_unifs)},
-        .draw_count = 6,
-        .draw_offset = 0,
-        .draw_instances = 0,
-        .sort_group = 0,
+        .draw_opts = quad_opts,
+        .on_render = {},
       });
 
       // Framebuffer viewport
@@ -490,10 +511,8 @@ int main() {
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},
         .textures = {&fb_tbind[0], std::size(fb_tbind)},
         .uniforms = {&fb_unifs[0], std::size(fb_unifs)},
-        .draw_count = 6,
-        .draw_offset = 0,
-        .draw_instances = 0,
-        .sort_group = 0,
+        .draw_opts = quad_opts,
+        .on_render = {},
       });;
 
 
@@ -504,10 +523,8 @@ int main() {
         .buffers = {&cube_bbind[0], std::size(cube_bbind)},
         .textures = {},
         .uniforms = {&cube_unifs[0], std::size(cube_unifs)},
-        .draw_count = 36,
-        .draw_offset = 0,
-        .draw_instances = 0,
-        .sort_group = 0,
+        .draw_opts = cube_opts,
+        .on_render = {},
       });
 
       // Other Cirno quad
@@ -517,10 +534,8 @@ int main() {
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},
         .textures = {&cino_tbind[0], std::size(cino_tbind)},
         .uniforms = {&cino_unifs[0], std::size(cino_unifs)},
-        .draw_count = 6,
-        .draw_offset = 0,
-        .draw_instances = 0,
-        .sort_group = 0,
+        .draw_opts = quad_opts,
+        .on_render = {},
       });
     }
   });

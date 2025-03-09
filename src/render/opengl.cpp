@@ -1372,6 +1372,10 @@ void gl_context::submit(win_handle_t win, const r_context_data::command_map& cmd
       NTF_ASSERT(vbo.type == GL_ARRAY_BUFFER);
       NTF_ASSERT(prog.id);
 
+      if (cmd.on_render) {
+        cmd.on_render();
+      }
+
       bool rebind = _state.bind_buffer(vbo.id, vbo.type);
       rebind = (_state.bind_program(prog.id) || rebind);
       NTF_ASSERT(prog.primitive);
