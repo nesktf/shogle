@@ -118,7 +118,8 @@ public:
                                          uvec3 extent, uint32 layers, uint32 levels);
   void destroy_texture(const texture_t& tex) noexcept;
   void bind_texture(GLuint tex, GLenum type, uint32 index) noexcept;
-  void update_texture_data(const texture_t& tex, const void* data, r_texture_format format,
+  void update_texture_data(const texture_t& tex, const void* data,
+                           r_texture_format format, r_image_alignment alignment,
                            uvec3 offset, uint32 layer, uint32 level) noexcept;
   void update_texture_sampler(texture_t& tex, r_texture_sampler sampler) noexcept;
   void update_texture_addressing(texture_t& tex, r_texture_address addressing) noexcept;

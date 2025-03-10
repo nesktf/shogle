@@ -17,7 +17,13 @@ do { \
   return gl_check_error(__FILE__, __LINE__); \
 }()
 
-static GLenum gl_check_error(const char* file, int line) noexcept {
+namespace ntf {
+
+namespace {
+
+constexpr int32 DEFAULT_IMAGE_ALIGNMENT = static_cast<uint32>(r_image_alignment::bytes4);
+
+GLenum gl_check_error(const char* file, int line) noexcept {
   GLenum out = GL_NO_ERROR;
   GLenum err{};
   while ((err = glGetError()) != GL_NO_ERROR) {
@@ -39,7 +45,7 @@ static GLenum gl_check_error(const char* file, int line) noexcept {
   return out;
 }
 
-namespace ntf {
+} // namespace
 
 gl_state::gl_state(gl_context& ctx) noexcept :
   _ctx{ctx},
@@ -748,7 +754,7 @@ void gl_state::bind_texture(GLuint id, GLenum type, uint32 index) noexcept {
 }
 
 void gl_state::update_texture_data(const texture_t& tex, const void* data, 
-                                   r_texture_format format,
+                                   r_texture_format format, r_image_alignment alignment,
                                    uvec3 offset, uint32 layer,
                                    uint32 level) noexcept {
   NTF_ASSERT(tex.id);
@@ -759,6 +765,7 @@ void gl_state::update_texture_data(const texture_t& tex, const void* data,
   const GLenum data_format_type = texture_format_underlying_cast(format);
 
   NTF_ASSERT(data_format != GL_SRGB, "Can't use SRGB with glTexSubImage");
+  glPixelStorei(GL_UNPACK_ALIGNMENT, static_cast<int32>(alignment));
 
   bind_texture(tex.id, tex.type, _active_tex);
   switch (tex.type) {
@@ -828,6 +835,7 @@ void gl_state::update_texture_data(const texture_t& tex, const void* data,
       break;
     }
   }
+  glPixelStorei(GL_UNPACK_ALIGNMENT, DEFAULT_IMAGE_ALIGNMENT);
 }
 
 void gl_state::update_texture_sampler(texture_t& tex, r_texture_sampler sampler) noexcept {
@@ -1239,7 +1247,7 @@ r_texture_handle gl_context::create_texture(const r_texture_descriptor& desc) {
   if (desc.images) {
     for (const auto& img : desc.images) {
       _state.update_texture_data(
-        texture, img.texels, img.format, img.offset, img.layer, img.layer
+        texture, img.texels, img.format, img.alignment, img.offset, img.layer, img.layer
       );
     }
     if (desc.gen_mipmaps && texture.levels > 1) {
@@ -1256,7 +1264,7 @@ void gl_context::update_texture(r_texture_handle tex, const r_texture_data& desc
   if (desc.images) {
     for (const auto& img : desc.images) {
       _state.update_texture_data(
-        texture, img.texels, img.format, img.offset, img.layer, img.layer
+        texture, img.texels, img.format, img.alignment, img.offset, img.layer, img.layer
       );
     }
   }

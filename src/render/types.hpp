@@ -265,6 +265,13 @@ enum class r_clear_flag : uint8 {
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear_flag);
 
+enum class r_image_alignment : uint8 {
+  bytes1 = 1,
+  bytes2 = 2,
+  bytes4 = 4,
+  bytes8 = 8,
+};
+
 struct r_attrib_binding {
   uint32 binding;
   size_t stride;
@@ -294,6 +301,7 @@ struct r_buffer_descriptor {
 struct r_image_data {
   const void* texels;
   r_texture_format format;
+  r_image_alignment alignment;
 
   uvec3 extent;
   uvec3 offset;
