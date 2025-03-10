@@ -35,20 +35,26 @@ concept standard_allocator_type = requires(Alloc alloc, Alloc alloc2,
   { alloc != alloc2 } -> std::convertible_to<bool>;
 };
 
-template<typename Pool, typename T>
+template<typename Alloc, typename T>
+concept stateless_allocator_type = requires(T* ptr, size_t n) {
+  { Alloc{}.allocate(n) } -> std::convertible_to<T*>;
+  { Alloc{}.deallocate(ptr, n) } -> std::same_as<void>;
+} && std::is_empty_v<Alloc>;
+
+template<typename Pool>
 concept mem_pool_type = requires(Pool& pool,
-                                 void* ptr, size_t n) {
-  { pool.allocate(n*sizeof(T), alignof(T)) } -> std::same_as<void*>;
-  { pool.deallocate(ptr, n*sizeof(T)) } -> std::same_as<void>;
+                                 void* ptr, size_t n, size_t szof, size_t align) {
+  { pool.allocate(n*szof, align) } -> std::same_as<void*>;
+  { pool.deallocate(ptr, n*szof) } -> std::same_as<void>;
 };
 
-template<typename Pool, typename T>
-concept stateless_mem_pool_type = requires(void* ptr, size_t n) {
-  { Pool{}.allocate(n*sizeof(T), alignof(T)) } -> std::same_as<void*>;
-  { Pool{}.deallocate(ptr, n*sizeof(T)) } -> std::same_as<void>;
-};
+template<typename Pool>
+concept stateless_mem_pool_type = requires(void* ptr, size_t n, size_t szof, size_t align) {
+  { Pool{}.allocate(n*szof, align) } -> std::same_as<void*>;
+  { Pool{}.deallocate(ptr, n*szof) } -> std::same_as<void>;
+} && std::is_empty_v<Pool>;
 
-template<typename T, mem_pool_type<T> Pool>
+template<typename T, mem_pool_type Pool>
 class alloc_adaptor {
 public:
   using pool_type = Pool;
@@ -60,7 +66,7 @@ public:
     _pool{pool} {}
 
   template<typename U>
-  alloc_adaptor(alloc_adaptor<U, Pool>& other) noexcept :
+  alloc_adaptor(const alloc_adaptor<U, Pool>& other) noexcept :
     _pool{other._pool} {}
 
   template<typename U>
@@ -96,7 +102,7 @@ private:
   pool_type& _pool;
 };
 
-template<typename T, stateless_mem_pool_type<T> Pool>
+template<typename T, stateless_mem_pool_type Pool>
 class stateless_alloc_adaptor {
 public:
   using pool_type = Pool;
@@ -107,7 +113,7 @@ public:
   stateless_alloc_adaptor() noexcept {}
 
   template<typename U>
-  stateless_alloc_adaptor(stateless_alloc_adaptor<U, Pool>&) noexcept {}
+  stateless_alloc_adaptor(const stateless_alloc_adaptor<U, Pool>&) noexcept {}
 
   template<typename U>
   stateless_alloc_adaptor(stateless_alloc_adaptor<U, Pool>&&) noexcept {}
@@ -131,7 +137,10 @@ public:
 };
 
 template<typename T, typename Alloc>
-requires(standard_allocator_type<Alloc, std::remove_pointer_t<std::decay_t<T>>>)
+requires(
+  stateless_allocator_type<Alloc, T> ||
+  standard_allocator_type<Alloc, T>
+)
 class allocator_delete {
 public:
   allocator_delete()
@@ -147,51 +156,25 @@ public:
     _alloc{alloc} {}
 
   template<typename U>
-  requires(std::convertible_to<T*, U*>)
+  requires(std::convertible_to<U*, T*>)
   allocator_delete(const allocator_delete<U, Alloc>& other)
   noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
     _alloc{other._alloc} {}
 
 public:
-  void operator()(T* ptr) noexcept(std::is_nothrow_destructible_v<T>) {
+  template<typename U = T>
+  requires(std::convertible_to<U*, T*>)
+  void operator()(U* ptr) noexcept(std::is_nothrow_destructible_v<T>) {
     static_assert(is_complete<T>, "Cannot destroy incomplete type");
     if constexpr (!std::is_trivially_destructible_v<T>) {
-      ptr->~T();
+      static_cast<T*>(ptr)->~T();
     }
     _alloc.deallocate(ptr, 1);
   }
 
-  const Alloc& get_allocator() const { return _alloc; }
-
-private:
-  Alloc _alloc;
-};
-
-template<typename T, typename Alloc>
-class allocator_delete<T[], Alloc> {
-public:
-  allocator_delete()
-  noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
-    _alloc{} {}
-
-  allocator_delete(Alloc&& alloc_)
-  noexcept(std::is_nothrow_move_constructible_v<Alloc>) :
-    _alloc{std::move(alloc_)} {}
-
-  allocator_delete(const Alloc& alloc_)
-  noexcept(std::is_nothrow_copy_constructible_v<Alloc>):
-    _alloc{alloc_} {}
-
-  template<typename U>
-  requires(std::convertible_to<T(*)[], U(*)[]>)
-  allocator_delete(const allocator_delete<U[], Alloc>& other)
-  noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
-    _alloc{other._alloc} {}
-
-public:
   template<typename U = T>
-  requires(std::convertible_to<T(*)[], U(*)[]>)
-  void operator()(U* ptr, size_t n) noexcept(std::is_nothrow_destructible_v<T>) {
+  requires(std::convertible_to<U*, T*>)
+  void operator()(T* ptr, size_t n) noexcept(std::is_nothrow_destructible_v<T>) {
     static_assert(is_complete<T>, "Cannot destroy incomplete type");
     if constexpr (!std::is_trivially_destructible_v<T>) {
       for (size_t i = 0; i < n; ++i) {
@@ -207,112 +190,46 @@ private:
   Alloc _alloc;
 };
 
-template<typename T>
-class allocator_delete<T, std::allocator<T>> {
+template<typename T, typename Alloc>
+requires(
+  stateless_allocator_type<Alloc, T>
+)
+class allocator_delete<T, Alloc> {
 public:
-  allocator_delete() noexcept = default;
+  allocator_delete() noexcept {}
 
-  allocator_delete(std::allocator<T>&&) noexcept {}
+  allocator_delete(Alloc&&) noexcept {}
 
-  allocator_delete(const std::allocator<T>&) noexcept {}
+  allocator_delete(const Alloc&) noexcept {}
 
-  template<typename U>
-  requires(std::convertible_to<T*, U*>)
-  allocator_delete(const allocator_delete<U, std::allocator<U>>&) noexcept {}
-
-public:
-  void operator()(T* ptr) const noexcept(std::is_nothrow_destructible_v<T>) {
-    static_assert(is_complete<T>, "Cannot destroy incomplete type");
-    if constexpr (!std::is_trivially_destructible_v<T>) {
-      ptr->~T();
-    }
-    std::allocator<T>{}.deallocate(ptr, 1);
-  }
-
-  const std::allocator<T>& get_allocator() const { return std::allocator<T>{}; }
-};
-
-template<typename T>
-class allocator_delete<T[], std::allocator<T>> {
-public:
-  allocator_delete() noexcept = default;
-
-  allocator_delete(std::allocator<T>&&) noexcept {}
-
-  allocator_delete(const std::allocator<T>&) noexcept {}
-
-  template<typename U>
-  requires(std::convertible_to<T(*)[], U(*)[]>)
-  allocator_delete(const allocator_delete<U[], std::allocator<U>>&) noexcept {}
+  template<typename U = T>
+  requires(std::convertible_to<U*, T*>)
+  allocator_delete(const allocator_delete<U, Alloc>&) noexcept {}
 
 public:
   template<typename U = T>
-  requires(std::convertible_to<T(*)[], U(*)[]>)
-  void operator()(U* ptr, size_t n) const noexcept(std::is_nothrow_destructible_v<T>) {
+  requires(std::convertible_to<U*, T*>)
+  void operator()(U* ptr) noexcept(std::is_nothrow_destructible_v<T>) {
+    static_assert(is_complete<T>, "Cannot destroy incomplete type");
+    if constexpr (!std::is_trivially_destructible_v<T>) {
+      static_cast<T*>(ptr)->~T();
+    }
+    Alloc{}.deallocate(ptr, 1);
+  }
+
+  template<typename U = T>
+  requires(std::convertible_to<U*, T*>)
+  void operator()(T* ptr, size_t n) noexcept(std::is_nothrow_destructible_v<T>) {
     static_assert(is_complete<T>, "Cannot destroy incomplete type");
     if constexpr (!std::is_trivially_destructible_v<T>) {
       for (size_t i = 0; i < n; ++i) {
         static_cast<T*>(ptr+i)->~T();
       }
     }
-    std::allocator<T>{}.deallocate(ptr, n);
+    Alloc{}.deallocate(ptr, n);
   }
 
-  const std::allocator<T>& get_allocator() const { return std::allocator<T>{}; }
-};
-
-template<typename T, typename Pool>
-class allocator_delete<T, stateless_alloc_adaptor<T, Pool>> {
-public:
-  allocator_delete() noexcept = default;
-
-  allocator_delete(stateless_alloc_adaptor<T, Pool>&&) noexcept {}
-
-  allocator_delete(const stateless_alloc_adaptor<T, Pool>&) noexcept {}
-
-  template<typename U>
-  requires(std::convertible_to<T*, U*>)
-  allocator_delete(const allocator_delete<U, stateless_alloc_adaptor<U, Pool>>&) noexcept {}
-
-public:
-  void operator()(T* ptr) const noexcept(std::is_nothrow_destructible_v<T>) {
-    static_assert(is_complete<T>, "Cannot destroy incomplete type");
-    if constexpr (!std::is_trivially_destructible_v<T>) {
-      ptr->~T();
-    }
-    stateless_alloc_adaptor<T, Pool>{}.deallocate(ptr, 1);
-  }
-
-  const stateless_alloc_adaptor<T, Pool>& get_allocator() const { return {}; }
-};
-
-template<typename T, typename Pool>
-class allocator_delete<T[], stateless_alloc_adaptor<T, Pool>> {
-public:
-  allocator_delete() noexcept = default;
-
-  allocator_delete(stateless_alloc_adaptor<T, Pool>&&) noexcept {}
-
-  allocator_delete(const stateless_alloc_adaptor<T, Pool>&) noexcept {}
-
-  template<typename U>
-  requires(std::convertible_to<T*, U*>)
-  allocator_delete(const allocator_delete<U, stateless_alloc_adaptor<U, Pool>>&) noexcept {}
-
-public:
-  template<typename U = T>
-  requires(std::convertible_to<T(*)[], U(*)[]>)
-  void operator()(U* ptr, size_t n) const noexcept(std::is_nothrow_destructible_v<T>) {
-    static_assert(is_complete<T>, "Cannot destroy incomplete type");
-    if constexpr (!std::is_trivially_destructible_v<T>) {
-      for (size_t i = 0; i < n; ++i) {
-        static_cast<T*>(ptr+i)->~T();
-      }
-    }
-    stateless_alloc_adaptor<T, Pool>{}.deallocate(ptr, n);
-  }
-
-  const stateless_alloc_adaptor<T, Pool>& get_allocator() const { return {}; }
+  const Alloc& get_allocator() const { return {}; }
 };
 
 } // namespace ntf

@@ -145,34 +145,36 @@ public:
   Deleter del;
 };
 
-template<typename T>
-class unique_array_storage<T, allocator_delete<T[], std::allocator<T>>> {
+template<typename T, typename Alloc>
+requires(
+  stateless_allocator_type<Alloc, T>
+)
+class unique_array_storage<T, allocator_delete<T[], Alloc>> {
 public:
   unique_array_storage(T* arr_, size_t sz_) noexcept :
     arr{arr_}, sz{sz_} {}
 
-  unique_array_storage(T* arr_, size_t sz_, 
-                       const allocator_delete<T[], std::allocator<T>>&) noexcept :
+  unique_array_storage(T* arr_, size_t sz_, const allocator_delete<T[], Alloc>&) noexcept :
     arr{arr_}, sz{sz_} {}
 
 public:
   void reset(T* arr_ = nullptr, size_t sz_ = 0)
   noexcept(std::is_nothrow_destructible_v<T>) {
     if (arr) {
-      allocator_delete<T[], std::allocator<T>>{}(arr, sz);
+      allocator_delete<T[], Alloc>{}(arr, sz);
     }
     arr = arr_;
     sz = sz_;
   }
 
-  const allocator_delete<T[], std::allocator<T>>& get_deleter() const noexcept { return {}; }
+  const allocator_delete<T[], Alloc>& get_deleter() const noexcept { return {}; }
 
 public:
   ~unique_array_storage() noexcept(std::is_nothrow_destructible_v<T>) {
     if (!arr) {
       return;
     }
-    allocator_delete<T[], std::allocator<T>>{}(arr, sz);
+    allocator_delete<T[], Alloc>{}(arr, sz);
   }
 
   unique_array_storage(unique_array_storage&& other) noexcept :
@@ -214,7 +216,7 @@ public:
     sz = sz_;
   }
 
-  const std::default_delete<T>& get_deleter() const noexcept { return {}; }
+  const std::default_delete<T[]>& get_deleter() const noexcept { return {}; }
 
 public:
   ~unique_array_storage() noexcept(std::is_nothrow_destructible_v<T>) {
@@ -252,9 +254,10 @@ public:
 template<typename Deleter, typename T>
 concept array_deleter_type = requires(Deleter& del, T* arr, size_t n) {
   { del(arr, n) } -> std::same_as<void>;
-} || std::same_as<std::default_delete<T[]>, Deleter>;
+} || std::same_as<Deleter, std::default_delete<T[]>>;
 
-template<typename T, array_deleter_type<T> Deleter = allocator_delete<T[], std::allocator<T>>>
+
+template<typename T, array_deleter_type<T> Deleter = allocator_delete<T, std::allocator<T>>>
 requires(!std::is_pointer_v<T>)
 class unique_array {
 public:
@@ -380,31 +383,31 @@ public:
       std::construct_at(arr+i, std::forward<T>(*it));
       ++i;
     }
-    return unique_array<T, allocator_delete<T[], alloc_type>>{
+    return unique_array<T, allocator_delete<T, alloc_type>>{
       arr, 
       container.size(),
-      allocator_delete<T[], alloc_type>{container.get_allocator()}
+      allocator_delete<T, alloc_type>{container.get_allocator()}
     };
   }
 
   template<typename Cont, standard_allocator_type<T> Alloc>
   static auto from_container(
     Cont&& container, Alloc&& alloc
-  ) -> unique_array<T, allocator_delete<T[], Alloc>> {
+  ) -> unique_array<T, allocator_delete<T, Alloc>> {
     T* arr = alloc.allocate(container.size());
     size_t i = 0;
     for (auto it = container.begin(); it != container.end(); ++it) {
       std::construct_at(arr+i, std::forward<T>(*it));
       ++i;
     }
-    return {arr, container.size(), allocator_delete<T[], Alloc>{alloc}};
+    return {arr, container.size(), allocator_delete<T, Alloc>{alloc}};
   }
 
   template<standard_allocator_type<T> Alloc = std::allocator<T>>
   static auto from_allocator(
     size_t sz, const T& copy_obj, Alloc&& alloc = {}
-  ) -> unique_array<T, allocator_delete<T[], Alloc>>{
-    auto del = allocator_delete<T[], Alloc>{alloc};
+  ) -> unique_array<T, allocator_delete<T, Alloc>>{
+    auto del = allocator_delete<T, Alloc>{alloc};
     try {
       auto* arr = alloc.allocate(sz);
       if (!arr) {
@@ -422,8 +425,8 @@ public:
   template<standard_allocator_type<T> Alloc = std::allocator<T>>
   static auto from_allocator(
     uninitialized_t, size_t sz, Alloc&& alloc = {}
-  ) -> unique_array<T, allocator_delete<T[], Alloc>> {
-    allocator_delete<T[], Alloc> del{alloc};
+  ) -> unique_array<T, allocator_delete<T, Alloc>> {
+    allocator_delete<T, Alloc> del{alloc};
     try {
       auto* arr = alloc.allocate(sz);
       if (!arr) {
