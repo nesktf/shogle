@@ -14,9 +14,6 @@ namespace ntf {
 
 namespace {
 
-template<typename T>
-using alloc = std::allocator<T>;
-
 // Assume FT_Face is just a pointer handle
 static_assert(std::is_pointer_v<FT_Face>);
 using face_clean_t =
@@ -90,7 +87,7 @@ auto ft2_bitmap_loader::parse(const std::string& path,
   };
 
   const size_t texels_sz = static_cast<size_t>(tex_w*tex_h)*sizeof(uint8);
-  auto texels = unique_array<uint8>::from_allocator(uninitialized, texels_sz);
+  auto texels = unique_array<uint8>::from_allocator(::ntf::uninitialized, texels_sz);
   RET_ERR_IF(!texels, "Failed to allocate texels");
 
   // Copy bitmap texels

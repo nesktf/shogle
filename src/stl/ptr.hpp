@@ -149,32 +149,32 @@ template<typename T, typename Alloc>
 requires(
   stateless_allocator_type<Alloc, T>
 )
-class unique_array_storage<T, allocator_delete<T[], Alloc>> {
+class unique_array_storage<T, allocator_delete<T, Alloc>> {
 public:
   unique_array_storage(T* arr_, size_t sz_) noexcept :
     arr{arr_}, sz{sz_} {}
 
-  unique_array_storage(T* arr_, size_t sz_, const allocator_delete<T[], Alloc>&) noexcept :
+  unique_array_storage(T* arr_, size_t sz_, const allocator_delete<T, Alloc>&) noexcept :
     arr{arr_}, sz{sz_} {}
 
 public:
   void reset(T* arr_ = nullptr, size_t sz_ = 0)
   noexcept(std::is_nothrow_destructible_v<T>) {
     if (arr) {
-      allocator_delete<T[], Alloc>{}(arr, sz);
+      allocator_delete<T, Alloc>{}(arr, sz);
     }
     arr = arr_;
     sz = sz_;
   }
 
-  const allocator_delete<T[], Alloc>& get_deleter() const noexcept { return {}; }
+  const allocator_delete<T, Alloc>& get_deleter() const noexcept { return {}; }
 
 public:
   ~unique_array_storage() noexcept(std::is_nothrow_destructible_v<T>) {
     if (!arr) {
       return;
     }
-    allocator_delete<T[], Alloc>{}(arr, sz);
+    allocator_delete<T, Alloc>{}(arr, sz);
   }
 
   unique_array_storage(unique_array_storage&& other) noexcept :
