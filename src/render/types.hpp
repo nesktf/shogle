@@ -505,6 +505,9 @@ NTF_DECLARE_TAG_TYPE(int8n_tex);
 NTF_DECLARE_TAG_TYPE(uint8nl_tex);
 
 template<typename T>
+concept image_dim_type = same_as_any<T, uint32, uvec2, uvec3>;
+
+template<typename T>
 concept image_depth_type = same_as_any<T, 
   uint8n_tex_t, uint8nl_tex_t, int8n_tex_t,
   uint8, int8,
@@ -513,10 +516,10 @@ concept image_depth_type = same_as_any<T,
 >;
 
 template<image_depth_type T>
-struct r_texture_depth_traits;
+struct image_depth_traits;
 
 template<>
-struct r_texture_depth_traits<uint8n_tex_t> {
+struct image_depth_traits<uint8n_tex_t> {
   using underlying_t = uint8;
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
@@ -531,7 +534,7 @@ struct r_texture_depth_traits<uint8n_tex_t> {
 };
 
 template<>
-struct r_texture_depth_traits<uint8nl_tex_t> {
+struct image_depth_traits<uint8nl_tex_t> {
   using underlying_t = uint8;
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
@@ -544,7 +547,7 @@ struct r_texture_depth_traits<uint8nl_tex_t> {
 };
 
 template<>
-struct r_texture_depth_traits<int8n_tex_t> {
+struct image_depth_traits<int8n_tex_t> {
   using underlying_t = int8;
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
@@ -559,7 +562,7 @@ struct r_texture_depth_traits<int8n_tex_t> {
 };
 
 template<>
-struct r_texture_depth_traits<uint8> {
+struct image_depth_traits<uint8> {
   using underlying_t = uint8;
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
@@ -574,7 +577,7 @@ struct r_texture_depth_traits<uint8> {
 };
 
 template<>
-struct r_texture_depth_traits<int8> {
+struct image_depth_traits<int8> {
   using underlying_t = int8;
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
@@ -589,7 +592,7 @@ struct r_texture_depth_traits<int8> {
 };
 
 template<>
-struct r_texture_depth_traits<uint16> {
+struct image_depth_traits<uint16> {
   using underlying_t = uint16;
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
@@ -604,7 +607,7 @@ struct r_texture_depth_traits<uint16> {
 };
 
 template<>
-struct r_texture_depth_traits<int16> {
+struct image_depth_traits<int16> {
   using underlying_t = int16;
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
@@ -619,7 +622,7 @@ struct r_texture_depth_traits<int16> {
 };
 
 template<>
-struct r_texture_depth_traits<float32> {
+struct image_depth_traits<float32> {
   using underlying_t = float32;
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {

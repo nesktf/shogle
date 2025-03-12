@@ -10,90 +10,208 @@
 
 namespace ntf {
 
-struct texture_meta {
-  uint32 width;
-  uint32 height;
-  uint32 channels;
-};
+template<typename Dim>
+constexpr uvec3 image_dim_cast(const Dim& dim) {
+  if constexpr(std::same_as<Dim, uvec3>) {
+    return dim;
+  } else if constexpr(std::same_as<Dim, uvec2>) {
+    return uvec3{static_cast<uint32>(dim.x), static_cast<uint32>(dim.y), 0};
+  } else {
+    return uvec3{static_cast<uint32>(dim), 0, 0};
+  }
+}
 
-template<typename T>
-concept image_dim_type = same_as_any<T, uvec2, uvec3> || std::unsigned_integral<T>;
-
-
-template<image_depth_type T, typename Deleter = allocator_delete<T, std::allocator<T>>>
-class image_data {
+template<
+  image_depth_type T,
+  image_dim_type Dim = uvec2,
+  typename Deleter = allocator_delete<T, std::allocator<T>>
+>
+struct image_data {
 public:
-  using depth_type = T;
-  using texel_type = r_texture_depth_traits<T>::underlying_t;
+using depth_type = T;
+  using dim_type = Dim;
+
+  using texel_type = image_depth_traits<T>::underlying_t;
   using array_type = unique_array<texel_type, Deleter>;
 
 public:
-  image_data() noexcept :
-    _texels{}, _dim{}, _format{} {}
-
-  image_data(const Deleter& del) noexcept :
-    _texels{del}, _dim{}, _format{} {}
-
-  image_data(array_type&& texels, uvec2 dim, r_texture_format format) noexcept :
-    _texels{std::move(texels)}, _dim{dim}, _format{format} {}
+  image_data(array_type&& texels_, dim_type dim_, r_texture_format format_) NTF_ASSERT_NOEXCEPT :
+    texels{std::move(texels_)}, dim{dim_}, format{format_}
+  {
+    NTF_ASSERT(texels.has_data());
+  }
 
 public:
-  const T* data() const { return _texels.get(); }
-  T* data() { return _texels.get(); }
-
-  size_t size() const { return _texels.size(); }
-  size_t bytes() const { return size()*sizeof(texel_type); }
-
-  uvec2 dim() const { return _dim; }
-  r_texture_format format() const { return _format; }
-
-  bool has_data() const { return _texels.valid(); }
-  explicit operator bool() const { return has_data(); }
-
-  r_image_data descriptor(uvec3 offset = {0, 0, 0}, uint32 layer = 0, uint32 level = 0) const {
+  r_image_data make_descriptor(const dim_type& offset = {},
+                               uint32 level = 0, uint32 layer = 0) const
+  {
     return r_image_data{
-      .texels = data(),
-      .format = format(),
-      .extent = {dim(), 0},
-      .offset = offset,
+      .texels = this->texels.get(),
+      .format = this->format,
+      .extent = image_dim_cast(this->dim),
+      .offset = image_dim_cast(offset),
       .layer = layer,
       .level = level,
     };
+  };
+
+public:
+  array_type texels;
+  dim_type dim;
+  r_texture_format format;
+};
+
+template<
+  image_depth_type T,
+  uint32 array_size,
+  image_dim_type Dim = uvec2,
+  typename Deleter = allocator_delete<T, std::allocator<T>>
+>
+struct image_data_array {
+public:
+  static_assert(array_size > 0, "Array size can't be 0");
+
+  using depth_type = T;
+  using dim_type = Dim;
+
+  using texel_type = image_depth_traits<T>::underlying_t;
+  using array_type = std::array<unique_array<texel_type, Deleter>, array_size>;
+
+public:
+  image_data_array(array_type&& texels_,
+                   dim_type dim_, r_texture_format format_) NTF_ASSERT_NOEXCEPT :
+  texels{std::move(texels_)}, dim{dim_}, format{format_}
+  {
+    NTF_ASSERT([this](){
+      for (const auto& tex : texels) {
+        if (!tex.has_data()) {
+          return false;
+        }
+      }
+      return true;
+    }(), "No data in texel array");
   }
 
-private:
-  array_type _texels;
-  uvec2 _dim;
-  r_texture_format _format;
+public:
+  std::array<r_image_data, array_size> make_descriptor(const dim_type& offset = {},
+                                                       uint32 level = 0) const
+  {
+    std::array<r_image_data, array_size> out;
+    for (size_t i = 0; i < array_size; ++i) {
+      out[i].texels = texels[i].get();
+      out[i].format = format;
+      out[i].extent = image_dim_cast(dim);
+      out[i].offset = image_dim_cast(offset);
+      out[i].layer = static_cast<uint32>(i);
+      out[i].level = level;
+    }
+    return out;
+  }
+
+public:
+  array_type texels;
+  dim_type dim;
+  r_texture_format format;
 };
+
+template<
+  image_depth_type T,
+  image_dim_type Dim = uvec2,
+  typename Deleter = allocator_delete<T, std::allocator<T>>
+>
+struct dense_image_data_array {
+public:
+  using depth_type = T;
+  using dim_type = Dim;
+
+  using texel_type = image_depth_traits<T>::underlying_t;
+  using array_type = unique_array<texel_type, Deleter>;
+  
+public:
+  dense_image_data_array(array_type&& texels_, size_t size_,
+                         dim_type dim_, r_texture_format format_) NTF_ASSERT_NOEXCEPT :
+    texels{std::move(texels_)}, size{size_}, dim{dim_}, format{format_}
+  {
+    NTF_ASSERT(texels.has_data(), "No data in texel array");
+    NTF_ASSERT(size > 0, "Array size can't be 0");
+  }
+
+public:
+  template<standard_allocator_type<r_image_data> Alloc = std::allocator<r_image_data>>
+  auto make_descriptor(
+    const dim_type& offset = {},
+    uint32 level = 0,
+    Alloc&& alloc = {}
+  ) const NTF_ASSERT_NOEXCEPT -> unique_array<r_image_data, allocator_delete<T, Alloc>>
+  {
+    auto out = unique_array<r_image_data>::from_allocator(::ntf::uninitialized, size, alloc);
+    NTF_ASSERT(out.has_data(), "Allocation failure");
+
+    const auto image_stride = sizeof(texel_type)*[this]() -> size_t {
+      if constexpr(std::same_as<Dim, uvec3>) {
+        return static_cast<size_t>(dim.x*dim.y*dim.z);
+      } else if constexpr(std::same_as<Dim, uvec2>) {
+        return static_cast<size_t>(dim.x*dim.y);
+      } else {
+        return static_cast<size_t>(dim);
+      }
+    }();
+    for (size_t i = 0; i < size; ++i) {
+      std::construct_at(out.get()+i, r_image_data{
+        .texels = texels.get()+i*image_stride,
+        .format = format,
+        .extent = image_dim_cast(dim),
+        .offset = image_dim_cast(offset),
+        .layer = static_cast<uint32>(i),
+        .level = level,
+      });
+    }
+    return out;
+  }
+  
+public:
+  array_type texels;
+  size_t size;
+  dim_type dim;
+  r_texture_format format;
+};
+
+template<typename T, typename Deleter = allocator_delete<T, std::allocator<T>>>
+using cubemap_image_data = image_data_array<T, 6u, uvec2, Deleter>;
+
+template<typename T>
+struct image_data_check : public std::false_type {};
+
+template<typename T, typename Dim, typename Deleter>
+struct image_data_check<image_data<T, Dim, Deleter>> : public std::true_type {};
+
+template<typename T>
+constexpr bool image_data_check_v = image_data_check<T>::value;
+
+template<typename T>
+concept image_data_type = image_data_check_v<T>;
 
 enum class image_load_flags {
   none = 0,
-  flip_vertically = 1 << 0,
+  flip_y = 1 << 0,
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(image_load_flags);
 
-template<typename Loader, typename T>
-concept checked_image_loader_type = requires(Loader loader,
-                                             const std::string& path,
-                                             uint32& w, uint32& h, uint32& ch,
-                                             image_load_flags flags) {
-  { loader.template load<T>(path, w, h, ch, flags) }
-    -> std::same_as<asset_expected<std::unique_ptr<T, typename Loader::template deleter<T>>>>;
+template<typename Loader, typename T, typename Dim>
+concept image_loader_type = requires(Loader loader,
+                                     typename Loader::data_t& data,
+                                     const std::string& path,
+                                     image_load_flags flags) {
+  { loader.template parse<T>(path, flags) } -> 
+    same_as_any<typename Loader::data_t, asset_expected<typename Loader::data_t>>;
+  { loader.texels(data) } -> std::convertible_to<unique_array<
+      typename image_depth_traits<T>::underlying_t,
+      typename Loader::template deleter<T>
+    >>;
+  { loader.dimensions(data) } -> std::convertible_to<Dim>;
+  { loader.format(data) } -> std::convertible_to<r_texture_format>;
 };
 
-template<typename Loader, typename T>
-concept unchecked_image_loader_type = requires(Loader loader,
-                                               const std::string& path,
-                                               uint32& w, uint32& h, uint32& ch,
-                                               image_load_flags flags) {
-  { loader.template load<T>(unchecked_t{}, path, w, h, ch, flags) }
-    -> std::same_as<std::unique_ptr<T, typename Loader::template deleter<T>>>;
-};
-
-template<typename Loader, typename T>
-concept image_loader_type =
-  checked_image_loader_type<Loader, T> || unchecked_image_loader_type<Loader, T>;
 
 namespace impl {
 
