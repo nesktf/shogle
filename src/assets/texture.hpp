@@ -17,42 +17,37 @@ struct texture_meta {
 };
 
 template<typename T>
-concept image_depth_type = same_as_any<T, uint8, uint16, float32>;
+concept image_dim_type = same_as_any<T, uvec2, uvec3> || std::unsigned_integral<T>;
 
-template<image_depth_type T>
-r_texture_format parse_image_format(uint32) {
-  // TODO: Implement this
-  return r_texture_format::rgb8n;
-}
 
-template<image_depth_type T, typename Deleter = std::default_delete<T>>
+template<image_depth_type T, typename Deleter = allocator_delete<T, std::allocator<T>>>
 class image_data {
 public:
-  using uptr_type = std::unique_ptr<T, Deleter>;
+  using depth_type = T;
+  using texel_type = r_texture_depth_traits<T>::underlying_t;
+  using array_type = unique_array<texel_type, Deleter>;
 
 public:
   image_data() noexcept :
-    _data{nullptr}, _size{}, _dim{}, _format{} {}
+    _texels{}, _dim{}, _format{} {}
 
-  explicit image_data(const Deleter& del) noexcept :
-    _data{nullptr, del}, _size{}, _dim{}, _format{} {}
+  image_data(const Deleter& del) noexcept :
+    _texels{del}, _dim{}, _format{} {}
 
-  image_data(uptr_type data, size_t size, uvec2 dim, r_texture_format format) noexcept :
-    _data{std::move(data)}, _size{size}, _dim{dim}, _format{format} {}
-
-public:
-  void unload() { _data.reset(); }
+  image_data(array_type&& texels, uvec2 dim, r_texture_format format) noexcept :
+    _texels{std::move(texels)}, _dim{dim}, _format{format} {}
 
 public:
-  const T* data() const { return _data.get(); }
-  T* data() { return _data.get(); }
+  const T* data() const { return _texels.get(); }
+  T* data() { return _texels.get(); }
 
-  size_t size() const { return _size; }
-  size_t bytes() const { return sizeof(T)*size(); }
+  size_t size() const { return _texels.size(); }
+  size_t bytes() const { return size()*sizeof(texel_type); }
+
   uvec2 dim() const { return _dim; }
   r_texture_format format() const { return _format; }
 
-  bool has_data() const { return _data.get() != nullptr; }
+  bool has_data() const { return _texels.valid(); }
   explicit operator bool() const { return has_data(); }
 
   r_image_data descriptor(uvec3 offset = {0, 0, 0}, uint32 layer = 0, uint32 level = 0) const {
@@ -67,8 +62,7 @@ public:
   }
 
 private:
-  uptr_type _data;
-  size_t _size;
+  array_type _texels;
   uvec2 _dim;
   r_texture_format _format;
 };

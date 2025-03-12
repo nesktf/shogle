@@ -130,19 +130,19 @@ enum class r_texture_type : uint8 {
 };
 
 enum class r_texture_format : uint8 {
-  r8n = 0, r8u,     r8i,
+  r8nu=0,  r8n,     r8u,     r8i,
   r16u,    r16i,    r16f,
   r32u,    r32i,    r32f,
 
-  rg8n,    rg8u,    rg8i,
+  rg8nu,   rg8n,   rg8u,    rg8i,
   rg16u,   rg16i,   rg16f,
   rg32u,   rg32i,   rg32f,
 
-  rgb8n,   rgb8u,   rgb8i,
+  rgb8nu,  rgb8n,   rgb8u,   rgb8i,
   rgb16u,  rgb16i,  rgb16f,
   rgb32u,  rgb32i,  rgb32f,
 
-  rgba8n,  rgba8u,  rgba8i,
+  rgba8nu, rgba8n, rgba8u,  rgba8i,
   rgba16u, rgba16i, rgba16f,
   rgba32u, rgba32i, rgba32f,
 
@@ -499,6 +499,139 @@ constexpr r_push_constant r_fmt_pconst(r_uniform location, const T& data) {
     .alignment = alignof(T),
   };
 }
+
+NTF_DECLARE_TAG_TYPE(uint8n_tex);
+NTF_DECLARE_TAG_TYPE(int8n_tex);
+NTF_DECLARE_TAG_TYPE(uint8nl_tex);
+
+template<typename T>
+concept image_depth_type = same_as_any<T, 
+  uint8n_tex_t, uint8nl_tex_t, int8n_tex_t,
+  uint8, int8,
+  uint16, int16,
+  float32
+>;
+
+template<image_depth_type T>
+struct r_texture_depth_traits;
+
+template<>
+struct r_texture_depth_traits<uint8n_tex_t> {
+  using underlying_t = uint8;
+
+  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
+    switch (n) {
+      case 1: return r_texture_format::r8nu;
+      case 2: return r_texture_format::rg8nu;
+      case 3: return r_texture_format::rgb8nu;
+      case 4: return r_texture_format::rgba8nu;
+    }
+    return nullopt;
+  }
+};
+
+template<>
+struct r_texture_depth_traits<uint8nl_tex_t> {
+  using underlying_t = uint8;
+
+  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
+    switch (n) {
+      case 3: return r_texture_format::srgb8u;
+      case 4: return r_texture_format::srgba8u;
+    }
+    return nullopt;
+  }
+};
+
+template<>
+struct r_texture_depth_traits<int8n_tex_t> {
+  using underlying_t = int8;
+
+  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
+    switch (n) {
+      case 1: return r_texture_format::r8n;
+      case 2: return r_texture_format::rg8n;
+      case 3: return r_texture_format::rgb8n;
+      case 4: return r_texture_format::rgba8n;
+    }
+    return nullopt;
+  }
+};
+
+template<>
+struct r_texture_depth_traits<uint8> {
+  using underlying_t = uint8;
+
+  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
+    switch (n) {
+      case 1: return r_texture_format::r8u;
+      case 2: return r_texture_format::rg8u;
+      case 3: return r_texture_format::rgb8u;
+      case 4: return r_texture_format::rgba8u;
+    }
+    return nullopt;
+  }
+};
+
+template<>
+struct r_texture_depth_traits<int8> {
+  using underlying_t = int8;
+
+  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
+    switch (n) {
+      case 1: return r_texture_format::r8i;
+      case 2: return r_texture_format::rg8i;
+      case 3: return r_texture_format::rgb8i;
+      case 4: return r_texture_format::rgba8i;
+    } 
+    return nullopt;
+  }
+};
+
+template<>
+struct r_texture_depth_traits<uint16> {
+  using underlying_t = uint16;
+
+  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
+    switch (n) {
+      case 1: return r_texture_format::r16u;
+      case 2: return r_texture_format::rg16u;
+      case 3: return r_texture_format::rgb16u;
+      case 4: return r_texture_format::rgba16u;
+    }
+    return nullopt;
+  }
+};
+
+template<>
+struct r_texture_depth_traits<int16> {
+  using underlying_t = int16;
+
+  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
+    switch (n) {
+      case 1: return r_texture_format::r16i;
+      case 2: return r_texture_format::rg16i;
+      case 3: return r_texture_format::rgb16i;
+      case 4: return r_texture_format::rgba16i;
+    }
+    return nullopt;
+  }
+};
+
+template<>
+struct r_texture_depth_traits<float32> {
+  using underlying_t = float32;
+
+  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
+    switch (n) {
+      case 1: return r_texture_format::r32f;
+      case 2: return r_texture_format::rg32f;
+      case 3: return r_texture_format::rgb32f;
+      case 4: return r_texture_format::rgba32f;
+    }
+    return nullopt;
+  }
+};
 
 } // namespace ntf
 
