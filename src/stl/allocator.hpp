@@ -41,6 +41,9 @@ concept stateless_allocator_type = requires(T* ptr, size_t n) {
   { Alloc{}.deallocate(ptr, n) } -> std::same_as<void>;
 } && std::is_empty_v<Alloc>;
 
+template<typename Alloc, typename T>
+concept allocator_type = stateless_allocator_type<Alloc, T> || standard_allocator_type<Alloc, T>;
+
 template<typename Pool>
 concept mem_pool_type = requires(Pool& pool,
                                  void* ptr, size_t n, size_t szof, size_t align) {

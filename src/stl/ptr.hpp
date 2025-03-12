@@ -449,18 +449,10 @@ public:
   unique_array& operator=(unique_array&&) noexcept = default;
 };
 
-template<typename T>
-struct unique_array_check : public std::false_type {};
+NTF_DEFINE_TEMPLATE_CHECKER(unique_array);
 
-template<typename T, typename Deleter>
-struct unique_array_check<unique_array<T, Deleter>> : public std::true_type {};
-
-template<typename T>
-constexpr bool unique_array_check_v = unique_array_check<T>::value;
-
-template<typename T>
-concept unique_array_type = unique_array_check_v<T>;
-
+template<typename T, allocator_type<T> Alloc>
+using alloc_unique_array = unique_array<T, allocator_delete<T, Alloc>>;
 
 constexpr uint32 VSPAN_TOMBSTONE = std::numeric_limits<uint32>::max();
 struct vec_span {

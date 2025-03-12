@@ -31,6 +31,16 @@
 struct _name##_t {}; \
 constexpr _name##_t _name{}
 
+#define NTF_DEFINE_TEMPLATE_CHECKER(_templ) \
+template<typename> \
+struct _templ##_check : public ::std::false_type {};\
+template<typename... Ts> \
+struct _templ##_check<_templ<Ts...>> : public ::std::true_type{}; \
+template<typename T> \
+constexpr bool _templ##_check_v = _templ##_check<T>::value; \
+template<typename T> \
+concept _templ##_type = _templ##_check_v<T>
+
 namespace ntf {
 
 using size_t    = std::size_t;

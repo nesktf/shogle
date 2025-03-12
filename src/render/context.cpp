@@ -254,9 +254,9 @@ void r_context_view::submit(const r_draw_command& cmd) noexcept {
   _data->d_list = _data->draw_lists.at(cmd.target);
   _data->d_cmd.pipeline = cmd.pipeline;
 
-  _data->d_cmd.count = cmd.draw_opts.count;
-  _data->d_cmd.offset = cmd.draw_opts.offset;
-  _data->d_cmd.instances = cmd.draw_opts.instances;
+  _data->d_cmd.count = cmd.draw_opts->count;
+  _data->d_cmd.offset = cmd.draw_opts->offset;
+  _data->d_cmd.instances = cmd.draw_opts->instances;
 
   if (cmd.on_render) {
     _data->d_cmd.on_render = [this, on_render=cmd.on_render]() { on_render(*this); };

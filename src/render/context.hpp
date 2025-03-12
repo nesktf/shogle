@@ -1,13 +1,53 @@
 #pragma once
 
-#include "./types.hpp"
+#include "./forward.hpp"
+#include "./texture.hpp"
+#include "./buffer.hpp"
+#include "./attribute.hpp"
+#include "./shader.hpp"
+#include "./pipeline.hpp"
+#include "./framebuffer.hpp"
+
 #include "./window.hpp"
 
-#include "../stl/expected.hpp"
 #include "../stl/optional.hpp"
 #include "../stl/arena.hpp"
 
 namespace ntf {
+
+struct r_draw_opts {
+  uint32 count;
+  uint32 offset;
+  uint32 instances;
+  uint32 sort_group;
+};
+
+struct r_push_constant {
+  r_uniform location;
+  const void* data;
+  r_attrib_type type;
+  size_t alignment;
+};
+
+struct r_draw_command {
+  r_framebuffer_handle target;
+  r_pipeline_handle pipeline;
+  span_view<r_buffer_binding> buffers;
+  span_view<r_texture_binding> textures;
+  span_view<r_push_constant> uniforms;
+  weak_ref<r_draw_opts> draw_opts;
+  std::function<void(r_context_view)> on_render;
+};
+
+template<shader_attribute_type T>
+constexpr r_push_constant r_format_pushconst(r_uniform location, const T& data) {
+  return r_push_constant{
+    .location = location,
+    .data = std::addressof(data),
+    .type = r_attrib_traits<T>::tag,
+    .alignment = alignof(T),
+  };
+}
 
 struct r_platform_context;
 
@@ -48,7 +88,11 @@ public:
     r_clear_flag clear;
     std::vector<weak_ref<draw_command>> cmds;
   };
-  using command_map = std::unordered_map<r_framebuffer_handle, draw_list>;
+
+  template<typename K, typename T>
+  using handle_map = std::unordered_map<K, T, r_handle_hash<K>>;
+
+  using command_map = handle_map<r_framebuffer_handle, draw_list>;
 
   using uniform_map = std::unordered_map<std::string, r_uniform>;
   struct vertex_layout {
@@ -137,13 +181,13 @@ public:
   win_handle_t win;
   std::unique_ptr<r_platform_context> platform;
 
-  std::unordered_map<r_buffer_handle, buffer_store> buffers;
-  std::unordered_map<r_texture_handle, texture_store> textures;
-  std::unordered_map<r_framebuffer_handle, framebuffer_store> framebuffers;
-  std::unordered_map<r_shader_handle, shader_store> shaders;
-  std::unordered_map<r_pipeline_handle, pipeline_store> pipelines;
+  handle_map<r_buffer_handle, buffer_store> buffers;
+  handle_map<r_texture_handle, texture_store> textures;
+  handle_map<r_framebuffer_handle, framebuffer_store> framebuffers;
+  handle_map<r_shader_handle, shader_store> shaders;
+  handle_map<r_pipeline_handle, pipeline_store> pipelines;
 
-  std::unordered_map<r_framebuffer_handle, draw_list> draw_lists;
+  handle_map<r_framebuffer_handle, draw_list> draw_lists;
   weak_ref<draw_list> d_list;
   draw_command d_cmd;
 };

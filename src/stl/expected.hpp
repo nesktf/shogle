@@ -651,53 +651,39 @@ struct expected_catcher<::ntf::error<void>, Expected> {
 template<typename, typename>
 class expected;
 
-template<typename T>
-struct is_expected : public std::false_type {};
-
-template<typename T>
-struct is_expected<expected<T, void>> : public std::false_type {};
-
-template<typename T, typename E>
-struct is_expected<expected<T, E>> : public std::true_type {};
-
-template<typename T>
-constexpr bool is_expected_v = is_expected<T>::value;
+NTF_DEFINE_TEMPLATE_CHECKER(expected);
 
 
 template<typename Exp, typename T>
-struct is_expected_t : public std::false_type{};
+struct expected_check_t : public std::false_type{};
 
 template<typename T>
-struct is_expected_t<expected<T, void>, T> : public std::false_type{};
+struct expected_check_t<expected<T, void>, T> : public std::false_type{};
 
 template<typename T, typename E>
-struct is_expected_t<expected<T, E>, T> : public std::true_type{};
+struct expected_check_t<expected<T, E>, T> : public std::true_type{};
 
 template<typename Exp, typename T>
-constexpr bool is_expected_t_v = is_expected_t<Exp, T>::value;
+constexpr bool expected_check_t_v = expected_check_t<Exp, T>::value;
+
+template<typename Exp, typename T>
+concept expected_with_type = expected_check_t_v<Exp, T>;
 
 
 template<typename Exp, typename E>
-struct is_expected_e : public std::false_type{};
+struct expected_check_e : public std::false_type{};
 
 template<typename T>
-struct is_expected_e<expected<T, void>, void> : public std::false_type{};
+struct expected_check_e<expected<T, void>, void> : public std::false_type{};
 
 template<typename T, typename E>
-struct is_expected_e<expected<T, E>, E> : public std::true_type{};
+struct expected_check_e<expected<T, E>, E> : public std::true_type{};
 
 template<typename Exp, typename E>
-constexpr bool is_expected_e_v = is_expected_e<Exp, E>::value;
+constexpr bool expected_check_e_v = expected_check_e<Exp, E>::value;
 
-
-template<typename T>
-concept is_expected_type = is_expected_v<T>;
-
-template<typename T, typename Exp>
-concept is_expected_with_type = is_expected_t_v<Exp, T>;
-
-template<typename E, typename Exp>
-concept is_expected_with_error = is_expected_e_v<Exp, E>;
+template<typename Exp, typename E>
+concept expected_with_error = expected_check_e_v<Exp, E>;
 
 
 template<typename T, typename E>
@@ -864,7 +850,7 @@ public:
   requires(std::is_invocable_v<F, T>)
   constexpr auto and_then(F&& f) & {
     using U = std::remove_cvref_t<std::invoke_result_t<F, decltype(_storage.get())>>;
-    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<U, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return std::invoke(std::forward<F>(f), _storage.get());
@@ -876,7 +862,7 @@ public:
   requires(std::is_invocable_v<F, T>)
   constexpr auto and_then(F&& f) const& {
     using U = std::remove_cvref_t<std::invoke_result_t<F, decltype(_storage.get())>>;
-    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<U, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return std::invoke(std::forward<F>(f), _storage.get());
@@ -888,7 +874,7 @@ public:
   requires(std::is_invocable_v<F, T>)
   constexpr auto and_then(F&& f) && {
     using U = std::remove_cvref_t<std::invoke_result_t<F, decltype(std::move(_storage.get()))>>;
-    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<U, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return std::invoke(std::forward<F>(f), std::move(_storage.get()));
@@ -900,7 +886,7 @@ public:
   requires(std::is_invocable_v<F, T>)
   constexpr auto and_then(F&& f) const&& {
     using U = std::remove_cvref_t<std::invoke_result_t<F, decltype(std::move(_storage.get()))>>;
-    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<U, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return std::invoke(std::forward<F>(f), std::move(_storage.get()));
@@ -914,7 +900,7 @@ public:
   requires(std::is_invocable_v<F, E>)
   constexpr auto or_else(F&& f) & {
     using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
-    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<G, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return G{in_place, _storage.get()};
@@ -926,7 +912,7 @@ public:
   requires(std::is_invocable_v<F, E>)
   constexpr auto or_else(F&& f) const& {
     using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
-    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<G, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return G{in_place, _storage.get()};
@@ -938,7 +924,7 @@ public:
   requires(std::is_invocable_v<F, E>)
   constexpr auto or_else(F&& f) && {
     using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
-    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<G, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return G{in_place, std::move(_storage.get())};
@@ -950,7 +936,7 @@ public:
   requires(std::is_invocable_v<F, E>)
   constexpr auto or_else(F&& f) const&& {
     using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
-    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<G, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return G{in_place, std::move(_storage.get())};
@@ -1185,7 +1171,7 @@ public:
   requires(std::is_invocable_v<F>)
   constexpr auto and_then(F&& f) & {
     using U = std::remove_cvref_t<std::invoke_result_t<F>>;
-    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<U, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return std::invoke(std::forward<F>(f));
@@ -1197,7 +1183,7 @@ public:
   requires(std::is_invocable_v<F>)
   constexpr auto and_then(F&& f) const& {
     using U = std::remove_cvref_t<std::invoke_result_t<F>>;
-    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<U, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return std::invoke(std::forward<F>(f));
@@ -1209,7 +1195,7 @@ public:
   requires(std::is_invocable_v<F>)
   constexpr auto and_then(F&& f) && {
     using U = std::remove_cvref_t<std::invoke_result_t<F>>;
-    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<U, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return std::invoke(std::forward<F>(f));
@@ -1221,7 +1207,7 @@ public:
   requires(std::is_invocable_v<F>)
   constexpr auto and_then(F&& f) const&& {
     using U = std::remove_cvref_t<std::invoke_result_t<F>>;
-    static_assert(is_expected_with_error<E, U>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<U, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return std::invoke(std::forward<F>(f));
@@ -1235,7 +1221,7 @@ public:
   requires(std::is_invocable_v<F, E>)
   constexpr auto or_else(F&& f) & {
     using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
-    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<G, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return G{};
@@ -1247,7 +1233,7 @@ public:
   requires(std::is_invocable_v<F, E>)
   constexpr auto or_else(F&& f) const& {
     using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(error())>>;
-    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<G, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return G{};
@@ -1259,7 +1245,7 @@ public:
   requires(std::is_invocable_v<F, E>)
   constexpr auto or_else(F&& f) && {
     using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
-    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<G, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return G{};
@@ -1271,7 +1257,7 @@ public:
   requires(std::is_invocable_v<F, E>)
   constexpr auto or_else(F&& f) const&& {
     using G = std::remove_cvref_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
-    static_assert(is_expected_with_error<E, G>, "F needs to return an expected with error E");
+    static_assert(expected_with_error<G, E>, "F needs to return an expected with error E");
 
     if (*this) {
       return G{};
