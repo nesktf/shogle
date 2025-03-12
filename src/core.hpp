@@ -195,7 +195,9 @@ if (!NTF_UNLIKELY(cond)) { \
 #ifdef NDEBUG
 #define NTF_ASSERT(...) NTF_NOOP
 #define NTF_ASSUME(x) NTF_ASSUME_(x)
+#define NTF_ASSERT_NOEXCEPT noexcept
 #else
 #define NTF_ASSERT(...) NTF_ASSERT_(__VA_ARGS__)
 #define NTF_ASSUME(x) NTF_ASSERT(x)
+#define NTF_ASSERT_NOEXCEPT
 #endif

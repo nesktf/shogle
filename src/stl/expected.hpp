@@ -4,7 +4,7 @@
 
 #if !defined(NDEBUG)
 #define NTF_EXPECTED_THROW(cond, ...) \
-  NTF_ASSERT(cond, "bad_unexpected_access")
+  NTF_ASSERT(cond, "bad_expected_access")
 #define NTF_EXPECTED_NOEXCEPT noexcept
 #else
 #if defined(NTF_EXPECTED_ENABLE_EXCEPTIONS) && NTF_EXPECTED_ENABLE_EXCEPTIONS
@@ -740,34 +740,58 @@ public:
   constexpr explicit operator bool() const noexcept { return _storage.has_value(); }
   constexpr bool has_value() const noexcept { return _storage.has_value(); }
 
-  constexpr const T* operator->() const noexcept { return std::addressof(_storage.get()); }
-  constexpr T* operator->() noexcept { return std::addressof(_storage.get()); }
-
-  constexpr const T& operator*() const& NTF_EXPECTED_NOEXCEPT
+  constexpr const T* operator->() const NTF_ASSERT_NOEXCEPT
   {
-    NTF_EXPECTED_THROW(*this, E, std::as_const(_storage.get_error().value()));
-    return _storage.get();
+    NTF_ASSERT(*this, "bad_expected_access");
+    return std::addressof(_storage.get());
   }
-  constexpr T& operator*() & NTF_EXPECTED_NOEXCEPT
+  constexpr T* operator->() NTF_ASSERT_NOEXCEPT
   {
-    NTF_EXPECTED_THROW(*this, E, std::as_const(_storage.get_error().value()));
-    return _storage.get();
-  }
-  constexpr const T&& operator*() const&& NTF_EXPECTED_NOEXCEPT
-  {
-    NTF_EXPECTED_THROW(*this, E, std::move(_storage.get_error().value()));
-    return std::move(_storage.get());
-  }
-  constexpr T&& operator*() && NTF_EXPECTED_NOEXCEPT
-  {
-    NTF_EXPECTED_THROW(*this, E, std::move(_storage.get_error().value()));
-    return std::move(_storage.get());
+    NTF_ASSERT(*this, "bad_expected_access");
+    return std::addressof(_storage.get());
   }
 
-  constexpr const T& value() const& { return **this; }
-  constexpr T& value() & { return **this; }
-  constexpr const T&& value() const&& { return std::move(**this); }
-  constexpr T&& value() && { return std::move(**this); }
+  constexpr const T& operator*() const& NTF_ASSERT_NOEXCEPT
+  {
+    NTF_ASSERT(*this, "bad_expected_access");
+    return _storage.get();
+  }
+  constexpr T& operator*() & NTF_ASSERT_NOEXCEPT
+  {
+    NTF_ASSERT(*this, "bad_expected_access");
+    return _storage.get();
+  }
+  constexpr const T&& operator*() const&& NTF_ASSERT_NOEXCEPT
+  {
+    NTF_ASSERT(*this, "bad_expected_access");
+    return std::move(_storage.get());
+  }
+  constexpr T&& operator*() && NTF_ASSERT_NOEXCEPT
+  {
+    NTF_ASSERT(*this, "bad_expected_access");
+    return std::move(_storage.get());
+  }
+
+  constexpr const T& value() const&  NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return **this;
+  }
+  constexpr T& value() & NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return **this;
+  }
+  constexpr const T&& value() const&& NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return std::move(**this);
+  }
+  constexpr T&& value() && NTF_EXPECTED_NOEXCEPT
+  {
+    NTF_EXPECTED_THROW(!*this, void);
+    return std::move(**this);
+  }
 
   constexpr const E& error() const& NTF_EXPECTED_NOEXCEPT
   {
@@ -1115,6 +1139,8 @@ public:
 public:
   constexpr explicit operator bool() const noexcept { return _storage.has_value(); }
   constexpr bool has_value() const noexcept { return _storage.has_value(); }
+
+  constexpr void operator*() const noexcept {}
 
   constexpr const E& error() const& NTF_EXPECTED_NOEXCEPT
   {

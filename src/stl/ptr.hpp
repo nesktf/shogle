@@ -298,8 +298,8 @@ public:
   value_type* get() noexcept { return _arr.arr; }
   const value_type* get() const noexcept { return _arr.arr; }
 
-  bool valid() const noexcept { return get() != nullptr; }
-  explicit operator bool() const noexcept { return valid(); }
+  bool has_data() const noexcept { return get() != nullptr; }
+  explicit operator bool() const noexcept { return has_data(); }
 
   value_type& operator[](size_t idx) {
     NTF_ASSERT(idx < size());
@@ -311,14 +311,14 @@ public:
   }
 
   value_type* at(size_t idx) noexcept {
-    if (!valid() || idx >= size()) {
+    if (!has_data() || idx >= size()) {
       return nullptr;
     }
     return get()+idx;
   }
 
   const value_type* at(size_t idx) const noexcept {
-    if (!valid() || idx >= size()) {
+    if (!has_data() || idx >= size()) {
       return nullptr;
     }
     return get()+idx;
@@ -352,7 +352,7 @@ public:
 
   template<typename F>
   void for_each(F&& fun) noexcept(noexcept(fun(*get()))) {
-    if (!valid() || size() == 0) {
+    if (!has_data() || size() == 0) {
       return;
     }
     for (auto it = begin(); it != end(); ++it) {
@@ -362,7 +362,7 @@ public:
 
   template<typename F>
   void for_each(F&& fun) const noexcept(noexcept(fun(*get()))) {
-    if (!valid() || size() == 0) {
+    if (!has_data() || size() == 0) {
       return;
     }
     for (auto it = begin(); it != end(); ++it) {
