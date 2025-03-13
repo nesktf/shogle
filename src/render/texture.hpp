@@ -5,6 +5,10 @@
 
 namespace ntf {
 
+using extent1d = uint32;
+using extent2d = uvec2;
+using extent3d = uvec3;
+
 SHOGLE_DECLARE_RENDER_HANDLE(r_texture_handle);
 
 enum class r_texture_type : uint8 {
@@ -71,8 +75,8 @@ struct r_image_data {
   r_texture_format format;
   r_image_alignment alignment;
 
-  uvec3 extent;
-  uvec3 offset;
+  extent3d extent;
+  extent3d offset;
 
   uint32 layer;
   uint32 level;
@@ -82,7 +86,7 @@ struct r_texture_descriptor {
   r_texture_type type;
   r_texture_format format;
 
-  uvec3 extent;
+  extent3d extent;
   uint32 layers;
   uint32 levels;
 
@@ -104,87 +108,30 @@ struct r_texture_binding {
   uint32 location;
 };
 
-NTF_DECLARE_TAG_TYPE(uint8n);  // uint8 normalized
-NTF_DECLARE_TAG_TYPE(int8n);   // int8 normalized
-NTF_DECLARE_TAG_TYPE(uint8nl); // uint8 nonlinear
-
 template<typename T>
-concept image_array_dim_type = same_as_any<T, uint32, uvec2>;
-
-template<typename T>
-concept image_dim_type = image_array_dim_type<T> || std::same_as<T, uvec3>;
-
-template<typename T>
-concept image_depth_type = same_as_any<T, 
-  uint8n_t, uint8nl_t, int8n_t,
-  uint8, int8,
-  uint16, int16,
-  float32
->;
-
-constexpr std::array<std::string_view, 4u> image_depth_RGBA_str = { "R", "RG", "RGB", "RGBA" };
-
-template<image_depth_type T>
-struct image_depth_traits;
-
-template<>
-struct image_depth_traits<uint8n_t> {
-  using underlying_t = uint8;
-  static constexpr std::string_view name = "8 bit unsigned normalized";
-  static constexpr std::array<size_t, 4u> channels{1, 2, 3, 4};
-  static constexpr size_t bytes = 1;
-
-  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
-    switch (n) {
-      case 1: return r_texture_format::r8nu;
-      case 2: return r_texture_format::rg8nu;
-      case 3: return r_texture_format::rgb8nu;
-      case 4: return r_texture_format::rgba8nu;
-    }
-    return nullopt;
-  }
+concept tex_depth_type = requires() {
+  (
+    std::is_integral_v<typename T::underlying_type> ||
+    std::is_floating_point_v<typename T::underlying_type>
+  );
+  { T::is_signed } -> std::convertible_to<bool>;
+  { T::is_normalized } -> std::convertible_to<bool>;
+  { T::is_floating } -> std::convertible_to<bool>;
+  { T::is_linear } -> std::convertible_to<bool>;
+  { T::name } -> std::convertible_to<std::string_view>;
+  { *T::valid_channels.begin() } -> std::convertible_to<size_t>;
+  { *T::valid_channels.end() } -> std::convertible_to<size_t>;
+  { T::parse_channels(uint32{}) } -> same_as_any<r_texture_format, optional<r_texture_format>>;
 };
 
-template<>
-struct image_depth_traits<uint8nl_t> {
-  using underlying_t = uint8;
-  static constexpr std::string_view name = "8 bit unsigned nonlinear";
-  static constexpr std::array<size_t, 4u> channels{3, 4};
-  static constexpr size_t bytes = 1;
-
-  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
-    switch (n) {
-      case 3: return r_texture_format::srgb8u;
-      case 4: return r_texture_format::srgba8u;
-    }
-    return nullopt;
-  }
-};
-
-template<>
-struct image_depth_traits<int8n_t> {
-  using underlying_t = int8;
-  static constexpr std::string_view name = "8 bit signed normalized";
-  static constexpr std::array<size_t, 4u> channels{1, 2, 3, 4};
-  static constexpr size_t bytes = 1;
-
-  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
-    switch (n) {
-      case 1: return r_texture_format::r8n;
-      case 2: return r_texture_format::rg8n;
-      case 3: return r_texture_format::rgb8n;
-      case 4: return r_texture_format::rgba8n;
-    }
-    return nullopt;
-  }
-};
-
-template<>
-struct image_depth_traits<uint8> {
-  using underlying_t = uint8;
+struct tex_depth_u8 {
+  using underlying_type = uint8;
+  static constexpr bool is_signed = false;
+  static constexpr bool is_normalized = false;
+  static constexpr bool is_floating = false;
+  static constexpr bool is_linear = true;
   static constexpr std::string_view name = "8 bit unsigned integral";
-  static constexpr std::array<size_t, 4u> channels{1, 2, 3, 4};
-  static constexpr size_t bytes = 1;
+  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
     switch (n) {
@@ -196,13 +143,56 @@ struct image_depth_traits<uint8> {
     return nullopt;
   }
 };
+static_assert(tex_depth_type<tex_depth_u8>);
 
-template<>
-struct image_depth_traits<int8> {
-  using underlying_t = int8;
+struct tex_depth_u8n {
+  using underlying_type = uint8;
+  static constexpr bool is_signed = false;
+  static constexpr bool is_normalized = true;
+  static constexpr bool is_floating = false;
+  static constexpr bool is_linear = true;
+  static constexpr std::string_view name = "8 bit unsigned normalized";
+  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
+
+  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
+    switch (n) {
+      case 1: return r_texture_format::r8nu;
+      case 2: return r_texture_format::rg8nu;
+      case 3: return r_texture_format::rgb8nu;
+      case 4: return r_texture_format::rgba8nu;
+    }
+    return nullopt;
+  }
+};
+static_assert(tex_depth_type<tex_depth_u8n>);
+
+struct tex_depth_u8nl {
+  using underlying_type = uint8;
+  static constexpr bool is_signed = false;
+  static constexpr bool is_normalized = false;
+  static constexpr bool is_floating = false;
+  static constexpr bool is_linear = false;
+  static constexpr std::string_view name = "8 bit unsigned nonlinear";
+  static constexpr std::array<size_t, 2u> valid_channels{3, 4};
+
+  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
+    switch (n) {
+      case 3: return r_texture_format::srgb8u;
+      case 4: return r_texture_format::srgba8u;
+    }
+    return nullopt;
+  }
+};
+static_assert(tex_depth_type<tex_depth_u8nl>);
+
+struct tex_depth_s8 {
+  using underlying_type = int8;
+  static constexpr bool is_signed = true;
+  static constexpr bool is_normalized = false;
+  static constexpr bool is_floating = false;
+  static constexpr bool is_linear = true;
   static constexpr std::string_view name = "8 bit signed integral";
-  static constexpr std::array<size_t, 4u> channels{1, 2, 3, 4};
-  static constexpr size_t bytes = 1;
+  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
     switch (n) {
@@ -214,13 +204,37 @@ struct image_depth_traits<int8> {
     return nullopt;
   }
 };
+static_assert(tex_depth_type<tex_depth_s8>);
 
-template<>
-struct image_depth_traits<uint16> {
-  using underlying_t = uint16;
+struct tex_depth_s8n {
+  using underlying_type = int8;
+  static constexpr bool is_signed = true;
+  static constexpr bool is_normalized = true;
+  static constexpr bool is_floating = false;
+  static constexpr bool is_linear = true;
+  static constexpr std::string_view name = "8 bit signed normalized";
+  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
+
+  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
+    switch (n) {
+      case 1: return r_texture_format::r8n;
+      case 2: return r_texture_format::rg8n;
+      case 3: return r_texture_format::rgb8n;
+      case 4: return r_texture_format::rgba8n;
+    }
+    return nullopt;
+  }
+};
+static_assert(tex_depth_type<tex_depth_s8n>);
+
+struct tex_depth_u16 {
+  using underlying_type = uint16;
+  static constexpr bool is_signed = false;
+  static constexpr bool is_normalized = false;
+  static constexpr bool is_floating = false;
+  static constexpr bool is_linear = true;
   static constexpr std::string_view name = "16 bit unsigned integral";
-  static constexpr std::array<size_t, 4u> channels{1, 2, 3, 4};
-  static constexpr size_t bytes = 2;
+  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
     switch (n) {
@@ -232,13 +246,16 @@ struct image_depth_traits<uint16> {
     return nullopt;
   }
 };
+static_assert(tex_depth_type<tex_depth_u16>);
 
-template<>
-struct image_depth_traits<int16> {
-  using underlying_t = int16;
+struct tex_depth_s16 {
+  using underlying_type = int16;
+  static constexpr bool is_signed = true;
+  static constexpr bool is_normalized = false;
+  static constexpr bool is_floating = false;
+  static constexpr bool is_linear = true;
   static constexpr std::string_view name = "16 bit signed integral";
-  static constexpr std::array<size_t, 4u> channels{1, 2, 3, 4};
-  static constexpr size_t bytes = 2;
+  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
     switch (n) {
@@ -250,13 +267,16 @@ struct image_depth_traits<int16> {
     return nullopt;
   }
 };
+static_assert(tex_depth_type<tex_depth_s16>);
 
-template<>
-struct image_depth_traits<float32> {
-  using underlying_t = float32;
-  static constexpr std::string_view name = "32 bit float";
-  static constexpr std::array<size_t, 4u> channels{1, 2, 3, 4};
-  static constexpr size_t bytes = 4;
+struct tex_depth_f32 {
+  using underlying_type = float32;
+  static constexpr bool is_signed = true;
+  static constexpr bool is_normalized = false;
+  static constexpr bool is_floating = true;
+  static constexpr bool is_linear = true;
+  static constexpr std::string_view name = "32 bit floating";
+  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
 
   static constexpr optional<r_texture_format> parse_channels(uint32 n) {
     switch (n) {
@@ -268,26 +288,69 @@ struct image_depth_traits<float32> {
     return nullopt;
   }
 };
+static_assert(tex_depth_type<tex_depth_f32>);
 
-template<image_dim_type T>
-constexpr optional<r_texture_format> parse_channel_depth(uint32 n) {
-  return image_depth_traits<T>::parse_channels(n);
-}
+template<typename T>
+concept tex_array_dim_type = same_as_any<T,
+  extent1d, extent2d
+>;
 
-template<image_dim_type Dim>
-constexpr uvec3 image_dim_cast(const Dim& dim) noexcept {
-  if constexpr(std::same_as<Dim, uvec3>) {
+template<typename T>
+concept tex_array_dim_convertible = convertible_to_any<T,
+  extent1d, extent2d
+>;
+
+template<typename T>
+concept tex_dim_type = same_as_any<T,
+  extent1d, extent2d, extent3d
+>;
+
+template<typename T>
+concept tex_dim_convertible = convertible_to_any<T,
+  extent1d, extent2d, extent3d
+>;
+
+template<tex_dim_type D>
+constexpr extent3d tex_extent_cast(const D& dim) noexcept {
+  if constexpr (std::same_as<D, extent3d>) {
     return dim;
-  } else if constexpr(std::same_as<Dim, uvec2>) {
-    return uvec3{static_cast<uint32>(dim.x), static_cast<uint32>(dim.y), 0};
+  } else if constexpr (std::same_as<D, extent2d>) {
+    return extent3d{static_cast<uint32>(dim.x), static_cast<uint32>(dim.y), 1u};
   } else {
-    return uvec3{static_cast<uint32>(dim), 0, 0};
+    return extent3d{static_cast<uint32>(dim), 1u, 1u};
+  }
+};
+
+template<tex_dim_type D>
+constexpr extent3d tex_offset_cast(const D& dim) noexcept {
+  if constexpr (std::same_as<D, extent3d>) {
+    return dim;
+  } else if constexpr (std::same_as<D, extent2d>) {
+    return extent3d{static_cast<uint32>(dim.x), static_cast<uint32>(dim.y), 0u};
+  } else {
+    return extent3d{static_cast<uint32>(dim), 0u, 0u};
   }
 }
 
-template<image_array_dim_type Dim>
-constexpr uvec3 image_array_offset_cast(const Dim& offset, size_t i) noexcept {
-  if constexpr (std::same_as<Dim, uvec2>) {
+template<tex_depth_type T, tex_dim_type D>
+constexpr size_t tex_stride(const D& extent) noexcept {
+  if constexpr (std::same_as<D, extent3d>) {
+    return static_cast<size_t>(extent.x*extent.y*extent.z)*sizeof(T::underlying_type);
+  } else if constexpr (std::same_as<D, uvec2>) {
+    return static_cast<size_t>(extent.x*extent.y)*sizeof(T::underlying_type);
+  } else {
+    return static_cast<size_t>(extent)*sizeof(T::underlying_type);
+  }
+};
+
+template<tex_depth_type T, tex_dim_type D>
+constexpr size_t tex_stride(T&&, const D& extent) noexcept {
+  return tex_stride<T>(std::forward<D>(extent));
+}
+
+template<tex_array_dim_type D>
+constexpr extent3d tex_array_offset(const D& offset, size_t i) noexcept {
+  if constexpr (std::same_as<D, uvec2>) {
     return {static_cast<uint32>(offset.x), static_cast<uint32>(offset.y), static_cast<uint32>(i)};
   } else {
     return {static_cast<uint32>(offset), static_cast<uint32>(i), 0};

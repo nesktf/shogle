@@ -40,6 +40,7 @@ auto grid_atlas_loader_parse_impl(
   auto tex_path = fmt::format("{}/{}", *dir_path, json_data["file"].get<std::string>());
   auto tex_info = stb_image_loader::parse_meta(tex_path);
   RET_ERR_IF(!tex_info, "Failed to open texture file \"{}\"", tex_path);
+  auto& [dim, _] = *tex_info;
 
   grid_atlas_loader::data_t atlas_data;
   try {
@@ -144,7 +145,7 @@ auto grid_atlas_loader_parse_impl(
       auto group_name = content["name"].get<std::string>();
 
       parse_sequences(group_name, content["anim"]);
-      const uint32 group_sz = parse_offsets(tex_info->width, tex_info->height, content["offset"]);
+      const uint32 group_sz = parse_offsets(dim.x, dim.y, content["offset"]);
 
       // _indices.reserve(group_size);
       size_t index_count = atlas_data.indices.size();

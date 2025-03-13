@@ -16,16 +16,16 @@ using nullopt_t = std::nullopt_t;
 constexpr nullopt_t nullopt = std::nullopt;
 
 template<typename T>
-struct is_optional : public std::false_type{};
+struct optional_checker : public std::false_type{};
 
 template<typename T>
-struct is_optional<optional<T>> : public std::true_type{};
+struct optional_checker<optional<T>> : public std::true_type{};
 
 template<typename T>
-constexpr bool is_optional_v = is_optional<T>::value;
+constexpr bool optional_checker_v = optional_checker<T>::value;
 
 template<typename T>
-concept is_optional_type = is_optional_v<T>;
+concept optional_type = optional_checker_v<T>;
 
 #else
 namespace impl {

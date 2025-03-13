@@ -1,3 +1,5 @@
+#pragma once
+
 #include "./types.hpp"
 
 namespace ntf {
@@ -25,5 +27,7 @@ inline optional<std::string> file_dir(std::string_view path) {
   }
   return std::string{path.substr(0, pos)};
 }
+
+using file_close_t = std::unique_ptr<std::FILE, decltype([](std::FILE* f){ std::fclose(f); })>;
 
 } // namespace ntf

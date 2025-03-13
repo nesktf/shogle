@@ -5,111 +5,40 @@
 
 namespace ntf {
 
-namespace {
-
-template<typename T, bool>
-struct stbi_load_ret {
-  using type = asset_expected<stb_image_loader::stbi_ptr<T>>;
-};
-
-template<typename T>
-struct stbi_load_ret<T, false> {
-  using type = stb_image_loader::stbi_ptr<T>;
-};
-
-template<typename T, bool checked>
-auto stbi_load_impl(const std::string& path,
-                    uint32& w, uint32& h, uint32& ch,
-                    image_load_flags flags) -> stbi_load_ret<T, checked>::type {
-  int w_, h_, ch_;
-  stbi_set_flip_vertically_on_load(+(flags & image_load_flags::flip_vertically));
-
-  T* stbi_data;
-  if constexpr (std::same_as<T, uint8>) {
-    stbi_data = stbi_load(path.c_str(), &w_, &h_, &ch_, 0);
-  } else if constexpr (std::same_as<T, uint16>) {
-    stbi_data = stbi_load_16(path.c_str(), &w_, &h_, &ch_, 0);
-  } else if constexpr (std::same_as<T, float32>) {
-    stbi_data = stbi_loadf(path.c_str(), &w_, &h_, &ch_, 0);
-  } else {
-    NTF_UNREACHABLE();
+optional<std::pair<extent2d, uint32>> stb_image_loader::_stbi_preparse_file(std::FILE* f) {
+  int w, h, ch;
+  if (stbi_info_from_file(f, &w, &h, &ch)) {
+    return std::make_pair(
+      extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
+    );
   }
-
-  if constexpr (checked) {
-    if (!stbi_data) {
-      const char* err = stbi_failure_reason();
-      SHOGLE_LOG(error, "[ntf::stb_image_loader] Failed to load image \"{}\": {}", path, err);
-      return unexpected{asset_error::format({"{}"}, err)};
-    }
-  } else {
-    NTF_ASSERT(stbi_data);
-  }
-
-  w = static_cast<uint32>(w_);
-  h = static_cast<uint32>(h_);
-  ch = static_cast<uint32>(ch_);
-
-  SHOGLE_LOG(debug, "[ntf::stb_image_loader] Loaded {} {} {}x{} image \"{}\"",
-             impl::img_depth_str<T>::value, impl::img_RGBA_str[ch], w, h, path);
-
-  return stb_image_loader::stbi_ptr<T>{stbi_data, stb_image_loader::deleter<T>{}};
+  return nullopt;
 }
 
-} // namespace
+const char* stb_image_loader::_stbi_get_err() {
+  return stbi_failure_reason();
+}
+
+uint8* stb_image_loader::_stbi_load_u8(std::FILE* f, image_load_flags flags, int32 desired) {
+  stbi_set_flip_vertically_on_load(+(flags & image_load_flags::flip_y));
+  int w, h, ch;
+  return stbi_load_from_file(f, &w, &h, &ch, desired);
+}
+
+uint16* stb_image_loader::_stbi_load_u16(std::FILE* f, image_load_flags flags, int32 desired) {
+  stbi_set_flip_vertically_on_load(+(flags & image_load_flags::flip_y));
+  int w, h, ch;
+  return stbi_load_from_file_16(f, &w, &h, &ch, desired);
+}
+
+float32* stb_image_loader::_stbi_load_f32(std::FILE* f, image_load_flags flags, int32 desired) {
+  stbi_set_flip_vertically_on_load(+(flags & image_load_flags::flip_y));
+  int w, h, ch;
+  return stbi_loadf_from_file(f, &w, &h, &ch, desired);
+}
 
 void stb_image_loader::stbi_delete(void* data) {
   stbi_image_free(data);
-}
-
-auto stb_image_loader::load_rgb8u(const std::string& path,
-                                  uint32& w, uint32& h, uint32& ch,
-                                  image_load_flags flags) -> asset_expected<stbi_ptr<uint8>> {
-  return stbi_load_impl<uint8, true>(path, w, h, ch, flags);
-}
-
-auto stb_image_loader::load_rgb8u(unchecked_t,
-                                  const std::string& path,
-                                  uint32& w, uint32& h, uint32& ch,
-                                  image_load_flags flags) -> stbi_ptr<uint8> {
-  return stbi_load_impl<uint8, false>(path, w, h, ch, flags);
-}
-
-auto stb_image_loader::load_rgb16u(const std::string& path,
-                                   uint32& w, uint32& h, uint32& ch,
-                                   image_load_flags flags) -> asset_expected<stbi_ptr<uint16>> {
-  return stbi_load_impl<uint16, true>(path, w, h, ch, flags);
-}
-
-auto stb_image_loader::load_rgb16u(unchecked_t,
-                                   const std::string& path,
-                                   uint32& w, uint32& h, uint32& ch,
-                                   image_load_flags flags) -> stbi_ptr<uint16> {
-  return stbi_load_impl<uint16, false>(path, w, h, ch, flags);
-}
-
-auto stb_image_loader::load_rgb32f(const std::string& path,
-                                   uint32& w, uint32& h, uint32& ch,
-                                   image_load_flags flags) -> asset_expected<stbi_ptr<float32>> {
-  return stbi_load_impl<float32, true>(path, w, h, ch, flags);
-}
-
-auto stb_image_loader::load_rgb32f(unchecked_t,
-                                   const std::string& path,
-                                   uint32& w, uint32& h, uint32& ch,
-                                   image_load_flags flags) -> stbi_ptr<float32> {
-  return stbi_load_impl<float32, false>(path, w, h, ch, flags);
-}
-
-optional<texture_meta> stb_image_loader::parse_meta(const std::string& path) {
-  int w, h, ch;
-  if (stbi_info(path.c_str(), &w, &h, &ch)) {
-    return texture_meta {
-      .width = static_cast<uint32>(w),
-      .height = static_cast<uint32>(h),
-      .channels = static_cast<uint32>(ch),
-    };
-  }
-  return nullopt;
 }
 
 } // namespace ntf

@@ -227,7 +227,7 @@ auto load_atlas(
       auto seqs = loader.sequences(data);
       using gret_t = decltype(groups);
       using sret_t = decltype(seqs);
-      if constexpr (is_optional_type<gret_t> && is_optional_type<sret_t>) {
+      if constexpr (optional_type<gret_t> && optional_type<sret_t>) {
         if (groups && seqs) {
           return atlas_data_t {
             loader.image_path(data),
@@ -256,7 +256,7 @@ auto load_atlas(
             loader.sprites(data),
           };
         }
-      } else if constexpr (is_optional_type<gret_t>) {
+      } else if constexpr (optional_type<gret_t>) {
         if (groups) {
           return atlas_data_t {
             loader.image_path(data),
@@ -273,7 +273,7 @@ auto load_atlas(
             std::move(seqs)
           };
         }
-      } else if constexpr (is_optional_type<sret_t>) {
+      } else if constexpr (optional_type<sret_t>) {
         if (seqs) {
           return atlas_data_t {
             loader.image_path(data),

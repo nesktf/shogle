@@ -464,6 +464,7 @@ GLenum gl_state::texture_type_cast(r_texture_type type, bool is_array) noexcept 
 GLenum gl_state::texture_format_cast(r_texture_format format) noexcept {
   switch (format) {
     case r_texture_format::r8n:       return GL_R8_SNORM;
+    case r_texture_format::r8nu:      return GL_R8;
     case r_texture_format::r8u:       return GL_R8UI;
     case r_texture_format::r8i:       return GL_R8I;
     case r_texture_format::r16u:      return GL_R16UI;
@@ -474,6 +475,7 @@ GLenum gl_state::texture_format_cast(r_texture_format format) noexcept {
     case r_texture_format::r32f:      return GL_R32F;
 
     case r_texture_format::rg8n:      return GL_RG8_SNORM;
+    case r_texture_format::rg8nu:     return GL_RG;
     case r_texture_format::rg8u:      return GL_RG8UI;
     case r_texture_format::rg8i:      return GL_RG8I;
     case r_texture_format::rg16u:     return GL_RG16UI;
@@ -484,6 +486,7 @@ GLenum gl_state::texture_format_cast(r_texture_format format) noexcept {
     case r_texture_format::rg32f:     return GL_RG32F;
 
     case r_texture_format::rgb8n:     return GL_RGB8_SNORM;
+    case r_texture_format::rgb8nu:    return GL_RGB8;
     case r_texture_format::rgb8u:     return GL_RGB8UI;
     case r_texture_format::rgb8i:     return GL_RGB8I;
     case r_texture_format::rgb16u:    return GL_RGB16UI;
@@ -493,7 +496,8 @@ GLenum gl_state::texture_format_cast(r_texture_format format) noexcept {
     case r_texture_format::rgb32i:    return GL_RGB32I;
     case r_texture_format::rgb32f:    return GL_RGB32F;
 
-    case r_texture_format::rgba8n:     return GL_RGBA8_SNORM;
+    case r_texture_format::rgba8n:    return GL_RGBA8_SNORM;
+    case r_texture_format::rgba8nu:   return GL_RGBA8;
     case r_texture_format::rgba8u:    return GL_RGBA8UI;
     case r_texture_format::rgba8i:    return GL_RGBA8UI;
     case r_texture_format::rgba16u:   return GL_RGBA16UI;
@@ -514,6 +518,7 @@ GLenum gl_state::texture_format_symbolic_cast(r_texture_format format) noexcept 
 
   switch (format) {
     case r_texture_format::r8n:       [[fallthrough]];
+    case r_texture_format::r8nu:      [[fallthrough]];
     case r_texture_format::r8u:       [[fallthrough]];
     case r_texture_format::r8i:       [[fallthrough]];
     case r_texture_format::r16u:      [[fallthrough]];
@@ -524,6 +529,7 @@ GLenum gl_state::texture_format_symbolic_cast(r_texture_format format) noexcept 
     case r_texture_format::r32f:      return GL_RED;
 
     case r_texture_format::rg8n:      [[fallthrough]];
+    case r_texture_format::rg8nu:     [[fallthrough]];
     case r_texture_format::rg8u:      [[fallthrough]];
     case r_texture_format::rg8i:      [[fallthrough]];
     case r_texture_format::rg16u:     [[fallthrough]];
@@ -534,6 +540,7 @@ GLenum gl_state::texture_format_symbolic_cast(r_texture_format format) noexcept 
     case r_texture_format::rg32f:     return GL_RG;
 
     case r_texture_format::rgb8n:     [[fallthrough]];
+    case r_texture_format::rgb8nu:    [[fallthrough]];
     case r_texture_format::rgb8u:     [[fallthrough]];
     case r_texture_format::rgb8i:     [[fallthrough]];
     case r_texture_format::rgb16u:    [[fallthrough]];
@@ -544,6 +551,7 @@ GLenum gl_state::texture_format_symbolic_cast(r_texture_format format) noexcept 
     case r_texture_format::rgb32f:    return GL_RGB;
 
     case r_texture_format::rgba8n:    [[fallthrough]];
+    case r_texture_format::rgba8nu:   [[fallthrough]];
     case r_texture_format::rgba8u:    [[fallthrough]];
     case r_texture_format::rgba8i:    [[fallthrough]];
     case r_texture_format::rgba16u:   [[fallthrough]];
@@ -563,13 +571,17 @@ GLenum gl_state::texture_format_symbolic_cast(r_texture_format format) noexcept 
 GLenum gl_state::texture_format_underlying_cast(r_texture_format format) noexcept {
   switch (format) {
     case r_texture_format::r8u:       [[fallthrough]];
+    case r_texture_format::r8nu:      [[fallthrough]];
     case r_texture_format::r8n:       [[fallthrough]];
     case r_texture_format::rg8u:      [[fallthrough]];
     case r_texture_format::rg8n:      [[fallthrough]];
+    case r_texture_format::rg8nu:     [[fallthrough]];
     case r_texture_format::rgb8u:     [[fallthrough]];
     case r_texture_format::rgb8n:     [[fallthrough]];
+    case r_texture_format::rgb8nu:    [[fallthrough]];
     case r_texture_format::rgba8u:    [[fallthrough]];
     case r_texture_format::rgba8n:    [[fallthrough]];
+    case r_texture_format::rgba8nu:   [[fallthrough]];
     case r_texture_format::srgb8u:    [[fallthrough]];
     case r_texture_format::srgba8u:   return GL_UNSIGNED_BYTE;
 

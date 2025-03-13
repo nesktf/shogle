@@ -2,7 +2,7 @@
 
 #include "./types.hpp"
 
-#include "../render/types.hpp"
+#include "../render/forward.hpp"
 
 namespace ntf {
 

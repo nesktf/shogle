@@ -1,6 +1,7 @@
 #pragma once
 
 #include "./types.hpp"
+#include "./filesystem.hpp"
 
 #include "../stl/function.hpp"
 
@@ -11,23 +12,22 @@
 namespace ntf {
 
 template<
-  image_depth_type T,
-  image_dim_type Dim = uvec2,
+  tex_depth_type T,
+  tex_dim_type Dim = extent2d,
   typename Deleter = allocator_delete<T, std::allocator<T>>
 >
 struct image_data {
 public:
-using depth_type = T;
+  using depth_type = T;
   using dim_type = Dim;
-
-  using texel_type = image_depth_traits<T>::underlying_t;
-  using array_type = unique_array<texel_type, Deleter>;
+  using array_type = unique_array<typename T::underlying_type, Deleter>;
 
 public:
-  image_data(array_type&& texels_, dim_type dim_, r_texture_format format_) SHOGLE_ASSET_NOEXCEPT :
-    texels{std::move(texels_)}, dim{dim_}, format{format_}
+  image_data(array_type&& texels_, dim_type dim_,
+             r_texture_format format_, r_image_alignment alignment_) SHOGLE_ASSET_NOEXCEPT :
+    texels{std::move(texels_)}, dim{dim_}, format{format_}, alignment{alignment_}
   {
-    SHOGLE_ASSET_THROW_IF(texels.has_data(), "No data in texel array");
+    SHOGLE_ASSET_THROW_IF(!texels.has_data(), "No data in texel array");
   }
 
 public:
@@ -39,8 +39,9 @@ public:
     return r_image_data{
       .texels = texels.get(),
       .format = format,
-      .extent = image_dim_cast(dim),
-      .offset = image_dim_cast(offset),
+      .alignment = alignment,
+      .extent = tex_extent_cast(dim),
+      .offset = tex_offset_cast(offset),
       .layer = layer,
       .level = level,
     };
@@ -50,14 +51,15 @@ public:
   array_type texels;
   dim_type dim;
   r_texture_format format;
+  r_image_alignment alignment;
 };
 
 NTF_DEFINE_TEMPLATE_CHECKER(image_data);
 
 template<
-  image_depth_type T,
-  uint32 array_size,
-  image_array_dim_type Dim = uvec2,
+  tex_depth_type T,
+  size_t array_size,
+  tex_array_dim_type Dim = extent2d,
   typename Deleter = allocator_delete<T, std::allocator<T>>
 >
 struct image_data_array {
@@ -66,22 +68,20 @@ public:
 
   using depth_type = T;
   using dim_type = Dim;
-
-  using texel_type = image_depth_traits<T>::underlying_t;
-  using array_type = std::array<unique_array<texel_type, Deleter>, array_size>;
+  using array_type = std::array<unique_array<typename T::underlying_type, Deleter>, array_size>;
 
 public:
-  image_data_array(array_type&& texels_,
-                   dim_type dim_, r_texture_format format_) SHOGLE_ASSET_NOEXCEPT :
-  texels{std::move(texels_)}, dim{dim_}, format{format_}
+  image_data_array(array_type&& texels_, dim_type dim_,
+                   r_texture_format format_, r_image_alignment alignment_) SHOGLE_ASSET_NOEXCEPT :
+    texels{std::move(texels_)}, dim{dim_}, format{format_}, alignment{alignment_}
   {
     SHOGLE_ASSET_THROW_IF([this](){
       for (const auto& tex : texels) {
         if (!tex.has_data()) {
-          return false;
+          return true;
         }
       }
-      return true;
+      return false;
     }(), "No data in texel array");
   }
 
@@ -95,8 +95,9 @@ public:
     for (size_t i = 0; i < array_size; ++i) {
       out[i].texels = texels[i].get();
       out[i].format = format;
-      out[i].extent = image_dim_cast(dim);
-      out[i].offset = image_array_offset_cast(offset, i);
+      out[i].alignment = alignment;
+      out[i].extent = tex_extent_cast(dim);
+      out[i].offset = tex_array_offset(offset, i);
       out[i].layer = static_cast<uint32>(i);
       out[i].level = level;
     }
@@ -107,6 +108,7 @@ public:
   array_type texels;
   dim_type dim;
   r_texture_format format;
+  r_image_alignment alignment;
 };
 
 NTF_DEFINE_TEMPLATE_CHECKER(image_data_array);
@@ -115,53 +117,45 @@ template<typename T, typename Deleter = allocator_delete<T, std::allocator<T>>>
 using cubemap_image_data = image_data_array<T, 6u, uvec2, Deleter>;
 
 template<
-  image_depth_type T,
-  image_array_dim_type Dim = uvec2,
+  tex_depth_type T,
+  tex_array_dim_type Dim = extent2d,
   typename Deleter = allocator_delete<T, std::allocator<T>>
 >
 struct dense_image_data_array {
 public:
   using depth_type = T;
   using dim_type = Dim;
-
-  using texel_type = image_depth_traits<T>::underlying_t;
-  using array_type = unique_array<texel_type, Deleter>;
+  using array_type = unique_array<typename T::underlying_type, Deleter>;
   
 public:
-  dense_image_data_array(array_type&& texels_, size_t size_,
-                         dim_type dim_, r_texture_format format_) SHOGLE_ASSET_NOEXCEPT :
-    texels{std::move(texels_)}, size{size_}, dim{dim_}, format{format_}
+  dense_image_data_array(array_type&& texels_, size_t array_size_, dim_type dim_,
+                         r_texture_format format_,
+                         r_image_alignment alignment_) SHOGLE_ASSET_NOEXCEPT :
+    texels{std::move(texels_)}, array_size{array_size_}, dim{dim_},
+    format{format_}, alignment{alignment_}
   {
     SHOGLE_ASSET_THROW_IF(texels.has_data(), "No data in texel array");
-    SHOGLE_ASSET_THROW_IF(size > 0, "Array size can't be 0");
+    SHOGLE_ASSET_THROW_IF(array_size > 0, "Array size can't be 0");
   }
 
 public:
-  template<standard_allocator_type<r_image_data> Alloc = std::allocator<r_image_data>>
+  template<allocator_type<r_image_data> Alloc = std::allocator<r_image_data>>
   auto make_descriptor(
     const dim_type& offset = {},
     uint32 level = 0,
     Alloc&& alloc = {}
   ) const SHOGLE_ASSET_NOEXCEPT -> unique_array<r_image_data, allocator_delete<T, Alloc>>
   {
-    auto out = unique_array<r_image_data>::from_allocator(::ntf::uninitialized, size, alloc);
+    auto out = unique_array<r_image_data>::from_allocator(::ntf::uninitialized, array_size, alloc);
     SHOGLE_ASSET_THROW_IF(!out.has_data(), "Allocation failure");
 
-    const auto image_stride = sizeof(texel_type)*[this]() -> size_t {
-      if constexpr(std::same_as<Dim, uvec3>) {
-        return static_cast<size_t>(dim.x*dim.y*dim.z);
-      } else if constexpr(std::same_as<Dim, uvec2>) {
-        return static_cast<size_t>(dim.x*dim.y);
-      } else {
-        return static_cast<size_t>(dim);
-      }
-    }();
-    for (size_t i = 0; i < size; ++i) {
+    for (size_t i = 0; i < array_size; ++i) {
       std::construct_at(out.get()+i, r_image_data{
-        .texels = texels.get()+i*image_stride,
+        .texels = texels.get()+i*tex_stride<T>(dim),
         .format = format,
-        .extent = image_dim_cast(dim),
-        .offset = image_array_offset_cast(offset, i),
+        .alignment = alignment,
+        .extent = tex_extent_cast(dim),
+        .offset = tex_array_offset(offset, i),
         .layer = static_cast<uint32>(i),
         .level = level,
       });
@@ -171,9 +165,10 @@ public:
   
 public:
   array_type texels;
-  size_t size;
+  size_t array_size;
   dim_type dim;
   r_texture_format format;
+  r_image_alignment alignment;
 };
 
 NTF_DEFINE_TEMPLATE_CHECKER(dense_image_data_array);
@@ -184,63 +179,80 @@ enum class image_load_flags {
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(image_load_flags);
 
-template<typename Loader, typename T, typename Dim>
-concept image_loader_type = requires(Loader& loader,
-                                     typename Loader::data_t& data,
-                                     const std::string& path,
-                                     image_load_flags flags) {
-  { loader.template parse<T, Dim>(path, flags) } -> 
-    same_as_any<typename Loader::data_t, asset_expected<typename Loader::data_t>>;
-  { loader.texels(data) } -> std::convertible_to<unique_array<
-      typename image_depth_traits<T>::underlying_t,
-      typename Loader::template deleter<T>
+template<typename Loader, typename DepthT>
+concept checked_image_loader_type = 
+  requires(Loader& loader, DepthT tag, const std::string& path, image_load_flags flags,
+           decltype(loader.parse(tag, path, flags)) data) {
+    { loader.parse(tag, path, flags) } -> expected_with_error<asset_error>;
+    { loader.texels(*data) } -> std::convertible_to<unique_array<
+      typename DepthT::underlying_type,
+      typename Loader::template texel_deleter<typename DepthT::underlying_type>
     >>;
-  { loader.dimensions(data) } -> std::convertible_to<Dim>;
-  { loader.format(data) } -> std::convertible_to<r_texture_format>;
-};
+    { loader.dimensions(*data) } -> tex_dim_convertible;
+    { loader.format(*data) } -> std::convertible_to<r_texture_format>;
+    { loader.alignment(*data) } -> std::convertible_to<r_image_alignment>;
+  };
+
+template<typename Loader, typename DepthT>
+concept unchecked_image_loader_type =
+  requires(Loader& loader, DepthT tag, const std::string& path, image_load_flags flags,
+           decltype(loader.parse(tag, path, flags)) data) {
+    { loader.parse(tag, path, flags) } -> not_void;
+    { loader.texels(data) } -> std::convertible_to<unique_array<
+      typename DepthT::underlying_type,
+      typename Loader::template texel_deleter<typename DepthT::underlying_type>
+    >>;
+    { loader.dimensions(data) } -> tex_dim_convertible;
+    { loader.format(data) } -> std::convertible_to<r_texture_format>;
+    { loader.alignment(data) } -> std::convertible_to<r_image_alignment>;
+  };
+
+template<typename Loader, typename DepthT>
+concept image_loader_type =
+  checked_image_loader_type<Loader, DepthT> || unchecked_image_loader_type<Loader, DepthT>;
 
 namespace impl {
 
 template<
-  image_depth_type T,
-  image_dim_type Dim,
-  image_loader_type<T, Dim> Loader,
+  tex_depth_type T,
+  tex_dim_type Dim,
+  image_loader_type<T> Loader,
   bool checked
 >
 auto load_image (
-// load_image_ret<T, typename Loader::template deleter<T>, checked>::type load_image(
+  T&& tag,
   const std::string& path,
   image_load_flags flags,
   Loader&& loader
-) -> std::conditional_t<checked,
-    asset_expected<image_data<T, Dim, typename Loader::template deleter<T>>>,
-    image_data<T, Dim, typename Loader::template deleter<T>>
-  >
-{
-  using image_data_t = image_data<T, Dim, typename Loader::template deleter<T>>;
+) {
+  using image_data_t = image_data<T, Dim,
+    typename Loader::template texel_deleter<typename T::underlying_type>
+  >;
   using ret_t = std::conditional_t<checked, asset_expected<image_data_t>, image_data_t>;
-  using loader_ret_t = decltype(loader.template parse<T>(path, flags));
 
   auto make_data = [&](auto&& data) -> ret_t {
     return image_data_t{
-      loader.texels(data),
+      std::move(loader.texels(data)),
       loader.dimensions(data),
-      loader.format(data)
+      loader.format(data),
+      loader.alignment(data)
     };
   };
 
-  auto ret = asset_expected<image_data_t>::catch_error([&]() -> asset_expected<image_data_t> {
-    if constexpr (expected_type<loader_ret_t>) {
-      return loader.template parse<T, Dim>(path, flags).and_then(make_data);
-    } else {
-      return make_data(loader.template parse<T, Dim>(path, flags));
-    }
-  });
   if constexpr (checked) {
-    return ret;
+    return asset_expected<image_data_t>::catch_error([&]() -> asset_expected<image_data_t> {
+      if constexpr (checked_image_loader_type<Loader, T>) {
+        return loader.parse(std::forward<T>(tag), path, flags).and_then(make_data);
+      } else {
+        return make_data(loader.parse(std::forward<T>(tag), path, flags));
+      }
+    });
   } else {
-    SHOGLE_ASSET_THROW_IF(ret, ret.error().what());
-    return std::move(*ret);
+    if constexpr (checked_image_loader_type<Loader, T>) {
+      return make_data(*loader.parse(std::forward<T>(tag), path, flags));
+    } else {
+      return make_data(loader.parse(std::forward<T>(tag), path, flags));
+    }
   }
 }
 
@@ -249,296 +261,184 @@ auto load_image (
 class stb_image_loader {
 public:
   template<typename T>
-  struct deleter {
+  struct texel_deleter {
     void operator()(T* data, size_t) { stb_image_loader::stbi_delete(data); }
   };
 
   template<typename T>
-  using stbi_arr = unique_array<T, deleter<T>>;
+  friend struct texel_deleter;
 
-  template<typename T, typename Dim>
+  template<typename T>
+  using stbi_texels = unique_array<T, texel_deleter<T>>;
+
+  template<typename T>
   struct data_t {
-    stbi_arr<T> texels;
-    Dim dimensions;
+    stbi_texels<T> texels;
+    extent2d dimensions;
     r_texture_format format;
   };
 
-public:
-  template<image_depth_type T, image_dim_type Dim>
-  auto load(
-    const std::string& path,
-    image_load_flags flags
-  ) -> asset_expected<data_t<T, Dim>> {
-    
-    if constexpr (std::same_as<T, uint8>) {
-      return load_rgb8u(path, w, h, ch, flags);
-    } else if constexpr (std::same_as<T, uint16>) {
-      return load_rgb16u(path, w, h, ch, flags);
-    } else if constexpr (std::same_as<T, float32>) {
-      return load_rgb32f(path, w, h, ch, flags);
-    } else {
-      NTF_UNREACHABLE();
-    }
-  }
-
-  template<image_depth_type T>
-  auto load(unchecked_t,
-            const std::string& path,
-            uint32& w, uint32& h, uint32& ch,
-            image_load_flags flags) -> stbi_ptr<T> {
-    if constexpr (std::same_as<T, uint8>) {
-      return load_rgb8u(unchecked, path, w, h, ch, flags);
-    } else if constexpr (std::same_as<T, uint16>) {
-      return load_rgb16u(unchecked, path, w, h, ch, flags);
-    } else if constexpr (std::same_as<T, float32>) {
-      return load_rgb32f(unchecked, path, w, h, ch, flags);
-    } else {
-      NTF_UNREACHABLE();
-    }
-  }
-
-  static optional<texture_meta> parse_meta(const std::string& path);
+private: 
+  static optional<std::pair<extent2d, uint32>> _stbi_preparse_file(std::FILE* f);
+  static const char* _stbi_get_err();
+  static uint8* _stbi_load_u8(std::FILE* f, image_load_flags flags, int32 desired);
+  static uint16* _stbi_load_u16(std::FILE* f, image_load_flags flags, int32 desired);
+  static float32* _stbi_load_f32(std::FILE* f, image_load_flags flags, int32 desired);
+  static void stbi_delete(void* data);
 
 private:
-  template<typename T>
-  auto _parse_texels(const std::string& path, image_load_flags flags) {
-    constexpr size_t byte_sz = sizeof(image_depth_traits<T>::bytes);
-    stbi_arr<typename image_depth_traits<T>::underlying_t> texels;
+  template<typename Parser>
+  auto _pre_parse(
+    const std::string& path,
+    Parser&& parser
+  ) -> asset_expected<std::tuple<file_close_t, extent2d, r_texture_format, size_t>> {
+    auto* file = std::fopen(path.c_str(), "rb");
+    if (!file) {
+      SHOGLE_LOG(error, "[ntf::stb_image_loader] Failed to open file \"{}\"", path);
+      return unexpected{asset_error::format({"Failed to open file \"{}\""}, path)};
+    }
+    file_close_t fcloser{file};
 
-    if constexpr (byte_sz == 1) {
-
-    } else if constexpr (byte_sz == 2) {
-
-    } else {
-
+    auto pre_parse = _stbi_preparse_file(file);
+    if (!pre_parse) {
+      SHOGLE_LOG(error, "[ntf::stb_image_loader] Failed to preparse file \"{}\"", path);
+      return unexpected{asset_error::format({"Failed to preparse file \"{}\""}, path)};
     }
 
-    return texels;
+    auto& [dims, channels] = *pre_parse;
+    size_t sz = static_cast<size_t>(dims.x*dims.y*channels);
+    auto format = parser(channels);
+    if constexpr (optional_type<decltype(format)>) {
+      if (!format) {
+        SHOGLE_LOG(error, "[ntf::stb_image_loader] Invalid channels in file \"{}\"", path);
+        return unexpected{asset_error::format({"Invalid channels in file \"{}\""}, path)};
+      }
+      return std::make_tuple(std::move(fcloser), dims, *format, sz);
+    } else {
+      return std::make_tuple(std::move(fcloser), dims, format, sz);
+    }
   }
 
-  static void stbi_delete(void* data);
-  static uint8* stbi_load_8u(const char* path, int& w, int& h, int& ch, bool flip_y);
-  static uint16* stbi_load_16u(const char* path, int& w, int& h, int& ch, bool flip_y);
-  static float32* stbi_load_32f(const char* path, int& w, int& h, int& ch, bool flip_y);
+  template<tex_depth_type T, typename Loader>
+  auto _make_parser(const std::string& path, image_load_flags flags, Loader&& load) {
+    using und_t = T::underlying_type;
+    return
+    [&path, flags, load=std::forward<Loader>(load)](auto&& pre) -> asset_expected<data_t<und_t>> {
+      auto&& [fcloser, dims, format, sz] = std::forward<decltype(pre)>(pre);
+      und_t* data = load(fcloser.get(), flags, 0); // TODO: Maybe pass type channels?
+      if (!data) {
+        const char* err = _stbi_get_err();
+        SHOGLE_LOG(error, "[ntf::stb_image_loader] Failed to parse file \"{}\", {}", path, err);
+        return unexpected{asset_error::format({"Failed to parse file \"{}\", {}"}, path, err)};
+      }
+      return data_t<und_t>{
+        stbi_texels<und_t>{data, sz, texel_deleter<und_t>{}}, dims, format
+      };
+    };
+  }
 
-  auto load_rgb8u(const std::string& path,
-                  uint32& w, uint32& h, uint32& ch,
-                  image_load_flags flags) -> asset_expected<stbi_ptr<uint8>>;
+public:
+  asset_expected<data_t<uint8>> parse(tex_depth_u8,
+                                      const std::string& path, image_load_flags flags) noexcept {
+    return _pre_parse(path, tex_depth_u8::parse_channels)
+      .and_then(_make_parser<tex_depth_u8>(path, flags, _stbi_load_u8));
+  }
 
-  auto load_rgb8u(unchecked_t,
-                  const std::string& path,
-                  uint32& w, uint32& h, uint32& ch,
-                  image_load_flags flags) -> stbi_ptr<uint8>;
+  asset_expected<data_t<uint8>> parse(tex_depth_u8n,
+                                      const std::string& path, image_load_flags flags) noexcept {
+    return _pre_parse(path, tex_depth_u8n::parse_channels)
+      .and_then(_make_parser<tex_depth_u8n>(path, flags, _stbi_load_u8));
+  }
 
-  auto load_rgb16u(const std::string& path,
-                   uint32& w, uint32& h, uint32& ch,
-                   image_load_flags flags) -> asset_expected<stbi_ptr<uint16>>;
+  asset_expected<data_t<uint16>> parse(tex_depth_u16,
+                                       const std::string& path, image_load_flags flags) noexcept {
+    return _pre_parse(path, tex_depth_u16::parse_channels)
+      .and_then(_make_parser<tex_depth_u16>(path, flags, _stbi_load_u16));
+  }
 
-  auto load_rgb16u(unchecked_t,
-                   const std::string& path,
-                   uint32& w, uint32& h, uint32& ch,
-                   image_load_flags flags) -> stbi_ptr<uint16>;
+  asset_expected<data_t<float32>> parse(tex_depth_f32,
+                                        const std::string& path, image_load_flags flags) noexcept {
+    return _pre_parse(path, tex_depth_f32::parse_channels)
+      .and_then(_make_parser<tex_depth_f32>(path, flags, _stbi_load_f32));
+  } 
 
-  auto load_rgb32f(const std::string& path,
-                   uint32& w, uint32& h, uint32& ch,
-                   image_load_flags flags) -> asset_expected<stbi_ptr<float32>>;
+  static optional<std::pair<extent2d, uint32>> parse_meta(const std::string& path) {
+    auto* file = std::fopen(path.c_str(), "rb");
+    if (!file) {
+      SHOGLE_LOG(error, "[ntf::stb_image_loader] Failed to open file \"{}\"", path);
+      return nullopt;
+    }
+    file_close_t fcloser{file};
+    return _stbi_preparse_file(file);
+  }
 
-  auto load_rgb32f(unchecked_t,
-                   const std::string& path,
-                   uint32& w, uint32& h, uint32& ch,
-                   image_load_flags flags) -> stbi_ptr<float32>;
+public:
+  template<typename T>
+  stbi_texels<T>&& texels(data_t<T>& data) {
+    return std::move(data.texels);
+  }
+  template<typename T>
+  stbi_texels<T>&& texels(data_t<T>&& data) {
+    return std::move(data.texels);
+  }
+
+  template<typename T>
+  extent2d&& dimensions(data_t<T>& data) {
+    return std::move(data.dimensions);
+  }
+  template<typename T>
+  extent2d&& dimensions(data_t<T>&& data) {
+    return std::move(data.dimensions);
+  }
+
+  template<typename T>
+  r_texture_format format(data_t<T>& data) {
+    return data.format;
+  }
+  template<typename T>
+  r_texture_format format(data_t<T>&& data) {
+    return data.format;
+  }
+
+  template<typename T>
+  r_image_alignment alignment(T&&) {
+    return r_image_alignment::bytes4;
+  }
 };
-static_assert(checked_image_loader_type<stb_image_loader, uint8>);
-static_assert(checked_image_loader_type<stb_image_loader, uint16>);
-static_assert(checked_image_loader_type<stb_image_loader, float32>);
-static_assert(unchecked_image_loader_type<stb_image_loader, uint8>);
-static_assert(unchecked_image_loader_type<stb_image_loader, uint16>);
-static_assert(unchecked_image_loader_type<stb_image_loader, float32>);
+static_assert(checked_image_loader_type<stb_image_loader, tex_depth_u8>);
+static_assert(checked_image_loader_type<stb_image_loader, tex_depth_u8n>);
+static_assert(checked_image_loader_type<stb_image_loader, tex_depth_u16>);
+static_assert(checked_image_loader_type<stb_image_loader, tex_depth_f32>);
 
 
-template<image_depth_type T, checked_image_loader_type<T> Loader = stb_image_loader>
-asset_expected<image_data<T, typename Loader::template deleter<T>>> load_image(
-  const std::string& path,
-  image_load_flags flags = image_load_flags::none,
-  Loader&& loader = {}
-) {
-  return impl::load_image<T, Loader, true>(path, flags, std::forward<Loader>(loader));
-}
-
-template<image_depth_type T, unchecked_image_loader_type<T> Loader = stb_image_loader>
-image_data<T, typename Loader::template deleter<T>> load_image(
+template<
+  tex_depth_type T,
+  tex_dim_type Dim,
+  image_loader_type<T> Loader = stb_image_loader
+>
+auto load_image(
   unchecked_t,
   const std::string& path,
   image_load_flags flags = image_load_flags::none,
   Loader&& loader = {}
-) {
-  return impl::load_image<T, Loader, false>(path, flags, std::forward<Loader>(loader));
+) -> image_data<T, Dim, typename Loader::template texel_deleter<typename T::underlying_type>> {
+  return impl::load_image<T, Dim, Loader, false>(T{}, path, flags, std::forward<Loader>(loader));
 }
 
-// template<typename Alloc = std::allocator<uint8>>
-// class cubemap_data {
-// private:
-//   static constexpr size_t face_count = 6;
-//
-// public:
-//   using allocator_type = Alloc;
-//
-// public:
-//   cubemap_data() noexcept(noexcept(Alloc{})) :
-//     _alloc(Alloc{}) { _zero_array(); }
-//   explicit cubemap_data(const Alloc& alloc) noexcept :
-//     _alloc(alloc) { _zero_array(); }
-//
-//   explicit cubemap_data(std::array<std::string_view, face_count> paths) noexcept { 
-//     _zero_array();
-//     load(paths);
-//   }
-//   cubemap_data(std::array<std::string_view, face_count> paths, const Alloc& alloc) noexcept :
-//     _alloc(alloc) {
-//     _zero_array();
-//     load(paths);
-//   }
-//
-// public:
-//   void load(std::array<std::string_view, face_count> paths) noexcept {
-//     NTF_ASSERT(!has_data());
-//     int w, h, ch;
-//     uint8* stbi_data[face_count] = {0};
-//     for (uint32 i = 0; i < face_count; ++i) {
-//       uint8* curr_data = stbi_load(paths[i].data(), &w, &h, &ch, 0);
-//       if (!curr_data) {
-//         for (uint32 j = i-1; j >= 0; --j) {
-//           stbi_image_free(stbi_data[j]);
-//         }
-//         return;
-//       }
-//       stbi_data[i] = curr_data;
-//     }
-//
-//     size_t alloc_sz = w*h*ch*sizeof(uint8);
-//     if constexpr (std::is_same_v<Alloc, std::allocator<uint8>>) {
-//       std::memcpy(_data.data(), stbi_data, sizeof(uint8*)*face_count);
-//     } else {
-//       uint8* alloc_data = _alloc.allocate(alloc_sz*face_count);
-//       if (!alloc_data) {
-//         for (uint32 i = 0; i < face_count; ++i) {
-//           stbi_image_free(stbi_data[i]);
-//         }
-//         return;
-//       }
-//
-//       size_t offset = 0;
-//       for (uint32 i = 0; i < face_count; ++i) {
-//         uint8* pos = reinterpret_cast<uint8*>(impl::ptr_add(alloc_data, offset));
-//         std::memcpy(pos, stbi_data[i], alloc_sz);
-//         _data[i] = pos;
-//         offset += alloc_sz;
-//       }
-//     }
-//
-//     _dim = uvec2{w, h};
-//     _face_bytes = alloc_sz;
-//     _format = r_texture_format::rgb8u;
-//   }
-//
-//   void load(std::string_view json_path) noexcept {
-//     NTF_ASSERT(!has_data());
-//     auto dir = file_dir(json_path);
-//     if (!dir) {
-//       return;
-//     }
-//
-//     using json = nlohmann::json;
-//     std::ifstream f{json_path.data()};
-//     json data = json::parse(f);
-//     auto content = data["content"];
-//     if (content.size() != face_count) {
-//       return;
-//     }
-//
-//     std::string paths[face_count];
-//     std::array<std::string_view, face_count> load_paths;
-//     for (uint32 i = 0; i < face_count; ++i) {
-//       auto& curr = content[i];
-//       paths[i] = dir.value()+"/"+curr["path"].get<std::string>();
-//       load_paths[i] = paths[i];
-//     }
-//
-//     load(load_paths);
-//   }
-//
-//   void unload() noexcept {
-//     NTF_ASSERT(has_data());
-//     if constexpr (std::is_same_v<Alloc, std::allocator<uint8>>) {
-//       for (uint i = 0; i < face_count; ++i) {
-//         stbi_image_free(_data[i]);
-//       }
-//     } else {
-//       _alloc.deallocate(_data[0], face_count*_face_bytes);
-//     }
-//
-//     _zero_array();
-//     _face_bytes = 0;
-//   }
-//
-// private:
-//   void _zero_array() { std::fill(_data.data(), _data.data()+face_count, nullptr); }
-//
-// public:
-//   const uint8* const* data() const { return _data.data(); }
-//   uint8** data() { return _data.data(); }
-//   constexpr size_t count() const { return face_count; }
-//   size_t size() const { return _face_bytes; }
-//   uvec2 dim() const { return _dim; }
-//   r_texture_format format() const { return _format; }
-//
-//   bool has_data() const { return _face_bytes > 0; }
-//   explicit operator bool() const { return has_data(); }
-//
-// private:
-//   [[maybe_unused]] Alloc _alloc;
-//   std::array<uint8*, face_count> _data;
-//   uvec2 _dim{0, 0};
-//   size_t _face_bytes{0};
-//   r_texture_format _format;
-//
-// public:
-//   ~cubemap_data() noexcept {
-//     if (has_data()) {
-//       unload();
-//     }
-//   }
-//
-//   // use case for copying?
-//   cubemap_data(const cubemap_data&) = delete;
-//   cubemap_data& operator=(const cubemap_data&) = delete;
-//   
-//   cubemap_data(cubemap_data&& c) noexcept :
-//     _alloc(std::move(c._alloc)),
-//     _data(std::move(c._data)),
-//     _dim(std::move(c._dim)),
-//     _face_bytes(std::move(c._face_bytes)),
-//     _format(std::move(c._format)) { c._zero_array(); c._face_bytes = 0; }
-//   cubemap_data& operator=(cubemap_data&& c) noexcept {
-//     if (std::addressof(c) == this) {
-//       return *this;
-//     }
-//
-//     if (has_data()) {
-//       unload();
-//     }
-//
-//     _alloc = std::move(c._alloc);
-//     _data = std::move(c._data);
-//     _dim = std::move(c._dim);
-//     _face_bytes = std::move(c._face_bytes);
-//     _format = std::move(c._format);
-//
-//     c._zero_array();
-//     c._face_bytes = 0;
-//
-//     return *this;
-//   }
-// };
-//
+template<
+  tex_depth_type T,
+  tex_dim_type Dim,
+  image_loader_type<T> Loader = stb_image_loader
+>
+auto load_image(
+  const std::string& path,
+  image_load_flags flags = image_load_flags::none,
+  Loader&& loader = {}
+) -> asset_expected<
+    image_data<T, Dim, typename Loader::template texel_deleter<typename T::underlying_type>>
+  >
+{
+  return impl::load_image<T, Dim, Loader, true>(T{}, path, flags, std::forward<Loader>(loader));
+}
+
 } // namespace ntf

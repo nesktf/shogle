@@ -685,6 +685,16 @@ constexpr bool expected_check_e_v = expected_check_e<Exp, E>::value;
 template<typename Exp, typename E>
 concept expected_with_error = expected_check_e_v<Exp, E>;
 
+template<bool cond, typename T, typename Err>
+struct expected_wrap_if {
+  using type = T;
+};
+
+template<typename T, typename Err>
+struct expected_wrap_if<true, T, Err> {
+  using type = expected<T, Err>;
+};
+
 
 template<typename T, typename E>
 class expected : public impl::expected_catcher<E, expected<T, E>> {

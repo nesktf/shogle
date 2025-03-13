@@ -52,8 +52,9 @@ int main() {
   auto f_glyphs = loader.glyphs(*coso);
   auto f_tex = loader.texels(*coso);
 
-  const auto image_flag = ntf::image_load_flags::flip_vertically;
-  auto cirno_img = ntf::load_image<ntf::uint8>("./demos/res/cirno_cpp.jpg", image_flag);
+  const auto image_flag = ntf::image_load_flags::flip_y;
+  auto cirno_img = ntf::load_image<ntf::tex_depth_u8n, ntf::extent2d>("./demos/res/cirno_cpp.jpg",
+                                                                     image_flag);
   if (!cirno_img) {
     ntf::logger::error("[main] Failed to load cirno image: {}", cirno_img.error().what());
     return EXIT_FAILURE;
@@ -64,7 +65,8 @@ int main() {
     ntf::logger::error("[main] Failed to load atlas: {}", atlas.error().what());
     return EXIT_FAILURE;
   }
-  auto atlas_img = ntf::load_image<ntf::uint8>(atlas->image_path, image_flag);
+  auto atlas_img = ntf::load_image<ntf::tex_depth_u8n, ntf::extent2d>(atlas->image_path,
+                                                                      image_flag);
   if (!atlas_img) {
     ntf::logger::error("[main] Failed to load atlas image: {}", atlas_img.error().what());
     return EXIT_FAILURE;
@@ -83,7 +85,8 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  auto fumo_diffuse = ntf::load_image<ntf::uint8>(fumo->materials.paths[0], image_flag);
+  auto fumo_diffuse = ntf::load_image<ntf::tex_depth_u8n, ntf::extent2d>(fumo->materials.paths[0],
+                                                                         image_flag);
   if (!fumo_diffuse) {
     ntf::logger::error("[main] Failed to load fumo material: {}", fumo_diffuse.error().what());
     return EXIT_FAILURE;
@@ -116,12 +119,11 @@ int main() {
     .addressing = ntf::r_texture_address::repeat,
   });
 
-  auto cirno_img_data = cirno_img->descriptor();
-  cirno_img_data.alignment = ntf::r_image_alignment::bytes4;
+  auto cirno_img_data = cirno_img->make_descriptor();
   auto tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8n,
-    .extent = {cirno_img->dim(), 0},
+    .extent = ntf::tex_extent_cast(cirno_img->dim),
     .layers = 1,
     .levels = 7,
     .images = {cirno_img_data},
@@ -130,13 +132,11 @@ int main() {
     .addressing = ntf::r_texture_address::repeat,
   });
 
-  auto atlas_img_data = atlas_img->descriptor();
-  atlas_img_data.format = ntf::r_texture_format::rgba8n;
-  atlas_img_data.alignment = ntf::r_image_alignment::bytes4;
+  auto atlas_img_data = atlas_img->make_descriptor();
   auto atlas_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgba8n,
-    .extent = {atlas_img->dim(), 0},
+    .extent = ntf::tex_extent_cast(atlas_img->dim),
     .layers = 1,
     .levels = 7,
     .images = {atlas_img_data},
@@ -171,19 +171,11 @@ int main() {
     .data = &fumo_data[1],
   });
 
-  ntf::r_image_data fumo_img_data {
-    .texels = fumo_diffuse->data(),
-    .format = ntf::r_texture_format::rgb8n,
-    .alignment = ntf::r_image_alignment::bytes4,
-    .extent = ntf::uvec3{fumo_diffuse->dim(), 0},
-    .offset = ntf::uvec3{0, 0, 0},
-    .layer = 0,
-    .level = 0,
-  };
+  auto fumo_img_data = fumo_diffuse->make_descriptor();
   auto fumo_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8n,
-    .extent = ntf::uvec3{fumo_diffuse->dim(), 0},
+    .extent = ntf::tex_extent_cast(fumo_diffuse->dim),
     .layers = 1,
     .levels = 7,
     .images = {fumo_img_data},
@@ -462,47 +454,47 @@ int main() {
 
       // Uniforms
       const ntf::r_push_constant fumo_unifs[] = {
-        ntf::r_fmt_pconst(u_tex_model, transf_fumo.world()),
-        ntf::r_fmt_pconst(u_tex_proj, cam_proj_fumo),
-        ntf::r_fmt_pconst(u_tex_view, cam_view_cube),
-        ntf::r_fmt_pconst(u_tex_color, color_quad),
-        ntf::r_fmt_pconst(u_tex_sampler, 0),
+        ntf::r_format_pushconst(u_tex_model, transf_fumo.world()),
+        ntf::r_format_pushconst(u_tex_proj, cam_proj_fumo),
+        ntf::r_format_pushconst(u_tex_view, cam_view_cube),
+        ntf::r_format_pushconst(u_tex_color, color_quad),
+        ntf::r_format_pushconst(u_tex_sampler, 0),
       };
       const ntf::r_push_constant cino_unifs[] = {
-        ntf::r_fmt_pconst(u_tex_model, transf_quad0.world()),
-        ntf::r_fmt_pconst(u_tex_proj, cam_proj_quad),
-        ntf::r_fmt_pconst(u_tex_view, cam_view_quad),
-        ntf::r_fmt_pconst(u_tex_color, color_quad),
-        ntf::r_fmt_pconst(u_tex_sampler, 0),
+        ntf::r_format_pushconst(u_tex_model, transf_quad0.world()),
+        ntf::r_format_pushconst(u_tex_proj, cam_proj_quad),
+        ntf::r_format_pushconst(u_tex_view, cam_view_quad),
+        ntf::r_format_pushconst(u_tex_color, color_quad),
+        ntf::r_format_pushconst(u_tex_sampler, 0),
       };
       const ntf::r_push_constant fb_unifs[] = {
-        ntf::r_fmt_pconst(u_tex_model, transf_quad1.world()),
-        ntf::r_fmt_pconst(u_tex_proj, cam_proj_quad),
-        ntf::r_fmt_pconst(u_tex_view, cam_view_quad),
-        ntf::r_fmt_pconst(u_tex_color, color_quad),
-        ntf::r_fmt_pconst(u_tex_sampler, 0),
+        ntf::r_format_pushconst(u_tex_model, transf_quad1.world()),
+        ntf::r_format_pushconst(u_tex_proj, cam_proj_quad),
+        ntf::r_format_pushconst(u_tex_view, cam_view_quad),
+        ntf::r_format_pushconst(u_tex_color, color_quad),
+        ntf::r_format_pushconst(u_tex_sampler, 0),
       };
       const ntf::r_push_constant rin_unifs[] = {
-        ntf::r_fmt_pconst(u_atl_model, transf_rin.world()),
-        ntf::r_fmt_pconst(u_atl_proj, cam_proj_quad),
-        ntf::r_fmt_pconst(u_atl_view, cam_view_quad),
-        ntf::r_fmt_pconst(u_atl_color, color_quad),
-        ntf::r_fmt_pconst(u_atl_offset, *rin_uvs),
-        ntf::r_fmt_pconst(u_atl_sampler, 0),
+        ntf::r_format_pushconst(u_atl_model, transf_rin.world()),
+        ntf::r_format_pushconst(u_atl_proj, cam_proj_quad),
+        ntf::r_format_pushconst(u_atl_view, cam_view_quad),
+        ntf::r_format_pushconst(u_atl_color, color_quad),
+        ntf::r_format_pushconst(u_atl_offset, *rin_uvs),
+        ntf::r_format_pushconst(u_atl_sampler, 0),
       };
       const ntf::r_push_constant cube_unifs[] = {
-        ntf::r_fmt_pconst(u_col_model, transf_cube.world()),
-        ntf::r_fmt_pconst(u_col_proj, cam_proj_cube),
-        ntf::r_fmt_pconst(u_col_view, cam_view_cube),
-        ntf::r_fmt_pconst(u_col_color, color_cube),
+        ntf::r_format_pushconst(u_col_model, transf_cube.world()),
+        ntf::r_format_pushconst(u_col_proj, cam_proj_cube),
+        ntf::r_format_pushconst(u_col_view, cam_view_cube),
+        ntf::r_format_pushconst(u_col_color, color_cube),
       };
       const ntf::r_push_constant fnt_unifs[] = {
-        ntf::r_fmt_pconst(u_fnt_model, transf_font.world()),
-        ntf::r_fmt_pconst(u_fnt_proj, cam_proj_quad),
-        ntf::r_fmt_pconst(u_fnt_view, cam_view_quad),
-        ntf::r_fmt_pconst(u_fnt_color, color_fnt),
-        ntf::r_fmt_pconst(u_fnt_sampler, 0),
-        ntf::r_fmt_pconst(u_fnt_time, t),
+        ntf::r_format_pushconst(u_fnt_model, transf_font.world()),
+        ntf::r_format_pushconst(u_fnt_proj, cam_proj_quad),
+        ntf::r_format_pushconst(u_fnt_view, cam_view_quad),
+        ntf::r_format_pushconst(u_fnt_color, color_fnt),
+        ntf::r_format_pushconst(u_fnt_sampler, 0),
+        ntf::r_format_pushconst(u_fnt_time, t),
       };
 
       ntf::r_draw_opts fumo_opts {

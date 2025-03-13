@@ -79,6 +79,9 @@ constexpr decltype(auto) operator|(const std::variant<Ts...>& v,
 template<typename TL, typename... TR>
 concept same_as_any = (... or std::same_as<TL, TR>);
 
+template<typename TL, typename... TR>
+concept convertible_to_any = (... or std::convertible_to<TL, TR>);
+
 template<typename T>
 concept has_operator_equals = requires(T a, T b) {
   { a == b } -> std::convertible_to<bool>;
