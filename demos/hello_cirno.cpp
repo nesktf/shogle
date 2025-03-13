@@ -100,7 +100,7 @@ int main() {
 
   ntf::r_image_data font_img_data {
     .texels = f_tex.get(),
-    .format = ntf::r_texture_format::r8n,
+    .format = ntf::r_texture_format::r8nu,
     .alignment = ntf::r_image_alignment::bytes1,
     .extent = ntf::uvec3{990, 45, 0},
     .offset = ntf::uvec3{0, 0, 0},
@@ -109,7 +109,7 @@ int main() {
   };
   auto font_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
-    .format = ntf::r_texture_format::r8n,
+    .format = ntf::r_texture_format::r8nu,
     .extent = {990, 45, 0},
     .layers = 1,
     .levels = 1,
@@ -122,7 +122,7 @@ int main() {
   auto cirno_img_data = cirno_img->make_descriptor();
   auto tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
-    .format = ntf::r_texture_format::rgb8n,
+    .format = ntf::r_texture_format::rgb8nu,
     .extent = ntf::tex_extent_cast(cirno_img->dim),
     .layers = 1,
     .levels = 7,
@@ -135,7 +135,7 @@ int main() {
   auto atlas_img_data = atlas_img->make_descriptor();
   auto atlas_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
-    .format = ntf::r_texture_format::rgba8n,
+    .format = ntf::r_texture_format::rgba8nu,
     .extent = ntf::tex_extent_cast(atlas_img->dim),
     .layers = 1,
     .levels = 7,
@@ -174,7 +174,7 @@ int main() {
   auto fumo_img_data = fumo_diffuse->make_descriptor();
   auto fumo_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
-    .format = ntf::r_texture_format::rgb8n,
+    .format = ntf::r_texture_format::rgb8nu,
     .extent = ntf::tex_extent_cast(fumo_diffuse->dim),
     .layers = 1,
     .levels = 7,
@@ -241,7 +241,7 @@ int main() {
 
   auto fb_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
-    .format = ntf::r_texture_format::rgb8n,
+    .format = ntf::r_texture_format::rgb8nu,
     .extent = ntf::uvec3{1280, 720, 0},
     .layers = 1,
     .levels = 1,
