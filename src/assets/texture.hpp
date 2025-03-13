@@ -134,8 +134,8 @@ public:
     texels{std::move(texels_)}, array_size{array_size_}, dim{dim_},
     format{format_}, alignment{alignment_}
   {
-    SHOGLE_ASSET_THROW_IF(texels.has_data(), "No data in texel array");
-    SHOGLE_ASSET_THROW_IF(array_size > 0, "Array size can't be 0");
+    SHOGLE_ASSET_THROW_IF(!texels.has_data(), "No data in texel array");
+    SHOGLE_ASSET_THROW_IF(array_size == 0, "Array size can't be 0");
   }
 
 public:
