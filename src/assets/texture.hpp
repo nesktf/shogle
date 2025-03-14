@@ -58,7 +58,7 @@ NTF_DEFINE_TEMPLATE_CHECKER(image_data);
 
 namespace impl {
 
-template<typename DepthT, typename DimT, uint32 array_size>
+template<typename DepthT, typename DimT, uint32 array_size, bool dense>
 struct image_array_desc {
   std::array<r_image_data, array_size> make_descriptor(
     const DimT& offset = {},
@@ -66,7 +66,13 @@ struct image_array_desc {
   ) const noexcept {
     std::array<r_image_data, array_size> out;
     for (size_t i = 0; i < array_size; ++i) {
-      out[i].texels = this->texels[i].get();
+      out[i].texels = [this, i]() -> typename DepthT::underlying_type* {
+        if constexpr (dense) {
+          return this->texels.get()+i*tex_stride<DepthT>(this->dim);
+        } else {
+          return this->texels[i].get();
+        }
+      }();
       out[i].format = this->format;
       out[i].alignment = this->alignment;
       out[i].extent = tex_extent_cast(this->dim);
@@ -79,17 +85,21 @@ struct image_array_desc {
 
 protected:
   bool _check_texels(auto&& texels) const {
-    for (const auto&& tex : texels) {
-      if (!tex.has_data()) {
-        return true;
+    if constexpr (dense) {
+      return !texels.has_data();
+    } else {
+      for (const auto&& tex : texels) {
+        if (!tex.has_data()) {
+          return true;
+        }
       }
+      return false;
     }
-    return false;
   }
 };
 
-template<typename DepthT, typename DimT>
-struct image_array_desc<DepthT, DimT, 0u> {
+template<typename DepthT, typename DimT, bool dense>
+struct image_array_desc<DepthT, DimT, 0u, dense> {
   template<allocator_type<r_image_data> Alloc = std::allocator<r_image_data>>
   unique_array<r_image_data, allocator_delete<r_image_data, Alloc>> make_descriptor(
     const DimT& offset = {},
@@ -103,7 +113,13 @@ struct image_array_desc<DepthT, DimT, 0u> {
 
     for (size_t i = 0; i < this->array_size; ++i) {
       std::construct_at(out.get()+i, r_image_data{
-        .texels = this->texels.get()+i*tex_stride<DepthT>(this->dim),
+        .texels = [this, i]() -> typename DepthT::underlying_type* {
+          if constexpr (dense) {
+            return this->texels.get()+i*tex_stride<DepthT>(this->dim);
+          } else {
+            return this->texels[i].get();
+          }
+        }(),
         .format = this->format,
         .alignment = this->alignment,
         .extent = tex_extent_cast(this->dim),
@@ -118,7 +134,16 @@ struct image_array_desc<DepthT, DimT, 0u> {
 
 protected:
   bool _check_texels(auto&& texels, size_t array_size) const {
-    return !texels.has_data() || array_size == 0;
+    if constexpr (dense) {
+      return !texels.has_data() || array_size == 0;
+    } else {
+      for (const auto&& tex : texels) {
+        if (!tex.has_data()) {
+          return true;
+        }
+      }
+      return array_size == 0;
+    }
   }
 };
 
@@ -131,7 +156,7 @@ template<
   typename Deleter = allocator_delete<DepthT, std::allocator<DepthT>>
 >
 struct image_data_array :
-  public impl::image_array_desc<DepthT, DimT, array_size> {
+  public impl::image_array_desc<DepthT, DimT, array_size, false> {
 public:
   using depth_type = DepthT;
   using dim_type = DimT;
@@ -159,7 +184,7 @@ template<
   typename Deleter
 >
 struct image_data_array<DepthT, 0u, DimT, Deleter> :
-  public impl::image_array_desc<DepthT, DimT, 0u> {
+  public impl::image_array_desc<DepthT, DimT, 0u, false> {
 public:
   using depth_type = DepthT;
   using dim_type = DimT;
@@ -195,7 +220,7 @@ template<
   typename Deleter = allocator_delete<DepthT, std::allocator<DepthT>>
 >
 struct dense_image_data_array :
-  public impl::image_array_desc<DepthT, DimT, array_size> {
+  public impl::image_array_desc<DepthT, DimT, array_size, true> {
 public:
   using depth_type = DepthT;
   using dim_type = DimT;
@@ -223,7 +248,7 @@ template<
   typename Deleter
 >
 struct dense_image_data_array<DepthT, 0u, DimT, Deleter> :
-  public impl::image_array_desc<DepthT, DimT, 0u> {
+  public impl::image_array_desc<DepthT, DimT, 0u, true> {
 public:
   using depth_type = DepthT;
   using dim_type = DimT;
