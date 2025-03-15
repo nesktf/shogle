@@ -44,12 +44,15 @@ static auto init_ctx() {
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
   
-  ntf::ft2_bitmap_loader loader;
-  auto coso = loader.parse("./demos/res/CousineNerdFont-Regular.ttf",
-                           "abcdefghijklmnopqrstuvwxyz!?[]{},.-_0123456789", {48, 48});
-  NTF_ASSERT(coso);
-  auto f_glyphs = loader.glyphs(*coso);
-  auto f_tex = loader.texels(*coso);
+  {
+    ntf::ft2_bitmap_loader loader;
+    auto coso = loader.load(ntf::font_load<char, ntf::uint8>,
+                            "./demos/res/CousineNerdFont-Regular.ttf",
+                            "abcdefghijklmnopqrstuvwxyz!?[]{},.-_0123456789", {48, 48});
+    NTF_ASSERT(coso);
+    auto f_glyphs = loader.glyphs(*coso);
+    auto f_tex = loader.texels(*coso);
+  }
 
   const auto image_flag =
     ntf::image_load_flags::flip_y | ntf::image_load_flags::mark_normalized;
@@ -94,27 +97,27 @@ int main() {
   const auto& fumo_inds = fumo->meshes.indices;
 
   auto [window, ctx] = init_ctx();
-
-  ntf::r_image_data font_img_data {
-    .texels = f_tex.get(),
-    .format = ntf::r_texture_format::r8nu,
-    .alignment = ntf::r_image_alignment::bytes1,
-    .extent = ntf::uvec3{990, 45, 0},
-    .offset = ntf::uvec3{0, 0, 0},
-    .layer = 0,
-    .level = 0,
-  };
-  auto font_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
-    .type = ntf::r_texture_type::texture2d,
-    .format = ntf::r_texture_format::r8nu,
-    .extent = {990, 45, 0},
-    .layers = 1,
-    .levels = 1,
-    .images = {font_img_data},
-    .gen_mipmaps = false,
-    .sampler = ntf::r_texture_sampler::nearest,
-    .addressing = ntf::r_texture_address::repeat,
-  });
+  
+  // ntf::r_image_data font_img_data {
+  //   .texels = f_tex.get(),
+  //   .format = ntf::r_texture_format::r8nu,
+  //   .alignment = ntf::r_image_alignment::bytes1,
+  //   .extent = ntf::uvec3{990, 45, 0},
+  //   .offset = ntf::uvec3{0, 0, 0},
+  //   .layer = 0,
+  //   .level = 0,
+  // };
+  // auto font_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
+  //   .type = ntf::r_texture_type::texture2d,
+  //   .format = ntf::r_texture_format::r8nu,
+  //   .extent = {990, 45, 0},
+  //   .layers = 1,
+  //   .levels = 1,
+  //   .images = {font_img_data},
+  //   .gen_mipmaps = false,
+  //   .sampler = ntf::r_texture_sampler::nearest,
+  //   .addressing = ntf::r_texture_address::repeat,
+  // });
 
   auto cirno_img_data = cirno_img->make_descriptor();
   auto tex = ntf::r_texture::create(ntf::unchecked, ctx, {
@@ -445,9 +448,9 @@ int main() {
       const ntf::r_texture_binding fb_tbind[] = {
         {.texture = fb_tex.handle(), .location = 0},
       };
-      const ntf::r_texture_binding fnt_tbind[] = {
-        {.texture = font_tex.handle(), .location = 0},
-      };
+      // const ntf::r_texture_binding fnt_tbind[] = {
+      //   {.texture = font_tex.handle(), .location = 0},
+      // };
 
       // Uniforms
       const ntf::r_push_constant fumo_unifs[] = {
@@ -558,15 +561,15 @@ int main() {
       // });;
 
       // Font thing
-      ctx.submit({
-        .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
-        .pipeline = pipe_fnt.handle(),
-        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
-        .textures = {&fnt_tbind[0], std::size(fnt_tbind)},
-        .uniforms = {&fnt_unifs[0], std::size(fnt_unifs)},
-        .draw_opts = quad_opts,
-        .on_render = {},
-      });
+      // ctx.submit({
+      //   .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
+      //   .pipeline = pipe_fnt.handle(),
+      //   .buffers = {&quad_bbind[0], std::size(quad_bbind)},
+      //   .textures = {&fnt_tbind[0], std::size(fnt_tbind)},
+      //   .uniforms = {&fnt_unifs[0], std::size(fnt_unifs)},
+      //   .draw_opts = quad_opts,
+      //   .on_render = {},
+      // });
 
       // Cube
       ctx.submit({
