@@ -43,7 +43,6 @@ static auto init_ctx() {
 
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
-
   
   ntf::ft2_bitmap_loader loader;
   auto coso = loader.parse("./demos/res/CousineNerdFont-Regular.ttf",
@@ -52,9 +51,9 @@ int main() {
   auto f_glyphs = loader.glyphs(*coso);
   auto f_tex = loader.texels(*coso);
 
-  const auto image_flag = ntf::image_load_flags::flip_y;
-  auto cirno_img = ntf::load_image<ntf::tex_depth_u8n, ntf::extent2d>("./demos/res/cirno_cpp.jpg",
-                                                                     image_flag);
+  const auto image_flag =
+    ntf::image_load_flags::flip_y | ntf::image_load_flags::mark_normalized;
+  auto cirno_img = ntf::load_image<ntf::uint8>("./demos/res/cirno_cpp.jpg", image_flag);
   if (!cirno_img) {
     ntf::logger::error("[main] Failed to load cirno image: {}", cirno_img.error().what());
     return EXIT_FAILURE;
@@ -65,8 +64,7 @@ int main() {
     ntf::logger::error("[main] Failed to load atlas: {}", atlas.error().what());
     return EXIT_FAILURE;
   }
-  auto atlas_img = ntf::load_image<ntf::tex_depth_u8n, ntf::extent2d>(atlas->image_path,
-                                                                      image_flag);
+  auto atlas_img = ntf::load_image<ntf::uint8>(atlas->image_path, image_flag);
   if (!atlas_img) {
     ntf::logger::error("[main] Failed to load atlas image: {}", atlas_img.error().what());
     return EXIT_FAILURE;
@@ -85,8 +83,7 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  auto fumo_diffuse = ntf::load_image<ntf::tex_depth_u8n, ntf::extent2d>(fumo->materials.paths[0],
-                                                                         image_flag);
+  auto fumo_diffuse = ntf::load_image<ntf::uint8>(fumo->materials.paths[0], image_flag);
   if (!fumo_diffuse) {
     ntf::logger::error("[main] Failed to load fumo material: {}", fumo_diffuse.error().what());
     return EXIT_FAILURE;

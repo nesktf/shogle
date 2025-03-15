@@ -109,204 +109,159 @@ struct r_texture_binding {
 };
 
 template<typename T>
-concept tex_depth_type = requires() {
-  (
-    std::is_integral_v<typename T::underlying_type> ||
-    std::is_floating_point_v<typename T::underlying_type>
-  );
-  { T::is_signed } -> std::convertible_to<bool>;
-  { T::is_normalized } -> std::convertible_to<bool>;
-  { T::is_floating } -> std::convertible_to<bool>;
-  { T::is_linear } -> std::convertible_to<bool>;
-  { T::name } -> std::convertible_to<std::string_view>;
-  { *T::valid_channels.begin() } -> std::convertible_to<size_t>;
-  { *T::valid_channels.end() } -> std::convertible_to<size_t>;
-  { T::parse_channels(uint32{}) } -> same_as_any<r_texture_format, optional<r_texture_format>>;
-};
+concept tex_depth_type = same_as_any<std::remove_cvref_t<T>,
+  uint8, int8,
+  uint16, int16,
+  float32
+>;
 
-struct tex_depth_u8 {
-  using underlying_type = uint8;
+constexpr uint8 TEX_DEPTH_CHANNELS_MASK = 0b00000111;
+constexpr uint8 TEX_DEPTH_NORMALIZE_BIT = 0b10000000;
+constexpr uint8 TEX_DEPTH_NONLINEAR_BIT = 0b01000000;
+
+template<tex_depth_type T>
+struct tex_depth_traits;
+
+NTF_DECLARE_TAG_TYPE(tex_depth_u8);
+template<>
+struct tex_depth_traits<uint8> {
+  using tag_type = tex_depth_u8_t;
+  static constexpr tag_type tag = tex_depth_u8;
+
   static constexpr bool is_signed = false;
-  static constexpr bool is_normalized = false;
   static constexpr bool is_floating = false;
-  static constexpr bool is_linear = true;
-  static constexpr std::string_view name = "8 bit unsigned integral";
-  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
+  static constexpr std::string_view name = "8 bit unsigned";
 
-  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
-    switch (n) {
-      case 1: return r_texture_format::r8u;
-      case 2: return r_texture_format::rg8u;
-      case 3: return r_texture_format::rgb8u;
-      case 4: return r_texture_format::rgba8u;
+  static constexpr optional<r_texture_format> parse_channels(uint8 flags) noexcept {
+    const uint8 channels = flags & TEX_DEPTH_CHANNELS_MASK;
+    if (flags & TEX_DEPTH_NORMALIZE_BIT) {
+      switch (channels) {
+        case 1u: return r_texture_format::r8nu;
+        case 2u: return r_texture_format::rg8nu;
+        case 3u: return r_texture_format::rgb8nu;
+        case 4u: return r_texture_format::rgba8nu;
+      }
+    } else if (flags & TEX_DEPTH_NONLINEAR_BIT) {
+      switch (channels) {
+        case 3u: return r_texture_format::srgb8u;
+        case 4u: return r_texture_format::srgba8u;
+      }
+    } else {
+      switch (channels) {
+        case 1u: return r_texture_format::r8u;
+        case 2u: return r_texture_format::rg8u;
+        case 3u: return r_texture_format::rgb8u;
+        case 4u: return r_texture_format::rgba8u;
+      }
     }
     return nullopt;
   }
 };
-static_assert(tex_depth_type<tex_depth_u8>);
 
-struct tex_depth_u8n {
-  using underlying_type = uint8;
+NTF_DECLARE_TAG_TYPE(tex_depth_s8);
+template<>
+struct tex_depth_traits<int8> {
+  using tag_type = tex_depth_s8_t;
+  static constexpr tag_type tag = tex_depth_s8;
+
+  static constexpr bool is_signed = true;
+  static constexpr bool is_floating = false;
+  static constexpr std::string_view name = "8 bit signed";
+
+  static constexpr optional<r_texture_format> parse_channels(uint8 flags) noexcept {
+    const uint8 channels = flags & TEX_DEPTH_CHANNELS_MASK;
+    if (flags & TEX_DEPTH_NORMALIZE_BIT) {
+      switch (channels) {
+        case 1u: return r_texture_format::r8n;
+        case 2u: return r_texture_format::rg8n;
+        case 3u: return r_texture_format::rgb8n;
+        case 4u: return r_texture_format::rgba8n;
+      }
+    } else {
+      switch (channels) {
+        case 1u: return r_texture_format::r8i;
+        case 2u: return r_texture_format::rg8i;
+        case 3u: return r_texture_format::rgb8i;
+        case 4u: return r_texture_format::rgba8i;
+      }
+    }
+    return nullopt;
+  }
+};
+
+NTF_DECLARE_TAG_TYPE(tex_depth_u16);
+template<>
+struct tex_depth_traits<uint16> {
+  using tag_type = tex_depth_u16_t;
+  static constexpr tag_type tag = tex_depth_u16;
+
   static constexpr bool is_signed = false;
-  static constexpr bool is_normalized = true;
   static constexpr bool is_floating = false;
-  static constexpr bool is_linear = true;
-  static constexpr std::string_view name = "8 bit unsigned normalized";
-  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
+  static constexpr std::string_view name = "16 bit unsigned";
 
-  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
-    switch (n) {
-      case 1: return r_texture_format::r8nu;
-      case 2: return r_texture_format::rg8nu;
-      case 3: return r_texture_format::rgb8nu;
-      case 4: return r_texture_format::rgba8nu;
+  static constexpr optional<r_texture_format> parse_channels(uint8 flags) noexcept {
+    const uint8 channels = flags & TEX_DEPTH_CHANNELS_MASK;
+    switch (channels) {
+      case 1u: return r_texture_format::r16u;
+      case 2u: return r_texture_format::rg16u;
+      case 3u: return r_texture_format::rgb16u;
+      case 4u: return r_texture_format::rgba16u;
     }
     return nullopt;
   }
 };
-static_assert(tex_depth_type<tex_depth_u8n>);
 
-struct tex_depth_u8nl {
-  using underlying_type = uint8;
-  static constexpr bool is_signed = false;
-  static constexpr bool is_normalized = false;
-  static constexpr bool is_floating = false;
-  static constexpr bool is_linear = false;
-  static constexpr std::string_view name = "8 bit unsigned nonlinear";
-  static constexpr std::array<size_t, 2u> valid_channels{3, 4};
+NTF_DECLARE_TAG_TYPE(tex_depth_s16);
+template<>
+struct tex_depth_traits<int16> {
+  using tag_type = tex_depth_s16_t;
+  static constexpr tag_type tag = tex_depth_s16;
 
-  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
-    switch (n) {
-      case 3: return r_texture_format::srgb8u;
-      case 4: return r_texture_format::srgba8u;
-    }
-    return nullopt;
-  }
-};
-static_assert(tex_depth_type<tex_depth_u8nl>);
-
-struct tex_depth_s8 {
-  using underlying_type = int8;
   static constexpr bool is_signed = true;
-  static constexpr bool is_normalized = false;
   static constexpr bool is_floating = false;
-  static constexpr bool is_linear = true;
-  static constexpr std::string_view name = "8 bit signed integral";
-  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
+  static constexpr std::string_view name = "16 bit signed";
 
-  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
-    switch (n) {
-      case 1: return r_texture_format::r8i;
-      case 2: return r_texture_format::rg8i;
-      case 3: return r_texture_format::rgb8i;
-      case 4: return r_texture_format::rgba8i;
-    } 
-    return nullopt;
-  }
-};
-static_assert(tex_depth_type<tex_depth_s8>);
-
-struct tex_depth_s8n {
-  using underlying_type = int8;
-  static constexpr bool is_signed = true;
-  static constexpr bool is_normalized = true;
-  static constexpr bool is_floating = false;
-  static constexpr bool is_linear = true;
-  static constexpr std::string_view name = "8 bit signed normalized";
-  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
-
-  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
-    switch (n) {
-      case 1: return r_texture_format::r8n;
-      case 2: return r_texture_format::rg8n;
-      case 3: return r_texture_format::rgb8n;
-      case 4: return r_texture_format::rgba8n;
+  static constexpr optional<r_texture_format> parse_channels(uint8 flags) noexcept {
+    const uint8 channels = flags & TEX_DEPTH_CHANNELS_MASK;
+    switch (channels) {
+      case 1u: return r_texture_format::r16i;
+      case 2u: return r_texture_format::rg16i;
+      case 3u: return r_texture_format::rgb16i;
+      case 4u: return r_texture_format::rgba16i;
     }
     return nullopt;
   }
 };
-static_assert(tex_depth_type<tex_depth_s8n>);
 
-struct tex_depth_u16 {
-  using underlying_type = uint16;
-  static constexpr bool is_signed = false;
-  static constexpr bool is_normalized = false;
-  static constexpr bool is_floating = false;
-  static constexpr bool is_linear = true;
-  static constexpr std::string_view name = "16 bit unsigned integral";
-  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
+NTF_DECLARE_TAG_TYPE(tex_depth_f32);
+template<>
+struct tex_depth_traits<float32> {
+  using tag_type = tex_depth_f32_t;
+  static constexpr tag_type tag = tex_depth_f32;
 
-  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
-    switch (n) {
-      case 1: return r_texture_format::r16u;
-      case 2: return r_texture_format::rg16u;
-      case 3: return r_texture_format::rgb16u;
-      case 4: return r_texture_format::rgba16u;
-    }
-    return nullopt;
-  }
-};
-static_assert(tex_depth_type<tex_depth_u16>);
-
-struct tex_depth_s16 {
-  using underlying_type = int16;
   static constexpr bool is_signed = true;
-  static constexpr bool is_normalized = false;
-  static constexpr bool is_floating = false;
-  static constexpr bool is_linear = true;
-  static constexpr std::string_view name = "16 bit signed integral";
-  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
-
-  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
-    switch (n) {
-      case 1: return r_texture_format::r16i;
-      case 2: return r_texture_format::rg16i;
-      case 3: return r_texture_format::rgb16i;
-      case 4: return r_texture_format::rgba16i;
-    }
-    return nullopt;
-  }
-};
-static_assert(tex_depth_type<tex_depth_s16>);
-
-struct tex_depth_f32 {
-  using underlying_type = float32;
-  static constexpr bool is_signed = true;
-  static constexpr bool is_normalized = false;
   static constexpr bool is_floating = true;
-  static constexpr bool is_linear = true;
-  static constexpr std::string_view name = "32 bit floating";
-  static constexpr std::array<size_t, 4u> valid_channels{1, 2, 3, 4};
+  static constexpr std::string_view name = "32 bit float";
 
-  static constexpr optional<r_texture_format> parse_channels(uint32 n) {
-    switch (n) {
-      case 1: return r_texture_format::r32f;
-      case 2: return r_texture_format::rg32f;
-      case 3: return r_texture_format::rgb32f;
-      case 4: return r_texture_format::rgba32f;
+  static constexpr optional<r_texture_format> parse_channels(uint8 flags) noexcept {
+    const uint8 channels = flags & TEX_DEPTH_CHANNELS_MASK;
+    switch (channels) {
+      case 1u: return r_texture_format::r32f;
+      case 2u: return r_texture_format::rg32f;
+      case 3u: return r_texture_format::rgb32f;
+      case 4u: return r_texture_format::rgba32f;
     }
     return nullopt;
   }
 };
-static_assert(tex_depth_type<tex_depth_f32>);
 
 template<typename T>
-concept tex_array_dim_type = same_as_any<T,
+concept tex_array_dim_type = same_as_any<std::remove_cvref_t<T>,
   extent1d, extent2d
 >;
 
 template<typename T>
-concept tex_array_dim_convertible = convertible_to_any<T,
-  extent1d, extent2d
->;
-
-template<typename T>
-concept tex_dim_type = same_as_any<T,
-  extent1d, extent2d, extent3d
->;
-
-template<typename T>
-concept tex_dim_convertible = convertible_to_any<T,
+concept tex_dim_type = same_as_any<std::remove_cvref_t<T>,
   extent1d, extent2d, extent3d
 >;
 
@@ -335,11 +290,11 @@ constexpr extent3d tex_offset_cast(const D& dim) noexcept {
 template<tex_depth_type T, tex_dim_type D>
 constexpr size_t tex_stride(const D& extent) noexcept {
   if constexpr (std::same_as<D, extent3d>) {
-    return static_cast<size_t>(extent.x*extent.y*extent.z)*sizeof(T::underlying_type);
+    return static_cast<size_t>(extent.x*extent.y*extent.z)*sizeof(T);
   } else if constexpr (std::same_as<D, uvec2>) {
-    return static_cast<size_t>(extent.x*extent.y)*sizeof(T::underlying_type);
+    return static_cast<size_t>(extent.x*extent.y)*sizeof(T);
   } else {
-    return static_cast<size_t>(extent)*sizeof(T::underlying_type);
+    return static_cast<size_t>(extent)*sizeof(T);
   }
 };
 

@@ -37,7 +37,7 @@ float32* stb_image_loader::_stbi_load_f32(std::FILE* f, image_load_flags flags, 
   return stbi_loadf_from_file(f, &w, &h, &ch, desired);
 }
 
-void stb_image_loader::stbi_delete(void* data) {
+void stb_image_loader::_stbi_delete(void* data) {
   stbi_image_free(data);
 }
 

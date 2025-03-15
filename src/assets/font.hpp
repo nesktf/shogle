@@ -1,42 +1,126 @@
 #pragma once
 
 #include "./types.hpp"
+#include "./texture.hpp"
 
-#include "../render/forward.hpp"
+// #include "../render/forward.hpp"
 
 namespace ntf {
 
-struct font_glyph {
+template<typename CharT>
+concept glyph_char_type = same_as_any<std::remove_cvref_t<CharT>,
+  char, wchar_t,
+  char8_t, char16_t, char32_t
+>;
+
+template<glyph_char_type CharT, allocator_type<CharT> Alloc = std::allocator<CharT>>
+using font_charset = std::basic_string<CharT, std::char_traits<CharT>, Alloc>;
+
+template<glyph_char_type CharT>
+using font_charset_view = std::basic_string_view<CharT, std::char_traits<CharT>>;
+
+template<glyph_char_type CharT>
+struct glyph_data {
+  CharT id;
+  size_t offset;
   uvec2 size;
   ivec2 bearing;
   ivec2 advance;
-  uint32 x_offset;
 };
 
-template<typename T>
-concept font_glyph_identifier = std::is_integral_v<T>;
-
-template<font_glyph_identifier T>
+template<
+  glyph_char_type CharT,
+  tex_depth_type DepthT,
+  typename GlyphDeleter = allocator_delete<glyph_data<CharT>, std::allocator<glyph_data<CharT>>>,
+  typename TexelDeleter = allocator_delete<DepthT, std::allocator<DepthT>>
+>
 struct bitmap_font_data {
 public:
-  using texel_array = unique_array<uint8>;
-  using glyph_map = std::unordered_map<T, font_glyph>;
+  using char_type = CharT;
+  using depth_type = DepthT;
+
+  using texel_data_type = unique_array<depth_type, TexelDeleter>;
+  using glyph_data_type = unique_array<glyph_data<CharT>, GlyphDeleter>;
 
 public:
-  bitmap_font_data(texel_array texels_, glyph_map glyphs_) noexcept :
-    texels{std::move(texels_)},
-    glyphs{std::move(glyphs_)} {}
+  bitmap_font_data(texel_data_type&& texel_array_, glyph_data_type&& glyphs_,
+                   r_texture_format format_,
+                   r_image_alignment alignment_) SHOGLE_ASSET_NOEXCEPT :
+    texel_array{std::move(texel_array_)}, glyphs{std::move(glyphs_)},
+    format{format_}, alignment{alignment_}
+  {
+    SHOGLE_ASSET_THROW_IF(!texel_array.has_data(), "Invalid texel data");
+    SHOGLE_ASSET_THROW_IF(!glyphs.has_data(), "Invalid glyph data");
+  }
 
 public:
-  texel_array texels;
-  glyph_map glyphs;
+  texel_data_type texel_array;
+  glyph_data_type glyphs;
+  r_texture_format format;
+  r_image_alignment alignment;
 };
+
+NTF_DEFINE_TEMPLATE_CHECKER(bitmap_font_data);
+
+template<glyph_char_type CharT, tex_depth_type DepthT>
+struct font_load_t {};
+template<typename CharT, typename DepthT>
+constexpr font_load_t<CharT, DepthT> font_load;
+
+template<typename Loader, typename CharT, typename DepthT>
+concept checked_font_loader_type =
+  requires(Loader& loader, font_load_t<CharT, DepthT> tag,
+           const std::string& path, font_charset_view<CharT> charset, uvec2 glyph_size,
+           decltype(loader.load(tag,path,charset,glyph_size)) data ) {
+    { loader.load(tag, path, charset, glyph_size) } -> expected_with_error<asset_error>;
+    { loader.glyphs(*data) } -> std::convertible_to<
+      unique_array<glyph_data<CharT>, typename Loader::template deleter<glyph_data<CharT>>>
+    >;
+    { loader.texels(*data) } -> std::convertible_to<
+      unique_array<DepthT, typename Loader::template deleter<DepthT>>
+    >;
+    { loader.format(*data) } -> std::convertible_to<r_texture_format>;
+    { loader.alignment(*data) } -> std::convertible_to<r_image_alignment>;
+  };
+
+template<typename Loader, typename CharT, typename DepthT>
+concept unchecked_font_loader_type = 
+  requires(Loader& loader, font_load_t<CharT, DepthT> tag,
+           const std::string& path, font_charset_view<CharT> charset, uvec2 glyph_size,
+           decltype(loader.load(tag,path,charset,glyph_size)) data ) {
+    { loader.load(tag, path, charset, glyph_size) } -> not_void;
+    { loader.glyphs(data) } -> std::convertible_to<
+      unique_array<glyph_data<CharT>, typename Loader::template deleter<glyph_data<CharT>>>
+    >;
+    { loader.texels(data) } -> std::convertible_to<
+      unique_array<DepthT, typename Loader::template deleter<DepthT>>
+    >;
+    { loader.format(data) } -> std::convertible_to<r_texture_format>;
+    { loader.alignment(data) } -> std::convertible_to<r_image_alignment>;
+  };
+
+template<typename Loader, typename CharT, typename DepthT>
+concept font_loader_type =
+  unchecked_font_loader_type<Loader, CharT, DepthT> ||
+  checked_font_loader_type<Loader, CharT, DepthT>;
 
 class ft2_bitmap_loader {
 public:
+  template<typename T>
+  using deleter = allocator_delete<T, std::allocator<T>>;
+
+  template<typename DepthT>
+  using texel_array = unique_array<DepthT, deleter<DepthT>>;
+
+  template<typename CharT>
+  using glyph_array = unique_array<glyph_data<CharT>, deleter<glyph_data<CharT>>>;
+
+  template<typename CharT, typename DepthT>
   struct data_t {
-    unique_array<uint8> texels;
-    bitmap_font_data<uint8>::glyph_map glyphs;
+    texel_array<DepthT> texels;
+    glyph_array<CharT> glyphs;
+    r_texture_format format;
+    r_image_alignment alignment;
   };
 
 public:
@@ -44,121 +128,50 @@ public:
   ~ft2_bitmap_loader() noexcept;
 
 public:
-  asset_expected<data_t> parse(const std::string& path, std::string_view chars, uvec2 pixel_sz);
+  asset_expected<data_t<char, uint8>> load(font_load_t<char, uint8>,
+                                           const std::string& path,
+                                           font_charset_view<char> charset, uvec2 glyph_size);
 
 public:
-  unique_array<uint8>&& texels(data_t& data) { return std::move(data.texels); }
-  bitmap_font_data<uint8>::glyph_map&& glyphs(data_t& data) { return std::move(data.glyphs); }
+  template<typename CharT, typename DepthT>
+  texel_array<DepthT>&& texels(data_t<CharT, DepthT>& data) {
+    return std::move(data.texels);
+  }
+  template<typename CharT, typename DepthT>
+  texel_array<DepthT>&& texels(data_t<CharT, DepthT>&& data) {
+    return std::move(data.texels);
+  }
+
+  template<typename CharT, typename DepthT>
+  glyph_array<CharT>&& glyphs(data_t<CharT, DepthT>& data) {
+    return std::move(data.glyphs);
+  }
+  template<typename CharT, typename DepthT>
+  glyph_array<CharT>&& glyphs(data_t<CharT, DepthT>&& data) {
+    return std::move(data.glyphs);
+  }
+
+  template<typename CharT, typename DepthT>
+  r_texture_format format(data_t<CharT, DepthT>& data) {
+    return data.format;
+  }
+  template<typename CharT, typename DepthT>
+  r_texture_format format(data_t<CharT, DepthT>&& data) {
+    return data.format;
+  }
+
+  template<typename CharT, typename DepthT>
+  r_image_alignment alignment(data_t<CharT, DepthT>& data) {
+    return data.alignment;
+  }
+  template<typename CharT, typename DepthT>
+  r_image_alignment alignment(data_t<CharT, DepthT>&& data) {
+    return data.alignment;
+  }
 
 private:
   void* _ft2_lib;
 };
-
-// struct basic_font_data {
-//   glyph_map glyphs;
-// };
-//
-// template<typename Font>
-// class freetype2_loader {
-// public:
-//   using resource_type = Font;
-//   using data_type = basic_font_data;
-//
-// private:
-//   using font_type = Font;
-//
-// public:
-//   // TODO: Pass custom allocator
-//   bool resource_load(std::string_view path, uint8_t count = 128, uint pixel_size = 48);
-//   void resource_unload(bool overwrite);
-//
-//   std::optional<resource_type> make_resource() const;
-//
-// public:
-//   const data_type& data() const { return _data; }
-//   data_type& data() { return _data; }
-//
-// private:
-//   data_type _data;
-// };
-//
-// template<typename T, typename Loader = freetype2_loader<T>>
-// using font_data = resource_data<T, Loader>;
-//
-// template<typename Font>
-// bool freetype2_loader<Font>::resource_load(std::string_view path, uint8_t count, uint pixel_size) {
-//   FT_Library ft;
-//   if (FT_Init_FreeType(&ft)) {
-//     SHOGLE_LOG(error, "[ntf::freetype2_loader] Failed to initialize FreeType");
-//     return false;
-//   }
-//
-//   FT_Face face;
-//   if (FT_New_Face(ft, path.data(), 0, &face)) {
-//     FT_Done_FreeType(ft);
-//     SHOGLE_LOG(error, "[ntf::freetype2_loader] Failed to load font \"{}\"", path);
-//     return false;
-//   }
-//
-//   if (FT_Set_Pixel_Sizes(face, 0, pixel_size)) {
-//     FT_Done_Face(face);
-//     FT_Done_FreeType(ft);
-//     SHOGLE_LOG(error, "[ntf::freetype2_loader] Failed to set pixel size to {}px in font \"{}\"",
-//                pixel_size, path);
-//     return false;
-//   }
-//
-//   glyph_map map;
-//   for (uint8_t c = 0; c < count; ++c) {
-//     if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-//       SHOGLE_LOG(warning, "[ntf::freetype2_loader] Failed to load glyph '{}' in font \"{}\"",
-//                  static_cast<char>(c), path);
-//       continue;
-//     }
-//     std::size_t sz = face->glyph->bitmap.width * face->glyph->bitmap.rows;
-//     uint8_t* data = new uint8_t[sz];
-//     std::memcpy(data, face->glyph->bitmap.buffer, sz);
-//
-//     map.insert(std::make_pair(c, std::make_pair(data, font_glyph {
-//       .size = ivec2{
-//         face->glyph->bitmap.width,
-//         face->glyph->bitmap.rows
-//       },
-//       .bearing = ivec2{
-//         face->glyph->bitmap_left,
-//         face->glyph->bitmap_top
-//       },
-//       .advance = static_cast<unsigned long>(face->glyph->advance.x)
-//     })));
-//   }
-//
-//   FT_Done_Face(face);
-//   FT_Done_FreeType(ft);
-//
-//   _data.glyphs = std::move(map);
-//
-//   return true;
-// }
-//
-// template<typename Font>
-// void freetype2_loader<Font>::resource_unload(bool overwrite) {
-//   if (overwrite) {
-//     SHOGLE_LOG(warning, "[ntf::freetype2_loader] Overwritting font data");
-//   }
-//
-//   for (auto& [_, pair] : _data.glyphs) {
-//     auto* data = pair.first;
-//     delete[] data;
-//   }
-// }
-//
-// template<typename Font>
-// auto freetype2_loader<Font>::make_resource() const -> std::optional<resource_type> {
-//   auto font = font_type{_data.glyphs};
-//   if (!font) {
-//     return std::nullopt;
-//   }
-//   return {std::move(font)};
-// }
+static_assert(checked_font_loader_type<ft2_bitmap_loader, char, uint8>);
 
 } // namespace ntf
