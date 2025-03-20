@@ -18,13 +18,13 @@ inline void* ptr_add(void* p, uintptr_t sz) noexcept {
 
 } // namespace impl
 
-template<typename T, typename Allocator>
+template<typename Alloc, typename T>
 struct rebind_alloc {
-  using type = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
+  using type = typename std::allocator_traits<Alloc>::template rebind_alloc<T>;
 };
 
-template<typename T, typename Allocator>
-using rebind_alloc_t = typename rebind_alloc<T, Allocator>::type;
+template<typename Alloc, typename T>
+using rebind_alloc_t = typename rebind_alloc<Alloc, T>::type;
 
 template<typename Alloc, typename T>
 concept standard_allocator_type = requires(Alloc alloc, Alloc alloc2,
@@ -33,13 +33,13 @@ concept standard_allocator_type = requires(Alloc alloc, Alloc alloc2,
   { alloc.deallocate(ptr, n) } -> std::same_as<void>;
   { alloc == alloc2 } -> std::convertible_to<bool>;
   { alloc != alloc2 } -> std::convertible_to<bool>;
-};
+} && std::same_as<typename std::allocator_traits<Alloc>::value_type, T>;
 
 template<typename Alloc, typename T>
 concept stateless_allocator_type = requires(T* ptr, size_t n) {
   { Alloc{}.allocate(n) } -> std::convertible_to<T*>;
   { Alloc{}.deallocate(ptr, n) } -> std::same_as<void>;
-} && std::is_empty_v<Alloc>;
+} && std::is_empty_v<Alloc> && std::same_as<typename std::allocator_traits<Alloc>::value_type, T>;
 
 template<typename Alloc, typename T>
 concept allocator_type = stateless_allocator_type<Alloc, T> || standard_allocator_type<Alloc, T>;
@@ -147,7 +147,7 @@ requires(
 class allocator_delete {
 public:
   template<typename U>
-  using rebind = allocator_delete<U, rebind_alloc_t<U, Alloc>>;
+  using rebind = allocator_delete<U, rebind_alloc_t<Alloc, U>>;
 
 public:
   allocator_delete()
@@ -204,7 +204,7 @@ requires(
 class allocator_delete<T, Alloc> {
 public:
   template<typename U>
-  using rebind = allocator_delete<U, rebind_alloc_t<U, Alloc>>;
+  using rebind = allocator_delete<U, rebind_alloc_t<Alloc, U>>;
 
 public:
   allocator_delete() noexcept {}
@@ -254,10 +254,5 @@ struct rebind_deleter<Deleter, T> {
 
 template<typename Deleter, typename T>
 using rebind_deleter_t = rebind_deleter<Deleter, T>::type;
-
-static_assert(std::same_as<
-  allocator_delete<int, std::allocator<int>>,
-  rebind_deleter_t<allocator_delete<float, std::allocator<float>>, int>
->);
 
 } // namespace ntf

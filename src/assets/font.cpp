@@ -40,15 +40,44 @@ ft2_bitmap_loader::~ft2_bitmap_loader() noexcept {
   FT_Done_FreeType(static_cast<FT_Library>(_ft2_lib));
 }
 
-auto ft2_bitmap_loader::load(font_load_t<char, uint8>,
-                             const std::string& path,
-                             font_charset_view<char> charset,
-                             uvec2 glyph_size) -> asset_expected<data_t<char, uint8>> {
+auto ft2_bitmap_loader::_load_face(const std::string& path,
+                                   const uvec2& glyph_size) -> asset_expected<face_t> {
   RET_ERR_IF(!_ft2_lib, "Failed to initialize FreeType");
   FT_Library ft = static_cast<FT_Library>(_ft2_lib);
 
   FT_Face face;
   RET_ERR_IF(FT_New_Face(ft, path.c_str(), 0, &face), "Failed to load font");
+
+  RET_ERR_IF(FT_Set_Pixel_Sizes(face, glyph_size.x, glyph_size.y),
+             "Failed to set pixel size to {} {}",
+             glyph_size.x, glyph_size.y);
+
+  static_assert(std::is_pointer_v<FT_Face>); // Assume FT_Face is just a pointer handle
+  return static_cast<face_t>(face);
+}
+
+void ft2_bitmap_loader::_unload_face(face_t face) {
+  FT_Done_Face(static_cast<FT_Face>(face));
+}
+
+auto ft2_bitmap_loader::_load_glyph(face_t face, uint64 code) -> optional<ft_glyph_data> {
+  FT_Face ft_face = static_cast<FT_Face>(face);
+  if (FT_Load_Char(ft_face, static_cast<FT_ULong>(code), FT_LOAD_BITMAP_METRICS_ONLY)) {
+    return nullopt;
+  }
+
+  const auto* g = ft_face->glyph;
+  return ft_glyph_data{
+    .size = {static_cast<uint32>(g->bitmap.width), static_cast<uint32>(g->bitmap.rows)},
+    .bearing {static_cast<int32>(g->bitmap_left), static_cast<int32>(g->bitmap_top)},
+    .advance = {static_cast<int32>(g->advance.x>>6), static_cast<int32>(g->advance.y>>6)},
+  };
+}
+
+auto ft2_bitmap_loader::load(font_load_t<char, uint8>,
+                             const std::string& path,
+                             font_charset_view<char> charset,
+                             uvec2 glyph_size) -> asset_expected<data_t<char, uint8>> {
   face_clean_t face_clean{face};
 
   RET_ERR_IF(FT_Set_Pixel_Sizes(face, glyph_size.x, glyph_size.y),
