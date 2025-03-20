@@ -7,7 +7,7 @@ namespace ntf {
 template <typename T>
 class singleton {
 protected:
-  singleton() noexcept {};
+  singleton() noexcept {}
 
 private:
   static auto& _instance() {

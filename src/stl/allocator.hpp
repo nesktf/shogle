@@ -146,6 +146,10 @@ requires(
 )
 class allocator_delete {
 public:
+  template<typename U>
+  using rebind = allocator_delete<U, rebind_alloc_t<U, Alloc>>;
+
+public:
   allocator_delete()
   noexcept(std::is_nothrow_default_constructible_v<Alloc>) :
     _alloc{} {}
@@ -199,6 +203,10 @@ requires(
 )
 class allocator_delete<T, Alloc> {
 public:
+  template<typename U>
+  using rebind = allocator_delete<U, rebind_alloc_t<U, Alloc>>;
+
+public:
   allocator_delete() noexcept {}
 
   allocator_delete(Alloc&&) noexcept {}
@@ -234,5 +242,22 @@ public:
 
   const Alloc& get_allocator() const { return {}; }
 };
+
+template<typename Deleter, typename T>
+struct rebind_deleter : public rebind_first_arg<Deleter, T> {};
+
+template<typename Deleter, typename T>
+requires requires() { typename Deleter::template rebind<T>; }
+struct rebind_deleter<Deleter, T> {
+  using type = typename Deleter::template rebind<T>;
+};
+
+template<typename Deleter, typename T>
+using rebind_deleter_t = rebind_deleter<Deleter, T>::type;
+
+static_assert(std::same_as<
+  allocator_delete<int, std::allocator<int>>,
+  rebind_deleter_t<allocator_delete<float, std::allocator<float>>, int>
+>);
 
 } // namespace ntf

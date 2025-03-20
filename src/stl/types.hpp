@@ -112,6 +112,15 @@ NTF_DECLARE_TAG_TYPE(unchecked);
 using in_place_t = std::in_place_t;
 constexpr inline in_place_t in_place{};
 
+template<typename T, typename U>
+struct rebind_first_arg {};
+template<template<typename, typename...> class Templ, typename U, typename T, typename... Ts>
+struct rebind_first_arg<Templ<T, Ts...>, U> {
+  using type = Templ<U, Ts...>;
+};
+template<typename T, typename U>
+using rebind_first_arg_t = rebind_first_arg<T, U>::type;
+
 template<typename... FmtArgs>
 struct error_fmt {
   consteval error_fmt(fmt::format_string<FmtArgs...> fmt_,
