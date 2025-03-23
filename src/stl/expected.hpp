@@ -960,8 +960,7 @@ public:
   requires(std::is_invocable_v<F, T>)
   constexpr auto transform(F&& f) & {
     using U = std::remove_cv_t<std::invoke_result_t<F, decltype(_storage.get())>>;
-    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<U>, "F can't return a reference type");
 
     if (*this) {
       if constexpr (std::is_void_v<U>) {
@@ -978,8 +977,7 @@ public:
   requires(std::is_invocable_v<F, T>)
   constexpr auto transform(F&& f) const& {
     using U = std::remove_cv_t<std::invoke_result_t<F, decltype(_storage.get())>>;
-    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<U>, "F can't return a reference type");
 
     if (*this) {
       if constexpr (std::is_void_v<U>) {
@@ -996,8 +994,7 @@ public:
   requires(std::is_invocable_v<F, T>)
   constexpr auto transform(F&& f) && {
     using U = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(_storage.get()))>>;
-    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<U>, "F can't return a reference type");
 
     if (*this) {
       if constexpr (std::is_void_v<U>) {
@@ -1015,8 +1012,7 @@ public:
   requires(std::is_invocable_v<F, T>)
   constexpr auto transform(F&& f) const&& {
     using U = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(_storage.get()))>>;
-    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<U>, "F can't return a reference type");
 
     if (*this) {
       if constexpr (std::is_void_v<U>) {
@@ -1037,8 +1033,7 @@ public:
   constexpr auto transform_error(F&& f) & {
     using G = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
     static_assert(!std::is_void_v<G>, "F has to return an error value");
-    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<G>, "F can't return a reference type");
 
     if (*this) {
       return expected<T, G>{in_place, _storage.get()};
@@ -1054,8 +1049,7 @@ public:
   constexpr auto transform_error(F&& f) const& {
     using G = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
     static_assert(!std::is_void_v<G>, "F has to return an error value");
-    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<G>, "F can't return a reference type");
 
     if (*this) {
       return expected<T, G>{in_place, _storage.get()};
@@ -1071,8 +1065,7 @@ public:
   constexpr auto transform_error(F&& f) && {
     using G = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
     static_assert(!std::is_void_v<G>, "F has to return an error value");
-    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<G>, "F can't return a reference type");
 
     if (*this) {
       return expected<T, G>{in_place, std::move(_storage.get())};
@@ -1088,8 +1081,7 @@ public:
   constexpr auto transform_error(F&& f) const&& {
     using G = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
     static_assert(!std::is_void_v<G>, "F has to return an error value");
-    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<G>, "F can't return a reference type");
 
     if (*this) {
       return expected<T, G>{in_place, std::move(_storage.get())};
@@ -1281,8 +1273,7 @@ public:
   requires(std::is_invocable_v<F>)
   constexpr auto transform(F&& f) & {
     using U = std::remove_cv_t<std::invoke_result_t<F>>;
-    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<U>, "F can't return a reference type");
 
     if (*this) {
       if constexpr (std::is_void_v<U>) {
@@ -1299,8 +1290,7 @@ public:
   requires(std::is_invocable_v<F>)
   constexpr auto transform(F&& f) const& {
     using U = std::remove_cv_t<std::invoke_result_t<F>>;
-    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<U>, "F can't return a reference type");
 
     if (*this) {
       if constexpr (std::is_void_v<U>) {
@@ -1317,8 +1307,7 @@ public:
   requires(std::is_invocable_v<F>)
   constexpr auto transform(F&& f) && {
     using U = std::remove_cv_t<std::invoke_result_t<F>>;
-    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<U>, "F can't return a reference type");
 
     if (*this) {
       if constexpr (std::is_void_v<U>) {
@@ -1335,8 +1324,7 @@ public:
   requires(std::is_invocable_v<F>)
   constexpr auto transform(F&& f) const&& {
     using U = std::remove_cv_t<std::invoke_result_t<F>>;
-    static_assert(!std::is_lvalue_reference_v<U> && std::is_rvalue_reference_v<U>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<U>, "F can't return a reference type");
 
     if (*this) {
       if constexpr (std::is_void_v<U>) {
@@ -1356,8 +1344,7 @@ public:
   constexpr auto transform_error(F&& f) & {
     using G = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
     static_assert(!std::is_void_v<G>, "F has to return an error value");
-    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<G>, "F can't return a reference type");
 
     if (*this) {
       return expected<void, G>{};
@@ -1373,8 +1360,7 @@ public:
   constexpr auto transform_error(F&& f) const& {
     using G = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
     static_assert(!std::is_void_v<G>, "F has to return an error value");
-    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<G>, "F can't return a reference type");
 
     if (*this) {
       return expected<void, G>{};
@@ -1390,8 +1376,7 @@ public:
   constexpr auto transform_error(F&& f) && {
     using G = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
     static_assert(!std::is_void_v<G>, "F has to return an error value");
-    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<G>, "F can't return a reference type");
 
     if (*this) {
       return expected<void, G>{};
@@ -1407,8 +1392,7 @@ public:
   constexpr auto transform_error(F&& f) const&& {
     using G = std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
     static_assert(!std::is_void_v<G>, "F has to return an error value");
-    static_assert(!std::is_lvalue_reference_v<G> && std::is_rvalue_reference_v<G>,
-                  "F can't return a reference type");
+    static_assert(!std::is_reference_v<G>, "F can't return a reference type");
 
     if (*this) {
       return expected<void, G>{};
