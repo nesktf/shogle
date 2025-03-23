@@ -97,19 +97,11 @@ int main() {
 
   auto [window, ctx] = init_ctx();
   
-  ntf::r_image_data font_img_data {
-    .texels = cousine->bitmap.get(),
-    .format = cousine->bitmap_format,
-    .alignment = cousine->bitmap_alignment,
-    .extent = ntf::tex_extent_cast(cousine->bitmap_dimensions),
-    .offset = ntf::uvec3{0, 0, 0},
-    .layer = 0,
-    .level = 0,
-  };
+  auto font_img_data = cousine->make_bitmap_descriptor();
   auto font_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = cousine->bitmap_format,
-    .extent = ntf::tex_extent_cast(cousine->bitmap_dimensions),
+    .extent = ntf::tex_extent_cast(cousine->bitmap_extent),
     .layers = 1,
     .levels = 1,
     .images = {font_img_data},

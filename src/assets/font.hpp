@@ -49,7 +49,7 @@ public:
                    const Deleter& deleter = {}) SHOGLE_ASSET_NOEXCEPT :
     bitmap{texels, tex_stride<uint8>(dim), rebind_deleter_t<Deleter, uint8>{deleter}},
     glyphs{glyphs_array, glyphs_sz, rebind_deleter_t<Deleter, glyph_data<CharT>>{deleter}},
-    bitmap_dimensions{dim}, bitmap_format{format}, bitmap_alignment{alignment},
+    bitmap_extent{dim}, bitmap_format{format}, bitmap_alignment{alignment},
     glyph_padding{padding}
   {
     SHOGLE_ASSET_THROW_IF([this](){
@@ -64,7 +64,7 @@ public:
 
 public:
   template<allocator_type<r_image_data> Alloc = std::allocator<r_image_data>>
-  auto make_descriptor(
+  auto make_atlas_descriptor(
     uint32 level = 0, Alloc&& alloc = {}
   ) const SHOGLE_ASSET_NOEXCEPT -> unique_array<r_image_data,allocator_delete<r_image_data,Alloc>>
   {
@@ -92,6 +92,22 @@ public:
     return out;
   }
 
+  template<tex_dim_type Dim = extent2d>
+  auto make_bitmap_descriptor(
+    const Dim& offset = {}, uint32 layer = 0, uint32 level = 0
+  ) const noexcept -> r_image_data
+  {
+    return r_image_data{
+      .texels = bitmap.get(),
+      .format = bitmap_format,
+      .alignment = bitmap_alignment,
+      .extent = ntf::tex_extent_cast(bitmap_extent),
+      .offset = ntf::tex_offset_cast(offset),
+      .layer = layer,
+      .level = level,
+    };
+  }
+
 public:
   size_t size() const noexcept { return glyphs.size(); }
 
@@ -106,7 +122,7 @@ public:
 public:
   bitmap_t bitmap;
   glyphs_t glyphs;
-  uvec2 bitmap_dimensions;
+  uvec2 bitmap_extent;
   r_texture_format bitmap_format;
   r_image_alignment bitmap_alignment;
   uint32 glyph_padding;
