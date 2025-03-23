@@ -44,10 +44,13 @@ static auto init_ctx() {
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
   
-  ntf::ft2_bitmap_loader font_loader;
-  auto cousine = font_loader.load("./demos/res/CousineNerdFont-Regular.ttf",
-                                  ntf::ascii_charset<char>,
-                                  {0, 32}, 0, 128);
+  ntf::ft2_font_loader font_loader;
+  // auto cousine = font_loader.load_atlas("./demos/res/CousineNerdFont-Regular.ttf",
+  //                                       ntf::ascii_charset<char>,
+  //                                       {0, 32}, 0, 128);
+  auto cousine = font_loader.load_array("./demos/res/CousineNerdFont-Regular.ttf",
+                                        ntf::ascii_charset<char>,
+                                        {32, 32});
   if (!cousine) {
     ntf::logger::error("[main] Failed to load font: {}", cousine.error().what());
     return EXIT_FAILURE;
@@ -97,11 +100,11 @@ int main() {
 
   auto [window, ctx] = init_ctx();
   
-  auto font_img_data = cousine->make_bitmap_descriptor();
+  auto font_img_data = cousine->make_descriptor();
   auto font_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = cousine->bitmap_format,
-    .extent = ntf::tex_extent_cast(cousine->bitmap_extent),
+    .extent = ntf::tex_extent_cast(cousine->bitmap_extent()),
     .layers = 1,
     .levels = 1,
     .images = {font_img_data},
@@ -299,9 +302,11 @@ int main() {
   auto cam_proj_cube = cam_proj_fumo;
   ntf::vec4 color_quad {1.f, 1.f, 1.f, 1.f};
 
-  // float fnt_aspect = 990.f/45.f;
+  auto ext = cousine->bitmap_extent();
+  float fnt_scale = 250.f;
+  float fnt_aspect = (float)ext.x/(float)ext.y;
   auto transf_font = ntf::transform2d<ntf::float32>{}
-    .pos(0.f, 0.f).scale(500.f, -500.f);
+    .pos(0.f, 0.f).scale(fnt_aspect*fnt_scale, -fnt_scale);
   ntf::vec4 color_fnt{1.f, 0.f, 0.f, 1.f};
 
   const ntf::float32 fumo_scale = 0.04f;
@@ -485,7 +490,7 @@ int main() {
         ntf::r_format_pushconst(u_fnt_view, cam_view_quad),
         ntf::r_format_pushconst(u_fnt_color, color_fnt),
         ntf::r_format_pushconst(u_fnt_sampler, 0),
-        ntf::r_format_pushconst(u_fnt_time, 0.f),
+        ntf::r_format_pushconst(u_fnt_time, .25f*t),
       };
 
       ntf::r_draw_opts fumo_opts {

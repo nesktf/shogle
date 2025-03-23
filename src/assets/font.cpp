@@ -21,7 +21,7 @@ using face_clean_t =
 
 } // namespace
 
-ft2_bitmap_loader::ft2_bitmap_loader() noexcept {
+ft2_font_loader::ft2_font_loader() noexcept {
   FT_Library lib;
   if (FT_Init_FreeType(&lib)) {
     SHOGLE_LOG(error, "[ntf::ft2_bitmap_loader] Failed to initialize FreeType handle");
@@ -33,14 +33,14 @@ ft2_bitmap_loader::ft2_bitmap_loader() noexcept {
   _ft2_lib = static_cast<void*>(lib);
 }
 
-ft2_bitmap_loader::~ft2_bitmap_loader() noexcept {
+ft2_font_loader::~ft2_font_loader() noexcept {
   if (!_ft2_lib) {
     return;
   }
   FT_Done_FreeType(static_cast<FT_Library>(_ft2_lib));
 }
 
-auto ft2_bitmap_loader::_load_face(const std::string& path,
+auto ft2_font_loader::_load_face(const std::string& path,
                                    const uvec2& glyph_size) -> asset_expected<face_t> {
   RET_ERR_IF(!_ft2_lib, "Failed to initialize FreeType");
   FT_Library ft = static_cast<FT_Library>(_ft2_lib);
@@ -56,11 +56,11 @@ auto ft2_bitmap_loader::_load_face(const std::string& path,
   return face_t{face, face_del_t{*this}};
 }
 
-void ft2_bitmap_loader::_unload_face(void* face) {
+void ft2_font_loader::_unload_face(void* face) {
   FT_Done_Face(static_cast<FT_Face>(face));
 }
 
-auto ft2_bitmap_loader::_load_glyph(const face_t& face, uint64 code) -> optional<ft_glyph_data> {
+auto ft2_font_loader::_load_glyph(const face_t& face, uint64 code) -> optional<ft_glyph_data> {
   FT_Face ft_face = static_cast<FT_Face>(face.get());
   if (FT_Load_Char(ft_face, static_cast<FT_ULong>(code), FT_LOAD_BITMAP_METRICS_ONLY)) {
     return nullopt;
@@ -76,7 +76,7 @@ auto ft2_bitmap_loader::_load_glyph(const face_t& face, uint64 code) -> optional
   };
 }
 
-void ft2_bitmap_loader::_copy_bitmap(const face_t& face, uint64 code, uint8* dest, size_t offset) {
+void ft2_font_loader::_copy_bitmap(const face_t& face, uint64 code, uint8* dest, size_t offset) {
   FT_Face ft_face = static_cast<FT_Face>(face.get());
   auto ret_load = FT_Load_Char(ft_face, static_cast<FT_ULong>(code), FT_LOAD_DEFAULT);
   NTF_ASSERT(!ret_load);
