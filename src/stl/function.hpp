@@ -4,6 +4,20 @@
 
 namespace ntf {
 
+template<auto fun, typename T>
+constexpr auto lambda_wrap(T& obj) {
+  return [&obj](auto&&... args) {
+    return (&obj->*fun)(std::forward<decltype(args)>(args)...);
+  };
+}
+
+template<auto fun, typename T>
+constexpr auto lambda_wrap(T* obj) {
+  return [obj](auto&&... args) {
+    return (obj->*fun)(std::forward<decltype(args)>(args)...);
+  };
+}
+
 template<typename Signature, std::size_t buffer = 2*sizeof(void*)> // 2 ptrs
 class inplace_function;
 

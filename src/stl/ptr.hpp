@@ -377,7 +377,7 @@ public:
     Cont&& container
   ) {
     using alloc_type = std::remove_cvref_t<decltype(container.get_allocator())>;
-    static_assert(standard_allocator_type<alloc_type, T>);
+    static_assert(allocator_type<alloc_type, T>);
     T* arr = container.get_allocator().allocate(container.size());
     size_t i = 0;
     for (auto it = container.begin(); it != container.end(); ++it) {
@@ -391,7 +391,7 @@ public:
     };
   }
 
-  template<typename Cont, standard_allocator_type<T> Alloc>
+  template<typename Cont, allocator_type<T> Alloc>
   static auto from_container(
     Cont&& container, Alloc&& alloc
   ) -> unique_array<T, allocator_delete<T, Alloc>> {
@@ -404,7 +404,7 @@ public:
     return {arr, container.size(), allocator_delete<T, Alloc>{alloc}};
   }
 
-  template<standard_allocator_type<T> Alloc = std::allocator<T>>
+  template<allocator_type<T> Alloc = std::allocator<T>>
   static auto from_allocator(
     size_t sz, const T& copy_obj, Alloc&& alloc = {}
   ) -> unique_array<T, allocator_delete<T, Alloc>>{
@@ -423,7 +423,7 @@ public:
     }
   }
 
-  template<standard_allocator_type<T> Alloc = std::allocator<T>>
+  template<allocator_type<T> Alloc = std::allocator<T>>
   static auto from_allocator(
     uninitialized_t, size_t sz, Alloc&& alloc = {}
   ) -> unique_array<T, allocator_delete<T, Alloc>> {

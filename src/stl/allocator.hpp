@@ -163,8 +163,7 @@ public:
     _alloc{alloc} {}
 
   template<typename U>
-  requires(std::convertible_to<U*, T*>)
-  allocator_delete(const allocator_delete<U, Alloc>& other)
+  allocator_delete(const allocator_delete<U, rebind_alloc_t<Alloc, U>>& other)
   noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
     _alloc{other._alloc} {}
 
@@ -213,9 +212,8 @@ public:
 
   allocator_delete(const Alloc&) noexcept {}
 
-  template<typename U = T>
-  requires(std::convertible_to<U*, T*>)
-  allocator_delete(const allocator_delete<U, Alloc>&) noexcept {}
+  template<typename U>
+  allocator_delete(const allocator_delete<U, rebind_alloc_t<Alloc, U>>&) noexcept {}
 
 public:
   template<typename U = T>

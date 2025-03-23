@@ -53,18 +53,20 @@ auto ft2_bitmap_loader::_load_face(const std::string& path,
              glyph_size.x, glyph_size.y);
 
   static_assert(std::is_pointer_v<FT_Face>); // Assume FT_Face is just a pointer handle
-  return static_cast<face_t>(face);
+  return face_t{face, face_del_t{*this}};
 }
 
-void ft2_bitmap_loader::_unload_face(face_t face) {
+void ft2_bitmap_loader::_unload_face(void* face) {
   FT_Done_Face(static_cast<FT_Face>(face));
 }
 
-auto ft2_bitmap_loader::_load_glyph(face_t face, uint64 code) -> optional<ft_glyph_data> {
-  FT_Face ft_face = static_cast<FT_Face>(face);
+auto ft2_bitmap_loader::_load_glyph(const face_t& face, uint64 code) -> optional<ft_glyph_data> {
+  FT_Face ft_face = static_cast<FT_Face>(face.get());
   if (FT_Load_Char(ft_face, static_cast<FT_ULong>(code), FT_LOAD_BITMAP_METRICS_ONLY)) {
     return nullopt;
   }
+  auto ret_render = FT_Render_Glyph(ft_face->glyph, FT_RENDER_MODE_SDF);
+  NTF_ASSERT(!ret_render);
 
   const auto* g = ft_face->glyph;
   return ft_glyph_data{
@@ -74,68 +76,17 @@ auto ft2_bitmap_loader::_load_glyph(face_t face, uint64 code) -> optional<ft_gly
   };
 }
 
-auto ft2_bitmap_loader::load(font_load_t<char, uint8>,
-                             const std::string& path,
-                             font_charset_view<char> charset,
-                             uvec2 glyph_size) -> asset_expected<data_t<char, uint8>> {
-  face_clean_t face_clean{face};
+void ft2_bitmap_loader::_copy_bitmap(const face_t& face, uint64 code, uint8* dest, size_t offset) {
+  FT_Face ft_face = static_cast<FT_Face>(face.get());
+  auto ret_load = FT_Load_Char(ft_face, static_cast<FT_ULong>(code), FT_LOAD_DEFAULT);
+  NTF_ASSERT(!ret_load);
+  auto ret_render = FT_Render_Glyph(ft_face->glyph, FT_RENDER_MODE_SDF);
+  NTF_ASSERT(!ret_render);
 
-  RET_ERR_IF(FT_Set_Pixel_Sizes(face, glyph_size.x, glyph_size.y),
-             "Failed to set pixel size to {} {}",
-             glyph_size.x, glyph_size.y);
-
-  const auto alignment = r_image_alignment::bytes1;
-  const auto tex_format = tex_depth_traits<uint8>::parse_channels(1u | TEX_DEPTH_NORMALIZE_BIT);
-  NTF_ASSERT(tex_format.has_value());
-
-  // Extract glyph metadata
-  std::unordered_map<char, glyph_data<char>> glyph_map;
-  size_t image_size = 0;
-  for (const auto ch : charset) {
-    if (FT_Load_Char(face, static_cast<FT_ULong>(ch), FT_LOAD_BITMAP_METRICS_ONLY)) {
-      SHOGLE_LOG(warning, "[ntf::ft2_bitmap_loader] Failed to load character '{}'", ch);
-      continue;
-    }
-    const auto* g = face->glyph;
-    const auto glyph_w = static_cast<uint32>(g->bitmap.width);
-    const auto glyph_h = static_cast<uint32>(g->bitmap.rows);
-
-    const auto [it, emplaced] = glyph_map.try_emplace(static_cast<uint8>(ch), glyph_data<char>{
-      .id = ch,
-      .offset = image_size,
-      .size = {glyph_w, glyph_h},
-      .bearing {static_cast<int32>(g->bitmap_left), static_cast<int32>(g->bitmap_top)},
-      .advance = {static_cast<int32>(g->advance.x>>6), static_cast<int32>(g->advance.y>>6)},
-    });
-    if (!emplaced) {
-      SHOGLE_LOG(warning, "[ntf::ft2_bitmap_loader] Ignoring duplicate character '{}'", ch);
-      continue;
-    }
-    image_size += static_cast<size_t>(glyph_w*glyph_h);
-  }
-
-  auto texels = unique_array<uint8>::from_allocator(::ntf::uninitialized, image_size);
-  RET_ERR_IF(!texels.has_data(), "Failed to allocate texels");
-  auto glyphs = unique_array<glyph_data<char>>::from_allocator(::ntf::uninitialized,
-                                                               glyph_map.size());
-  RET_ERR_IF(!texels.has_data(), "Failed to allocate glyphs");
-
-  // Copy bitmap texels
-  size_t idx = 0;
-  for (const auto& [ch, glyph] : glyph_map) {
-    if (FT_Load_Char(face, static_cast<FT_ULong>(ch), FT_LOAD_RENDER)) {
-      continue;
-    }
-
-    const auto* g = face->glyph;
-    std::memcpy(texels.get()+glyph.offset, g->bitmap.buffer, g->bitmap.width*g->bitmap.rows);
-    std::construct_at(glyphs.get()+idx, std::move(glyph));
-    ++idx;
-  }
-  SHOGLE_LOG(debug, "[ntf::ft2_bitmap_loader] Loaded {} glyphs, generated {} texels",
-             glyphs.size(), texels.size());
-
-  return data_t<char, uint8>{std::move(texels), std::move(glyphs), *tex_format, alignment};
+  const auto& bm = ft_face->glyph->bitmap;
+  for (size_t row = 0; row < bm.rows; ++row) {
+    std::memcpy(dest+(offset*row), bm.buffer+(row*bm.width), bm.width);
+  } 
 }
 
 } // namespace ntf
