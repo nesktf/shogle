@@ -12,29 +12,31 @@
 
 namespace ntf {
 
-ft2_font_loader::ft2_font_loader() noexcept {
+void ft2_font_loader::_unload_lib(void* lib) {
+  static_assert(std::is_pointer_v<FT_Library>); // Assume FT_Library is just a pointer handle
+  FT_Done_FreeType(static_cast<FT_Library>(lib));
+}
+
+void ft2_font_loader::_unload_face(void* face) {
+  static_assert(std::is_pointer_v<FT_Face>); // Assume FT_Face is just a pointer handle
+  FT_Done_Face(static_cast<FT_Face>(face));
+}
+
+ft2_font_loader::ft2_font_loader() noexcept :
+  _ft2_lib{nullptr, lib_del_t{}}
+{
   FT_Library lib;
   if (FT_Init_FreeType(&lib)) {
     SHOGLE_LOG(error, "[ntf::ft2_bitmap_loader] Failed to initialize FreeType handle");
-    _ft2_lib = nullptr;
     return;
   }
-  // Assume FT_Library is just a pointer handle
-  static_assert(std::is_pointer_v<FT_Library>);
-  _ft2_lib = static_cast<void*>(lib);
-}
-
-ft2_font_loader::~ft2_font_loader() noexcept {
-  if (!_ft2_lib) {
-    return;
-  }
-  FT_Done_FreeType(static_cast<FT_Library>(_ft2_lib));
+  _ft2_lib.reset(static_cast<void*>(lib));
 }
 
 auto ft2_font_loader::_load_face(const std::string& path,
-                                   const uvec2& glyph_size) -> asset_expected<face_t> {
+                                 const extent2d& glyph_size) -> asset_expected<face_t> {
   RET_ERR_IF(!_ft2_lib, "Failed to initialize FreeType");
-  FT_Library ft = static_cast<FT_Library>(_ft2_lib);
+  FT_Library ft = static_cast<FT_Library>(_ft2_lib.get());
 
   FT_Face face;
   RET_ERR_IF(FT_New_Face(ft, path.c_str(), 0, &face), "Failed to load font");
@@ -43,12 +45,7 @@ auto ft2_font_loader::_load_face(const std::string& path,
              "Failed to set pixel size to {} {}",
              glyph_size.x, glyph_size.y);
 
-  static_assert(std::is_pointer_v<FT_Face>); // Assume FT_Face is just a pointer handle
-  return face_t{face, face_del_t{*this}};
-}
-
-void ft2_font_loader::_unload_face(void* face) {
-  FT_Done_Face(static_cast<FT_Face>(face));
+  return face_t{face, face_del_t{}};
 }
 
 auto ft2_font_loader::_load_glyph(const face_t& face, uint64 code) -> optional<ft_glyph_data> {

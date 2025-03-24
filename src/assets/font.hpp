@@ -188,17 +188,22 @@ public:
 NTF_DEFINE_TEMPLATE_CHECKER(font_array_data);
 
 class ft2_font_loader {
-public:
+private:
   struct face_del_t {
-    face_del_t(ft2_font_loader& ft) noexcept :
-      loader{ft} {}
     void operator()(void* face) {
-      loader._unload_face(face);
+      ft2_font_loader::_unload_face(face);
     }
-    ft2_font_loader& loader;
   };
   friend struct face_del_t;
   using face_t = std::unique_ptr<void, face_del_t>;
+
+  struct lib_del_t {
+    void operator()(void* lib) {
+      ft2_font_loader::_unload_lib(lib);
+    }
+  };
+  friend struct lib_del_t;
+  using lib_t = std::unique_ptr<void, lib_del_t>;
 
   template<typename CharT>
   using atlas_out_t = font_atlas_data<CharT, allocator_delete<CharT, std::allocator<CharT>>>;
@@ -206,6 +211,7 @@ public:
   template<typename CharT>
   using array_out_t = font_array_data<CharT, allocator_delete<CharT, std::allocator<CharT>>>;
 
+public:
   struct ft_glyph_data {
     extent2d size;
     extent2d offset;
@@ -215,13 +221,15 @@ public:
 
 public:
   ft2_font_loader() noexcept;
-  ~ft2_font_loader() noexcept;
 
 private:
-  void _unload_face(void* face);
-  asset_expected<face_t> _load_face(const std::string& path, const uvec2& glyph_size);
+  asset_expected<face_t> _load_face(const std::string& path, const extent2d& glyph_size);
   optional<ft_glyph_data> _load_glyph(const face_t& face, uint64 code);
   void _copy_bitmap(const face_t& face, uint64 code, uint8* dest, size_t offset);
+
+private:
+  static void _unload_lib(void* lib);
+  static void _unload_face(void* face);
 
 private:
   template<typename CharT>
@@ -412,7 +420,7 @@ public:
   }
 
 private:
-  void* _ft2_lib;
+  lib_t _ft2_lib;
 };
 
 template<typename T, T a, T b>
