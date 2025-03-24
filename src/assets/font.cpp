@@ -12,15 +12,6 @@
 
 namespace ntf {
 
-namespace {
-
-// Assume FT_Face is just a pointer handle
-static_assert(std::is_pointer_v<FT_Face>);
-using face_clean_t =
-  std::unique_ptr<std::remove_pointer_t<FT_Face>, decltype([](FT_Face f){ FT_Done_Face(f); })>;
-
-} // namespace
-
 ft2_font_loader::ft2_font_loader() noexcept {
   FT_Library lib;
   if (FT_Init_FreeType(&lib)) {
@@ -71,6 +62,7 @@ auto ft2_font_loader::_load_glyph(const face_t& face, uint64 code) -> optional<f
   const auto* g = ft_face->glyph;
   return ft_glyph_data{
     .size = {static_cast<uint32>(g->bitmap.width), static_cast<uint32>(g->bitmap.rows)},
+    .offset = {0, 0},
     .bearing {static_cast<int32>(g->bitmap_left), static_cast<int32>(g->bitmap_top)},
     .advance = {static_cast<int32>(g->advance.x>>6), static_cast<int32>(g->advance.y>>6)},
   };

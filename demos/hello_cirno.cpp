@@ -100,11 +100,11 @@ int main() {
 
   auto [window, ctx] = init_ctx();
   
-  auto font_img_data = cousine->make_descriptor();
+  auto font_img_data = cousine->make_bitmap_descriptor();
   auto font_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = cousine->bitmap_format,
-    .extent = ntf::tex_extent_cast(cousine->bitmap_extent()),
+    .extent = ntf::tex_extent_cast(cousine->bitmap_extent),
     .layers = 1,
     .levels = 1,
     .images = {font_img_data},
@@ -302,7 +302,7 @@ int main() {
   auto cam_proj_cube = cam_proj_fumo;
   ntf::vec4 color_quad {1.f, 1.f, 1.f, 1.f};
 
-  auto ext = cousine->bitmap_extent();
+  auto ext = cousine->bitmap_extent;
   float fnt_scale = 250.f;
   float fnt_aspect = (float)ext.x/(float)ext.y;
   auto transf_font = ntf::transform2d<ntf::float32>{}
