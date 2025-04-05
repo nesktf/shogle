@@ -1,5 +1,6 @@
 #include "./types.hpp"
 #include "./allocator.hpp"
+#include "./expected.hpp"
 
 namespace ntf {
 
@@ -7,7 +8,7 @@ namespace impl {
 
 template<typename K, typename HashT, typename EqualsT>
 struct fixed_hashmap_ops : 
-  protected HashT, protected EqualsT
+  private HashT, private EqualsT
 {
   template<typename HashU, typename EqualsU>
   fixed_hashmap_ops(HashU&& hash, EqualsU&& equals) :
@@ -17,9 +18,38 @@ struct fixed_hashmap_ops :
   bool _equals(const K& a, const K& b) const {
     return EqualsT::operator()(a, b);
   }
+  const EqualsT& _key_eq() const { return static_cast<const EqualsT&>(*this); }
+
   size_t _hash(const K& x) const {
     return HashT::operator()(x);
   }
+  const HashT& _hash_function() const { return static_cast<const HashT&>(*this); }
+};
+
+template<typename K, typename T, typename Alloc>
+struct fixed_hashmap_alloc :
+  private Alloc, private rebind_alloc_t<Alloc, uint32>
+{
+  fixed_hashmap_alloc(const Alloc& alloc) :
+    Alloc{alloc}, rebind_alloc_t<Alloc, uint32>{alloc} {}
+
+  std::pair<const K, T>* _alloc_values(size_t count) {
+    return Alloc::allocate(count);
+  }
+  void _dealloc_values(std::pair<const K, T>* vals, size_t count) {
+    Alloc::deallocate(vals, count);
+  }
+
+  uint32* _alloc_flags(size_t count) {
+    auto* ptr = rebind_alloc_t<Alloc, uint32>::allocate(count);
+    std::memset(ptr, 0, sizeof(uint32)*count);
+    return ptr;
+  }
+  void _dealloc_flags(uint32* vals, size_t count) {
+    rebind_alloc_t<Alloc, uint32>::deallocate(vals, count);
+  }
+
+  const Alloc& _get_allocator() const { return static_cast<const Alloc&>(*this); }
 };
 
 } // namespace impl
@@ -27,17 +57,19 @@ struct fixed_hashmap_ops :
 template<
   typename K, typename T,
   typename HashT = std::hash<K>,
-  typename EqualsT = std::equal_to<K>
+  typename EqualsT = std::equal_to<K>,
+  typename AllocT = std::allocator<std::pair<const K, T>>
 >
 class fixed_hashmap :
-  private impl::fixed_hashmap_ops<K, HashT, EqualsT>
+  private impl::fixed_hashmap_ops<K, HashT, EqualsT>,
+  private impl::fixed_hashmap_alloc<K, T, AllocT>
 {
 private:
   static constexpr size_t FLAGS_PER_ENTRY = 16; // 2 bits each, uses 32 bits
-  static constexpr uint32_t FLAG_EMPTY = 0b00;
-  static constexpr uint32_t FLAG_USED = 0b01;
-  static constexpr uint32_t FLAG_TOMB = 0b10;
-  static constexpr uint32_t FLAG_MASK = 0b11;
+  static constexpr uint32 FLAG_EMPTY = 0b00;
+  static constexpr uint32 FLAG_USED = 0b01;
+  static constexpr uint32 FLAG_TOMB = 0b10;
+  static constexpr uint32 FLAG_MASK = 0b11;
 
   template<typename MapT, typename ValT>
   class forward_it {
@@ -85,6 +117,7 @@ private:
   };
 
   using ops_base = impl::fixed_hashmap_ops<K, HashT, EqualsT>;
+  using alloc_base = impl::fixed_hashmap_alloc<K, T, AllocT>;
 
 public:
   using key_type = K;
@@ -94,6 +127,7 @@ public:
 
   using hasher = HashT;
   using key_equal = EqualsT;
+  using allocator_type = AllocT;
 
   using size_type = std::size_t;
   using reference = value_type&;
@@ -103,55 +137,73 @@ public:
   using const_iterator = forward_it<const fixed_hashmap, const value_type>;
 
 private:
-  fixed_hashmap(value_type* values, uint32_t* flags, size_t cap,
-            const HashT& hash, const EqualsT& eqs) noexcept :
-    ops_base{hash, eqs},
-    _values{values}, _flags{flags},_used{0}, _cap{cap} {}
+  fixed_hashmap(value_type* values, uint32* flags, size_t cap,
+                const HashT& hash, const EqualsT& eqs, const AllocT& alloc) :
+    ops_base{hash, eqs}, alloc_base{alloc},
+    _values{values}, _flags{flags}, _used{0}, _cap{cap} {}
 
 public:
-  template<
-    typename Alloc = std::allocator<value_type>,
-    typename HashU = HashT,
-    typename EqualsU = EqualsT
-  >
+  fixed_hashmap(std::initializer_list<value_type> init,
+                const HashT& hash = {}, const EqualsT& eqs = {}, const AllocT& alloc ={}) :
+    ops_base{hash, eqs}, alloc_base{alloc},
+    _used{init.size()}, _cap{init.size()}
+  {
+    _values = alloc_base::_alloc_values(_used);
+    _flags = alloc_base::_alloc_flags(_flag_count(_used));
+    size_t idx = 0;
+    for (const auto& pair : init) {
+      _values[idx] = pair;
+    }
+  }
+
   fixed_hashmap(size_t cap,
-            Alloc&& alloc = {}, HashU&& hash = {}, EqualsU&& eqs = {}) :
-    ops_base{std::forward<HashU>(hash), std::forward<EqualsU>(eqs)},
+                const HashT& hash = {}, const EqualsT& eqs = {}, const AllocT& alloc = {}) :
+    ops_base{hash, eqs}, alloc_base{alloc},
     _used{0}, _cap{cap}
   {
-    auto pair_alloc = rebind_alloc_t<Alloc, value_type>{std::forward<Alloc>(alloc)};
-    auto flag_alloc = rebind_alloc_t<Alloc, uint32_t>{std::forward<Alloc>(alloc)};
-
-    auto* vals = pair_alloc.allocate(cap);
-    auto* flags = flag_alloc.allocate(cap/FLAGS_PER_ENTRY);
-    std::memset(flags, 0, sizeof(uint32_t)*cap/FLAGS_PER_ENTRY);
-
-    _values = vals;
-    _flags = flags;
+    _values = alloc_base::_alloc_values(cap);
+    _flags = alloc_base::_alloc_flags(_flag_count(cap));
   }
 
 public:
   template<
-    typename Alloc = std::allocator<value_type>,
     typename HashU = HashT,
-    typename EqualsU = EqualsT
+    typename EqualsU = EqualsT,
+    typename AllocU = std::allocator<value_type>
   >
   static auto create(
-    size_t cap, Alloc&& alloc = {}, HashU&& hash = {}, EqualsU&& equals = {}
-  ) -> fixed_hashmap<K, T, HashT, EqualsT> {
-    return fixed_hashmap<K, T, HashT, EqualsT>{
-      cap, std::forward<Alloc>(alloc), std::forward<HashU>(hash), std::forward<EqualsU>(equals)
-    };
+    unchecked_t,
+    size_t cap, const HashU& hash = {}, const EqualsU& eqs = {}, const AllocU& alloc = {}
+  ) -> fixed_hashmap<K, T, HashU, EqualsU, AllocU>
+  {
+    return fixed_hashmap<K, T, HashU, EqualsU, AllocU>{cap, hash, eqs, alloc};
+  }
+
+  template<
+    typename HashU = HashT,
+    typename EqualsU = EqualsT,
+    typename AllocU = std::allocator<value_type>
+  >
+  static auto create(
+    size_t cap, const HashU& hash = {}, const EqualsU& eqs = {}, const AllocU& alloc = {}
+  ) noexcept -> expected<fixed_hashmap<K, T, HashU, EqualsU, AllocU>, error<void>>
+  {
+    try {
+      impl::fixed_hashmap_alloc<K, T, AllocT> rebound_alloc{std::forward<AllocU>(alloc)};
+      auto* values = rebound_alloc._alloc_values(cap);
+      auto* flags = rebound_alloc._alloc_flags(_flag_count(cap));
+      return fixed_hashmap<K, T, HashU, EqualsU, AllocU>{values, flags, cap, hash, eqs, alloc};
+    } catch (const std::exception& ex) {
+      return unexpected{error<void>{ex.what()}};
+    } catch (...) {
+      return unexpected{error<void>{"Unknown error"}};
+    }
   }
 
 public:
   template<typename Key, typename... Args>
-  requires(
-    std::convertible_to<std::remove_cvref_t<Key>, key_type> &&
-    std::constructible_from<mapped_type, Args...>
-  )
   std::pair<iterator, bool> try_emplace(Key&& key, Args&&... args) {
-    size_t idx = this->_hash(key) % capacity();
+    size_t idx = ops_base::_hash(key) % capacity();
     for (size_t i = 0; i < capacity(); ++i, idx = (idx+1)%capacity()) {
       if (_flag_at(idx) != FLAG_USED) {
         std::construct_at(_values+idx,
@@ -165,9 +217,8 @@ public:
   }
 
   template<typename Key, typename U = T>
-  requires(std::convertible_to<std::remove_cvref_t<Key>, key_type>)
   std::pair<iterator, bool> try_overwrite(Key&& key, U&& obj) {
-    size_t idx = this->_hash(key) % capacity();
+    size_t idx = ops_base::_hash(key) % capacity();
     for (size_t i = 0; i < capacity(); ++i, idx = (idx+1)%capacity()) {
       const auto flag = _flag_at(idx);
       if (flag == FLAG_EMPTY || flag == FLAG_TOMB) {
@@ -179,7 +230,7 @@ public:
       }
       if (flag == FLAG_USED) {
         const key_type k(std::forward<Key>(key));
-        if (this->_equals(_values[idx].first, k)) {
+        if (ops_base::_equals(_values[idx].first, k)) {
           _values[idx].second = std::forward<U>(obj);
           return std::make_pair(iterator{this, idx}, true);
         }
@@ -211,7 +262,7 @@ public:
   }
 
   [[nodiscard]] iterator find(const key_type& key) {
-    size_t idx = this->_hash(key) % capacity();
+    size_t idx = ops_base::_hash(key) % capacity();
     for (size_t i = 0; i < capacity(); ++i, idx = (idx+1)%capacity()) {
       const auto flag = _flag_at(idx);
       if (flag == FLAG_EMPTY) {
@@ -220,7 +271,7 @@ public:
       if (flag == FLAG_TOMB) {
         continue;
       }
-      if (this->_equals(_values[idx].first, key)) {
+      if (ops_base::_equals(_values[idx].first, key)) {
         return iterator{this, idx};
       }
     }
@@ -228,7 +279,7 @@ public:
   }
 
   [[nodiscard]] const_iterator find(const key_type& key) const {
-    size_t idx = _hash(key) % capacity();
+    size_t idx = ops_base::_hash(key) % capacity();
     for (size_t i = 0; i < capacity(); ++i, idx = (idx+1)%capacity()) {
       const auto flag = _flag_at(idx);
       if (flag == FLAG_EMPTY) {
@@ -237,7 +288,7 @@ public:
       if (flag == FLAG_TOMB) {
         continue;
       }
-      if (_equals(_values[idx].first, key)) {
+      if (ops_base::_equals(_values[idx].first, key)) {
         return const_iterator{this, idx};
       }
     }
@@ -245,11 +296,6 @@ public:
   }
 
   void clear() noexcept {
-    if (!_values) {
-      return;
-    }
-
-    std::allocator<value_type> alloc;
     if constexpr (!std::is_trivial_v<value_type>) {
       for (size_t i = 0; i < capacity(); ++i) {
         if (_flag_at(i) == FLAG_USED) {
@@ -257,9 +303,6 @@ public:
         }
       }
     }
-    alloc.deallocate(_values, capacity());
-    std::allocator<uint32_t> alloc2;
-    alloc2.deallocate(_flags, capacity()/FLAGS_PER_ENTRY);
     _used = 0;
   }
 
@@ -290,24 +333,24 @@ public:
     return *this;
   }
 
-  void print() const {
-    fmt::print("BEGIN\n");
-    for (size_t i = 0; i < capacity(); ++i) {
-      if (_flag_at(i) == FLAG_USED) {
-        fmt::print(" {} -> ({},{})\n", i, _values[i].first, _values[i].second);
-      } else if (_flag_at(i) == FLAG_TOMB) {
-        fmt::print(" {} -> TONTON\n", i);
-      } else {
-        fmt::print(" {} -> x\n", i);
-      }
-    }
-    fmt::print("END\n");
-  }
+  // void print() const {
+  //   fmt::print("BEGIN\n");
+  //   for (size_t i = 0; i < capacity(); ++i) {
+  //     if (_flag_at(i) == FLAG_USED) {
+  //       fmt::print(" {} -> ({},{})\n", i, _values[i].first, _values[i].second);
+  //     } else if (_flag_at(i) == FLAG_TOMB) {
+  //       fmt::print(" {} -> TONTON\n", i);
+  //     } else {
+  //       fmt::print(" {} -> x\n", i);
+  //     }
+  //   }
+  //   fmt::print("END\n");
+  // }
 
 public:
   reference operator[](const key_type& key) {
     auto it = find(key);
-    assert(it != end());
+    NTF_ASSERT(it != end());
     return *it;
   }
   reference at(const key_type& key) {
@@ -320,7 +363,7 @@ public:
 
   const_reference operator[](const key_type& key) const {
     auto it = find(key);
-    assert(it != end());
+    NTF_ASSERT(it != end());
     return *it;
   }
   const_reference at(const key_type& key) const {
@@ -341,35 +384,54 @@ public:
 
   size_type size() const { return _used; }
   size_type capacity() const { return _cap; }
-  float load_factor() const { return static_cast<float>(size())/static_cast<float>(capacity()); }
+  float32 load_factor() const {
+    return static_cast<float32>(size())/static_cast<float32>(capacity());
+  }
 
-  const hasher& hash_function() const { return static_cast<const hasher&>(*this); }
-  const key_equal& key_eq() const { return static_cast<const key_equal&>(*this); }
+  const hasher& hash_function() const { return alloc_base::_hash_function(); }
+  const key_equal& key_eq() const { return alloc_base::_key_eq(); }
+  const allocator_type& get_allocator() const { return alloc_base::_get_allocator(); }
 
 private:
-  uint32_t _flag_at(size_t idx) const {
-    const uint32_t flag_idx = idx/FLAGS_PER_ENTRY;
-    const uint32_t shift = (idx%FLAGS_PER_ENTRY)*2;
+  static size_t _flag_count(size_t cap) {
+    return std::ceil(static_cast<float32>(cap)/static_cast<float32>(FLAGS_PER_ENTRY));
+  }
+
+  void _destroy() {
+    if (!_values) {
+      return;
+    }
+
+    clear();
+    alloc_base::_dealloc_values(_values, capacity());
+    alloc_base::_dealloc_flags(_flags, _flag_count(capacity()));
+  }
+
+  uint32 _flag_at(size_t idx) const {
+    const uint32 flag_idx = idx/FLAGS_PER_ENTRY;
+    const uint32 shift = (idx%FLAGS_PER_ENTRY)*2;
     return (_flags[flag_idx] >> shift) & FLAG_MASK;
   }
 
-  void _flag_set(size_t idx, uint32_t flag) {
-    const uint32_t flag_idx = idx/FLAGS_PER_ENTRY;
-    const uint32_t shift = (idx%FLAGS_PER_ENTRY)*2;
+  void _flag_set(size_t idx, uint32 flag) {
+    const uint32 flag_idx = idx/FLAGS_PER_ENTRY;
+    const uint32 shift = (idx%FLAGS_PER_ENTRY)*2;
     _flags[flag_idx] &= ~(FLAG_MASK << shift);
     _flags[flag_idx] |= (flag & FLAG_MASK) << shift;
   }
 
 private:
-  uint32_t* _flags;
+  uint32* _flags;
   value_type* _values;
-  size_t _used, _cap;
+  size_t _used;
+  const size_t _cap;
 
 public:
-  ~fixed_hashmap() noexcept { clear(); }
+  ~fixed_hashmap() noexcept { _destroy(); }
 
   fixed_hashmap(fixed_hashmap&& other) noexcept :
     ops_base{static_cast<ops_base&&>(other)},
+    alloc_base{static_cast<alloc_base&&>(other)},
     _flags{std::move(other._flags)}, _values{std::move(other._values)},
     _used{std::move(other._used)}, _cap{std::move(other._cap)}
   {
@@ -378,8 +440,9 @@ public:
 
   fixed_hashmap& operator=(fixed_hashmap&& other) noexcept {
     ops_base::operator=(static_cast<ops_base&&>(other));
+    alloc_base::operator=(static_cast<alloc_base&&>(other));
 
-    clear();
+    _destroy();
 
     _flags = std::move(other._flags);
     _values = std::move(other._values);
