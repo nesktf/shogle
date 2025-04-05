@@ -143,21 +143,6 @@ private:
     _values{values}, _flags{flags}, _used{0}, _cap{cap} {}
 
 public:
-  fixed_hashmap(std::initializer_list<value_type> init,
-                const HashT& hash = {}, const EqualsT& eqs = {}, const AllocT& alloc ={}) :
-    ops_base{hash, eqs}, alloc_base{alloc},
-    _used{init.size()}, _cap{init.size()}
-  {
-    _values = alloc_base::_alloc_values(_used);
-    _flags = alloc_base::_alloc_flags(_flag_count(_used));
-    size_t idx = 0;
-    for (const auto& [k, v] : init) {
-      std::construct_at(_values+idx, std::make_pair(k, v));
-      _flag_set(idx, FLAG_USED);
-      ++idx;
-    }
-  }
-
   fixed_hashmap(size_t cap,
                 const HashT& hash = {}, const EqualsT& eqs = {}, const AllocT& alloc = {}) :
     ops_base{hash, eqs}, alloc_base{alloc},
@@ -165,6 +150,15 @@ public:
   {
     _values = alloc_base::_alloc_values(cap);
     _flags = alloc_base::_alloc_flags(_flag_count(cap));
+  }
+
+  fixed_hashmap(std::initializer_list<value_type> init,
+                const HashT& hash = {}, const EqualsT& eqs = {}, const AllocT& alloc = {}) :
+    fixed_hashmap{init.size(), hash, eqs, alloc}
+  {
+    for (const auto& [k, v] : init) {
+      try_emplace(k, v);
+    }
   }
 
 public:
@@ -242,7 +236,7 @@ public:
   }
 
   bool erase(const key_type& key) {
-    size_t idx = _hash(key) % capacity();
+    size_t idx = ops_base::_hash(key) % capacity();
     for (size_t i = 0; i < capacity(); ++i, idx = (idx+1)%capacity()) {
       const auto flag = _flag_at(idx);
       if (flag == FLAG_EMPTY) {
@@ -251,7 +245,7 @@ public:
       if (flag == FLAG_TOMB) {
         continue;
       }
-      if (_equals(_values[idx].first, key)) {
+      if (ops_base::_equals(_values[idx].first, key)) {
         _flag_set(idx, FLAG_TOMB);
         --_used;
         if constexpr (!std::is_trivial_v<value_type>) {
