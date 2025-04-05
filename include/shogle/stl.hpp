@@ -10,3 +10,4 @@
 #include "../../src/stl/optional.hpp"
 #include "../../src/stl/function.hpp"
 #include "../../src/stl/event.hpp"
+#include "../../src/stl/hashmap.hpp"

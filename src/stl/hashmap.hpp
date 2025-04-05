@@ -151,8 +151,10 @@ public:
     _values = alloc_base::_alloc_values(_used);
     _flags = alloc_base::_alloc_flags(_flag_count(_used));
     size_t idx = 0;
-    for (const auto& pair : init) {
-      _values[idx] = pair;
+    for (const auto& [k, v] : init) {
+      std::construct_at(_values+idx, std::make_pair(k, v));
+      _flag_set(idx, FLAG_USED);
+      ++idx;
     }
   }
 
@@ -348,30 +350,30 @@ public:
   // }
 
 public:
-  reference operator[](const key_type& key) {
+  mapped_type& operator[](const key_type& key) {
     auto it = find(key);
     NTF_ASSERT(it != end());
-    return *it;
+    return it->second;
   }
-  reference at(const key_type& key) {
+  mapped_type& at(const key_type& key) {
     auto it = find(key);
     if (it == end()) {
       throw std::out_of_range{fmt::format("Key '{}' not found", key)};
     }
-    return *it;
+    return it->second;
   }
 
-  const_reference operator[](const key_type& key) const {
+  const mapped_type& operator[](const key_type& key) const {
     auto it = find(key);
     NTF_ASSERT(it != end());
-    return *it;
+    return it->second;
   }
-  const_reference at(const key_type& key) const {
+  const mapped_type& at(const key_type& key) const {
     auto it = find(key);
     if (it == end()) {
       throw std::out_of_range{fmt::format("Key '{}' not found", key)};
     }
-    return *it;
+    return it->second;
   }
 
   iterator begin() { return iterator{this, 0u}; }
