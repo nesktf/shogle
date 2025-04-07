@@ -100,8 +100,9 @@ concept not_void = !std::is_void_v<T>;
 
 template<typename T>
 concept is_nothrow_forward_constructible = 
-  (std::is_rvalue_reference_v<T> && std::is_nothrow_move_constructible_v<T>) ||
-  (std::is_lvalue_reference_v<T> && std::is_nothrow_copy_constructible_v<T>);
+  (std::is_rvalue_reference_v<T> && std::is_nothrow_move_constructible_v<std::remove_cvref_t<T>>)
+  ||
+  (std::is_lvalue_reference_v<T> && std::is_nothrow_copy_constructible_v<std::remove_cvref_t<T>>);
 
 template<typename T>
 concept is_complete = requires(T obj) {
