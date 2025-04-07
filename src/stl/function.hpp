@@ -49,7 +49,11 @@ private:
     },
     .invoke_obj = +[](void* obj, Args... args) -> R {
       static_assert(std::is_invocable_r_v<R, T, Args...>, "T is not a valid callable type");
-      return std::invoke(*static_cast<T*>(obj), std::forward<Args>(args)...);
+      if constexpr (std::is_void_v<R>) {
+        std::invoke(*static_cast<T*>(obj), std::forward<Args>(args)...);
+      } else {
+        return std::invoke(*static_cast<T*>(obj), std::forward<Args>(args)...);
+      }
     },
   };
 
@@ -126,17 +130,26 @@ public:
   }
 
 public:
-  constexpr R operator()(Args... args) {
+  constexpr R operator()(Args... args) const {
     if (_state == vtable_state::funptr) {
-      return std::invoke(_fun_invoke, std::forward<Args>(args)...);
+      if constexpr (std::is_void_v<R>) {
+        std::invoke(_fun_invoke, std::forward<Args>(args)...);
+      } else {
+        return std::invoke(_fun_invoke, std::forward<Args>(args)...);
+      }
     } else {
-      return std::invoke(_vtable->invoke,
-                         static_cast<void*>(std::addressof(_buf)),
-                         std::forward<Args>(args)...);
+      if constexpr (std::is_void_v<R>) {
+        std::invoke(_vtable->invoke,
+                    static_cast<void*>(std::addressof(_buf)),
+                    std::forward<Args>(args)...);
+      } else {
+        return std::invoke(_vtable->invoke,
+                           static_cast<void*>(std::addressof(_buf)),
+                           std::forward<Args>(args)...);
+      }
     }
   }
 
-public:
   constexpr inplace_function& operator=(std::nullptr_t) noexcept {
     _destroy();
     _state = vtable_state::empty;
@@ -241,6 +254,204 @@ private:
   union {
     const vtable_t* _vtable;
     R (*_fun_invoke)(Args...);
+  };
+};
+
+template<typename Signature>
+class function_view;
+
+template<typename R, typename... Args>
+class function_view<R(Args...)> {
+private:
+  template<typename T>
+  static constexpr R(*_invoke_for)(Args...) = +[](void* obj, Args... args) {
+    if constexpr (std::is_void_v<R>) {
+      std::invoke(*static_cast<T*>(obj), std::forward<Args>(args)...);
+    } else {
+      return std::invoke(*static_cast<T*>(obj), std::forward<Args>(args)...);
+    }
+  };
+
+public:
+  using signature = R(Args...);
+  using return_type = R;
+
+public:
+  constexpr function_view() noexcept :
+    _data{nullptr}, _invoke_ptr{nullptr} {}
+
+  constexpr function_view(std::nullptr_t) noexcept :
+    _data{nullptr}, _invoke_ptr{nullptr} {}
+
+  constexpr function_view(R(*fun)(Args...)) noexcept :
+    _data{nullptr}, _invoke_ptr{fun} {}
+
+  template<typename T>
+  requires(std::is_invocable_r_v<R, T, Args...>)
+  constexpr function_view(T& functor) noexcept :
+    _data{static_cast<void*>(std::addressof(functor))}, _invoke_functor{&_invoke_for<T>} {}
+
+  template<typename T>
+  requires(std::is_invocable_r_v<R, T, Args...>)
+  constexpr function_view(T* functor) noexcept :
+    _data{static_cast<void*>(functor)}, _invoke_functor{&_invoke_for<T>} {}
+
+public:
+  constexpr ~function_view() noexcept = default;
+  constexpr function_view(const function_view&) noexcept = default;
+  constexpr function_view(function_view&&) noexcept = default;
+
+public:
+  constexpr R operator()(Args... args) const {
+    if (_data) {
+      if constexpr (std::is_void_v<R>) {
+        std::invoke(_invoke_functor, _data, std::forward<Args>(args)...);
+      } else {
+        return std::invoke(_invoke_functor, _data, std::forward<Args>(args)...);
+      }
+    } else {
+      if constexpr (std::is_void_v<R>) {
+        std::invoke(_invoke_ptr, std::forward<Args>(args)...);
+      } else {
+        return std::invoke(_invoke_ptr, std::forward<Args>(args)...);
+      }
+    }
+  }
+
+  constexpr function_view& operator=(std::nullptr_t) noexcept {
+    _data = nullptr;
+    _invoke_ptr = nullptr;
+    return *this;
+  }
+
+  constexpr function_view& operator=(R(*fun)(Args...)) noexcept {
+    _data = nullptr;
+    _invoke_ptr = fun;
+    return *this;
+  }
+
+  template<typename T>
+  constexpr function_view& operator=(T& functor) noexcept {
+    _data = std::addressof(functor);
+    _invoke_functor = &_invoke_for<T>;
+    return *this;
+  }
+
+  constexpr function_view& operator=(const function_view&) noexcept = default;
+  constexpr function_view& operator=(function_view&&) noexcept = default;
+
+public:
+  constexpr bool is_empty() const { return (_data && _invoke_functor) || _invoke_ptr == nullptr; }
+  constexpr explicit operator bool() const { return !is_empty(); }
+
+private:
+  void* _data;
+  union {
+    R(*_invoke_functor)(void*, Args...);
+    R(*_invoke_ptr)(Args...);
+  };
+};
+
+template<typename R, typename... Args>
+class function_view<R(Args...) const> {
+private:
+  // TODO: Merge both const and non const specializations, somehow
+  template<typename T>
+  static constexpr R(*_invoke_for)(Args...) = +[](const void* obj, Args... args) {
+    if constexpr (std::is_void_v<R>) {
+      std::invoke(*static_cast<const T*>(obj), std::forward<Args>(args)...);
+    } else {
+      return std::invoke(*static_cast<const T*>(obj), std::forward<Args>(args)...);
+    }
+  };
+
+public:
+  using signature = R(Args...);
+  using return_type = R;
+
+public:
+  constexpr function_view() noexcept :
+    _data{nullptr}, _invoke_ptr{nullptr} {}
+
+  constexpr function_view(std::nullptr_t) noexcept :
+    _data{nullptr}, _invoke_ptr{nullptr} {}
+
+  constexpr function_view(R(*fun)(Args...)) noexcept :
+    _data{nullptr}, _invoke_ptr{fun} {}
+
+  template<typename T>
+  requires(std::is_invocable_r_v<R, T, Args...>)
+  constexpr function_view(const T& functor) noexcept :
+    _data{static_cast<const void*>(std::addressof(functor))}, _invoke_functor{&_invoke_for<T>} {}
+
+  template<typename T>
+  requires(std::is_invocable_r_v<R, T, Args...>)
+  constexpr function_view(const T* functor) noexcept :
+    _data{static_cast<const void*>(functor)}, _invoke_functor{&_invoke_for<T>} {}
+
+  constexpr function_view(const function_view<R(Args...)>& other) noexcept :
+    _data{other._data}
+  {
+    if (_data) {
+      _invoke_functor = other._invoke_functor;
+    } else {
+      _invoke_ptr = other._invoke_ptr;
+    }
+  }
+
+public:
+  constexpr ~function_view() noexcept = default;
+  constexpr function_view(const function_view&) noexcept = default;
+  constexpr function_view(function_view&&) noexcept = default;
+
+public:
+  constexpr R operator()(Args... args) const {
+    if (_data) {
+      if constexpr (std::is_void_v<R>) {
+        std::invoke(_invoke_functor, _data, std::forward<Args>(args)...);
+      } else {
+        return std::invoke(_invoke_functor, _data, std::forward<Args>(args)...);
+      }
+    } else {
+      if constexpr (std::is_void_v<R>) {
+        std::invoke(_invoke_ptr, std::forward<Args>(args)...);
+      } else {
+        return std::invoke(_invoke_ptr, std::forward<Args>(args)...);
+      }
+    }
+  }
+
+  constexpr function_view& operator=(std::nullptr_t) noexcept {
+    _data = nullptr;
+    _invoke_ptr = nullptr;
+    return *this;
+  }
+
+  constexpr function_view& operator=(R(*fun)(Args...)) noexcept {
+    _data = nullptr;
+    _invoke_ptr = fun;
+    return *this;
+  }
+
+  template<typename T>
+  constexpr function_view& operator=(const T& functor) noexcept {
+    _data = std::addressof(functor);
+    _invoke_functor = &_invoke_for<T>;
+    return *this;
+  }
+
+  constexpr function_view& operator=(const function_view&) noexcept = default;
+  constexpr function_view& operator=(function_view&&) noexcept = default;
+
+public:
+  constexpr bool is_empty() const { return (_data && _invoke_functor) || _invoke_ptr == nullptr; }
+  constexpr explicit operator bool() const { return !is_empty(); }
+
+private:
+  const void* _data;
+  union {
+    R(*_invoke_functor)(void*, Args...);
+    R(*_invoke_ptr)(Args...);
   };
 };
 
