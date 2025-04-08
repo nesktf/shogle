@@ -56,10 +56,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERN_LINK})
 target_compile_definitions(${PROJECT_NAME} PUBLIC ${SHOGLE_DEFS})
 
 
-# if (SHOGLE_BUILD_TESTS)
-#   message(STATUS "ShOGLE: Building tests")
-#   add_subdirectory(${TESTS_DIR})
-# endif()
+if (SHOGLE_BUILD_TESTS)
+  message(STATUS "ShOGLE: Building tests")
+  add_subdirectory(${TESTS_DIR})
+endif()
 
 if (SHOGLE_BUILD_DEMOS)
   message(STATUS "ShOGLE: Building demos")
