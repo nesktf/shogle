@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(SHOGLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(SRC_DIR "${SHOGLE_DIR}/src")
 set(EXTERN_DIR "${SHOGLE_DIR}/extern")

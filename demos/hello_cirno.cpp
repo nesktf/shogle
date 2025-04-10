@@ -1,6 +1,7 @@
 #include "shogle/render.hpp"
 #include "shogle/assets.hpp"
 #include "shogle/math.hpp"
+#include "shogle/version.hpp"
 
 static auto init_ctx() {
   ntf::r_win_gl_params gl_params {

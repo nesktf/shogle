@@ -24,8 +24,8 @@ enable_testing()
 
 file(GLOB_RECURSE SOURCE_FILES "./*.cpp")
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
-target_include_directories(${PROJECT_NAME} PRIVATE src ${LIBS_INCLUDE})
-# set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
+target_include_directories(${PROJECT_NAME} PUBLIC src ${LIBS_INCLUDE})
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBS_LINK})
 
 include(GoogleTest)

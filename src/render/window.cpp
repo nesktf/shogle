@@ -45,7 +45,7 @@ auto r_window_create_impl(const r_win_params& params)
     glfwWindowHintString(GLFW_X11_INSTANCE_NAME, params.x11_instance_name);
   }
 
-  const char* title = params.title ? params.title : "window - ShOGLE " SHOGLE_VERSION_STRING;
+  const char* title = params.title ? params.title : "window - ShOGLE";
 
   win_handle_t handle = glfwCreateWindow(params.width, params.height, title, nullptr, nullptr);
   if (!handle) {

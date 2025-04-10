@@ -121,7 +121,6 @@
   }
 
 #include "./config.hpp"
-#include "shogle_version.hpp"
 #include "./stl/logger.hpp"
 
 // Config dependent macros
