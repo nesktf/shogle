@@ -488,4 +488,112 @@ struct vec_span {
   }
 };
 
+template<typename Deleter, typename T>
+concept handle_deleter_type = requires(const Deleter& delc, Deleter& del, T handle) {
+  { del.delete_handle(handle) } -> std::same_as<void>;
+  noexcept(del.delete_handle(handle));
+  { delc.compare(handle, handle) } -> std::convertible_to<bool>;
+  noexcept(delc.compare(handle, handle));
+} && std::is_same_v<decltype(Deleter::NULL_HANDLE), T> && std::copy_constructible<Deleter>;
+
+namespace impl {
+
+template<typename T, typename Deleter>
+struct unique_handle_del :
+  private Deleter
+{
+  unique_handle_del(const Deleter& del) :
+    Deleter{del} {}
+
+  void _delete(T handle) {
+    Deleter::delete_handle(handle);
+  }
+
+  bool _compare(T a, T b) const {
+    return Deleter::compare(a, b);
+  }
+
+  const Deleter& _get_deleter() const { return static_cast<const Deleter&>(*this); }
+  Deleter& _get_deleter() { return static_cast<Deleter&>(*this); }
+};
+
+} // namespace impl
+
+template<typename T, handle_deleter_type<T> Deleter>
+class unique_handle :
+  private impl::unique_handle_del<T, Deleter>
+{
+public:
+  static constexpr T NULL_HANDLE = Deleter::NULL_HANDLE;
+
+  using value_type = T;
+  using deleter_type = Deleter;
+
+private:
+  using del_base = impl::unique_handle_del<T, Deleter>;
+
+public:
+  unique_handle(const Deleter& del = {}) :
+    del_base{del},
+    _handle{NULL_HANDLE} {}
+
+  unique_handle(T handle, const Deleter& del = {}) :
+    del_base{del},
+    _handle{handle} {}
+
+  unique_handle(unique_handle&& other) noexcept :
+    del_base{static_cast<del_base&&>(other)},
+    _handle{std::move(other._handle)} { other._nullify(); }
+
+  unique_handle(const unique_handle&) = delete;
+
+  ~unique_handle() noexcept { _delete_handle(); }
+
+public:
+  T get() const { return _handle; }
+  [[nodiscard]] T release() {
+    T h = _handle;
+    _nullify();
+    return h;
+  }
+
+public:
+  T& operator*() { return _handle; }
+  const T& operator*() const { return _handle; }
+
+  T* operator->() { return std::addressof(_handle); }
+  const T* operator->() const { return std::addressof(_handle); }
+
+  unique_handle& operator=(unique_handle&& other) noexcept {
+    _delete_handle();
+
+    del_base::operator=(static_cast<del_base&&>(other));
+    _handle = std::move(other._handle);
+
+    other._nullify();
+
+    return *this;
+  }
+
+  unique_handle& operator=(const unique_handle&) = delete;
+
+public:
+  bool is_empty() const { return del_base::_compare(_handle, NULL_HANDLE); }
+  explicit operator bool() const { return !is_empty(); }
+
+  Deleter& get_deleter() { return del_base::_get_deleter(); }
+  const Deleter& get_deleter() const { return del_base::_get_deleter(); }
+
+private:
+  void _nullify() { _handle = NULL_HANDLE; }
+  void _delete_handle() {
+    if (del_base::_compare(_handle, NULL_HANDLE)) {
+      del_base::_delete(_handle);
+    }
+  }
+
+private:
+  T _handle;
+};
+
 } // namespace ntf
