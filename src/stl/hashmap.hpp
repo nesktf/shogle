@@ -456,4 +456,11 @@ public:
   fixed_hashmap& operator=(const fixed_hashmap&) = delete;
 };
 
+template<typename K, typename T, typename AllocT>
+using fixed_hashmap_alloc = fixed_hashmap<
+  K, T,
+  std::hash<K>, std::equal_to<K>,
+  rebind_alloc_t<AllocT, std::pair<const K, T>>
+>;
+
 } // namespace ntf

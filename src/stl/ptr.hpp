@@ -404,11 +404,12 @@ public:
     return {arr, container.size(), allocator_delete<T, Alloc>{alloc}};
   }
 
-  template<allocator_type<T> Alloc = std::allocator<T>>
+  template<typename Alloc = std::allocator<T>>
+  requires(allocator_type<std::remove_cvref_t<Alloc>, T>)
   static auto from_allocator(
     size_t sz, const T& copy_obj, Alloc&& alloc = {}
-  ) -> unique_array<T, allocator_delete<T, Alloc>>{
-    auto del = allocator_delete<T, Alloc>{alloc};
+  ) -> unique_array<T, allocator_delete<T, std::remove_cvref_t<Alloc>>>{
+    auto del = allocator_delete<T, std::remove_cvref_t<Alloc>>{alloc};
     try {
       auto* arr = alloc.allocate(sz);
       if (!arr) {
@@ -423,11 +424,12 @@ public:
     }
   }
 
-  template<allocator_type<T> Alloc = std::allocator<T>>
+  template<typename Alloc = std::allocator<T>>
+  requires(allocator_type<std::remove_cvref_t<Alloc>, T>)
   static auto from_allocator(
     uninitialized_t, size_t sz, Alloc&& alloc = {}
-  ) -> unique_array<T, allocator_delete<T, Alloc>> {
-    allocator_delete<T, Alloc> del{alloc};
+  ) -> unique_array<T, allocator_delete<T, std::remove_cvref_t<Alloc>>> {
+    auto del = allocator_delete<T, std::remove_cvref_t<Alloc>>{alloc};
     try {
       auto* arr = alloc.allocate(sz);
       if (!arr) {
@@ -451,6 +453,9 @@ public:
 };
 
 NTF_DEFINE_TEMPLATE_CHECKER(unique_array);
+
+template<typename T, typename AllocT>
+using unique_array_alloc = unique_array<T, allocator_delete<T, rebind_alloc_t<AllocT, T>>>;
 
 template<typename Arr, typename T>
 struct unique_array_check_t : public std::false_type {};

@@ -45,13 +45,7 @@ static auto init_ctx() {
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
   
-  ntf::ft2_font_loader font_loader;
-  // auto cousine = font_loader.load_atlas("./demos/res/CousineNerdFont-Regular.ttf",
-  //                                       ntf::ascii_charset<char>,
-  //                                       {0, 32}, 0, 128);
-  auto cousine = font_loader.load_array("./demos/res/CousineNerdFont-Regular.ttf",
-                                        ntf::ascii_charset<char>,
-                                        {32, 32});
+  auto cousine = ntf::load_font_atlas<char>("./demos/res/CousineNerdFont-Regular.ttf");
   if (!cousine) {
     ntf::logger::error("[main] Failed to load font: {}", cousine.error().what());
     return EXIT_FAILURE;
@@ -304,7 +298,7 @@ int main() {
   ntf::vec4 color_quad {1.f, 1.f, 1.f, 1.f};
 
   auto ext = cousine->bitmap_extent;
-  float fnt_scale = 250.f;
+  float fnt_scale = 500.f;
   float fnt_aspect = (float)ext.x/(float)ext.y;
   auto transf_font = ntf::transform2d<ntf::float32>{}
     .pos(0.f, 0.f).scale(fnt_aspect*fnt_scale, -fnt_scale);

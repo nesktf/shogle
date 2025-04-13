@@ -253,4 +253,7 @@ struct rebind_deleter<Deleter, T> {
 template<typename Deleter, typename T>
 using rebind_deleter_t = rebind_deleter<Deleter, T>::type;
 
+template<typename T, typename AllocT>
+using allocator_delete_alloc = allocator_delete<T, rebind_alloc_t<AllocT, T>>;
+
 } // namespace ntf
