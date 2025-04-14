@@ -198,6 +198,8 @@ struct r_platform_context {
 
   virtual r_buffer_handle create_buffer(const r_buffer_descriptor& desc) = 0;
   virtual void update_buffer(r_buffer_handle buf, const r_buffer_data& data) = 0;
+  virtual void* map_buffer(r_buffer_handle buf, size_t offset, size_t len) = 0;
+  virtual void unmap_buffer(r_buffer_handle buf, void* ptr) = 0;
   virtual void destroy_buffer(r_buffer_handle buf) noexcept = 0;
 
   virtual r_texture_handle create_texture(const r_texture_descriptor& desc) = 0;
@@ -279,6 +281,11 @@ public:
     r_buffer_handle buff,
     const r_buffer_data& desc
   );
+
+  r_expected<void*> buffer_map(r_buffer_handle buff, size_t offet, size_t len);
+  void* buffer_map(unchecked_t, r_buffer_handle buff, size_t offset, size_t len);
+
+  void buffer_unmap(r_buffer_handle buff, void* ptr);
 
   [[nodiscard]] r_buffer_type buffer_type(r_buffer_handle buff) const;
   [[nodiscard]] size_t buffer_size(r_buffer_handle buff) const;

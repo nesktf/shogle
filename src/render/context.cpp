@@ -401,6 +401,54 @@ void r_context_view::buffer_update(
   _data->platform->update_buffer(buf, des);
 }
 
+r_expected<void*> r_context_view::buffer_map(r_buffer_handle buf, size_t offset, size_t len) {
+  RET_ERROR_IF(!buf,
+               "[ntf::r_context::buffer_map]",
+               "Invalid handle");
+
+  auto it = _data->buffers.find(buf);
+  RET_ERROR_IF(it == _data->buffers.end(),
+               "[ntf::r_context::buffer_map]",
+               "Invalid handle");
+  auto& buffer = it->second;
+  RET_ERROR_IF(
+    !+(buffer.flags & r_buffer_flag::read_mappable) ||
+    !+(buffer.flags & r_buffer_flag::write_mappable),
+   "[ntf::r_context::buffer_map]",
+    "Non mappable buffer"
+  );
+  RET_ERROR_IF(offset+len <= buffer.size,
+               "[ntf::r_context::buffer_map]",
+               "Invalid mapping size");
+  void* ptr = nullptr;
+  try {
+    ptr = _data->platform->map_buffer(buf, offset, len);
+  }
+  RET_ERROR_CATCH("[ntf::r_context::buffer_map]",
+                  "Failed to map buffer");
+  RET_ERROR_IF(!ptr,
+               "[ntf::r_context::buffer_map]",
+               "Failed to map buffer");
+  return ptr;
+}
+
+void* r_context_view::buffer_map(unchecked_t, r_buffer_handle buf, size_t offset, size_t len) {
+  NTF_ASSERT(buf);
+  NTF_ASSERT(_data->buffers.find(buf) != _data->buffers.end());
+  return _data->platform->map_buffer(buf, offset, len);
+}
+
+void r_context_view::buffer_unmap(r_buffer_handle buf, void* ptr) {
+  if (!buf || !ptr) {
+    return;
+  }
+  auto it = _data->buffers.find(buf);
+  if (it == _data->buffers.end()) {
+    return;
+  }
+  _data->platform->unmap_buffer(buf, ptr);
+}
+
 r_buffer_type r_context_view::buffer_type(
   r_buffer_handle buff
 ) const {

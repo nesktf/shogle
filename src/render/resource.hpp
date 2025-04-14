@@ -71,6 +71,18 @@ struct r_buffer_sets {
     T& self = static_cast<T&>(*this);
     self._ctx.buffer_update(::ntf::unchecked, self._handle, data);
   }
+  r_expected<void*> map(size_t offset, size_t len) {
+    T& self = static_cast<T&>(*this);
+    return self._ctx.buffer_map(self._handle, offset, len);
+  }
+  void* map(unchecked_t, size_t offset, size_t len) {
+    T& self = static_cast<T&>(*this);
+    return self._ctx.buffer_map(::ntf::unchecked, self._handle, offset, len);
+  }
+  void unmap(void* ptr) {
+    T& self = static_cast<T&>(*this);
+    self._ctx.buffer_unmap(self._handle, ptr);
+  }
 };
 
 template<typename T>

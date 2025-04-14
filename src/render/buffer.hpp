@@ -1,6 +1,7 @@
 #pragma once
 
 #include "./forward.hpp"
+#include "../stl/optional.hpp"
 
 namespace ntf {
 
@@ -17,9 +18,9 @@ enum class r_buffer_type : uint8 {
 enum class r_buffer_flag : uint8 {
   none              = 0,
   dynamic_storage   = 1 << 0,
-  // read_mappable     = 1 << 1,
-  // write_mappable    = 1 << 2,
-  // rw_mappable       = (1<<1) | (1<<2),
+  read_mappable     = 1 << 1,
+  write_mappable    = 1 << 2,
+  rw_mappable       = (1<<1) | (1<<2),
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_buffer_flag);
 

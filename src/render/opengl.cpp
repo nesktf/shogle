@@ -11,6 +11,18 @@ do { \
 } while(0)
 #endif
 
+#ifdef SHOGLE_GL_DISABLE_ASSERTIONS
+#define GL_CALL_RET(fun) fun
+#else
+#define GL_CALL_RET(fun) \
+[&](){ \
+  auto ret = fun; \
+  GLenum glerr = gl_check_error(__FILE__, __LINE__); \
+  NTF_ASSERT(glerr == 0, "GL ERROR: {}", glerr); \
+  return ret; \
+}()
+#endif
+
 #define GL_CHECK(fun) \
 [&]() { \
   fun; \
@@ -126,22 +138,31 @@ GLenum& gl_state::_buffer_pos(GLenum type) {
 
 auto gl_state::create_buffer(r_buffer_type type, r_buffer_flag flags, size_t size,
                              weak_ref<r_buffer_data> data) -> buffer_t {
-  NTF_ASSERT(data);
-  NTF_ASSERT(data->data);
-  NTF_ASSERT(data->offset+data->size <= size);
+
+  const bool is_dynamic = +(flags & r_buffer_flag::dynamic_storage);
+  const GLbitfield access_flags = 
+    (+(flags & r_buffer_flag::read_mappable) || +(flags & r_buffer_flag::write_mappable) ?
+      GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT : 0) |
+    (+(flags & r_buffer_flag::read_mappable) ? GL_MAP_READ_BIT : 0) |
+    (+(flags & r_buffer_flag::write_mappable) ? GL_MAP_WRITE_BIT : 0);
+
+  const GLbitfield glflags = access_flags |
+    (is_dynamic ? GL_DYNAMIC_STORAGE_BIT : 0);
+
+  if (!is_dynamic) {
+    NTF_ASSERT(data);
+    NTF_ASSERT(data->data);
+    NTF_ASSERT(data->offset+data->size <= size);
+  }
   GLuint id;
   GL_CALL(glGenBuffers(1, &id));
   const GLenum gltype = buffer_type_cast(type);
 
   _buffer_pos(gltype) = id;
 
-  GLbitfield glflags = 
-    GL_MAP_READ_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT |
-    (+(flags & r_buffer_flag::dynamic_storage) ? GL_DYNAMIC_STORAGE_BIT : 0);
-
   GLuint last = _buffer_pos(gltype);
   GL_CALL(glBindBuffer(gltype, id));
-  const void* data_ptr = 
+  const void* data_ptr = !data ? nullptr :
     reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(data->data) + data->offset);
   if (auto err = GL_CHECK(glBufferStorage(gltype, size, data_ptr, glflags)); err != GL_NO_ERROR) {
     GL_CALL(glBindBuffer(gltype, last));
@@ -155,6 +176,8 @@ auto gl_state::create_buffer(r_buffer_type type, r_buffer_flag flags, size_t siz
   buff.size = size;
   buff.type = gltype;
   buff.flags = glflags;
+  buff.mapping = access_flags;
+  buff.mapping_ptr = nullptr;
   return buff;
 }
 
@@ -186,6 +209,28 @@ void gl_state::update_buffer(const buffer_t& buffer, const void* data,
 
   bind_buffer(buffer.id, buffer.type);
   GL_CALL(glBufferSubData(buffer.type, off, size, data));
+}
+
+void* gl_state::map_buffer(buffer_t& buffer, size_t offset, size_t len) {
+  NTF_ASSERT(offset+len <= buffer.size);
+  NTF_ASSERT(buffer.mapping != 0);
+
+  if (buffer.mapping_ptr) {
+    unmap_buffer(buffer, buffer.mapping_ptr);
+  }
+
+  bind_buffer(buffer.id, buffer.type);
+  void* ptr = GL_CALL_RET(glMapBufferRange(buffer.type, offset, len, buffer.mapping));
+  buffer.mapping_ptr = ptr;
+  return ptr;
+}
+
+void gl_state::unmap_buffer(buffer_t& buffer, void* ptr) {
+  if (buffer.mapping_ptr != ptr || !ptr) {
+    return;
+  }
+  bind_buffer(buffer.id, buffer.type);
+  GL_CALL(glUnmapBuffer(buffer.type));
 }
 
 auto gl_state::create_vao() noexcept -> vao_t {
@@ -1248,6 +1293,16 @@ void gl_context::destroy_buffer(r_buffer_handle buf) noexcept {
   auto& buffer = _buffers.get(buf);
   _state.destroy_buffer(buffer);
   _buffers.push(buf);
+}
+
+void* gl_context::map_buffer(r_buffer_handle buf, size_t offset, size_t len) {
+  auto& buffer = _buffers.get(buf);
+  return _state.map_buffer(buffer, offset, len);
+}
+
+void gl_context::unmap_buffer(r_buffer_handle buf, void* ptr) {
+  auto& buffer = _buffers.get(buf);
+  _state.unmap_buffer(buffer, ptr);
 }
 
 r_texture_handle gl_context::create_texture(const r_texture_descriptor& desc) {

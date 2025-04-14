@@ -20,6 +20,8 @@ public:
     GLenum type;
     GLbitfield flags;
     size_t size;
+    void* mapping_ptr;
+    GLbitfield mapping;
   };
 
   enum buffer_bindings {
@@ -96,6 +98,8 @@ public:
   bool bind_buffer(GLuint id, GLenum type) noexcept;
   void update_buffer(const buffer_t& buffer, const void* data,
                      size_t size, size_t offset) noexcept;
+  void* map_buffer(buffer_t& buffer, size_t offset, size_t len);
+  void unmap_buffer(buffer_t& buffer, void* ptr);
 
   [[nodiscard]] vao_t create_vao() noexcept;
   void bind_vao(GLuint id) noexcept;
@@ -237,6 +241,8 @@ public:
   r_texture_handle create_texture(const r_texture_descriptor& desc) override;
   void update_texture(r_texture_handle tex, const r_texture_data& desc) override;
   void destroy_texture(r_texture_handle tex) noexcept override;
+  void* map_buffer(r_buffer_handle buf, size_t offset, size_t len) override;
+  void unmap_buffer(r_buffer_handle buf, void* ptr) override;
 
   r_shader_handle create_shader(const r_shader_descriptor& desc) override;
   void destroy_shader(r_shader_handle shader) noexcept override;
