@@ -1,15 +1,13 @@
 #pragma once
 
-#include "./forward.hpp"
+#include "../stl/ptr.hpp"
 #include "../stl/optional.hpp"
+
+#include "../math/vector.hpp"
 
 namespace ntf {
 
-using extent1d = uint32;
-using extent2d = uvec2;
-using extent3d = uvec3;
-
-SHOGLE_DECLARE_RENDER_HANDLE(r_texture_handle);
+NTF_DECLARE_OPAQUE_HANDLE(r_texture);
 
 enum class r_texture_type : uint8 {
   texture1d = 0,
@@ -104,7 +102,7 @@ struct r_texture_data {
 };
 
 struct r_texture_binding {
-  r_texture_handle texture;
+  r_texture texture;
   uint32 location;
 };
 

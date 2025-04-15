@@ -1,11 +1,10 @@
 #pragma once
 
-#include "./forward.hpp"
 #include "./texture.hpp"
 
 namespace ntf {
 
-SHOGLE_DECLARE_RENDER_HANDLE(r_framebuffer_handle);
+NTF_DECLARE_OPAQUE_HANDLE(r_framebuffer);
 
 enum class r_test_buffer_format : uint8 {
   depth16u = 0,
@@ -35,7 +34,7 @@ enum class r_clear_flag : uint8 {
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear_flag);
 
 struct r_framebuffer_attachment {
-  r_texture_handle handle;
+  r_texture handle;
   uint32 layer;
   uint32 level;
 };

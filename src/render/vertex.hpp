@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./attribute.hpp"
+#include "./buffer.hpp"
 
 namespace ntf {
 

@@ -467,7 +467,7 @@ void gl_state::push_uniform(uint32 loc, r_attrib_type type, const void* data) no
   };
 }
 
-void gl_state::query_program_uniforms(const program_t& prog, r_context_data::uniform_map& unif) {
+void gl_state::query_program_uniforms(const program_t& prog, uniform_map& unif) {
   NTF_ASSERT(unif.empty());
   int count;
   GL_CALL(glGetProgramiv(prog.id, GL_ACTIVE_UNIFORMS, &count));
@@ -1248,8 +1248,9 @@ void gl_context::debug_callback(GLenum src, GLenum type, GLuint id, GLenum sever
   }
 }
 
-gl_context::gl_context() noexcept :
-  _state{*this} {
+gl_context::gl_context(win_handle win, uint32 swap_interval) noexcept :
+  _state{*this}, _win{win}, _swap_interval{swap_interval}
+{
   _state.init(gl_state::init_data_t{
     .dbg = gl_context::debug_callback,
   });
@@ -1262,9 +1263,9 @@ gl_context::~gl_context() noexcept {
   SHOGLE_LOG(verbose, "[ntf::gl_context] OpenGL context destroyed");
 }
 
-r_context_data::ctx_meta gl_context::query_meta() const {
-  r_context_data::ctx_meta meta;
-  meta.api = r_api::opengl;
+r_platform_meta gl_context::get_meta() {
+  r_platform_meta meta;
+  meta.api = renderer_api::opengl;
   GL_CALL(meta.name_str = reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
   GL_CALL(meta.vendor_str = reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
   GL_CALL(meta.version_str = reinterpret_cast<const char*>(glGetString(GL_VERSION)));
@@ -1274,7 +1275,7 @@ r_context_data::ctx_meta gl_context::query_meta() const {
   return meta;
 }
 
-r_buffer_handle gl_context::create_buffer(const r_buffer_descriptor& desc) {
+r_platform_buffer gl_context::create_buffer(const r_buffer_descriptor& desc) {
   gl_state::buffer_t buffer = _state.create_buffer(
     desc.type, desc.flags, desc.size, desc.data
   );
@@ -1284,28 +1285,28 @@ r_buffer_handle gl_context::create_buffer(const r_buffer_descriptor& desc) {
   return handle;
 }
 
-void gl_context::update_buffer(r_buffer_handle buf, const r_buffer_data& desc) {
+void gl_context::update_buffer(r_platform_buffer buf, const r_buffer_data& desc) {
   auto& buffer = _buffers.get(buf);
   _state.update_buffer(buffer, desc.data, desc.size, desc.offset);
 }
 
-void gl_context::destroy_buffer(r_buffer_handle buf) noexcept {
+void gl_context::destroy_buffer(r_platform_buffer buf) noexcept {
   auto& buffer = _buffers.get(buf);
   _state.destroy_buffer(buffer);
   _buffers.push(buf);
 }
 
-void* gl_context::map_buffer(r_buffer_handle buf, size_t offset, size_t len) {
+void* gl_context::map_buffer(r_platform_buffer buf, size_t offset, size_t len) {
   auto& buffer = _buffers.get(buf);
   return _state.map_buffer(buffer, offset, len);
 }
 
-void gl_context::unmap_buffer(r_buffer_handle buf, void* ptr) {
+void gl_context::unmap_buffer(r_platform_buffer buf, void* ptr) {
   auto& buffer = _buffers.get(buf);
   _state.unmap_buffer(buffer, ptr);
 }
 
-r_texture_handle gl_context::create_texture(const r_texture_descriptor& desc) {
+r_platform_texture gl_context::create_texture(const r_texture_descriptor& desc) {
   gl_state::texture_t texture = _state.create_texture(
     desc.type, desc.format, desc.sampler, desc.addressing,
     desc.extent, desc.layers, desc.levels
@@ -1326,7 +1327,7 @@ r_texture_handle gl_context::create_texture(const r_texture_descriptor& desc) {
   return handle;
 }
 
-void gl_context::update_texture(r_texture_handle tex, const r_texture_data& desc) {
+void gl_context::update_texture(r_platform_texture tex, const r_texture_data& desc) {
   auto& texture = _textures.get(tex);
   if (desc.images) {
     for (const auto& img : desc.images) {
@@ -1343,20 +1344,22 @@ void gl_context::update_texture(r_texture_handle tex, const r_texture_data& desc
   }
 }
 
-void gl_context::destroy_texture(r_texture_handle tex) noexcept {
+void gl_context::destroy_texture(r_platform_texture tex) noexcept {
   auto& texture = _textures.get(tex);
   _state.destroy_texture(texture);
   _textures.push(tex);
 }
 
-r_framebuffer_handle gl_context::create_framebuffer(const r_framebuffer_descriptor& desc) {
-  r_framebuffer_handle handle;
+r_platform_fbo gl_context::create_framebuffer(const r_framebuffer_descriptor& desc) {
+  r_platform_fbo handle;
   if (desc.attachments) {
     NTF_ASSERT(desc.attachments);
     std::vector<gl_state::fbo_attachment_t> atts;
     atts.reserve(desc.attachments.size());
     for (const auto& att : desc.attachments) {
-      atts.emplace_back(&_textures.get(att.handle), att.layer, att.level);
+      atts.emplace_back(
+        &_textures.get(r_texture_get_handle(att.handle)), att.layer, att.level
+      );
     }
 
     gl_state::framebuffer_t framebuffer = _state.create_framebuffer(
@@ -1378,13 +1381,13 @@ r_framebuffer_handle gl_context::create_framebuffer(const r_framebuffer_descript
   return handle;
 }
 
-void gl_context::destroy_framebuffer(r_framebuffer_handle fb) noexcept {
+void gl_context::destroy_framebuffer(r_platform_fbo fb) noexcept {
   auto& framebuffer = _framebuffers.get(fb);
   _state.destroy_framebuffer(framebuffer);
   _framebuffers.push(fb);
 }
 
-r_shader_handle gl_context::create_shader(const r_shader_descriptor& desc) {
+r_platform_shader gl_context::create_shader(const r_shader_descriptor& desc) {
   NTF_ASSERT(desc.source);
   // TODO: Concatenate sources
   gl_state::shader_t shader = _state.create_shader(desc.type, desc.source[0]);
@@ -1393,20 +1396,20 @@ r_shader_handle gl_context::create_shader(const r_shader_descriptor& desc) {
   return handle;
 }
 
-void gl_context::destroy_shader(r_shader_handle shad) noexcept {
+void gl_context::destroy_shader(r_platform_shader shad) noexcept {
   auto& shader = _shaders.get(shad);
   _state.destroy_shader(shader);
   _shaders.push(shad);
 }
 
-r_pipeline_handle gl_context::create_pipeline(const r_pipeline_descriptor& desc,
-                                              weak_ref<r_context_data::vertex_layout> layout,
-                                              r_context_data::uniform_map& uniforms) {
+r_platform_pipeline gl_context::create_pipeline(const r_pipeline_descriptor& desc,
+                                                weak_ref<vertex_layout> layout,
+                                                uniform_map& uniforms) {
   NTF_ASSERT(desc.stages);
   std::vector<gl_state::shader_t*> shads;
   shads.reserve(desc.stages.size());
   for (const auto& stage : desc.stages) {
-    shads.emplace_back(&_shaders.get(stage));
+    shads.emplace_back(&_shaders.get(r_shader_get_handle(stage)));
   }
   gl_state::program_t prog = _state.create_program(
     shads.data(), shads.size(), desc.primitive
@@ -1421,14 +1424,14 @@ r_pipeline_handle gl_context::create_pipeline(const r_pipeline_descriptor& desc,
   return handle;
 }
 
-void gl_context::destroy_pipeline(r_pipeline_handle pipeline) noexcept {
+void gl_context::destroy_pipeline(r_platform_pipeline pipeline) noexcept {
   auto& prog = _programs.get(pipeline);
   _state.destroy_program(prog);
   _programs.push(pipeline);
 }
 
-void gl_context::submit(win_handle_t win, const r_context_data::command_map& cmds) {
-  r_window::gl_set_current(win);
+void gl_context::submit(const command_map& cmds) {
+  SHOGLE_GL_MAKE_CTX_CURRENT(_win);
   _state.bind_vao(_vao.id);
   for (const auto& [fb, list] : cmds) {
     _state.prepare_draw_target(fb ? _framebuffers.get(fb).id : gl_state::DEFAULT_FBO,
@@ -1441,8 +1444,8 @@ void gl_context::submit(win_handle_t win, const r_context_data::command_map& cmd
       NTF_ASSERT(cmd.vertex_buffer);
       NTF_ASSERT(cmd.pipeline);
 
-      const auto& vbo = _buffers.get(cmd.vertex_buffer);
-      const auto& prog = _programs.get(cmd.pipeline);
+      const auto& vbo = _buffers.get(r_buffer_get_handle(cmd.vertex_buffer));
+      const auto& prog = _programs.get(r_pipeline_get_handle(cmd.pipeline));
       NTF_ASSERT(vbo.id);
       NTF_ASSERT(vbo.type == GL_ARRAY_BUFFER);
       NTF_ASSERT(prog.id);
@@ -1462,13 +1465,13 @@ void gl_context::submit(win_handle_t win, const r_context_data::command_map& cmd
       }
 
       if (cmd.index_buffer) {
-        auto& ebo = _buffers.get(cmd.index_buffer);
+        auto& ebo = _buffers.get(r_buffer_get_handle(cmd.index_buffer));
         NTF_ASSERT(ebo.type == GL_ELEMENT_ARRAY_BUFFER);
         _state.bind_buffer(ebo.id, ebo.type);
       }
 
       for (const auto& bind : cmd.textures) {
-        const auto& tex = _textures.get(bind->handle);
+        const auto& tex = _textures.get(r_texture_get_handle(bind->handle));
         _state.bind_texture(tex.id, tex.type, bind->index);
       }
 
@@ -1503,8 +1506,8 @@ void gl_context::submit(win_handle_t win, const r_context_data::command_map& cmd
   }
 }
 
-void gl_context::swap_buffers(win_handle_t win) {
-  r_window::gl_swap_buffers(win);
+void gl_context::swap_buffers() {
+  SHOGLE_GL_SWAP_BUFFERS(_win);
 }
 
 // void gl_context::draw_text(const font& font, vec2 pos, float scale, std::string_view text) const {

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "./context.hpp"
+#include "./resource.hpp"
+#include "./window.hpp"
 
 namespace ntf {
 
@@ -38,7 +39,7 @@ concept nonfixed_loop_object = delta_time_func<T> || has_render_member<T>;
 
 
 template<nonfixed_loop_object LoopObj>
-void shogle_render_loop(r_window& window, r_context& ctx, LoopObj&& obj) {
+void shogle_render_loop(renderer_window& window, r_context_view ctx, LoopObj&& obj) {
   using namespace std::literals;
 
   using clock = std::chrono::steady_clock;
@@ -71,7 +72,7 @@ void shogle_render_loop(r_window& window, r_context& ctx, LoopObj&& obj) {
 }
 
 template<fixed_loop_object LoopObj>
-void shogle_render_loop(r_window& window, r_context& ctx, const uint32& ups, LoopObj&& obj) {
+void shogle_render_loop(renderer_window& window, r_context_view ctx, const uint32& ups, LoopObj&& obj) {
   using namespace std::literals;
 
   auto fixed_elapsed_time =
@@ -122,7 +123,7 @@ void shogle_render_loop(r_window& window, r_context& ctx, const uint32& ups, Loo
 }
 
 template<fixed_render_func RFunc, fixed_update_func UFunc>
-void shogle_render_loop(r_window& window, r_context& ctx, const uint32& ups,
+void shogle_render_loop(renderer_window& window, r_context_view ctx, const uint32& ups,
                         RFunc&& render, UFunc&& fixed_update) {
   using namespace std::literals;
 

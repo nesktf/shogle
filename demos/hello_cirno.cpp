@@ -4,11 +4,11 @@
 #include "shogle/version.hpp"
 
 static auto init_ctx() {
-  ntf::r_win_gl_params gl_params {
+  ntf::win_gl_params gl_params {
     .ver_major = 4,
     .ver_minor = 6,
   };
-  auto window = ntf::r_window::create({
+  auto window = ntf::renderer_window::create({
     .width = 1280,
     .height = 720,
     .title = "test - hello_cirno - ShOGLE " SHOGLE_VERSION_STRING,
@@ -21,23 +21,23 @@ static auto init_ctx() {
     std::exit(EXIT_FAILURE);
   }
 
-  auto ctx = ntf::r_context::create({
-    .window = *window,
-    .use_api = ntf::r_api::opengl,
+  const ntf::color4 main_color{.3f, .3f, .3f, 1.f};
+  const auto clear_flags = ntf::r_clear_flag::color_depth;
+  const auto vp = ntf::uvec4{0, 0, window->fb_size()};
+
+  auto ctx = ntf::renderer_context::create({
+    .window = window->handle(),
+    .api = window->renderer(),
     .swap_interval = 0,
+    .fb_viewport = vp,
+    .fb_clear = clear_flags,
+    .fb_color = main_color,
+    .alloc = nullptr,
   });
   if (!ctx) {
     ntf::logger::error("Failed to initialize context: {}", ctx.error().what());
     std::exit(EXIT_FAILURE);
   }
-
-  const ntf::color4 main_color{.3f, .3f, .3f, 1.f};
-  const auto clear_flags = ntf::r_clear_flag::color_depth;
-  const auto vp = ntf::uvec4{0, 0, window->fb_size()};
-
-  ctx->framebuffer_color(ntf::r_context::DEFAULT_FRAMEBUFFER, main_color);
-  ctx->framebuffer_clear(ntf::r_context::DEFAULT_FRAMEBUFFER, clear_flags);
-  ctx->framebuffer_viewport(ntf::r_context::DEFAULT_FRAMEBUFFER, vp);;
 
   return std::make_pair(std::move(*window), std::move(*ctx));
 }
@@ -96,7 +96,7 @@ int main() {
   auto [window, ctx] = init_ctx();
   
   auto font_img_data = cousine->make_bitmap_descriptor();
-  auto font_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
+  auto font_tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = cousine->bitmap_format,
     .extent = ntf::tex_extent_cast(cousine->bitmap_extent),
@@ -109,7 +109,7 @@ int main() {
   });
 
   auto cirno_img_data = cirno_img->make_descriptor();
-  auto tex = ntf::r_texture::create(ntf::unchecked, ctx, {
+  auto tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8nu,
     .extent = ntf::tex_extent_cast(cirno_img->dim),
@@ -122,7 +122,7 @@ int main() {
   });
 
   auto atlas_img_data = atlas_img->make_descriptor();
-  auto atlas_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
+  auto atlas_tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgba8nu,
     .extent = ntf::tex_extent_cast(atlas_img->dim),
@@ -146,14 +146,14 @@ int main() {
       .offset = 0,
     }
   };
-  auto fumo_vbo = ntf::r_buffer::create(ntf::unchecked, ctx, {
+  auto fumo_vbo = ntf::renderer_buffer::create(ntf::unchecked, ctx, {
     .type = ntf::r_buffer_type::vertex,
     .flags = ntf::r_buffer_flag::dynamic_storage,
     .size = fumo_mesh.vertices_size(),
     .data = &fumo_data[0],
   });
 
-  auto fumo_ebo = ntf::r_buffer::create(ntf::unchecked, ctx, {
+  auto fumo_ebo = ntf::renderer_buffer::create(ntf::unchecked, ctx, {
     .type = ntf::r_buffer_type::index,
     .flags = ntf::r_buffer_flag::dynamic_storage,
     .size = fumo_mesh.indices_size(),
@@ -161,7 +161,7 @@ int main() {
   });
 
   auto fumo_img_data = fumo_diffuse->make_descriptor();
-  auto fumo_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
+  auto fumo_tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8nu,
     .extent = ntf::tex_extent_cast(fumo_diffuse->dim),
@@ -173,43 +173,46 @@ int main() {
     .addressing = ntf::r_texture_address::repeat,
   });
 
-  auto cube_vbo = ntf::r_buffer::create(ntf::unchecked, ctx, ntf::pnt_unindexed_cube_vert,
-                                        ntf::r_buffer_type::vertex,
-                                        ntf::r_buffer_flag::dynamic_storage);
-  auto quad_vbo = ntf::r_buffer::create(ntf::unchecked, ctx, ntf::pnt_indexed_quad_vert,
-                                        ntf::r_buffer_type::vertex,
-                                        ntf::r_buffer_flag::dynamic_storage);
-  auto quad_ebo = ntf::r_buffer::create(ntf::unchecked, ctx, ntf::pnt_indexed_quad_ind,
-                                        ntf::r_buffer_type::index,
-                                        ntf::r_buffer_flag::dynamic_storage);
+  auto cube_vbo = ntf::renderer_buffer::create(ntf::unchecked, ctx,
+                                               ntf::pnt_unindexed_cube_vert,
+                                               ntf::r_buffer_type::vertex,
+                                               ntf::r_buffer_flag::dynamic_storage);
+  auto quad_vbo = ntf::renderer_buffer::create(ntf::unchecked, ctx,
+                                               ntf::pnt_indexed_quad_vert,
+                                               ntf::r_buffer_type::vertex,
+                                               ntf::r_buffer_flag::dynamic_storage);
+  auto quad_ebo = ntf::renderer_buffer::create(ntf::unchecked, ctx,
+                                               ntf::pnt_indexed_quad_ind,
+                                               ntf::r_buffer_type::index,
+                                               ntf::r_buffer_flag::dynamic_storage);
 
-  auto vertex = ntf::r_shader::create(ntf::unchecked, ctx, {
+  auto vertex = ntf::renderer_shader::create(ntf::unchecked, ctx, {
     .type = ntf::r_shader_type::vertex,
     .source = {vert_src},
   });
-  auto fragment_color = ntf::r_shader::create(ntf::unchecked, ctx, {
+  auto fragment_color = ntf::renderer_shader::create(ntf::unchecked, ctx, {
     .type = ntf::r_shader_type::fragment,
     .source = {frag_col_src},
   });
-  auto fragment_tex = ntf::r_shader::create(ntf::unchecked, ctx, {
+  auto fragment_tex = ntf::renderer_shader::create(ntf::unchecked, ctx, {
     .type = ntf::r_shader_type::fragment,
     .source = {frag_tex_src},
   });
-  auto vertex_atlas = ntf::r_shader::create(ntf::unchecked, ctx, {
+  auto vertex_atlas = ntf::renderer_shader::create(ntf::unchecked, ctx, {
     .type = ntf::r_shader_type::vertex,
     .source = {vert_atl_src},
   });
-  auto fragment_fnt = ntf::r_shader::create(ntf::unchecked, ctx, {
+  auto fragment_fnt = ntf::renderer_shader::create(ntf::unchecked, ctx, {
     .type = ntf::r_shader_type::fragment,
     .source = {frag_fnt_src},
   });
 
-  auto load_pipeline = [&ctx](ntf::r_shader_handle vert, ntf::r_shader_handle frag) {
+  auto load_pipeline = [&ctx](ntf::r_shader vert, ntf::r_shader frag) {
     auto attr_bind = ntf::pnt_vertex::attrib_binding();
     auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
 
-    ntf::r_shader_handle shads[] = {vert, frag};
-    auto pipe = ntf::r_pipeline::create(ntf::unchecked, ctx, {
+    ntf::r_shader shads[] = {vert, frag};
+    auto pipe = ntf::renderer_pipeline::create(ntf::unchecked, ctx, {
       .stages = {&shads[0], 2},
       .attrib_binding = attr_bind,
       .attrib_desc = {attr_desc},
@@ -228,7 +231,7 @@ int main() {
   auto pipe_atl = load_pipeline(vertex_atlas.handle(), fragment_tex.handle());
   auto pipe_fnt = load_pipeline(vertex.handle(), fragment_fnt.handle());
 
-  auto fb_tex = ntf::r_texture::create(ntf::unchecked, ctx, {
+  auto fb_tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8nu,
     .extent = ntf::uvec3{1280, 720, 0},
@@ -245,7 +248,7 @@ int main() {
     .layer = 0,
     .level = 0,
   };
-  auto fbo = ntf::r_framebuffer::create(ntf::unchecked, ctx, {
+  auto fbo = ntf::renderer_framebuffer::create(ntf::unchecked, ctx, {
     .extent = ntf::uvec2{1280, 720},
     .viewport = ntf::uvec4{0, 0, 1280, 720},
     .clear_color = ntf::color4{1.f, 0.f, 0.f, 1.f},
@@ -331,26 +334,27 @@ int main() {
 
   bool do_things = true;
 
-  window.key_event([&](ntf::r_window& win, ntf::keycode code, auto, ntf::keystate state, auto) {
+  window.key_event([&](ntf::renderer_window& win,
+                       ntf::win_keycode code, auto, ntf::win_keystate state, auto) {
     const float ts = 4.f;
-    if (state == ntf::keystate::press) {
-      if (code == ntf::keycode::key_escape) {
+    if (state == ntf::win_keystate::press) {
+      if (code == ntf::win_keycode::key_escape) {
         win.close();
       }
-      if (code == ntf::keycode::key_space) {
+      if (code == ntf::win_keycode::key_space) {
         do_things = !do_things;
       }
 
-      if (code == ntf::keycode::key_left) {
+      if (code == ntf::win_keycode::key_left) {
         t -= ts/static_cast<float>(ups);
-      } else if (code == ntf::keycode::key_right) {
+      } else if (code == ntf::win_keycode::key_right) {
         t += ts/static_cast<float>(ups);
       }
     }
   });
 
-  window.viewport_event([&](ntf::r_window&, ntf::uint32 w, ntf::uint32 h) {
-    ctx.framebuffer_viewport(ntf::r_context::DEFAULT_FRAMEBUFFER, ntf::uvec4{0, 0, w, h});
+  window.viewport_event([&](auto&, ntf::uint32 w, ntf::uint32 h) {
+    ctx.default_fbo().viewport(ntf::uvec4{0, 0, w, h});
     fb_ratio = static_cast<ntf::float32>(w)/static_cast<ntf::float32>(h);
     cam_proj_fumo = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);
   });
@@ -508,8 +512,8 @@ int main() {
       };
 
       // Fumo
-      ctx.submit({
-        .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
+      ctx.submit_command({
+        .target = ctx.default_fbo().handle(),
         .pipeline = pipe_tex.handle(),
         .buffers = {&fumo_bbind[0], std::size(fumo_bbind)},
         .textures = {&fumo_tbind[0], std::size(fumo_tbind)},
@@ -518,20 +522,20 @@ int main() {
         .on_render = {},
       });
 
-      // // Cirno quad
-      // ctx.submit({
-      //   .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
-      //   .pipeline = pipe_tex.handle(),
-      //   .buffers = {&quad_bbind[0], std::size(quad_bbind)},
-      //   .textures = {&cino_tbind[0], std::size(cino_tbind)},
-      //   .uniforms = {&cino_unifs[0], std::size(cino_unifs)},
-      //   .draw_opts = quad_opts,
-      //   .on_render = {},
-      // });
+      // Cirno quad
+      ctx.submit_command({
+        .target = ctx.default_fbo().handle(),
+        .pipeline = pipe_tex.handle(),
+        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
+        .textures = {&cino_tbind[0], std::size(cino_tbind)},
+        .uniforms = {&cino_unifs[0], std::size(cino_unifs)},
+        .draw_opts = quad_opts,
+        .on_render = {},
+      });
 
       // Rin sprite
-      ctx.submit({
-        .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
+      ctx.submit_command({
+        .target = ctx.default_fbo().handle(),
         .pipeline = pipe_atl.handle(),
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},
         .textures = {&rin_tbind[0], std::size(rin_tbind)},
@@ -540,20 +544,20 @@ int main() {
         .on_render = {},
       });
 
-      // // Framebuffer viewport
-      // ctx.submit({
-      //   .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
-      //   .pipeline = pipe_tex.handle(),
-      //   .buffers = {&quad_bbind[0], std::size(quad_bbind)},
-      //   .textures = {&fb_tbind[0], std::size(fb_tbind)},
-      //   .uniforms = {&fb_unifs[0], std::size(fb_unifs)},
-      //   .draw_opts = quad_opts,
-      //   .on_render = {},
-      // });;
+      // Framebuffer viewport
+      ctx.submit_command({
+        .target = ctx.default_fbo().handle(),
+        .pipeline = pipe_tex.handle(),
+        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
+        .textures = {&fb_tbind[0], std::size(fb_tbind)},
+        .uniforms = {&fb_unifs[0], std::size(fb_unifs)},
+        .draw_opts = quad_opts,
+        .on_render = {},
+      });
 
       // Font thing
-      ctx.submit({
-        .target = ntf::r_context::DEFAULT_FRAMEBUFFER,
+      ctx.submit_command({
+        .target = ctx.default_fbo().handle(),
         .pipeline = pipe_fnt.handle(),
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},
         .textures = {&fnt_tbind[0], std::size(fnt_tbind)},
@@ -562,8 +566,8 @@ int main() {
         .on_render = {},
       });
 
-      // Cube
-      ctx.submit({
+      // // Cube
+      ctx.submit_command({
         .target = fbo.handle(),
         .pipeline = pipe_col.handle(),
         .buffers = {&cube_bbind[0], std::size(cube_bbind)},
@@ -574,7 +578,7 @@ int main() {
       });
 
       // Other Cirno quad
-      ctx.submit({
+      ctx.submit_command({
         .target = fbo.handle(),
         .pipeline = pipe_tex.handle(),
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},

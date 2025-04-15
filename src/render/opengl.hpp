@@ -1,7 +1,6 @@
 #pragma once
 
-#include "./context.hpp"
-#include "../stl/expected.hpp"
+#include "./platform.hpp"
 
 namespace ntf {
 
@@ -46,7 +45,7 @@ public:
   struct program_t {
     GLuint id{0};
     GLenum primitive;
-    weak_ref<r_context_data::vertex_layout> layout;
+    weak_ref<vertex_layout> layout;
   };
 
   struct texture_t {
@@ -110,12 +109,10 @@ public:
 
   [[nodiscard]] program_t create_program(shader_t const* const* shaders, uint32 count,
                                          r_primitive primitive);
-  void query_program_uniforms(const program_t& program, r_context_data::uniform_map& unif);
+  void query_program_uniforms(const program_t& program, uniform_map& unif);
   void destroy_program(const program_t& program) noexcept;
   bool bind_program(GLuint id) noexcept;
   void push_uniform(uint32 loc, r_attrib_type type, const void* data) noexcept;
-  // r_uniform uniform_location(GLuint program, std::string_view name) noexcept;
-
 
   [[nodiscard]] texture_t create_texture(r_texture_type type, r_texture_format format,
                                          r_texture_sampler sampler, r_texture_address addressing,
@@ -229,34 +226,34 @@ private:
   };
 
 public:
-  gl_context() noexcept;
+  gl_context(win_handle win, uint32 swap_interval) noexcept;
 
 public:
-  r_context_data::ctx_meta query_meta() const override;
+  r_platform_meta get_meta() override;
 
-  r_buffer_handle create_buffer(const r_buffer_descriptor& desc) override;
-  void update_buffer(r_buffer_handle buf, const r_buffer_data& desc) override;
-  void destroy_buffer(r_buffer_handle buff) noexcept override;
+  r_platform_buffer create_buffer(const r_buffer_descriptor& desc) override;
+  void update_buffer(r_platform_buffer buf, const r_buffer_data& desc) override;
+  void destroy_buffer(r_platform_buffer buff) noexcept override;
 
-  r_texture_handle create_texture(const r_texture_descriptor& desc) override;
-  void update_texture(r_texture_handle tex, const r_texture_data& desc) override;
-  void destroy_texture(r_texture_handle tex) noexcept override;
-  void* map_buffer(r_buffer_handle buf, size_t offset, size_t len) override;
-  void unmap_buffer(r_buffer_handle buf, void* ptr) override;
+  r_platform_texture create_texture(const r_texture_descriptor& desc) override;
+  void update_texture(r_platform_texture tex, const r_texture_data& desc) override;
+  void destroy_texture(r_platform_texture tex) noexcept override;
+  void* map_buffer(r_platform_buffer buf, size_t offset, size_t len) override;
+  void unmap_buffer(r_platform_buffer buf, void* ptr) override;
 
-  r_shader_handle create_shader(const r_shader_descriptor& desc) override;
-  void destroy_shader(r_shader_handle shader) noexcept override;
+  r_platform_shader create_shader(const r_shader_descriptor& desc) override;
+  void destroy_shader(r_platform_shader shader) noexcept override;
 
-  r_pipeline_handle create_pipeline(const r_pipeline_descriptor& desc,
-                                    weak_ref<r_context_data::vertex_layout> attrib,
-                                    r_context_data::uniform_map& uniforms) override;
-  void destroy_pipeline(r_pipeline_handle pipeline) noexcept override;
+  r_platform_pipeline create_pipeline(const r_pipeline_descriptor& desc,
+                                      weak_ref<vertex_layout> layout,
+                                      uniform_map& uniforms) override;
+  void destroy_pipeline(r_platform_pipeline pipeline) noexcept override;
 
-  r_framebuffer_handle create_framebuffer(const r_framebuffer_descriptor& desc) override;
-  void destroy_framebuffer(r_framebuffer_handle fb) noexcept override;
+  r_platform_fbo create_framebuffer(const r_framebuffer_descriptor& desc) override;
+  void destroy_framebuffer(r_platform_fbo fb) noexcept override;
 
-  void submit(win_handle_t win, const r_context_data::command_map& cmds) override;
-  void swap_buffers(win_handle_t win) override;
+  void submit(const command_map& cmds) override;
+  void swap_buffers() override;
 
 private:
   GLAPIENTRY static void debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity,
@@ -266,11 +263,14 @@ private:
   gl_state _state;
   gl_state::vao_t _vao;
 
-  res_container<gl_state::buffer_t, r_buffer_handle> _buffers;
-  res_container<gl_state::texture_t, r_texture_handle> _textures;
-  res_container<gl_state::shader_t, r_shader_handle> _shaders;
-  res_container<gl_state::program_t, r_pipeline_handle> _programs;
-  res_container<gl_state::framebuffer_t, r_framebuffer_handle> _framebuffers;
+  res_container<gl_state::buffer_t, r_platform_buffer> _buffers;
+  res_container<gl_state::texture_t, r_platform_texture> _textures;
+  res_container<gl_state::shader_t, r_platform_shader> _shaders;
+  res_container<gl_state::program_t, r_platform_pipeline> _programs;
+  res_container<gl_state::framebuffer_t, r_platform_fbo> _framebuffers;
+
+  win_handle _win;
+  uint32 _swap_interval;
 
 public:
   NTF_DECLARE_NO_MOVE_NO_COPY(gl_context);

@@ -25,6 +25,13 @@ using uvec2 = vec<2, uint32>;
 using uvec3 = vec<3, uint32>;
 using uvec4 = vec<4, uint32>;
 
+using color3 = vec3;
+using color4 = vec4;
+
+using extent1d = uint32;
+using extent2d = uvec2;
+using extent3d = uvec3;
+
 template<typename T>
 concept vertex_type = (ntf::same_as_any<T, vec2, vec3, vec4>);
 

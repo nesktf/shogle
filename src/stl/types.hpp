@@ -31,6 +31,9 @@
 struct _name##_t {}; \
 constexpr _name##_t _name{}
 
+#define NTF_DECLARE_OPAQUE_HANDLE(_name) \
+typedef struct _name##_* _name
+
 #define NTF_DEFINE_TEMPLATE_CHECKER(_templ) \
 template<typename> \
 struct _templ##_check : public ::std::false_type {};\
