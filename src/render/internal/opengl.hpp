@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./platform.hpp"
+#include "./interface.hpp"
 
 namespace ntf {
 

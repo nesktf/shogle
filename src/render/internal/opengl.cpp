@@ -1,4 +1,5 @@
 #include "./opengl.hpp"
+#include "../pipeline.hpp"
 
 #ifdef SHOGLE_GL_DISABLE_ASSERTIONS
 #define GL_CALL(fun) fun
@@ -1456,7 +1457,6 @@ void gl_context::submit(const command_map& cmds) {
 
       bool rebind = _state.bind_buffer(vbo.id, vbo.type);
       rebind = (_state.bind_program(prog.id) || rebind);
-      NTF_ASSERT(prog.primitive);
       if (rebind) {
         auto& layout = prog.layout;
         _state.bind_attributes(

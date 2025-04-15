@@ -353,8 +353,9 @@ int main() {
     }
   });
 
+  const auto default_fbo = ntf::renderer_framebuffer::default_fbo(ctx);
   window.viewport_event([&](auto&, ntf::uint32 w, ntf::uint32 h) {
-    ctx.default_fbo().viewport(ntf::uvec4{0, 0, w, h});
+    default_fbo.viewport(ntf::uvec4{0, 0, w, h});
     fb_ratio = static_cast<ntf::float32>(w)/static_cast<ntf::float32>(h);
     cam_proj_fumo = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);
   });
@@ -513,7 +514,7 @@ int main() {
 
       // Fumo
       ctx.submit_command({
-        .target = ctx.default_fbo().handle(),
+        .target = default_fbo.handle(),
         .pipeline = pipe_tex.handle(),
         .buffers = {&fumo_bbind[0], std::size(fumo_bbind)},
         .textures = {&fumo_tbind[0], std::size(fumo_tbind)},
@@ -524,7 +525,7 @@ int main() {
 
       // Cirno quad
       ctx.submit_command({
-        .target = ctx.default_fbo().handle(),
+        .target = default_fbo.handle(),
         .pipeline = pipe_tex.handle(),
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},
         .textures = {&cino_tbind[0], std::size(cino_tbind)},
@@ -535,7 +536,7 @@ int main() {
 
       // Rin sprite
       ctx.submit_command({
-        .target = ctx.default_fbo().handle(),
+        .target = default_fbo.handle(),
         .pipeline = pipe_atl.handle(),
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},
         .textures = {&rin_tbind[0], std::size(rin_tbind)},
@@ -546,7 +547,7 @@ int main() {
 
       // Framebuffer viewport
       ctx.submit_command({
-        .target = ctx.default_fbo().handle(),
+        .target = default_fbo.handle(),
         .pipeline = pipe_tex.handle(),
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},
         .textures = {&fb_tbind[0], std::size(fb_tbind)},
@@ -557,7 +558,7 @@ int main() {
 
       // Font thing
       ctx.submit_command({
-        .target = ctx.default_fbo().handle(),
+        .target = default_fbo.handle(),
         .pipeline = pipe_fnt.handle(),
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},
         .textures = {&fnt_tbind[0], std::size(fnt_tbind)},

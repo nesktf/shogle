@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./core.hpp"
+#include "../core.hpp"
 
 #include <glad/glad.h>
 
@@ -12,10 +12,6 @@
 #if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-
-#if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
-#include <imgui_impl_glfw.h>
-#endif
 
 #define SHOGLE_GL_LOAD_PROC \
   reinterpret_cast<GLADloadproc>(glfwGetProcAddress)
@@ -30,6 +26,7 @@
 
 // TODO: Define inits for vulkan & software renderer
 #if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
+#include <imgui_impl_glfw.h>
 #define SHOGLE_INIT_IMGUI_OPENGL(win, cbks, glsl_ver) \
   ImGui_ImplGlfw_InitForOpenGL(win, cbks); \
   ImGui_ImplOpenGL3_Init(glsl_ver)
@@ -53,6 +50,7 @@
 #define SHOGLE_IMGUI_VULKAN_END_FRAME(draw_data)
 #define SHOGLE_IMGUI_OTHER_END_FRAME(draw_data)
 #endif
+#endif
 
 namespace ntf {
 
@@ -64,7 +62,6 @@ enum class renderer_api {
 
 #if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
 using win_handle = GLFWwindow*;
-#endif
 
 enum class win_keycode : int {
   key_unknown = GLFW_KEY_UNKNOWN,

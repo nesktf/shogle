@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../platform_macros.hpp"
+#include "./platform_macros.hpp"
 
 #include "../stl/ptr.hpp"
 #include "../stl/function.hpp"

@@ -2,12 +2,10 @@
 
 namespace ntf {
 
-namespace {
-
 static std::atomic<uint32> win_count = 0;
 
 template<bool checked>
-auto renderer_window_create_impl(
+static auto renderer_window_create_impl(
   const win_params& params
 ) -> std::conditional_t<checked, win_expected<renderer_window>, renderer_window>
 {
@@ -76,8 +74,6 @@ auto renderer_window_create_impl(
   }
 #endif
 }
-
-} // namespace
 
 win_expected<renderer_window> renderer_window::create(const win_params& params) {
   return renderer_window_create_impl<true>(params);

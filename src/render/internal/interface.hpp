@@ -1,10 +1,6 @@
 #pragma once
 
-#include "../platform_macros.hpp"
-#include "./texture.hpp"
-#include "./buffer.hpp"
-#include "./pipeline.hpp"
-#include "./framebuffer.hpp"
+#include "../context.hpp"
 
 #define SHOGLE_DECLARE_RENDER_HANDLE(_name) \
 class _name { \

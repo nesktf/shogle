@@ -1,55 +1,86 @@
 #pragma once
 
-#include "./texture.hpp"
+#include "./renderer.hpp"
 
 namespace ntf {
 
-NTF_DECLARE_OPAQUE_HANDLE(r_framebuffer);
+class r_framebuffer_view {
+public:
+  r_framebuffer_view(r_framebuffer fbo) noexcept :
+    _fbo{fbo} {}
 
-enum class r_test_buffer_format : uint8 {
-  depth16u = 0,
-  depth24u,
-  depth32f,
-  depth24u_stencil8u,
-  depth32f_stencil8u,
+public:
+  static r_framebuffer_view default_fbo(r_context_view ctx) {
+    return r_framebuffer_view{r_get_default_framebuffer(ctx.handle())};
+  }
+
+public:
+  void clear_flags(r_clear_flag flags) const {
+    r_framebuffer_set_clear(_fbo, flags);
+  }
+  void clear_color(const color4& color) const {
+    r_framebuffer_set_color(_fbo, color);
+  }
+  void viewport(const uvec4& vp) const {
+    r_framebuffer_set_viewport(_fbo, vp);
+  }
+  
+public:
+  r_framebuffer handle() const { return _fbo; }
+  r_context_view context() const {
+    return r_framebuffer_get_ctx(_fbo);
+  }
+
+  r_clear_flag clear_flags() const {
+    return r_framebuffer_get_clear(_fbo);
+  }
+  color4 clear_color() const {
+    return r_framebuffer_get_color(_fbo);
+  }
+  uvec4 viewport() const {
+    return r_framebuffer_get_viewport(_fbo);
+  }
+
+protected:
+  r_framebuffer _fbo;
 };
 
-enum class r_test_buffer_flag : uint8 {
-  none    = 0,
-  depth   = 1 << 0,
-  stencil = 1 << 1,
-  both    = (1<<0) | (1<<1),
-};
-NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_test_buffer_flag);
 
-enum class r_clear_flag : uint8 {
-  none          = 0,
-  color         = 1 << 0,
-  depth         = 1 << 1,
-  stencil       = 1 << 2,
-  color_depth   = (1<<0) | (1<<1),
-  color_stencil = (1<<0) | (1<<2),
-  all           = (1<<0) | (1<<1) | (1<<2),
-};
-NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear_flag);
+class renderer_framebuffer : public r_framebuffer_view {
+private:
+  struct deleter_t {
+    void operator()(r_framebuffer fbo) {
+      r_destroy_framebuffer(fbo);
+    }
+  };
+  using uptr_type = std::unique_ptr<r_framebuffer_, deleter_t>;
 
-struct r_framebuffer_attachment {
-  r_texture handle;
-  uint32 layer;
-  uint32 level;
-};
+public:
+  explicit renderer_framebuffer(r_framebuffer fbo) noexcept :
+    r_framebuffer_view{fbo},
+    _handle{fbo} {}
 
-struct r_framebuffer_descriptor {
-  uvec2 extent;
-  uvec4 viewport;
-  color4 clear_color;
-  r_clear_flag clear_flags;
+public:
+  static auto create(
+    r_context_view ctx, const r_framebuffer_descriptor& desc
+  ) noexcept -> r_expected<renderer_framebuffer>
+  {
+    return r_create_framebuffer(ctx.handle(), desc)
+      .transform([](r_framebuffer fbo)-> renderer_framebuffer {
+        return renderer_framebuffer{fbo};
+      });
+  }
 
-  r_test_buffer_flag test_buffers;
-  optional<r_test_buffer_format> test_buffer_format;
+  static auto create(
+    unchecked_t,
+    r_context_view ctx, const r_framebuffer_descriptor& desc
+  ) -> renderer_framebuffer
+  {
+    return renderer_framebuffer{r_create_framebuffer(::ntf::unchecked, ctx.handle(), desc)};
+  }
 
-  span_view<r_framebuffer_attachment> attachments;
-  optional<r_texture_format> color_buffer_format;
+private:
+  uptr_type _handle;
 };
 
 } // namespace ntf

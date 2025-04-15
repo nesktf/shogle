@@ -1,6 +1,7 @@
 #include "./context.hpp"
-#include "./platform.hpp"
-#include "./opengl.hpp"
+#include "./internal/interface.hpp"
+#include "./internal/opengl.hpp"
+#include "./pipeline.hpp"
 
 #include "../stl/arena.hpp"
 
@@ -247,7 +248,7 @@ void r_destroy_context(r_context ctx) {
   }
   r_allocator alloc = ctx->alloc;
 
-#if SHOGLE_ENABLE_IMGUI
+#if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
   switch (ctx->api) {
     case renderer_api::opengl: {
       SHOGLE_DESTROY_IMGUI_OPENGL();
