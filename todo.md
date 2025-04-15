@@ -2,13 +2,11 @@
 A list of things that i want to do, just so i keep focused and don't drift off on random ideas
 
 ## Higher priority
-- Use simple POD like types for asset data
-    - Design the POD types for fonts and atlases
-- Rewrite the asset loaders to use expected\<T\> and the POD types
-- Use the OpenGL texture formats properly
+- Make an abstraction to render assets (at least models, sprites, fonts)
+    - Maybe an abstraction to render simple shapes too?
 - Finish rewriting the camera class
 - Revisit the system to upload drawing commands to the render context.
-    - Also add support for uniform buffers
+    - Also add support for uniform buffers & SSBOs
 
 ## Medium priotity
 - Rewrite the transform graph system.
@@ -16,10 +14,6 @@ A list of things that i want to do, just so i keep focused and don't drift off o
 - Fix the messy code for expected\<T\>
     - Maybe optional\<T\> too
 - Reduce source files size?
-- Provide some interface for assets to interact with the render context with less boilerplate
-    - Maybe something like the font rendering system in BGFX?
-    - Or maybe some wrapper class for each common asset type (models, atlas, fonts) like the old
-    way i was doing things.
 - Import more material data from models
 - Sound system
 - 2D & 3D physics systems
@@ -32,7 +26,6 @@ A list of things that i want to do, just so i keep focused and don't drift off o
     - Maybe add some virtual filesystem
 - Provide a way to load assets using an arena or some other allocator
 - GLM replacement
-- Make our render context own the OpenGL context, instead of implicitly using the GLFW one
 - Vulkan renderer
 - Add an option to use other windowing systems instead of GLFW
     - SDL2 and native X11 window
@@ -40,6 +33,7 @@ A list of things that i want to do, just so i keep focused and don't drift off o
 - Multiple windows support
 - Some kind of serialization system
 - Lua bindings?
+    - or expose a C interface for free FFI?
 - Multithreading support?
 - Windows suppor
     - DirectX renderer maybe?
