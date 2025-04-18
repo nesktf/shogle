@@ -4,12 +4,12 @@
 
 #if !defined(NDEBUG)
 #define NTF_EXPECTED_THROW(cond, ...) \
-  NTF_ASSERT(cond, "bad_expected_access")
+  NTF_ASSERT(!cond, "bad_expected_access")
 #define NTF_EXPECTED_NOEXCEPT noexcept
 #else
 #if defined(NTF_EXPECTED_ENABLE_EXCEPTIONS) && NTF_EXPECTED_ENABLE_EXCEPTIONS
 #define NTF_EXPECTED_THROW(cond, T, ...) \
-  if (!cond) { throw ::ntf::bad_expected_access<T>{__VA_ARGS__}; }
+  if (cond) { throw ::ntf::bad_expected_access<T>{__VA_ARGS__}; }
 #define NTF_EXPECTED_NOEXCEPT
 #else
 #define NTF_EXPECTED_THROW(cond, ...)

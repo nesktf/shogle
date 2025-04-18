@@ -2,6 +2,7 @@
 #include "shogle/assets.hpp"
 #include "shogle/math.hpp"
 #include "shogle/version.hpp"
+#include "shogle/scene.hpp"
 
 static auto init_ctx() {
   ntf::win_gl_params gl_params {
@@ -70,11 +71,13 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  auto vert_src = *ntf::file_contents("./demos/res/shaders/vert_base.vs.glsl");
-  auto frag_col_src = *ntf::file_contents("./demos/res/shaders/frag_color.fs.glsl");
-  auto frag_tex_src = *ntf::file_contents("./demos/res/shaders/frag_tex.fs.glsl");
-  auto vert_atl_src = *ntf::file_contents("./demos/res/shaders/vert_atlas.vs.glsl");
-  auto frag_fnt_src = *ntf::file_contents("./demos/res/shaders/frag_font.fs.glsl");
+  auto vert_src = ntf::file_contents("./demos/res/shaders/vert_base.vs.glsl").value();
+  auto frag_col_src = ntf::file_contents("./demos/res/shaders/frag_color.fs.glsl").value();
+  auto frag_tex_src = ntf::file_contents("./demos/res/shaders/frag_tex.fs.glsl").value();
+  auto vert_atl_src = ntf::file_contents("./demos/res/shaders/vert_atlas.vs.glsl").value();
+
+  auto vert_fnt_src = ntf::file_contents("./demos/res/shaders/vert_font.vs.glsl").value();
+  auto frag_fnt_src = ntf::file_contents("./demos/res/shaders/frag_font.fs.glsl").value();
 
   const auto fumo_flag = ntf::model_load_flags::triangulate;
   auto fumo = ntf::load_model<ntf::pnt_vertex>("./demos/res/cirno_fumo/cirno_fumo.obj", fumo_flag);
@@ -94,19 +97,15 @@ int main() {
   const auto& fumo_inds = fumo->meshes.indices;
 
   auto [window, ctx] = init_ctx();
+
+  auto frenderer = ntf::font_renderer::create(ctx, vert_fnt_src, frag_fnt_src,
+                                              std::move(*cousine), 64u);
+
+  ntf::font_render_cache text_cache;
+  auto [last_x, last_y] = frenderer.append(text_cache, 20.f, 500.f, 1.f, "Hello World! ~ze\n");
+  ntf::font_render_cache moving_cache;
+  moving_cache.reserve(10);
   
-  auto font_img_data = cousine->make_bitmap_descriptor();
-  auto font_tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
-    .type = ntf::r_texture_type::texture2d,
-    .format = cousine->bitmap_format,
-    .extent = ntf::tex_extent_cast(cousine->bitmap_extent),
-    .layers = 1,
-    .levels = 1,
-    .images = {font_img_data},
-    .gen_mipmaps = false,
-    .sampler = ntf::r_texture_sampler::nearest,
-    .addressing = ntf::r_texture_address::repeat,
-  });
 
   auto cirno_img_data = cirno_img->make_descriptor();
   auto tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
@@ -185,6 +184,10 @@ int main() {
                                                ntf::pnt_indexed_quad_ind,
                                                ntf::r_buffer_type::index,
                                                ntf::r_buffer_flag::dynamic_storage);
+  auto inv_quad_vbo = ntf::renderer_buffer::create(ntf::unchecked, ctx,
+                                                   ntf::pnt_indexed_quad_vert_inv,
+                                                   ntf::r_buffer_type::vertex,
+                                                   ntf::r_buffer_flag::dynamic_storage);
 
   auto vertex = ntf::renderer_shader::create(ntf::unchecked, ctx, {
     .type = ntf::r_shader_type::vertex,
@@ -277,13 +280,6 @@ int main() {
   auto u_atl_color = pipe_atl.uniform(ntf::unchecked, "color");
   auto u_atl_sampler = pipe_atl.uniform(ntf::unchecked, "sampler0");
 
-  auto u_fnt_model = pipe_fnt.uniform(ntf::unchecked, "model");
-  auto u_fnt_proj = pipe_fnt.uniform(ntf::unchecked, "proj");
-  auto u_fnt_view = pipe_fnt.uniform(ntf::unchecked, "view");
-  auto u_fnt_color = pipe_fnt.uniform(ntf::unchecked, "text_color");
-  auto u_fnt_sampler = pipe_fnt.uniform(ntf::unchecked, "sampler0");
-  auto u_fnt_time = pipe_fnt.uniform(ntf::unchecked, "time");
-
   ntf::float32 fb_ratio = 1280.f/720.f;
   auto transf_cube = ntf::transform3d<ntf::float32>{}
     .pos(0.f, 0.f, 0.f).scale(1.f);
@@ -297,15 +293,9 @@ int main() {
     .pos(350.f, 0.f).scale(ntf::vec2{fb_ratio*300.f, 300.f});
   ntf::mat4 cam_view_quad = glm::translate(glm::mat4{1.f}, glm::vec3{640.f, 360.f, -3.f});
   ntf::mat4 cam_proj_quad = glm::ortho(0.f, 1280.f, 0.f, 720.f, .1f, 100.f);
+  ntf::mat4 cam_proj_fnt = glm::ortho(0.f, 1280.f, 0.f, 720.f);
   auto cam_proj_cube = cam_proj_fumo;
   ntf::vec4 color_quad {1.f, 1.f, 1.f, 1.f};
-
-  auto ext = cousine->bitmap_extent;
-  float fnt_scale = 500.f;
-  float fnt_aspect = (float)ext.x/(float)ext.y;
-  auto transf_font = ntf::transform2d<ntf::float32>{}
-    .pos(0.f, 0.f).scale(fnt_aspect*fnt_scale, -fnt_scale);
-  ntf::vec4 color_fnt{1.f, 0.f, 0.f, 1.f};
 
   const ntf::float32 fumo_scale = 0.04f;
   auto transf_fumo = ntf::transform3d<ntf::float32>{}
@@ -358,10 +348,13 @@ int main() {
     default_fbo.viewport(ntf::uvec4{0, 0, w, h});
     fb_ratio = static_cast<ntf::float32>(w)/static_cast<ntf::float32>(h);
     cam_proj_fumo = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);
+    // cam_proj_quad = glm::ortho(0.f, (float)w, 0.f, (float)h, .1f, 100.f);
+    // cam_proj_fnt = glm::ortho(0.f, (float)w, 0.f, (float)h);
   });
 
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glDepthFunc(GL_LEQUAL);
   ntf::shogle_render_loop(window, ctx, ups, ntf::overload{
     [&](ntf::uint32 ups) {
       if (do_things) {
@@ -388,6 +381,7 @@ int main() {
     [&](ntf::float64 dt, ntf::float64) {
       // Using an ode solver instead of t+=dt just because
       t2 = ntf::ode_euler<ntf::float32>{}(0.f, t2, dt, [](...) { return 1.f; });
+      moving_cache.clear();
 
       if (t2 > 0.016*.5) {
         fps[fps_counter] = 1/dt;
@@ -444,9 +438,6 @@ int main() {
       const ntf::r_texture_binding fb_tbind[] = {
         {.texture = fb_tex.handle(), .location = 0},
       };
-      const ntf::r_texture_binding fnt_tbind[] = {
-        {.texture = font_tex.handle(), .location = 0},
-      };
 
       // Uniforms
       const ntf::r_push_constant fumo_unifs[] = {
@@ -484,14 +475,6 @@ int main() {
         ntf::r_format_pushconst(u_col_view, cam_view_cube),
         ntf::r_format_pushconst(u_col_color, color_cube),
       };
-      const ntf::r_push_constant fnt_unifs[] = {
-        ntf::r_format_pushconst(u_fnt_model, transf_font.world()),
-        ntf::r_format_pushconst(u_fnt_proj, cam_proj_quad),
-        ntf::r_format_pushconst(u_fnt_view, cam_view_quad),
-        ntf::r_format_pushconst(u_fnt_color, color_fnt),
-        ntf::r_format_pushconst(u_fnt_sampler, 0),
-        ntf::r_format_pushconst(u_fnt_time, .25f*t),
-      };
 
       ntf::r_draw_opts fumo_opts {
         .count = static_cast<ntf::uint32>(fumo_mesh.indices.count),
@@ -524,15 +507,15 @@ int main() {
       });
 
       // Cirno quad
-      ctx.submit_command({
-        .target = default_fbo.handle(),
-        .pipeline = pipe_tex.handle(),
-        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
-        .textures = {&cino_tbind[0], std::size(cino_tbind)},
-        .uniforms = {&cino_unifs[0], std::size(cino_unifs)},
-        .draw_opts = quad_opts,
-        .on_render = {},
-      });
+      // ctx.submit_command({
+      //   .target = default_fbo.handle(),
+      //   .pipeline = pipe_tex.handle(),
+      //   .buffers = {&quad_bbind[0], std::size(quad_bbind)},
+      //   .textures = {&cino_tbind[0], std::size(cino_tbind)},
+      //   .uniforms = {&cino_unifs[0], std::size(cino_unifs)},
+      //   .draw_opts = quad_opts,
+      //   .on_render = {},
+      // });
 
       // Rin sprite
       ctx.submit_command({
@@ -552,17 +535,6 @@ int main() {
         .buffers = {&quad_bbind[0], std::size(quad_bbind)},
         .textures = {&fb_tbind[0], std::size(fb_tbind)},
         .uniforms = {&fb_unifs[0], std::size(fb_unifs)},
-        .draw_opts = quad_opts,
-        .on_render = {},
-      });
-
-      // Font thing
-      ctx.submit_command({
-        .target = default_fbo.handle(),
-        .pipeline = pipe_fnt.handle(),
-        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
-        .textures = {&fnt_tbind[0], std::size(fnt_tbind)},
-        .uniforms = {&fnt_unifs[0], std::size(fnt_unifs)},
         .draw_opts = quad_opts,
         .on_render = {},
       });
@@ -588,6 +560,15 @@ int main() {
         .draw_opts = quad_opts,
         .on_render = {},
       });
+
+      frenderer.append(moving_cache, last_x, last_y, 1.f,
+                       fmt::format("{:.2f}fps\nWI AR ETO YAPANIS GOBORIN", avg_fps));
+      frenderer.render(text_cache, default_fbo,
+                       inv_quad_vbo, quad_ebo,
+                       cam_proj_fnt);
+      frenderer.render(moving_cache, default_fbo,
+                       inv_quad_vbo, quad_ebo,
+                       cam_proj_fnt);
     }
   });
 

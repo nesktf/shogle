@@ -88,10 +88,10 @@ auto ft2_font_loader::_load_metrics(const face_t& face, uint32 idx,
     .id = idx,
     .size = {static_cast<uint32>(m.width>>6), static_cast<uint32>(m.height>>6)},
     .bsize = {static_cast<uint32>(b.width), static_cast<uint32>(b.rows)},
-    .hbearing = {static_cast<uint32>(m.horiBearingX>>6), static_cast<uint32>(m.horiBearingY>>6)},
-    .vbearing = {static_cast<uint32>(m.vertBearingX>>6), static_cast<uint32>(m.vertBearingY>>6)},
-    .bbearing = {static_cast<uint32>(g->bitmap_left), static_cast<uint32>(g->bitmap_top)},
-    .advance = {static_cast<uint32>(m.horiAdvance>>6), static_cast<uint32>(m.vertAdvance>>6)},
+    .hbearing = {(m.horiBearingX>>6), (m.horiBearingY>>6)},
+    .vbearing = {(m.vertBearingX>>6), (m.vertBearingY>>6)},
+    .bbearing = {(g->bitmap_left), (g->bitmap_top)},
+    .advance = {(m.horiAdvance>>6), (m.vertAdvance>>6)},
   };
 }
 
@@ -154,10 +154,6 @@ uint32 ft2_font_loader::_find_atlas_extent(uint32 padding, uint32 start_sz,
       } else {
         max_h = std::max(max_h, gheight);
       }
-
-      // Store the offset here!!!
-      glyph->offset.y = y;
-      glyph->offset.x = x;
 
       x += gwidth + padding;
     }

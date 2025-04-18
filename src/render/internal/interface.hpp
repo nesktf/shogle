@@ -62,11 +62,10 @@ struct texture_binding {
 };
 
 struct draw_command {
-  r_buffer vertex_buffer;
-  r_buffer index_buffer;
   r_pipeline pipeline;
   std::vector<weak_ref<texture_binding>> textures;
   std::vector<weak_ref<uniform_descriptor>> uniforms;
+  std::vector<weak_ref<r_buffer_binding>> buffers;
   uint32 count;
   uint32 offset;
   uint32 instances;

@@ -352,11 +352,9 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
   }
 
   for (const auto& buff : cmd.buffers) {
-    if (buff.type == r_buffer_type::index) {
-      ctx->d_cmd.index_buffer = buff.buffer;
-    } else {
-      ctx->d_cmd.vertex_buffer = buff.buffer;
-    }
+    auto* ptr = ctx->frame_arena.allocate<r_buffer_binding>(1);
+    std::construct_at(ptr, buff);
+    ctx->d_cmd.buffers.emplace_back(ptr);
   }
 
   for (const auto& tex : cmd.textures) {
@@ -410,7 +408,7 @@ r_expected<r_buffer> r_create_buffer(r_context ctx, const r_buffer_descriptor& d
 
   r_platform_buffer handle{};
   try {
-    auto handle = ctx->platform->create_buffer(desc);
+    handle = ctx->platform->create_buffer(desc);
     RET_ERROR_IF(!handle,
                  "[ntf::r_create_buffer]",
                  "Failed to create buffer");
@@ -507,7 +505,7 @@ r_expected<void*> r_buffer_map(r_buffer buffer, size_t offset, size_t len) {
    "[ntf::r_buffer_map]",
     "Non mappable buffer"
   );
-  RET_ERROR_IF(offset+len <= buffer->size,
+  RET_ERROR_IF(offset+len > buffer->size,
                "[ntf::r_buffer_map]",
                "Invalid mapping size");
   void* ptr = nullptr;

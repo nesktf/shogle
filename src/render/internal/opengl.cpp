@@ -1440,34 +1440,44 @@ void gl_context::submit(const command_map& cmds) {
 
     for (const auto& cmd_ref : list.cmds) {
       const auto& cmd = *cmd_ref;
-
-      NTF_ASSERT(cmd.count);
-      NTF_ASSERT(cmd.vertex_buffer);
-      NTF_ASSERT(cmd.pipeline);
-
-      const auto& vbo = _buffers.get(r_buffer_get_handle(cmd.vertex_buffer));
-      const auto& prog = _programs.get(r_pipeline_get_handle(cmd.pipeline));
-      NTF_ASSERT(vbo.id);
-      NTF_ASSERT(vbo.type == GL_ARRAY_BUFFER);
-      NTF_ASSERT(prog.id);
-
       if (cmd.on_render) {
         cmd.on_render();
       }
 
-      bool rebind = _state.bind_buffer(vbo.id, vbo.type);
+      bool index_buffer = false;
+      bool rebind = false;
+      for (const auto& buffer : cmd.buffers) {
+        const auto& gl_buff = _buffers.get(r_buffer_get_handle(buffer->buffer));
+        if (gl_buff.type == GL_ELEMENT_ARRAY_BUFFER) {
+          index_buffer = true;
+        }
+
+        if (gl_buff.type == GL_ARRAY_BUFFER) {
+          rebind = _state.bind_buffer(gl_buff.id, gl_buff.type);
+        } else {
+          _state.bind_buffer(gl_buff.id, gl_buff.type);
+        }
+        if (gl_buff.type == GL_SHADER_STORAGE_BUFFER) {
+          if (!buffer->location) {
+            SHOGLE_LOG(warning, "[ntf::gl_context::submit] No binding provided for SSBO");
+            continue;
+          }
+          GL_CALL(glBindBufferBase(GL_SHADER_STORAGE_BUFFER, *buffer->location, gl_buff.id));
+        }
+      }
+
+      NTF_ASSERT(cmd.count);
+      NTF_ASSERT(cmd.pipeline);
+
+      const auto& prog = _programs.get(r_pipeline_get_handle(cmd.pipeline));
+      NTF_ASSERT(prog.id);
+
       rebind = (_state.bind_program(prog.id) || rebind);
       if (rebind) {
         auto& layout = prog.layout;
         _state.bind_attributes(
           layout->descriptors.data(), layout->descriptors.size(), layout->stride
         );
-      }
-
-      if (cmd.index_buffer) {
-        auto& ebo = _buffers.get(r_buffer_get_handle(cmd.index_buffer));
-        NTF_ASSERT(ebo.type == GL_ELEMENT_ARRAY_BUFFER);
-        _state.bind_buffer(ebo.id, ebo.type);
       }
 
       for (const auto& bind : cmd.textures) {
@@ -1479,7 +1489,7 @@ void gl_context::submit(const command_map& cmds) {
         _state.push_uniform(static_cast<uint32>(unif->location), unif->type, unif->data);
       }
 
-      if (cmd.index_buffer) {
+      if (index_buffer) {
         const void* offset = reinterpret_cast<const void*>(cmd.offset*sizeof(uint32));
         const GLenum format = GL_UNSIGNED_INT;
         if (cmd.instances) {

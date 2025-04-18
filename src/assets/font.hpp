@@ -235,7 +235,7 @@ private:
       // TODO: Use a better packing algorithm
       uint32 x = padding, y = padding;
       uint32 max_h = 0;
-      for (const auto& glyph : glyphs) {
+      for (auto& glyph : glyphs) {
         const uint8* buff = _render_bitmap(face, glyph.id, mode);
         if (!buff) {
           SHOGLE_LOG(verbose, "[ntf::ft2_font_loader] Skipping empty bitmap for glyph '{}'",
@@ -251,6 +251,10 @@ private:
         } else {
           max_h = std::max(max_h, gheight);
         }
+        
+        // Store the offset here!!!
+        glyph.offset.x = x;
+        glyph.offset.y = y;
 
         const size_t channels = 1; // TODO: Handle multiple channels for LCD fonts?
         for (size_t row = 0; row < gheight; ++row) {
@@ -306,8 +310,8 @@ constexpr font_charset_view<T> ascii_charset{array_range<T, T{0}, T{127}>.data()
 template<font_codepoint_type CodeT, typename Loader = ntf::ft2_font_loader>
 auto load_font_atlas(
   const std::string& path,
-  font_load_flags flags = font_load_flags::render_normal,
-  uint32 glyph_size = 32u, uint32 padding = 2u,
+  font_load_flags flags = font_load_flags::render_sdf,
+  uint32 glyph_size = 48u, uint32 padding = 0u,
   font_charset_view<CodeT> charset = ascii_charset<CodeT>,
   Loader&& font_loader = {}
 ) -> asset_expected<font_atlas_data<
