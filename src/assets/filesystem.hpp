@@ -39,14 +39,16 @@ template<typename Alloc = std::allocator<uint8>>
 requires(allocator_type<std::remove_cvref_t<Alloc>, uint8>)
 auto file_data(
   const std::string& path, Alloc&& alloc = {}
-) noexcept -> asset_expected<unique_array_alloc<uint8, std::remove_cvref_t<Alloc>>> {
+) noexcept -> asset_expected<
+  unique_array<uint8, allocator_delete<uint8, std::remove_cvref_t<Alloc>>>
+> {
   stdfs::path in{path};
 
   std::error_code ec;
   const size_t len = static_cast<size_t>(stdfs::file_size(in, ec));
   if (ec) {
     return unexpected{asset_error::format({"Failed to open '{}', {}"},
-                                          path, std::move(ec.message()))};
+                                          path, ec.message())};
   }
   if (len == 0) {
     return unexpected{asset_error::format({"Failed to open '{}', empty file"},

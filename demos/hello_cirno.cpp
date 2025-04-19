@@ -102,7 +102,8 @@ int main() {
                                               std::move(*cousine), 64u);
 
   ntf::font_render_cache text_cache;
-  auto [last_x, last_y] = frenderer.append(text_cache, 20.f, 500.f, 1.f, "Hello World! ~ze\n");
+  auto [last_x, last_y] = frenderer->append(text_cache, 20.f, 500.f, 1.f,
+                                            std::string_view{"Hello World! ~ze\n"});
   ntf::font_render_cache moving_cache;
   moving_cache.reserve(10);
   
@@ -561,12 +562,12 @@ int main() {
         .on_render = {},
       });
 
-      frenderer.append(moving_cache, last_x, last_y, 1.f,
-                       fmt::format("{:.2f}fps\nWI AR ETO YAPANIS GOBORIN", avg_fps));
-      frenderer.render(text_cache, default_fbo,
+      auto str = fmt::format("{:.2f}fps\nWI AR ETO YAPANIS GOBORIN", avg_fps);
+      frenderer->append(moving_cache, last_x, last_y, 1.f, std::string_view{str});
+      frenderer->render(text_cache, default_fbo,
                        inv_quad_vbo, quad_ebo,
                        cam_proj_fnt);
-      frenderer.render(moving_cache, default_fbo,
+      frenderer->render(moving_cache, default_fbo,
                        inv_quad_vbo, quad_ebo,
                        cam_proj_fnt);
     }

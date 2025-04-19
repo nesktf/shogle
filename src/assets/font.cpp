@@ -165,4 +165,98 @@ uint32 ft2_font_loader::_find_atlas_extent(uint32 padding, uint32 start_sz,
   return atlas_extent;
 }
 
+auto ft2_font_loader::_parse_metrics(
+  std::tuple<face_t, temp_map_t, temp_set_t>&& tuple,
+  ft_mode mode
+) ->  std::tuple<face_t, glyphs_t, map_t>
+{
+  auto&& [face, map, set] = std::move(tuple);
+
+  virtual_allocator<glyph_metrics> metrics_alloc = std::allocator<glyph_metrics>{};
+  virtual_allocator<uint8> map_alloc = std::allocator<uint8>{};
+
+  auto parsed_glyphs = glyphs_t::from_allocator(::ntf::uninitialized,
+                                                set.size(),
+                                                std::move(metrics_alloc));
+  auto parsed_map = map_t::from_size(map.size(), std::move(map_alloc)).value();
+  auto idx_map = fixed_hashmap<uint32, size_t>::from_size(set.size()).value();
+
+  for (size_t i = 0; const uint32 id : set) {
+    auto glyph = _load_metrics(face, id, mode);
+    if (!glyph) {
+      SHOGLE_LOG(warning, "[ntf::ft2_font_loader] Failed to load glyph with id '{}'",
+                 id);
+      continue;
+    }
+    std::construct_at(parsed_glyphs.get()+i, glyph->data_metrics());
+    [[maybe_unused]] const auto [_, empl] = idx_map.try_emplace(id, i);
+    NTF_ASSERT(empl);
+    ++i;
+  }
+  for (const auto& [code, idx] : map) {
+    [[maybe_unused]] const auto [_, empl] = parsed_map.try_emplace(code, idx_map[idx]);
+    NTF_ASSERT(empl);
+  }
+
+  return std::make_tuple(std::move(face), std::move(parsed_glyphs), std::move(parsed_map));
+}
+
+font_atlas_data ft2_font_loader::_load_bitmap(
+  std::tuple<face_t, glyphs_t, map_t>&& tuple, ft_mode mode,
+  uint32 padding, uint32 atlas_size
+) {
+  auto&& [face, glyphs, map]= std::move(tuple);
+  uint32 atlas_extent = _find_atlas_extent(padding, atlas_size,
+                                           glyphs.get(), glyphs.size());
+  extent2d bitmap_extent{atlas_extent, atlas_extent};
+  const size_t bitmap_sz = tex_stride<uint8>(bitmap_extent);
+  virtual_allocator<uint8> bitmap_alloc = std::allocator<uint8>{};
+  auto* bitmap = bitmap_alloc.allocate(bitmap_sz);
+  std::memset(bitmap, 0, bitmap_sz);
+
+  // TODO: Use a better packing algorithm
+  uint32 x = padding, y = padding;
+  uint32 max_h = 0;
+  for (auto& glyph : glyphs) {
+    const uint8* buff = _render_bitmap(face, glyph.id, mode);
+    if (!buff) {
+      SHOGLE_LOG(verbose, "[ntf::ft2_font_loader] Skipping empty bitmap for glyph '{}'",
+                 glyph.id);
+      continue;
+    }
+    const uint32 gwidth = glyph.size.x;
+    const uint32 gheight = glyph.size.y;
+    if (x + gwidth + padding > atlas_extent) {
+      x = padding;
+      y += 2*padding + max_h;
+      max_h = gheight;
+    } else {
+      max_h = std::max(max_h, gheight);
+    }
+    
+    // Store the offset here!!!
+    glyph.offset.x = x;
+    glyph.offset.y = y;
+
+    const size_t channels = 1; // TODO: Handle multiple channels for LCD fonts?
+    for (size_t row = 0; row < gheight; ++row) {
+      const size_t offset = static_cast<size_t>(channels*(x+atlas_extent*(row+y)));
+      std::memcpy(bitmap+offset, buff+(row*gwidth), channels*gwidth);
+    }
+
+    x += padding + gwidth;
+  }
+
+  SHOGLE_LOG(debug,
+             "[ntf::ft2_font_loader] Loaded font atlas: {} glyphs, {} mappings, {}x{} bitmap",
+             glyphs.size(), map.size(), bitmap_extent.x, bitmap_extent.y);
+
+  using del_t = virtual_alloc_del<uint8>;
+  return font_atlas_data {
+    bitmap_t{bitmap, bitmap_sz, del_t{std::move(bitmap_alloc)}},
+    bitmap_extent, r_texture_format::r8nu, r_image_alignment::bytes1,
+    std::move(glyphs), std::move(map)
+  };
+}
+
 } // namespace ntf

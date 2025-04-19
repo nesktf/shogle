@@ -128,10 +128,11 @@ struct r_framebuffer_ {
 
 struct r_context_ {
   r_context_(std::unique_ptr<r_platform_context>&& platform_, command_map&& map,
-             win_handle win_, renderer_api api_, const r_allocator& alloc) noexcept :
+             win_handle win_, renderer_api api_, fixed_arena&& arena,
+             const r_allocator& alloc) noexcept :
     api{api_}, win{win_}, platform{std::move(platform_)},
     draw_lists{std::move(map)}, d_cmd{}, alloc{alloc},
-    default_fbo{this} {}
+    default_fbo{this}, frame_arena{std::move(arena)} {}
 
   renderer_api api;
   win_handle win;
@@ -149,7 +150,7 @@ struct r_context_ {
 
   r_allocator alloc;
   r_framebuffer_ default_fbo;
-  ntf::mem_arena frame_arena;
+  fixed_arena frame_arena;
 };
 
 static auto load_platform_ctx(
@@ -227,9 +228,14 @@ r_expected<r_context> r_create_context(const r_context_params& params) {
       auto [it, emplaced] = map.try_emplace(DEFAULT_FBO_HANDLE);
       NTF_ASSERT(emplaced);
 
+      auto arena = fixed_arena::from_size(1ull<<29);
+      if (!arena) {
+        return unexpected{std::move(arena.error())};
+      }
       std::construct_at(ctx,
-                        std::move(pctx), std::move(map), params.window, params.api, alloc);
-      ctx->frame_arena.init(1ull<<29); // 512 MiB
+                        std::move(pctx), std::move(map), params.window, params.api,
+                        std::move(*arena),
+                        alloc);
       ctx->d_list = ctx->draw_lists.at(DEFAULT_FBO_HANDLE);
       ctx->d_list->color = params.fb_color;
       ctx->d_list->viewport = params.fb_viewport;
@@ -281,7 +287,7 @@ void r_start_frame(r_context ctx) {
     }
     list.cmds.clear();
   }
-  ctx->frame_arena.reset();
+  ctx->frame_arena.clear();
 
 #if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
   switch (ctx->api) {
@@ -963,8 +969,6 @@ r_framebuffer r_create_framebuffer(unchecked_t, r_context ctx,
   attachments.reserve(desc.attachments.size());
 
   auto handle = ctx->platform->create_framebuffer(desc);
-  // SHOGLE_LOG(error, "{}", static_cast<uint32>(handle));
-  // std::abort();
 
   for (size_t i = 0; i < desc.attachments.size(); ++i) {
     attachments.push_back(desc.attachments[i]);

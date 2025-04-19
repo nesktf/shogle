@@ -20,38 +20,30 @@ struct fixed_hashmap_ops :
   bool _equals(const K& a, const K& b) const {
     return EqualsT::operator()(a, b);
   }
-  const EqualsT& _key_eq() const { return static_cast<const EqualsT&>(*this); }
+  EqualsT& _key_eq() const { return static_cast<EqualsT&>(*this); }
 
   size_t _hash(const K& x) const {
     return HashT::operator()(x);
   }
-  const HashT& _hash_function() const { return static_cast<const HashT&>(*this); }
+  HashT& _hash_function() const { return static_cast<HashT&>(*this); }
 };
 
-template<typename K, typename T, typename Alloc>
-struct fixed_hashmap_alloc :
-  private Alloc, private rebind_alloc_t<Alloc, uint32>
+template<typename K, typename T, typename Del>
+struct fixed_hashmap_del : private Del
 {
-  fixed_hashmap_alloc(const Alloc& alloc) :
-    Alloc{alloc}, rebind_alloc_t<Alloc, uint32>{alloc} {}
+  fixed_hashmap_del(const Del& del) :
+    Del{del} {}
 
-  std::pair<const K, T>* _alloc_values(size_t count) {
-    return Alloc::allocate(count);
-  }
   void _dealloc_values(std::pair<const K, T>* vals, size_t count) {
-    Alloc::deallocate(vals, count);
+    constexpr size_t pair_sz = sizeof(std::pair<const K, T>);
+    Del::operator()(reinterpret_cast<uint8*>(vals), count*pair_sz);
   }
 
-  uint32* _alloc_flags(size_t count) {
-    auto* ptr = rebind_alloc_t<Alloc, uint32>::allocate(count);
-    std::memset(ptr, 0, sizeof(uint32)*count);
-    return ptr;
-  }
   void _dealloc_flags(uint32* vals, size_t count) {
-    rebind_alloc_t<Alloc, uint32>::deallocate(vals, count);
+    Del::operator()(reinterpret_cast<uint8*>(vals), count*sizeof(uint32));
   }
 
-  const Alloc& _get_allocator() const { return static_cast<const Alloc&>(*this); }
+  Del& _get_deleter() { return static_cast<Del&>(*this); }
 };
 
 } // namespace impl
@@ -60,11 +52,11 @@ template<
   typename K, typename T,
   typename HashT = std::hash<K>,
   typename EqualsT = std::equal_to<K>,
-  typename AllocT = std::allocator<std::pair<const K, T>>
+  typename DelT = default_alloc_del<uint8>
 >
 class fixed_hashmap :
   private impl::fixed_hashmap_ops<K, HashT, EqualsT>,
-  private impl::fixed_hashmap_alloc<K, T, AllocT>
+  private impl::fixed_hashmap_del<K, T, DelT>
 {
 private:
   static constexpr size_t FLAGS_PER_ENTRY = 16; // 2 bits each, uses 32 bits
@@ -119,7 +111,7 @@ private:
   };
 
   using ops_base = impl::fixed_hashmap_ops<K, HashT, EqualsT>;
-  using alloc_base = impl::fixed_hashmap_alloc<K, T, AllocT>;
+  using del_base = impl::fixed_hashmap_del<K, T, DelT>;
 
 public:
   using key_type = K;
@@ -129,7 +121,7 @@ public:
 
   using hasher = HashT;
   using key_equal = EqualsT;
-  using allocator_type = AllocT;
+  using deleter_type = DelT;
 
   using size_type = std::size_t;
   using reference = value_type&;
@@ -140,62 +132,45 @@ public:
 
 private:
   fixed_hashmap(value_type* values, uint32* flags, size_t cap,
-                const HashT& hash, const EqualsT& eqs, const AllocT& alloc) :
-    ops_base{hash, eqs}, alloc_base{alloc},
+                const HashT& hash, const EqualsT& eqs, const DelT& del) :
+    ops_base{hash, eqs}, del_base{del},
     _values{values}, _flags{flags}, _used{0}, _cap{cap} {}
 
 public:
-  fixed_hashmap(size_t cap,
-                const HashT& hash = {}, const EqualsT& eqs = {}, const AllocT& alloc = {}) :
-    ops_base{hash, eqs}, alloc_base{alloc},
-    _used{0}, _cap{cap}
-  {
-    _values = alloc_base::_alloc_values(cap);
-    _flags = alloc_base::_alloc_flags(_flag_count(cap));
-  }
+  template<typename HashU=HashT, typename EqualsU=EqualsT, typename Alloc=std::allocator<uint8>>
+  requires(allocator_type<std::remove_cvref_t<Alloc>, uint8>)
+  static auto from_size(
+    size_t size, Alloc&& alloc = {}, const HashU& hash = {}, const EqualsU& eqs = {}
+  ) noexcept -> expected<
+    fixed_hashmap<K, T, HashU, EqualsU, allocator_delete<uint8, std::remove_cvref_t<Alloc>>>,
+    error<void>
+  > {
+    using alloc_t = std::remove_cvref_t<Alloc>;
+    using del_t = allocator_delete<uint8, alloc_t>;
 
-  fixed_hashmap(std::initializer_list<value_type> init,
-                const HashT& hash = {}, const EqualsT& eqs = {}, const AllocT& alloc = {}) :
-    fixed_hashmap{init.size(), hash, eqs, alloc}
-  {
-    for (const auto& [k, v] : init) {
-      try_emplace(k, v);
-    }
-  }
+    size_t flag_sz = _flag_count(size);
+    uint8* flags = nullptr;
+    uint8* array = nullptr;
 
-public:
-  template<
-    typename HashU = HashT,
-    typename EqualsU = EqualsT,
-    typename AllocU = std::allocator<value_type>
-  >
-  static auto create(
-    unchecked_t,
-    size_t cap, const HashU& hash = {}, const EqualsU& eqs = {}, const AllocU& alloc = {}
-  ) -> fixed_hashmap<K, T, HashU, EqualsU, AllocU>
-  {
-    return fixed_hashmap<K, T, HashU, EqualsU, AllocU>{cap, hash, eqs, alloc};
-  }
-
-  template<
-    typename HashU = HashT,
-    typename EqualsU = EqualsT,
-    typename AllocU = std::allocator<value_type>
-  >
-  static auto create(
-    size_t cap, const HashU& hash = {}, const EqualsU& eqs = {}, const AllocU& alloc = {}
-  ) noexcept -> expected<fixed_hashmap<K, T, HashU, EqualsU, AllocU>, error<void>>
-  {
     try {
-      impl::fixed_hashmap_alloc<K, T, AllocT> rebound_alloc{std::forward<AllocU>(alloc)};
-      auto* values = rebound_alloc._alloc_values(cap);
-      auto* flags = rebound_alloc._alloc_flags(_flag_count(cap));
-      return fixed_hashmap<K, T, HashU, EqualsU, AllocU>{values, flags, cap, hash, eqs, alloc};
+      flags = alloc.allocate(flag_sz*sizeof(uint32));
+      std::memset(flags, 0, flag_sz*sizeof(uint32));
+      array = alloc.allocate(size*sizeof(value_type));
     } catch (const std::exception& ex) {
+      alloc.deallocate(array, size*sizeof(value_type));
+      alloc.deallocate(flags, flag_sz*sizeof(uint32));
       return unexpected{error<void>{ex.what()}};
     } catch (...) {
+      alloc.deallocate(array, size*sizeof(value_type));
+      alloc.deallocate(flags, flag_sz*sizeof(uint32));
       return unexpected{error<void>{"Unknown error"}};
     }
+
+    return fixed_hashmap<K,T,HashU,EqualsU,del_t>{
+      reinterpret_cast<value_type*>(array), reinterpret_cast<uint32*>(flags), size,
+      hash, eqs,
+      del_t{std::forward<Alloc>(alloc)}
+    };
   }
 
 public:
@@ -331,20 +306,6 @@ public:
     return *this;
   }
 
-  // void print() const {
-  //   fmt::print("BEGIN\n");
-  //   for (size_t i = 0; i < capacity(); ++i) {
-  //     if (_flag_at(i) == FLAG_USED) {
-  //       fmt::print(" {} -> ({},{})\n", i, _values[i].first, _values[i].second);
-  //     } else if (_flag_at(i) == FLAG_TOMB) {
-  //       fmt::print(" {} -> TONTON\n", i);
-  //     } else {
-  //       fmt::print(" {} -> x\n", i);
-  //     }
-  //   }
-  //   fmt::print("END\n");
-  // }
-
 public:
   mapped_type& operator[](const key_type& key) {
     auto it = find(key);
@@ -386,9 +347,14 @@ public:
     return static_cast<float32>(size())/static_cast<float32>(capacity());
   }
 
-  const hasher& hash_function() const { return alloc_base::_hash_function(); }
-  const key_equal& key_eq() const { return alloc_base::_key_eq(); }
-  const allocator_type& get_allocator() const { return alloc_base::_get_allocator(); }
+  hasher& hash_function() { return ops_base::_hash_function(); }
+  const hasher& hash_function() const { return ops_base::_hash_function(); }
+
+  key_equal& key_eq() { return ops_base::_key_eq(); }
+  const key_equal& key_eq() const { return ops_base::_key_eq(); }
+
+  deleter_type& deleter() { return del_base::_get_deleter(); }
+  const deleter_type& deleter() const { return del_base::_get_deleter(); }
 
 private:
   static size_t _flag_count(size_t cap) {
@@ -401,8 +367,8 @@ private:
     }
 
     clear();
-    alloc_base::_dealloc_values(_values, capacity());
-    alloc_base::_dealloc_flags(_flags, _flag_count(capacity()));
+    del_base::_dealloc_values(_values, capacity());
+    del_base::_dealloc_flags(_flags, _flag_count(capacity()));
   }
 
   uint32 _flag_at(size_t idx) const {
@@ -429,7 +395,7 @@ public:
 
   fixed_hashmap(fixed_hashmap&& other) noexcept :
     ops_base{static_cast<ops_base&&>(other)},
-    alloc_base{static_cast<alloc_base&&>(other)},
+    del_base{static_cast<del_base&&>(other)},
     _flags{std::move(other._flags)}, _values{std::move(other._values)},
     _used{std::move(other._used)}, _cap{std::move(other._cap)}
   {
@@ -437,10 +403,10 @@ public:
   }
 
   fixed_hashmap& operator=(fixed_hashmap&& other) noexcept {
-    ops_base::operator=(static_cast<ops_base&&>(other));
-    alloc_base::operator=(static_cast<alloc_base&&>(other));
-
     _destroy();
+
+    ops_base::operator=(static_cast<ops_base&&>(other));
+    del_base::operator=(static_cast<del_base&&>(other));
 
     _flags = std::move(other._flags);
     _values = std::move(other._values);
@@ -456,11 +422,8 @@ public:
   fixed_hashmap& operator=(const fixed_hashmap&) = delete;
 };
 
-template<typename K, typename T, typename AllocT>
-using fixed_hashmap_alloc = fixed_hashmap<
-  K, T,
-  std::hash<K>, std::equal_to<K>,
-  rebind_alloc_t<AllocT, std::pair<const K, T>>
->;
+template<typename K, typename T, typename HashT=std::hash<K>, typename EqualsT=std::equal_to<K>>
+using virtual_fixed_hashmap =
+  fixed_hashmap<K, T, HashT, EqualsT, virtual_alloc_del<uint8>>;
 
 } // namespace ntf
