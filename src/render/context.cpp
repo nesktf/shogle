@@ -128,7 +128,7 @@ struct r_framebuffer_ {
 
 struct r_context_ {
   r_context_(std::unique_ptr<r_platform_context>&& platform_, command_map&& map,
-             win_handle win_, renderer_api api_, fixed_arena&& arena,
+             win_handle win_, renderer_api api_, linked_arena&& arena,
              const r_allocator& alloc) noexcept :
     api{api_}, win{win_}, platform{std::move(platform_)},
     draw_lists{std::move(map)}, d_cmd{}, alloc{alloc},
@@ -150,7 +150,7 @@ struct r_context_ {
 
   r_allocator alloc;
   r_framebuffer_ default_fbo;
-  fixed_arena frame_arena;
+  linked_arena frame_arena;
 };
 
 static auto load_platform_ctx(
@@ -228,7 +228,7 @@ r_expected<r_context> r_create_context(const r_context_params& params) {
       auto [it, emplaced] = map.try_emplace(DEFAULT_FBO_HANDLE);
       NTF_ASSERT(emplaced);
 
-      auto arena = fixed_arena::from_size(1ull<<29);
+      auto arena = linked_arena::from_size(mibs(4u));
       if (!arena) {
         return unexpected{std::move(arena.error())};
       }
@@ -358,34 +358,26 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
   }
 
   for (const auto& buff : cmd.buffers) {
-    auto* ptr = ctx->frame_arena.allocate<r_buffer_binding>(1);
-    std::construct_at(ptr, buff);
+    auto* ptr = ctx->frame_arena.construct<r_buffer_binding>(buff);
     ctx->d_cmd.buffers.emplace_back(ptr);
   }
 
   for (const auto& tex : cmd.textures) {
-    auto* ptr = ctx->frame_arena.allocate<texture_binding>(1);
-    ptr->handle = tex.texture;
-    ptr->index = tex.location;
+    auto* ptr = ctx->frame_arena.construct<texture_binding>(tex.texture, tex.location);
     ctx->d_cmd.textures.emplace_back(ptr);
   }
 
   for (const auto& unif : cmd.uniforms) {
-    auto* desc = ctx->frame_arena.allocate<uniform_descriptor>(1);
-
     size_t data_sz = r_attrib_type_size(unif.type);
     auto* data = ctx->frame_arena.allocate(data_sz, unif.alignment);
     std::memcpy(data, unif.data, data_sz);
 
-    desc->location = unif.location;
-    desc->type = unif.type;
-    desc->data = data;
+    auto* desc = ctx->frame_arena.construct<uniform_descriptor>(unif.type, unif.location, data);
     ctx->d_cmd.uniforms.emplace_back(desc);
   }
 
-  auto* lcmd = ctx->frame_arena.allocate<draw_command>(1);
-  weak_ref<draw_command> ref = std::construct_at(lcmd, std::move(ctx->d_cmd));
-  ctx->d_list->cmds.emplace_back(ref);
+  auto* lcmd = ctx->frame_arena.construct<draw_command>(std::move(ctx->d_cmd));
+  ctx->d_list->cmds.emplace_back(lcmd);
   ctx->d_cmd = {};
 }
 
