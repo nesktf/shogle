@@ -10,7 +10,8 @@ font_renderer::font_renderer(renderer_pipeline pip, renderer_buffer ssbo, render
 
 auto font_renderer::create(
   r_context_view ctx,
-   std::string_view vert_src, std::string_view frag_src,
+  weak_ref<r_attrib_binding> attrib_bind, span_view<r_attrib_descriptor> attrib_desc,
+  std::string_view vert_src, std::string_view frag_src,
   font_atlas_data&& font, size_t batch_size
 ) -> asset_expected<font_renderer> {
   const size_t ssbo_sz = batch_size * sizeof(font_shader_glyph);
@@ -30,14 +31,11 @@ auto font_renderer::create(
   if (!frag) {
     return unexpected{std::move(frag.error())};
   }
-
-  auto attr_bind = pnt_vertex::attrib_binding();
-  auto attr_desc = pnt_vertex::attrib_descriptor();
   ntf::r_shader shads[] = {vert->handle(), frag->handle()};
   auto pipeline = renderer_pipeline::create(ctx, {
     .stages = {&shads[0], std::size(shads)},
-    .attrib_binding = attr_bind,
-    .attrib_desc = {attr_desc},
+    .attrib_binding = attrib_bind,
+    .attrib_desc = attrib_desc,
     .primitive = ntf::r_primitive::triangles,
     .poly_mode = ntf::r_polygon_mode::fill,
     .front_face = ntf::r_front_face::clockwise,
@@ -52,7 +50,7 @@ auto font_renderer::create(
 
   auto ssbo = renderer_buffer::create(ctx, {
     .type = ntf::r_buffer_type::shader_storage,
-    .flags = ntf::r_buffer_flag::dynamic_storage | ntf::r_buffer_flag::rw_mappable,
+    .flags = ntf::r_buffer_flag::dynamic_storage,
     .size = ssbo_sz,
     .data = nullptr,
   });
@@ -125,11 +123,10 @@ void font_renderer::render(const font_render_cache& cache, r_framebuffer_view fb
       .uniforms = {&pconsts[0], std::size(pconsts)},
       .draw_opts = opts,
       .on_render = [this, &cache, i, count=opts.instances](auto) {
+        // TODO: Investigate how to abstract GPU synchronization when writting to
+        //       mapped buffers, to avoid rebinding for uploads each frame
         const size_t offset = _batch_sz*i;
-        // SHOGLE_LOG(debug, "Writing {} things from offset {}", count, offset);
         _ssbo.upload(0, count*sizeof(font_shader_glyph), cache.data()+offset);
-        // std::memcpy(_ssbo_mapped, cache.data()+offset, count*sizeof(font_shader_glyph));
-        // glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       },
     });
   }
@@ -138,35 +135,45 @@ void font_renderer::render(const font_render_cache& cache, r_framebuffer_view fb
 void font_renderer::_append_codepoint(char32_t code, font_render_cache& cache,
                                       float start_x, float start_y, float scale,
                                       float& x, float& y) {
+  const bool flip_y = true;
+  const bool flip_x = false;
   size_t idx = 0u;
   if (auto g_it = _glyph_map.find(code); g_it != _glyph_map.end()) {
     idx = static_cast<size_t>(g_it->second);
   }
   const auto& glyph = _glyphs[idx];
-  // SHOGLE_LOG(debug, "'{}', idx: {} -> {}", ch, idx, glyph.id);
-  // SHOGLE_LOG(debug, "\t-> sz: {}x{} - off: {},{} - be: {},{} - adv: {},{}",
-  //            glyph.size.x, glyph.size.y,
-  //            glyph.offset.x, glyph.offset.y,
-  //            glyph.bearing.x, glyph.bearing.y,
-  //            glyph.advance.x, glyph.advance.y);
   if (code == '\n') {
     x = start_x;
-    y -= glyph.advance.y*scale;
+    y -= static_cast<float>(glyph.advance.y)*scale;
     return;
   }
 
-  const float xpos = x + ((float)glyph.size.x*.5f+glyph.bearing.x)*scale;
-  const float ypos = y - ((float)glyph.size.y*.5f-(float)glyph.bearing.y)*scale;
-  const float w = (float)glyph.size.x*scale;
-  const float h = (float)glyph.size.y*scale;
+  const float tex_x = static_cast<float>(_bitmap_extent.x);
+  const float tex_y = static_cast<float>(_bitmap_extent.y);
+  const float gsize_x = static_cast<float>(glyph.size.x);
+  const float gsize_y = static_cast<float>(glyph.size.y);
 
-  cache.emplace_back(
-    vec2{w, h}, vec2{xpos, ypos},
-    vec2{w/((float)_bitmap_extent.x*scale), h/((float)_bitmap_extent.y*scale)},
-    vec2{(glyph.offset.x)/(float)_bitmap_extent.x, (glyph.offset.y)/(float)_bitmap_extent.y}
-  );
+  const vec2 transf_scale {
+    gsize_x*scale,
+    gsize_y*scale,
+  };
+  const vec2 transf_offset {
+    x + (gsize_x*.5f + static_cast<float>(glyph.bearing.x)*scale),
+    y - (gsize_y*.5f - static_cast<float>(glyph.bearing.y)*scale)
+  };
+
+  const vec2 uv_scale {
+    gsize_x/((flip_x*-1.f + !flip_x*1.f)*tex_x),
+    gsize_y/((flip_y*-1.f + !flip_y*1.f)*tex_y)
+  };
+  const vec2 uv_offset {
+    (static_cast<float>(glyph.offset.x) + (flip_x*gsize_x))/tex_x,
+    (static_cast<float>(glyph.offset.y) + (flip_y*gsize_y))/tex_y
+  };
+
+  cache.emplace_back(transf_scale, transf_offset, uv_scale, uv_offset);
   
-  x += glyph.advance.x*scale;
+  x += static_cast<float>(glyph.advance.x)*scale;
 }
 
 } // namespace ntf

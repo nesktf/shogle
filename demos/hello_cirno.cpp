@@ -98,12 +98,20 @@ int main() {
 
   auto [window, ctx] = init_ctx();
 
-  auto frenderer = ntf::font_renderer::create(ctx, vert_fnt_src, frag_fnt_src,
+  auto attr_bind = ntf::pnt_vertex::attrib_binding();
+  auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
+  auto frenderer = ntf::font_renderer::create(ctx,
+                                              attr_bind, attr_desc,
+                                              vert_fnt_src, frag_fnt_src,
                                               std::move(*cousine), 64u);
+  if (!frenderer) {
+    ntf::logger::error("[main] Failed to create font renderer: {}", frenderer.error().what());
+    return EXIT_FAILURE;
+  }
 
   ntf::font_render_cache text_cache;
-  auto [last_x, last_y] = frenderer->append(text_cache, 20.f, 500.f, 1.f,
-                                            std::string_view{"Hello World! ~ze\n"});
+  auto [last_x, last_y] = frenderer->append_fmt(text_cache, 20.f, 500.f, 1.f,
+                                                "Hello World! ~ze\n");
   ntf::font_render_cache moving_cache;
   moving_cache.reserve(10);
   
@@ -211,10 +219,7 @@ int main() {
     .source = {frag_fnt_src},
   });
 
-  auto load_pipeline = [&ctx](ntf::r_shader vert, ntf::r_shader frag) {
-    auto attr_bind = ntf::pnt_vertex::attrib_binding();
-    auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
-
+  auto load_pipeline = [&](ntf::r_shader vert, ntf::r_shader frag) {
     ntf::r_shader shads[] = {vert, frag};
     auto pipe = ntf::renderer_pipeline::create(ntf::unchecked, ctx, {
       .stages = {&shads[0], 2},
@@ -562,13 +567,12 @@ int main() {
         .on_render = {},
       });
 
-      auto str = fmt::format("{:.2f}fps\nWI AR ETO YAPANIS GOBORIN", avg_fps);
-      frenderer->append(moving_cache, last_x, last_y, 1.f, std::string_view{str});
+      frenderer->append_fmt(moving_cache, last_x, last_y, 1.f, "{:.2f}fps", avg_fps);
       frenderer->render(text_cache, default_fbo,
-                       inv_quad_vbo, quad_ebo,
+                       quad_vbo, quad_ebo,
                        cam_proj_fnt);
       frenderer->render(moving_cache, default_fbo,
-                       inv_quad_vbo, quad_ebo,
+                       quad_vbo, quad_ebo,
                        cam_proj_fnt);
     }
   });

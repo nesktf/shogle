@@ -6,7 +6,6 @@
 #include "../render/buffer.hpp"
 #include "../render/framebuffer.hpp"
 #include "../render/vertex.hpp"
-#include "render/transform.hpp"
 
 namespace ntf {
 
@@ -25,9 +24,13 @@ private:
                 font_atlas_data&& font, size_t batch);
 
 public:
-  static asset_expected<font_renderer> create(r_context_view ctx,
-                                              std::string_view vert_src, std::string_view frag_src,
-                                              font_atlas_data&& font, size_t batch_size);
+  static asset_expected<font_renderer> create(
+    r_context_view ctx,
+    weak_ref<r_attrib_binding> attrib_bind,
+    span_view<r_attrib_descriptor> attrib_desc,
+    std::string_view vert_src, std::string_view frag_src,
+    font_atlas_data&& font, size_t batch_size
+  );
 
 public:
   void render(const font_render_cache& cache, r_framebuffer_view fbo,
@@ -42,6 +45,14 @@ public:
       _append_codepoint(static_cast<char32_t>(ch), cache, pos_x, pos_y, scale, x, y);
     }
     return std::make_pair(x, y);
+  }
+
+  template<typename... Args>
+  std::pair<float32, float32> append_fmt(font_render_cache& cache,
+                                         float pos_x, float pos_y, float scale,
+                                         fmt::format_string<Args...> fmt, Args&&... args) {
+    auto str = fmt::format(fmt, std::forward<Args>(args)...);
+    return append(cache, pos_x, pos_y, scale, std::string_view{str});
   }
 
 private:
