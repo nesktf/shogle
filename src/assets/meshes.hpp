@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../render/vertex.hpp"
 
 namespace ntf {

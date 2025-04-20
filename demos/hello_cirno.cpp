@@ -76,9 +76,6 @@ int main() {
   auto frag_tex_src = ntf::file_contents("./demos/res/shaders/frag_tex.fs.glsl").value();
   auto vert_atl_src = ntf::file_contents("./demos/res/shaders/vert_atlas.vs.glsl").value();
 
-  auto vert_fnt_src = ntf::file_contents("./demos/res/shaders/vert_font.vs.glsl").value();
-  auto frag_fnt_src = ntf::file_contents("./demos/res/shaders/frag_font.fs.glsl").value();
-
   const auto fumo_flag = ntf::model_load_flags::triangulate;
   auto fumo = ntf::load_model<ntf::pnt_vertex>("./demos/res/cirno_fumo/cirno_fumo.obj", fumo_flag);
   if (!fumo) {
@@ -98,23 +95,25 @@ int main() {
 
   auto [window, ctx] = init_ctx();
 
-  auto attr_bind = ntf::pnt_vertex::attrib_binding();
-  auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
-  auto frenderer = ntf::font_renderer::create(ctx,
-                                              attr_bind, attr_desc,
-                                              vert_fnt_src, frag_fnt_src,
-                                              std::move(*cousine), 64u);
+  auto quad = ntf::quad_mesh::create(ntf::unchecked, ctx);
+  auto cube = ntf::cube_mesh::create(ntf::unchecked, ctx);
+
+  auto text_buffer = ntf::sdf_text_buffer::create(ctx, ntf::color3{1.f, 0.f, 0.f}, 0.5f, 0.05f);
+  if (!text_buffer) {
+    ntf::logger::error("[main] Failed to create text buffer: {}", text_buffer.error().what());
+    return EXIT_FAILURE;
+  }
+  (*text_buffer)
+    .outline_edge(0.05f)
+    .outline_width(0.62f)
+    .outline_color(0.f, 0.f, 0.f)
+    .outline_offset(-0.005f, -0.005f);
+
+  auto frenderer = ntf::font_renderer::create(ctx, std::move(*cousine));
   if (!frenderer) {
     ntf::logger::error("[main] Failed to create font renderer: {}", frenderer.error().what());
     return EXIT_FAILURE;
   }
-
-  ntf::font_render_cache text_cache;
-  auto [last_x, last_y] = frenderer->append_fmt(text_cache, 20.f, 500.f, 1.f,
-                                                "Hello World! ~ze\n");
-  ntf::font_render_cache moving_cache;
-  moving_cache.reserve(10);
-  
 
   auto cirno_img_data = cirno_img->make_descriptor();
   auto tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
@@ -181,23 +180,6 @@ int main() {
     .addressing = ntf::r_texture_address::repeat,
   });
 
-  auto cube_vbo = ntf::renderer_buffer::create(ntf::unchecked, ctx,
-                                               ntf::pnt_unindexed_cube_vert,
-                                               ntf::r_buffer_type::vertex,
-                                               ntf::r_buffer_flag::dynamic_storage);
-  auto quad_vbo = ntf::renderer_buffer::create(ntf::unchecked, ctx,
-                                               ntf::pnt_indexed_quad_vert,
-                                               ntf::r_buffer_type::vertex,
-                                               ntf::r_buffer_flag::dynamic_storage);
-  auto quad_ebo = ntf::renderer_buffer::create(ntf::unchecked, ctx,
-                                               ntf::pnt_indexed_quad_ind,
-                                               ntf::r_buffer_type::index,
-                                               ntf::r_buffer_flag::dynamic_storage);
-  auto inv_quad_vbo = ntf::renderer_buffer::create(ntf::unchecked, ctx,
-                                                   ntf::pnt_indexed_quad_vert_inv,
-                                                   ntf::r_buffer_type::vertex,
-                                                   ntf::r_buffer_flag::dynamic_storage);
-
   auto vertex = ntf::renderer_shader::create(ntf::unchecked, ctx, {
     .type = ntf::r_shader_type::vertex,
     .source = {vert_src},
@@ -214,12 +196,10 @@ int main() {
     .type = ntf::r_shader_type::vertex,
     .source = {vert_atl_src},
   });
-  auto fragment_fnt = ntf::renderer_shader::create(ntf::unchecked, ctx, {
-    .type = ntf::r_shader_type::fragment,
-    .source = {frag_fnt_src},
-  });
 
   auto load_pipeline = [&](ntf::r_shader vert, ntf::r_shader frag) {
+    auto attr_bind = ntf::pnt_vertex::attrib_binding();
+    auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
     ntf::r_shader shads[] = {vert, frag};
     auto pipe = ntf::renderer_pipeline::create(ntf::unchecked, ctx, {
       .stages = {&shads[0], 2},
@@ -238,7 +218,6 @@ int main() {
   auto pipe_col = load_pipeline(vertex.handle(), fragment_color.handle());
   auto pipe_tex = load_pipeline(vertex.handle(), fragment_tex.handle());
   auto pipe_atl = load_pipeline(vertex_atlas.handle(), fragment_tex.handle());
-  auto pipe_fnt = load_pipeline(vertex.handle(), fragment_fnt.handle());
 
   auto fb_tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
     .type = ntf::r_texture_type::texture2d,
@@ -387,7 +366,6 @@ int main() {
     [&](ntf::float64 dt, ntf::float64) {
       // Using an ode solver instead of t+=dt just because
       t2 = ntf::ode_euler<ntf::float32>{}(0.f, t2, dt, [](...) { return 1.f; });
-      moving_cache.clear();
 
       if (t2 > 0.016*.5) {
         fps[fps_counter] = 1/dt;
@@ -423,13 +401,8 @@ int main() {
         {fumo_vbo.handle(), ntf::r_buffer_type::vertex, ntf::nullopt},
         {fumo_ebo.handle(), ntf::r_buffer_type::index, ntf::nullopt},
       };
-      const ntf::r_buffer_binding quad_bbind[] = {
-        {quad_vbo.handle(), ntf::r_buffer_type::vertex, ntf::nullopt},
-        {quad_ebo.handle(), ntf::r_buffer_type::index, ntf::nullopt},
-      };
-      const ntf::r_buffer_binding cube_bbind[] = {
-        {cube_vbo.handle(), ntf::r_buffer_type::vertex, ntf::nullopt},
-      };
+      const auto quad_bbind = quad.bindings();
+      const auto cube_bbind = cube.bindings();
 
       // Texture bindings
       const ntf::r_texture_binding fumo_tbind[] = {
@@ -512,17 +485,6 @@ int main() {
         .on_render = {},
       });
 
-      // Cirno quad
-      // ctx.submit_command({
-      //   .target = default_fbo.handle(),
-      //   .pipeline = pipe_tex.handle(),
-      //   .buffers = {&quad_bbind[0], std::size(quad_bbind)},
-      //   .textures = {&cino_tbind[0], std::size(cino_tbind)},
-      //   .uniforms = {&cino_unifs[0], std::size(cino_unifs)},
-      //   .draw_opts = quad_opts,
-      //   .on_render = {},
-      // });
-
       // Rin sprite
       ctx.submit_command({
         .target = default_fbo.handle(),
@@ -545,7 +507,7 @@ int main() {
         .on_render = {},
       });
 
-      // // Cube
+      // Cube
       ctx.submit_command({
         .target = fbo.handle(),
         .pipeline = pipe_col.handle(),
@@ -556,7 +518,7 @@ int main() {
         .on_render = {},
       });
 
-      // Other Cirno quad
+      // Cirno quad
       ctx.submit_command({
         .target = fbo.handle(),
         .pipeline = pipe_tex.handle(),
@@ -567,13 +529,10 @@ int main() {
         .on_render = {},
       });
 
-      frenderer->append_fmt(moving_cache, last_x, last_y, 1.f, "{:.2f}fps", avg_fps);
-      frenderer->render(text_cache, default_fbo,
-                       quad_vbo, quad_ebo,
-                       cam_proj_fnt);
-      frenderer->render(moving_cache, default_fbo,
-                       quad_vbo, quad_ebo,
-                       cam_proj_fnt);
+      text_buffer->clear();
+      frenderer->append_fmt(*text_buffer, 20.f, 500.f, 1.f,
+                            "Hello World! ~ze\n{:.2f}fps", avg_fps);
+      frenderer->render(*text_buffer, default_fbo, quad, cam_proj_fnt);
     }
   });
 
