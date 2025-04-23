@@ -28,21 +28,22 @@ struct glyph_metrics {
   ivec2 advance;
 };
 
+using font_glyphs = virtual_unique_array<glyph_metrics>;
+using glyph_map = virtual_fixed_hashmap<char32_t, size_t>;
+
 struct font_atlas_data {
 public:
   using bitmap_t = virtual_unique_array<uint8>;
-  using glyphs_t = virtual_unique_array<glyph_metrics>;
-  using map_t = virtual_fixed_hashmap<char32_t, size_t>;
 
 public:
-  using iterator = typename glyphs_t::iterator;
-  using const_iterator = typename glyphs_t::const_iterator;
+  using iterator = font_glyphs::iterator;
+  using const_iterator = font_glyphs::const_iterator;
 
 public:
   font_atlas_data(bitmap_t&& bitmap_, extent2d bitmap_extent_,
                   r_texture_format bitmap_format_, r_image_alignment bitmap_alignment_,
-                  glyphs_t&& glyphs_, map_t&& glyph_map_) noexcept :
-    bitmap{std::move(bitmap_)}, glyphs{std::move(glyphs_)}, glyph_map{std::move(glyph_map_)},
+                  font_glyphs&& glyphs_, glyph_map&& glyph_map_) noexcept :
+    bitmap{std::move(bitmap_)}, glyphs{std::move(glyphs_)}, map{std::move(glyph_map_)},
     bitmap_extent{bitmap_extent_}, bitmap_format{bitmap_format_},
     bitmap_alignment{bitmap_alignment_} {}
 
@@ -76,8 +77,8 @@ public:
 
 public:
   bitmap_t bitmap;
-  glyphs_t glyphs;
-  map_t glyph_map;
+  font_glyphs glyphs;
+  glyph_map map;
   extent2d bitmap_extent;
   r_texture_format bitmap_format;
   r_image_alignment bitmap_alignment;
@@ -104,8 +105,6 @@ private:
   using lib_t = std::unique_ptr<void, lib_del_t>;
   using temp_map_t = std::map<char32_t, uint32>;
   using temp_set_t = std::set<uint32>;
-  using glyphs_t = font_atlas_data::glyphs_t;
-  using map_t = font_atlas_data::map_t;
   using bitmap_t = font_atlas_data::bitmap_t;
 
 private:
@@ -144,12 +143,12 @@ private:
   optional<ft_glyph_data> _load_metrics(const face_t& face, uint32 idx, ft_mode load_mode);
   const uint8* _render_bitmap(const face_t& face, uint32 idx, ft_mode render_mode);
 
-  std::tuple<face_t, glyphs_t, map_t> _parse_metrics(
+  std::tuple<face_t, font_glyphs, glyph_map> _parse_metrics(
     std::tuple<face_t, temp_map_t, temp_set_t>&& tuple,
     ft_mode mode
   );
   font_atlas_data _load_bitmap(
-    std::tuple<face_t, glyphs_t, map_t>&& tuple, ft_mode mode,
+    std::tuple<face_t, font_glyphs, glyph_map>&& tuple, ft_mode mode,
     uint32 padding, uint32 atlas_size
   );
 
@@ -185,7 +184,7 @@ public:
         }
         return std::make_tuple(std::move(face), std::move(map), std::move(set));
       })
-      .transform([&, this](auto&& tuple) -> std::tuple<face_t, glyphs_t, map_t> {
+      .transform([&, this](auto&& tuple) -> std::tuple<face_t, font_glyphs, glyph_map> {
         return _parse_metrics(std::move(tuple), mode);
       })
       .transform([&, this](auto&& parsed_tuple) -> font_atlas_data {

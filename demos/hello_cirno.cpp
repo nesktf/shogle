@@ -98,16 +98,17 @@ int main() {
   auto quad = ntf::quad_mesh::create(ntf::unchecked, ctx);
   auto cube = ntf::cube_mesh::create(ntf::unchecked, ctx);
 
-  auto text_buffer = ntf::sdf_text_buffer::create(ctx, ntf::color3{1.f, 0.f, 0.f}, 0.5f, 0.05f);
-  if (!text_buffer) {
-    ntf::logger::error("[main] Failed to create text buffer: {}", text_buffer.error().what());
+  ntf::text_buffer text_buffer;
+  ntf::mat4 cam_proj_fnt = glm::ortho(0.f, 1280.f, 0.f, 720.f);
+  auto sdf_rule = ntf::sdf_text_rule::create(ctx, cam_proj_fnt,
+                                             ntf::color3{1.f, 0.f, 0.f}, 0.5f, 0.05f,
+                                             ntf::color3{0.f, 0.f, 0.f},
+                                             ntf::vec2{-0.005f, -0.005f},
+                                             0.62f, 0.05f);
+  if (!sdf_rule) {
+    ntf::logger::error("[main] Failed to create text render rule: {}", sdf_rule.error().what());
     return EXIT_FAILURE;
   }
-  (*text_buffer)
-    .outline_edge(0.05f)
-    .outline_width(0.62f)
-    .outline_color(0.f, 0.f, 0.f)
-    .outline_offset(-0.005f, -0.005f);
 
   auto frenderer = ntf::font_renderer::create(ctx, std::move(*cousine));
   if (!frenderer) {
@@ -278,7 +279,6 @@ int main() {
     .pos(350.f, 0.f).scale(ntf::vec2{fb_ratio*300.f, 300.f});
   ntf::mat4 cam_view_quad = glm::translate(glm::mat4{1.f}, glm::vec3{640.f, 360.f, -3.f});
   ntf::mat4 cam_proj_quad = glm::ortho(0.f, 1280.f, 0.f, 720.f, .1f, 100.f);
-  ntf::mat4 cam_proj_fnt = glm::ortho(0.f, 1280.f, 0.f, 720.f);
   auto cam_proj_cube = cam_proj_fumo;
   ntf::vec4 color_quad {1.f, 1.f, 1.f, 1.f};
 
@@ -529,10 +529,10 @@ int main() {
         .on_render = {},
       });
 
-      text_buffer->clear();
-      frenderer->append_fmt(*text_buffer, 20.f, 500.f, 1.f,
+      text_buffer.clear();
+      text_buffer.append_fmt(frenderer->glyphs(), 20.f, 500.f, 1.f,
                             "Hello World! ~ze\n{:.2f}fps", avg_fps);
-      frenderer->render(*text_buffer, default_fbo, quad, cam_proj_fnt);
+      frenderer->render(quad, default_fbo, *sdf_rule, text_buffer);
     }
   });
 

@@ -168,17 +168,17 @@ uint32 ft2_font_loader::_find_atlas_extent(uint32 padding, uint32 start_sz,
 auto ft2_font_loader::_parse_metrics(
   std::tuple<face_t, temp_map_t, temp_set_t>&& tuple,
   ft_mode mode
-) ->  std::tuple<face_t, glyphs_t, map_t>
+) ->  std::tuple<face_t, font_glyphs, glyph_map>
 {
   auto&& [face, map, set] = std::move(tuple);
 
   virtual_allocator<glyph_metrics> metrics_alloc = std::allocator<glyph_metrics>{};
   virtual_allocator<uint8> map_alloc = std::allocator<uint8>{};
 
-  auto parsed_glyphs = glyphs_t::from_allocator(::ntf::uninitialized,
+  auto parsed_glyphs = font_glyphs::from_allocator(::ntf::uninitialized,
                                                 set.size(),
                                                 std::move(metrics_alloc));
-  auto parsed_map = map_t::from_size(map.size(), std::move(map_alloc)).value();
+  auto parsed_map = glyph_map::from_size(map.size(), std::move(map_alloc)).value();
   auto idx_map = fixed_hashmap<uint32, size_t>::from_size(set.size()).value();
 
   for (size_t i = 0; const uint32 id : set) {
@@ -202,7 +202,7 @@ auto ft2_font_loader::_parse_metrics(
 }
 
 font_atlas_data ft2_font_loader::_load_bitmap(
-  std::tuple<face_t, glyphs_t, map_t>&& tuple, ft_mode mode,
+  std::tuple<face_t, font_glyphs, glyph_map>&& tuple, ft_mode mode,
   uint32 padding, uint32 atlas_size
 ) {
   auto&& [face, glyphs, map]= std::move(tuple);
