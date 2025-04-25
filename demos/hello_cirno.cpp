@@ -203,7 +203,7 @@ int main() {
     auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
     ntf::r_shader shads[] = {vert, frag};
     auto pipe = ntf::renderer_pipeline::create(ntf::unchecked, ctx, {
-      .stages = {&shads[0], 2},
+      .stages = shads,
       .attrib_binding = attr_bind,
       .attrib_desc = {attr_desc},
       .primitive = ntf::r_primitive::triangles,
@@ -306,6 +306,7 @@ int main() {
   ntf::uint32 ups = 60;
   ntf::uint32 rin_counter = 0;
   ntf::uint32 rin_curr_index = rin_base_index;
+  float font_scale = 1.f;
 
   bool do_things = true;
 
@@ -387,11 +388,12 @@ int main() {
         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize;
       ImGui::Begin("test", nullptr, gui_flags);
         ImGui::SetWindowPos(ImVec2{0, 0});
-        ImGui::SetWindowSize(ImVec2{250, 100});
+        ImGui::SetWindowSize(ImVec2{250, 110});
         ImGui::Text("Delta time: %f", dt);
         ImGui::Text("Avg fps: %f", avg_fps);
         ImGui::Text("FDelta time: %f", 1/static_cast<float>(ups));
         ImGui::SliderScalar("ups", ImGuiDataType_U32, &ups, &ups_min, &ups_max);
+        ImGui::SliderFloat("font scale: ", &font_scale, 1.f, 8.f);
       ImGui::End();
       ImGui::ShowDemoWindow();
 
@@ -478,9 +480,9 @@ int main() {
       ctx.submit_command({
         .target = default_fbo.handle(),
         .pipeline = pipe_tex.handle(),
-        .buffers = {&fumo_bbind[0], std::size(fumo_bbind)},
-        .textures = {&fumo_tbind[0], std::size(fumo_tbind)},
-        .uniforms = {&fumo_unifs[0], std::size(fumo_unifs)},
+        .buffers = fumo_bbind,
+        .textures = fumo_tbind,
+        .uniforms = fumo_unifs,
         .draw_opts = fumo_opts,
         .on_render = {},
       });
@@ -489,9 +491,9 @@ int main() {
       ctx.submit_command({
         .target = default_fbo.handle(),
         .pipeline = pipe_atl.handle(),
-        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
-        .textures = {&rin_tbind[0], std::size(rin_tbind)},
-        .uniforms = {&rin_unifs[0], std::size(rin_unifs)},
+        .buffers = quad_bbind,
+        .textures = rin_tbind,
+        .uniforms = rin_unifs,
         .draw_opts = quad_opts,
         .on_render = {},
       });
@@ -500,9 +502,9 @@ int main() {
       ctx.submit_command({
         .target = default_fbo.handle(),
         .pipeline = pipe_tex.handle(),
-        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
-        .textures = {&fb_tbind[0], std::size(fb_tbind)},
-        .uniforms = {&fb_unifs[0], std::size(fb_unifs)},
+        .buffers = quad_bbind,
+        .textures = fb_tbind,
+        .uniforms = fb_unifs,
         .draw_opts = quad_opts,
         .on_render = {},
       });
@@ -511,9 +513,9 @@ int main() {
       ctx.submit_command({
         .target = fbo.handle(),
         .pipeline = pipe_col.handle(),
-        .buffers = {&cube_bbind[0], std::size(cube_bbind)},
+        .buffers = cube_bbind,
         .textures = {},
-        .uniforms = {&cube_unifs[0], std::size(cube_unifs)},
+        .uniforms = cube_unifs,
         .draw_opts = cube_opts,
         .on_render = {},
       });
@@ -522,16 +524,16 @@ int main() {
       ctx.submit_command({
         .target = fbo.handle(),
         .pipeline = pipe_tex.handle(),
-        .buffers = {&quad_bbind[0], std::size(quad_bbind)},
-        .textures = {&cino_tbind[0], std::size(cino_tbind)},
-        .uniforms = {&cino_unifs[0], std::size(cino_unifs)},
+        .buffers = quad_bbind,
+        .textures = cino_tbind,
+        .uniforms = cino_unifs,
         .draw_opts = quad_opts,
         .on_render = {},
       });
 
       text_buffer.clear();
-      text_buffer.append_fmt(frenderer->glyphs(), 20.f, 500.f, 1.f,
-                            "Hello World! ~ze\n{:.2f}fps", avg_fps);
+      text_buffer.append_fmt(frenderer->glyphs(), 40.f, 400.f, font_scale,
+                            "Hello World! ~ze\n{:.2f}fps - {:.2f}ms", avg_fps, 1000/avg_fps);
       frenderer->render(quad, default_fbo, *sdf_rule, text_buffer);
     }
   });

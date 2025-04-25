@@ -18,7 +18,7 @@ auto make_pipeline(r_shader_view vert, r_shader_view frag) {
   auto attrib_desc = quad_mesh::attr_descriptor();
   r_shader shads[] = {vert.handle(), frag.handle()};
   return renderer_pipeline::create(ctx, {
-    .stages = {&shads[0], std::size(shads)},
+    .stages = shads,
     .attrib_binding = attrib_bind,
     .attrib_desc = attrib_desc,
     .primitive = r_primitive::triangles,
@@ -48,8 +48,8 @@ void text_buffer::_append_glyph(const glyph_metrics& glyph,
     gsize_y*scale,
   };
   const vec2 transf_offset {
-    x + (gsize_x*.5f + static_cast<float>(glyph.bearing.x)*scale),
-    y - (gsize_y*.5f - static_cast<float>(glyph.bearing.y)*scale)
+    x + (gsize_x*.5f*scale + static_cast<float>(glyph.bearing.x)*scale),
+    y - (gsize_y*.5f*scale - static_cast<float>(glyph.bearing.y)*scale)
   };
 
   const vec2 uv_scale {
@@ -276,9 +276,9 @@ void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
     ctx.submit_command({
       .target = fbo.handle(),
       .pipeline = pipeline,
-      .buffers = {&buf_binds[0], std::size(buf_binds)},
-      .textures = {&tex_binds[0], std::size(tex_binds)},
-      .uniforms = {&_uniform_cache[0], _uniform_cache.size()},
+      .buffers = buf_binds,
+      .textures = tex_binds,
+      .uniforms = {_uniform_cache.data(), _uniform_cache.size()},
       .draw_opts = opts,
       .on_render = [this, buffer_data, i, offset=_batch_sz*i, count=opts.instances](auto) {
         // TODO: Investigate how to abstract GPU synchronization when writting to
