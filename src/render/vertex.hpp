@@ -78,12 +78,6 @@ struct pn_vertex {
   vec3 position;
   vec3 normal;
 
-  [[nodiscard]] static constexpr r_attrib_binding attrib_binding() {
-    return r_attrib_binding{
-      .binding = 0,
-      .stride = sizeof(pn_vertex),
-    };
-  }
   [[nodiscard]] static constexpr std::array<r_attrib_descriptor, 2> attrib_descriptor(
     const std::array<uint32, 2>& bindings = {0, 0}
   ) {
@@ -118,12 +112,6 @@ struct pnt_vertex {
   vec3 normal;
   vec2 uv;
 
-  [[nodiscard]] static constexpr r_attrib_binding attrib_binding() {
-    return r_attrib_binding {
-      .binding = 0,
-      .stride = sizeof(pnt_vertex),
-    };
-  }
   [[nodiscard]] static constexpr std::array<r_attrib_descriptor, 3> attrib_descriptor(
     const std::array<uint32, 3>& bindings = {0, 0, 0}
   ) {

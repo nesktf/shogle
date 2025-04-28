@@ -139,7 +139,7 @@ public:
   ft2_font_loader() noexcept;
 
 private:
-  asset_expected<face_t> _load_face(span_view<uint8> file_data, const extent2d& glyph_size);
+  asset_expected<face_t> _load_face(cspan<uint8> file_data, const extent2d& glyph_size);
   uint32 _get_code_index(const face_t& face, uint64 code);
   optional<ft_glyph_data> _load_metrics(const face_t& face, uint32 idx, ft_mode load_mode);
   const uint8* _render_bitmap(const face_t& face, uint32 idx, ft_mode render_mode);
@@ -162,7 +162,7 @@ private:
 public:
   template<font_codepoint_type CodeT>
   auto load_atlas(
-    span_view<uint8> file_data, font_charset_view<CodeT> charset, font_load_flags flags,
+    cspan<uint8> file_data, font_charset_view<CodeT> charset, font_load_flags flags,
     const extent2d& glyph_size, uint32 padding, uint32 atlas_size
   ) -> asset_expected<font_atlas_data>
   {

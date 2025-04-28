@@ -21,8 +21,8 @@ public:
                           bool inverted_uvs = false, bool dynamic_storage = false);
 
 public:
-  static auto attr_binding() { return pnt_vertex::attrib_binding(); }
-  static auto attr_descriptor(const std::array<uint32, 3>& binds = {0, 0, 0}) {
+  static constexpr size_t attr_stride() { return sizeof(pnt_vertex); }
+  static constexpr auto attr_descriptor(const std::array<uint32, 3>& binds = {0, 0, 0}) {
     return pnt_vertex::attrib_descriptor(binds);
   }
 
@@ -56,8 +56,8 @@ public:
   cube_mesh static create(unchecked_t, r_context_view ctx, bool dynamic_storage = false);
 
 public:
-  static auto attr_binding() { return pnt_vertex::attrib_binding(); }
-  static auto attr_descriptor(const std::array<uint32, 3>& binds = {0, 0, 0}) {
+  static constexpr size_t attr_stride() { return sizeof(pnt_vertex); }
+  static constexpr auto attr_descriptor(const std::array<uint32, 3>& binds = {0, 0, 0}) {
     return pnt_vertex::attrib_descriptor(binds);
   }
 

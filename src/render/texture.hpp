@@ -224,10 +224,10 @@ public:
   void upload(unchecked_t, const r_texture_data& data) const {
     r_texture_upload(::ntf::unchecked, _tex, data);
   }
-  r_expected<void> upload(span_view<r_image_data> images, bool gen_mips) const {
+  r_expected<void> upload(cspan<r_image_data> images, bool gen_mips) const {
     return r_texture_upload(_tex, images, gen_mips);
   }
-  void upload(unchecked_t, span_view<r_image_data> images, bool gen_mips) const {
+  void upload(unchecked_t, cspan<r_image_data> images, bool gen_mips) const {
     r_texture_upload(::ntf::unchecked, _tex, images, gen_mips);
   }
   r_expected<void> sampler(r_texture_sampler sampler) const {

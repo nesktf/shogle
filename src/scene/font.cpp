@@ -14,20 +14,34 @@ namespace {
 
 auto make_pipeline(r_shader_view vert, r_shader_view frag) {
   auto ctx = vert.context();
-  auto attrib_bind = quad_mesh::attr_binding();
-  auto attrib_desc = quad_mesh::attr_descriptor();
-  r_shader shads[] = {vert.handle(), frag.handle()};
+  const auto attribs = quad_mesh::attr_descriptor();
+  const r_shader stages[] = {vert.handle(), frag.handle()};
+  const r_blend_opts blending_opts {
+    .mode = r_blend_mode::add,
+    .src_factor = ntf::r_blend_factor::src_alpha,
+    .dst_factor = ntf::r_blend_factor::inv_src_alpha,
+    .color = {0.f, 0.f, 0.f, 0.f},
+    .dynamic = false,
+  };
+  const r_depth_test_opts depth_opts {
+    .test_func = ntf::r_test_func::less,
+    .near_bound = 0.f,
+    .far_bound = 1.f,
+    .dynamic = false,
+  };
+
   return renderer_pipeline::create(ctx, {
-    .stages = shads,
-    .attrib_binding = attrib_bind,
-    .attrib_desc = attrib_desc,
-    .primitive = r_primitive::triangles,
-    .poly_mode = r_polygon_mode::fill,
-    .front_face = r_front_face::clockwise,
-    .cull_mode = r_cull_mode::front_back,
-    .tests = r_pipeline_test::depth,
-    .depth_compare_op = r_compare_op::lequal,
-    .stencil_compare_op = nullopt,
+    .attrib_binding = 0u,
+    .attrib_stride = quad_mesh::attr_stride(),
+    .attribs = attribs,
+    .stages = stages,
+    .primitive = ntf::r_primitive::triangles,
+    .poly_mode = ntf::r_polygon_mode::fill,
+    .stencil_test = nullptr,
+    .depth_test = depth_opts,
+    .scissor_test = nullptr,
+    .face_culling = nullptr,
+    .blending = blending_opts,
   });
 }
 
@@ -240,12 +254,19 @@ r_expected<font_renderer> font_renderer::create(r_context_view ctx, font_atlas_d
   };
 }
 
+void font_renderer::ssbo_callback_t::operator()(r_context ctx) const {
+  // TODO: Investigate how to abstract GPU synchronization when writting to
+  //       mapped buffers, to avoid rebinding for uploads each frame
+  ssbo.upload(0u, glyph_count*sizeof(text_buffer::glyph_entry), buffer_data.data()+offset);
+}
+
 void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
                            rendering_rule& render_rule, const text_buffer& buffer,
                            uint32 sort_group)
 {
   auto ctx = fbo.context();
 
+  _write_callbacks.clear();
   _uniform_cache.clear();
   auto pipeline = render_rule.retrieve_uniforms(_uniform_cache);
   const auto buffer_data = buffer.data();
@@ -272,6 +293,7 @@ void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
     } else {
       opts.instances = static_cast<uint32>(_batch_sz);
     }
+    _write_callbacks.emplace_back(_ssbo, buffer_data, opts.instances, _batch_sz*i);
 
     ctx.submit_command({
       .target = fbo.handle(),
@@ -280,11 +302,7 @@ void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
       .textures = tex_binds,
       .uniforms = {_uniform_cache.data(), _uniform_cache.size()},
       .draw_opts = opts,
-      .on_render = [this, buffer_data, i, offset=_batch_sz*i, count=opts.instances](auto) {
-        // TODO: Investigate how to abstract GPU synchronization when writting to
-        //       mapped buffers, to avoid rebinding for uploads each frame
-        _ssbo.upload(0u, count*sizeof(text_buffer::glyph_entry), buffer_data.data()+offset);
-      },
+      .on_render = _write_callbacks.back(),
     });
   }
 }

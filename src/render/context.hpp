@@ -5,6 +5,7 @@
 #include "../stl/ptr.hpp"
 #include "../stl/optional.hpp"
 #include "../stl/expected.hpp"
+#include "../stl/function.hpp"
 
 #include "../math/matrix.hpp"
 
@@ -103,14 +104,14 @@ struct r_texture_descriptor {
   uint32 layers;
   uint32 levels;
 
-  span_view<r_image_data> images;
+  cspan<r_image_data> images;
   bool gen_mipmaps{false};
   r_texture_sampler sampler;
   r_texture_address addressing;
 };
 
 struct r_texture_data {
-  span_view<r_image_data> images;
+  cspan<r_image_data> images;
   bool gen_mipmaps{false};
   optional<r_texture_sampler> sampler;
   optional<r_texture_address> addressing;
@@ -127,8 +128,8 @@ void r_destroy_texture(r_texture tex);
 
 r_expected<void> r_texture_upload(r_texture tex, const r_texture_data& data);
 void r_texture_upload(unchecked_t, r_texture tex, const r_texture_data& data);
-r_expected<void> r_texture_upload(r_texture tex, span_view<r_image_data> images, bool gen_mips);
-void r_texture_upload(unchecked_t, r_texture tex, span_view<r_image_data> images, bool gen_mips);
+r_expected<void> r_texture_upload(r_texture tex, cspan<r_image_data> images, bool gen_mips);
+void r_texture_upload(unchecked_t, r_texture tex, cspan<r_image_data> images, bool gen_mips);
 r_expected<void> r_texture_set_sampler(r_texture tex, r_texture_sampler sampler);
 void r_texture_set_sampler(unchecked_t, r_texture tex, r_texture_sampler sampler);
 r_expected<void> r_texture_set_addressing(r_texture tex, r_texture_address adressing);
@@ -174,7 +175,7 @@ struct r_buffer_descriptor {
   r_buffer_flag flags;
   size_t size;
 
-  weak_ref<r_buffer_data> data;
+  weak_cref<r_buffer_data> data;
 };
 
 struct r_buffer_binding {
@@ -222,7 +223,7 @@ NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_stages_flag);
 
 struct r_shader_descriptor {
   r_shader_type type;
-  span_view<std::string_view> source;
+  cspan<std::string_view> source;
 };
 
 r_expected<r_shader> r_create_shader(r_context ctx, const r_shader_descriptor& desc);
@@ -241,18 +242,6 @@ enum class r_attrib_type : uint32 {
   i32, ivec2, ivec3, ivec4,
 };
 
-struct r_attrib_binding {
-  uint32 binding;
-  size_t stride;
-};
-
-struct r_attrib_descriptor {
-  r_attrib_type type;
-  uint32 binding;
-  uint32 location;
-  size_t offset;
-};
-
 enum class r_primitive : uint8 {
   triangles = 0,
   triangle_strip,
@@ -268,7 +257,7 @@ enum class r_polygon_mode : uint8 {
   line,
 };
 
-enum class r_compare_op : uint8 {
+enum class r_test_func : uint8 {
   never = 0,
   always,
   less,
@@ -279,7 +268,18 @@ enum class r_compare_op : uint8 {
   nequal,
 };
 
-enum class r_front_face : uint8 {
+enum class r_stencil_op : uint8 {
+  keep = 0,
+  set_zero,
+  replace,
+  incr,
+  incr_wrap,
+  decr,
+  decr_wrap,
+  invert,
+};
+
+enum class r_cull_face : uint8 {
   clockwise = 0,
   counter_clockwise,
 };
@@ -290,30 +290,105 @@ enum class r_cull_mode : uint8 {
   front_back,
 };
 
-enum class r_pipeline_test : uint8 {
-  none          = 0,
-  depth         = 1 << 0,
-  stencil       = 1 << 1,
-  scissor       = 1 << 2,
-  depth_stencil = (1<<0) | (1<<1),
-  all           = (1<<0) | (1<<1) | (1<<2),
+enum class r_blend_mode : uint8 {
+  min = 0,
+  max,
+  add,
+  subs,
+  rev_subs,
 };
-NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_pipeline_test);
+
+enum class r_blend_factor : uint8 {
+  zero = 0,
+  one,
+
+  src_color,
+  inv_src_color,
+  dst_color,
+  inv_dst_color,
+
+  src1_color,
+  inv_src1_color,
+
+  src_alpha,
+  inv_src_alpha,
+  dst_alpha,
+  inv_dst_alpha,
+  src_alpha_sat,
+
+  src1_alpha,
+  inv_src1_alpha,
+
+  const_color,
+  inv_const_color,
+  const_alpha,
+  inv_const_alpha,
+};
+
+struct r_blend_opts {
+  r_blend_mode mode;
+  r_blend_factor src_factor;
+  r_blend_factor dst_factor;
+  color4 color;
+  bool dynamic;
+};
+
+struct r_stencil_rule {
+  r_stencil_op on_stencil_fail;
+  r_stencil_op on_depth_fail;
+  r_stencil_op on_pass;
+};
+
+struct r_stencil_test_opts {
+  r_test_func test_func;
+  int32 ref_value;
+  uint32 ref_mask;
+  r_stencil_rule stencil_rule;
+  optional<r_stencil_rule> alt_rule;
+  uint32 stencil_mask;
+  optional<uint32> alt_mask;
+  bool dynamic;
+};
+
+struct r_depth_test_opts {
+  r_test_func test_func;
+  double near_bound;
+  double far_bound;
+  bool dynamic;
+};
+
+struct r_scissor_test_opts {
+  extent2d pos;
+  extent2d size;
+  bool dynamic;
+};
+
+struct r_face_cull_opts {
+  r_cull_mode mode;
+  r_cull_face front_face;
+  bool dynamic;
+};
+
+struct r_attrib_descriptor {
+  r_attrib_type type;
+  uint32 binding;
+  uint32 location;
+  size_t offset;
+};
 
 struct r_pipeline_descriptor {
-  span_view<r_shader> stages;
-
-  weak_ref<r_attrib_binding> attrib_binding;
-  span_view<r_attrib_descriptor> attrib_desc;
-
+  uint32 attrib_binding;
+  size_t attrib_stride;
+  cspan<r_attrib_descriptor> attribs;
+  cspan<r_shader> stages;
   r_primitive primitive;
   r_polygon_mode poly_mode;
-  r_front_face front_face;
-  r_cull_mode cull_mode;
 
-  r_pipeline_test tests;
-  optional<r_compare_op> depth_compare_op;
-  optional<r_compare_op> stencil_compare_op;
+  weak_cref<r_stencil_test_opts> stencil_test;
+  weak_cref<r_depth_test_opts> depth_test;
+  weak_cref<r_scissor_test_opts> scissor_test;
+  weak_cref<r_face_cull_opts> face_culling;
+  weak_cref<r_blend_opts> blending;
 };
 
 // SHOGLE_DECLARE_RENDER_HANDLE(r_uniform);
@@ -346,21 +421,14 @@ r_context r_pipeline_get_ctx(r_pipeline pip);
 
 NTF_DECLARE_OPAQUE_HANDLE(r_framebuffer);
 
-enum class r_test_buffer_format : uint8 {
-  depth16u = 0,
+enum class r_test_buffer : uint8 {
+  no_buffer = 0,
+  depth16u,
   depth24u,
   depth32f,
   depth24u_stencil8u,
   depth32f_stencil8u,
 };
-
-enum class r_test_buffer_flag : uint8 {
-  none    = 0,
-  depth   = 1 << 0,
-  stencil = 1 << 1,
-  both    = (1<<0) | (1<<1),
-};
-NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_test_buffer_flag);
 
 enum class r_clear_flag : uint8 {
   none          = 0,
@@ -384,12 +452,8 @@ struct r_framebuffer_descriptor {
   uvec4 viewport;
   color4 clear_color;
   r_clear_flag clear_flags;
-
-  r_test_buffer_flag test_buffers;
-  optional<r_test_buffer_format> test_buffer_format;
-
-  span_view<r_framebuffer_attachment> attachments;
-  optional<r_texture_format> color_buffer_format;
+  r_test_buffer test_buffer;
+  std::variant<cspan<r_framebuffer_attachment>, r_texture_format> attachments;
 };
 
 r_expected<r_framebuffer> r_create_framebuffer(r_context ctx,
@@ -421,21 +485,23 @@ struct r_draw_opts {
 struct r_draw_command {
   r_framebuffer target;
   r_pipeline pipeline;
-  span_view<r_buffer_binding> buffers;
-  span_view<r_texture_binding> textures;
-  span_view<r_push_constant> uniforms;
-  weak_ref<r_draw_opts> draw_opts;
-  std::function<void(r_context)> on_render;
+  cspan<r_buffer_binding> buffers;
+  cspan<r_texture_binding> textures;
+  cspan<r_push_constant> uniforms;
+  r_draw_opts draw_opts;
+  function_view<void(r_context)> on_render;
 };
 
 struct r_context_params {
   win_handle window;
   renderer_api api;
   uint32 swap_interval;
+
   uvec4 fb_viewport;
   r_clear_flag fb_clear;
   color4 fb_color;
-  const r_allocator* alloc; // Placeholder!!!
+
+  weak_cref<r_allocator> alloc; // Placeholder!!!
 };
 
 r_expected<r_context> r_create_context(const r_context_params& params);

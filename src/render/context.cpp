@@ -795,7 +795,7 @@ void r_texture_upload(unchecked_t, r_texture tex, const r_texture_data& data) {
 }
 
 r_expected<void> r_texture_upload(r_texture tex,
-                                  span_view<r_image_data> images, bool gen_mips) {
+                                  cspan<r_image_data> images, bool gen_mips) {
   return r_texture_upload(tex, r_texture_data{
     .images = images,
     .gen_mipmaps = gen_mips,
@@ -803,7 +803,7 @@ r_expected<void> r_texture_upload(r_texture tex,
 }
 
 void r_texture_upload(unchecked_t, r_texture tex,
-                      span_view<r_image_data> images, bool gen_mips) {
+                      cspan<r_image_data> images, bool gen_mips) {
   r_texture_upload(::ntf::unchecked, tex, r_texture_data{
     .images = images,
     .gen_mipmaps = gen_mips,

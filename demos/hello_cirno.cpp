@@ -197,22 +197,35 @@ int main() {
   });
 
   auto load_pipeline = [&](ntf::r_shader vert, ntf::r_shader frag) {
-    auto attr_bind = ntf::pnt_vertex::attrib_binding();
-    auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
-    ntf::r_shader shads[] = {vert, frag};
-    auto pipe = ntf::renderer_pipeline::create(ntf::unchecked, ctx, {
-      .stages = shads,
-      .attrib_binding = attr_bind,
-      .attrib_desc = {attr_desc},
+    const auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
+    const ntf::r_shader stages[] = {vert, frag};
+    const ntf::r_blend_opts blending_opts {
+      .mode = ntf::r_blend_mode::add,
+      .src_factor = ntf::r_blend_factor::src_alpha,
+      .dst_factor = ntf::r_blend_factor::inv_src_alpha,
+      .color = {0.f, 0.f, 0.f, 0.f},
+      .dynamic = false,
+    };
+    const ntf::r_depth_test_opts depth_opts {
+      .test_func = ntf::r_test_func::less,
+      .near_bound = 0.f,
+      .far_bound = 1.f,
+      .dynamic = false,
+    };
+
+    return ntf::renderer_pipeline::create(ntf::unchecked, ctx, {
+      .attrib_binding = 0u,
+      .attrib_stride = sizeof(ntf::pnt_vertex),
+      .attribs = attr_desc,
+      .stages = stages,
       .primitive = ntf::r_primitive::triangles,
       .poly_mode = ntf::r_polygon_mode::fill,
-      .front_face = ntf::r_front_face::clockwise,
-      .cull_mode = ntf::r_cull_mode::front_back,
-      .tests = ntf::r_pipeline_test::all,
-      .depth_compare_op = ntf::r_compare_op::less,
-      .stencil_compare_op = ntf::r_compare_op::less,
+      .stencil_test = nullptr,
+      .depth_test = depth_opts,
+      .scissor_test = nullptr,
+      .face_culling = nullptr,
+      .blending = blending_opts,
     });
-    return pipe;
   };
   auto pipe_col = load_pipeline(vertex.handle(), fragment_color.handle());
   auto pipe_tex = load_pipeline(vertex.handle(), fragment_tex.handle());
@@ -230,20 +243,18 @@ int main() {
     .addressing = ntf::r_texture_address::repeat,
   });
 
-  ntf::r_framebuffer_attachment fb_att {
+  const ntf::r_framebuffer_attachment fb_att {
     .handle = fb_tex.handle(),
     .layer = 0,
     .level = 0,
   };
   auto fbo = ntf::renderer_framebuffer::create(ntf::unchecked, ctx, {
-    .extent = ntf::uvec2{1280, 720},
-    .viewport = ntf::uvec4{0, 0, 1280, 720},
-    .clear_color = ntf::color4{1.f, 0.f, 0.f, 1.f},
+    .extent = {1280, 720},
+    .viewport = {0, 0, 1280, 720},
+    .clear_color = {1.f, 0.f, 0.f, 1.f},
     .clear_flags = ntf::r_clear_flag::color_depth,
-    .test_buffers = ntf::r_test_buffer_flag::both,
-    .test_buffer_format = ntf::r_test_buffer_format::depth24u_stencil8u,
-    .attachments = {fb_att},
-    .color_buffer_format = {},
+    .test_buffer = ntf::r_test_buffer::depth24u_stencil8u,
+    .attachments = ntf::cspan<ntf::r_framebuffer_attachment>{fb_att},
   });
 
   auto u_col_model = pipe_col.uniform(ntf::unchecked, "model");

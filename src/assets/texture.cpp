@@ -25,7 +25,7 @@ optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(std::FILE* f
   return nullopt;
 }
 
-optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(span_view<uint8> file_data) {
+optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(cspan<uint8> file_data) {
   int w, h, ch;
   if (stbi_info_from_memory(file_data.data(), file_data.size(), &w, &h, &ch)) {
     return std::make_pair(
@@ -35,7 +35,7 @@ optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(span_view<ui
   return nullopt;
 }
 
-auto stb_image_loader::_load_image(span_view<uint8> file_data, uint32 channels,
+auto stb_image_loader::_load_image(cspan<uint8> file_data, uint32 channels,
                                    bool flip_y, image_format format) -> asset_expected<stbi_data>
 {
   stbi_set_flip_vertically_on_load(flip_y);

@@ -124,7 +124,7 @@ public:
   template<typename DepthT>
   requires(same_as_any<DepthT, uint8, uint16, float>)
   asset_expected<image_data> load_image(
-    span_view<uint8> file_data, image_load_flags flags, uint32 channels
+    cspan<uint8> file_data, image_load_flags flags, uint32 channels
   ) {
     constexpr image_format stbi_format = [](){
       if constexpr (std::same_as<DepthT, uint8>) {
@@ -161,33 +161,33 @@ public:
 
   asset_expected<image_data> load_image(
     tex_depth_traits<uint8>::tag_type,
-    span_view<uint8> file_data, image_load_flags flags, uint32 channels
+    cspan<uint8> file_data, image_load_flags flags, uint32 channels
   ) {
     return load_image<uint8>(file_data, flags, channels);
   }
 
   asset_expected<image_data> load_image(
     tex_depth_traits<uint16>::tag_type,
-    span_view<uint8> file_data, image_load_flags flags, uint32 channels
+    cspan<uint8> file_data, image_load_flags flags, uint32 channels
   ) {
     return load_image<uint16>(file_data, flags, channels);
   }
 
   asset_expected<image_data> load_image(
     tex_depth_traits<float>::tag_type,
-    span_view<uint8> file_data, image_load_flags flags, uint32 channels
+    cspan<uint8> file_data, image_load_flags flags, uint32 channels
   ) {
     return load_image<float>(file_data, flags, channels);
   }
 
 private:
-  asset_expected<stbi_data> _load_image(span_view<uint8> file_data, uint32 channels,
+  asset_expected<stbi_data> _load_image(cspan<uint8> file_data, uint32 channels,
                                         bool flip_y, image_format format);
 
 public:
   static optional<std::pair<extent2d, uint32>> parse_image(const std::string& file);
   static optional<std::pair<extent2d, uint32>> parse_image(std::FILE* file);
-  static optional<std::pair<extent2d, uint32>> parse_image(span_view<uint8> file_data);
+  static optional<std::pair<extent2d, uint32>> parse_image(cspan<uint8> file_data);
 
 private:
   static void _stbi_delete(void* data) noexcept;
@@ -203,7 +203,7 @@ asset_expected<image_data> load_image(
   return file_data(path)
     .and_then([&](auto&& buffer) {
       return loader.load_image(tex_depth_traits<DepthT>::tag,
-                               span_view<uint8>{buffer.get(), buffer.size()}, flags, channels);
+                               cspan<uint8>{buffer.get(), buffer.size()}, flags, channels);
     });
 }
 

@@ -78,7 +78,7 @@ private:
                      float atlas_w, float atlas_h);
 
 public:
-  span_view<glyph_entry> data() const { return {_glyph_cache.data(), _glyph_cache.size()}; }
+  cspan<glyph_entry> data() const { return {_glyph_cache.data(), _glyph_cache.size()}; }
 
 private:
   std::vector<glyph_entry> _glyph_cache;
@@ -257,6 +257,16 @@ public:
   static constexpr int32 ATLAS_SAMPLER = 0;
 
 private:
+  struct ssbo_callback_t {
+    r_buffer_view ssbo;
+    cspan<text_buffer::glyph_entry> buffer_data;
+    size_t glyph_count;
+    size_t offset;
+
+    void operator()(r_context ctx) const;
+  };
+
+private:
   font_renderer(renderer_buffer ssbo, renderer_texture atlas,
                 font_glyphs&& glyphs, glyph_map&& map,
                 vec2 bitmap_extent, size_t batch) noexcept;
@@ -276,6 +286,7 @@ public:
   
 private:
   uniform_list _uniform_cache;
+  std::vector<ssbo_callback_t> _write_callbacks;
 
   renderer_buffer _ssbo;
   renderer_texture _atlas_tex;
