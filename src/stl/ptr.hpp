@@ -16,30 +16,92 @@ concept array_deleter_type = requires(Deleter& del, T* arr, size_t n) {
 template<typename T>
 class weak_ref {
 public:
-  constexpr weak_ref() noexcept : _ptr{nullptr} {}
-  constexpr weak_ref(T* obj) noexcept : _ptr{obj} {}
-  constexpr weak_ref(T& obj) noexcept : _ptr{std::addressof(obj)} {}
+  using element_type = T;
+  using value_type = std::remove_cvref_t<T>;
+
+  using pointer = T*;
+  using const_pointer = const T*;
+  using reference = T&;
+  using const_reference = const T&;
 
 public:
-  constexpr void reset() { _ptr = nullptr; }
-  constexpr void reset(T& obj) { _ptr = std::addressof(obj); }
+  constexpr weak_ref() noexcept :
+    _ptr{nullptr} {}
+
+  constexpr weak_ref(std::nullptr_t) noexcept :
+    _ptr{nullptr} {}
+
+  constexpr weak_ref(pointer ptr) noexcept :
+    _ptr{ptr} {}
+
+  template<typename U>
+  requires(std::is_convertible_v<U*, T*>)
+  constexpr weak_ref(U& obj) noexcept :
+    _ptr{std::addressof(obj)} {}
+
+  template<typename U>
+  requires(std::is_convertible_v<U*, T*>)
+  constexpr weak_ref(const weak_ref<U>& other) noexcept :
+    _ptr{other.data()} {}
+
+  constexpr weak_ref(const weak_ref&) noexcept = default;
+  constexpr weak_ref(weak_ref&&) noexcept = default;
+
+  constexpr ~weak_ref() noexcept = default;
 
 public:
-  constexpr const T* operator->() const { NTF_ASSERT(_ptr); return _ptr; }
-  constexpr T* operator->() { NTF_ASSERT(_ptr); return _ptr; }
+  constexpr reference get() const { 
+    NTF_ASSERT(_ptr);
+    return *_ptr;
+  }
+  constexpr pointer data() const noexcept { return _ptr; }
 
-  constexpr const T& operator*() const { NTF_ASSERT(_ptr); return *_ptr; }
-  constexpr T& operator*() { NTF_ASSERT(_ptr); return *_ptr; }
+public:
+  [[nodiscard]] constexpr bool empty() const { return _ptr == nullptr; }
+  constexpr explicit operator bool() const { return !empty(); }
 
-  constexpr const T& get() const { return **this; }
-  constexpr T& get() { return **this; }
+  constexpr pointer operator->() const {
+    NTF_ASSERT(_ptr);
+    return _ptr;
+  }
+  constexpr reference operator*() const {
+    NTF_ASSERT(_ptr);
+    return *_ptr;
+  }
 
-  [[nodiscard]] constexpr bool valid() const { return _ptr != nullptr; }
-  constexpr explicit operator bool() const { return valid(); }
+  constexpr weak_ref& operator=(std::nullptr_t) noexcept {
+    _ptr = nullptr;
+    return *this;
+  }
+
+  constexpr weak_ref& operator=(pointer ptr) noexcept {
+    _ptr = ptr;
+    return *this;
+  }
+
+  template<typename U>
+  requires(std::is_convertible_v<U*, T*>)
+  constexpr weak_ref& operator=(U& obj) noexcept {
+    _ptr = std::addressof(obj);
+    return *this;
+  }
+
+  template<typename U>
+  requires(std::is_convertible_v<U*, T*>)
+  constexpr weak_ref& operator=(const weak_ref<U>& other) noexcept {
+    _ptr = other.data();
+    return *this;
+  }
+
+  constexpr weak_ref& operator=(const weak_ref&) noexcept = default;
+  constexpr weak_ref& operator=(weak_ref&&) noexcept = default;
 
 private:
   T* _ptr;
 };
+
+template<typename T>
+using weak_cref = weak_ref<const std::remove_cvref_t<T>>;
 
 template<typename T>
 class span {
@@ -173,7 +235,7 @@ private:
 };
 
 template<typename T>
-using span_view = span<const std::remove_cv_t<T>>;
+using cspan = span<const std::remove_cv_t<T>>;
 
 constexpr uint32 VSPAN_TOMBSTONE = std::numeric_limits<uint32>::max();
 struct vec_span {
