@@ -5,7 +5,17 @@
 
 namespace ntf {
 
-optional<std::pair<extent2d, uint32>> stb_image_loader::_stbi_preparse_file(std::FILE* f) {
+optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(const std::string& path) {
+  int w, h, ch;
+  if (stbi_info(path.c_str(), &w, &h, &ch)) {
+    return std::make_pair(
+      extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
+    );
+  }
+  return nullopt;
+}
+
+optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(std::FILE* f) {
   int w, h, ch;
   if (stbi_info_from_file(f, &w, &h, &ch)) {
     return std::make_pair(
@@ -15,29 +25,66 @@ optional<std::pair<extent2d, uint32>> stb_image_loader::_stbi_preparse_file(std:
   return nullopt;
 }
 
-const char* stb_image_loader::_stbi_get_err() {
-  return stbi_failure_reason();
-}
-
-uint8* stb_image_loader::_stbi_load_u8(std::FILE* f, image_load_flags flags, int32 desired) {
-  stbi_set_flip_vertically_on_load(+(flags & image_load_flags::flip_y));
+optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(span_view<uint8> file_data) {
   int w, h, ch;
-  return stbi_load_from_file(f, &w, &h, &ch, desired);
+  if (stbi_info_from_memory(file_data.data(), file_data.size(), &w, &h, &ch)) {
+    return std::make_pair(
+      extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
+    );
+  }
+  return nullopt;
 }
 
-uint16* stb_image_loader::_stbi_load_u16(std::FILE* f, image_load_flags flags, int32 desired) {
-  stbi_set_flip_vertically_on_load(+(flags & image_load_flags::flip_y));
+auto stb_image_loader::_load_image(span_view<uint8> file_data, uint32 channels,
+                                   bool flip_y, image_format format) -> asset_expected<stbi_data>
+{
+  stbi_set_flip_vertically_on_load(flip_y);
   int w, h, ch;
-  return stbi_load_from_file_16(f, &w, &h, &ch, desired);
+  uint8* data = nullptr;
+  switch (format) {
+    case stb_image_loader::STBI_FORMAT_U8: {
+      SHOGLE_LOG(verbose, "[ntf::stb_image_loader] Loading image from {} in u8 format",
+                 fmt::ptr(file_data.data()));
+      data = reinterpret_cast<uint8*>(stbi_load_from_memory(
+        file_data.data(), file_data.size_bytes(),
+        &w, &h, &ch, static_cast<int>(channels)
+      ));
+      break;
+    }
+    case stb_image_loader::STBI_FORMAT_U16: {
+      SHOGLE_LOG(verbose, "[ntf::stb_image_loader] Loading image from {} in u16 format",
+                 fmt::ptr(file_data.data()));
+      data = reinterpret_cast<uint8*>(stbi_load_16_from_memory(
+        file_data.data(), file_data.size_bytes(),
+        &w, &h, &ch, static_cast<int>(channels)
+      ));
+      break;
+    }
+    case stb_image_loader::STBI_FORMAT_F32: {
+      SHOGLE_LOG(verbose, "[ntf::stb_image_loader] Loading image from {} in f32 format",
+                 fmt::ptr(file_data.data()));
+      data = reinterpret_cast<uint8*>(stbi_loadf_from_memory(
+        file_data.data(), file_data.size_bytes(),
+        &w, &h, &ch, static_cast<int>(channels)
+      ));
+      break;
+    }
+  }
+  if (!data) {
+    SHOGLE_LOG(error, "[ntf::stb_image_loader] Failed to parse image: {}", stbi_failure_reason());
+    return unexpected{asset_error{stbi_failure_reason()}};
+  }
+  SHOGLE_LOG(verbose, "[ntf::stb_image_loader] Parsed {} channels (marked {})",
+             ch, channels);
+  return stbi_data {
+    .data = data,
+    .width = static_cast<uint32>(w),
+    .height = static_cast<uint32>(h),
+    .channels = static_cast<uint32>(ch),
+  };
 }
 
-float32* stb_image_loader::_stbi_load_f32(std::FILE* f, image_load_flags flags, int32 desired) {
-  stbi_set_flip_vertically_on_load(+(flags & image_load_flags::flip_y));
-  int w, h, ch;
-  return stbi_loadf_from_file(f, &w, &h, &ch, desired);
-}
-
-void stb_image_loader::_stbi_delete(void* data) {
+void stb_image_loader::_stbi_delete(void* data) noexcept {
   stbi_image_free(data);
 }
 

@@ -514,6 +514,134 @@ private:
 NTF_DEFINE_TEMPLATE_CHECKER(unique_array);
 
 template<typename T>
+class virtual_array_deleter {
+public:
+  static constexpr size_t BUFFER_SIZE = 2*sizeof(void*);
+
+private:
+  struct vtable_t {
+    void (*deleter)(void*, T*, size_t);
+    void (*destroy)(void*);
+    void (*copy)(void*, const void*);
+  };
+
+  template<typename U>
+  static constexpr vtable_t vtable_for {
+    .deleter = +[](void* data, T* ptr, size_t count) {
+      (*static_cast<U*>(data))(ptr, count);
+    },
+    .destroy = +[](void* data) {
+      static_assert(std::is_destructible_v<U>, "Deleter has to be destructible");
+      static_assert(std::is_nothrow_destructible_v<U>, "Deleter has to be nothrow destructible");
+      static_cast<U*>(data)->~U();
+    },
+    .copy = +[](void* data, const void* other) {
+      static_assert(std::copy_constructible<U>, "Deleter has to be copy constructible");
+      std::construct_at(static_cast<U*>(data), *static_cast<const U*>(other));
+    },
+  };
+
+public:
+  template<typename U>
+  requires(array_deleter_type<std::remove_cvref_t<U>, T>
+           && sizeof(std::remove_cvref_t<U>) <= BUFFER_SIZE)
+  virtual_array_deleter(U&& del)
+  noexcept(is_nothrow_forward_constructible<U>) :
+    _vtable{&vtable_for<std::remove_cvref_t<U>>}
+  {
+    _construct<std::remove_cvref_t<U>>(std::forward<U>(del));
+  }
+
+  template<typename U, typename... Args>
+  requires(array_deleter_type<std::remove_cvref_t<U>, T>
+           && sizeof(std::remove_cvref_t<U>) <= BUFFER_SIZE)
+  virtual_array_deleter(std::in_place_type_t<U>, Args&&... args)
+  noexcept(std::is_nothrow_constructible_v<U, Args...>) :
+    _vtable{&vtable_for<std::remove_cvref_t<U>>}
+  {
+    _construct<std::remove_cvref_t<U>>(std::forward<Args>(args)...);
+  }
+
+  template<typename U, typename L, typename... Args>
+  requires(array_deleter_type<std::remove_cvref_t<U>, T>
+           && sizeof(std::remove_cvref_t<U>) <= BUFFER_SIZE)
+  virtual_array_deleter(std::in_place_type_t<U>, std::initializer_list<L> il, Args&&... args)
+  noexcept(std::is_nothrow_constructible_v<U, std::initializer_list<L>, Args...>) :
+    _vtable{&vtable_for<std::remove_cvref_t<U>>}
+  {
+    _construct<std::remove_cvref_t<U>>(il, std::forward<Args>(args)...);
+  }
+
+  virtual_array_deleter(const virtual_array_deleter& other) :
+    _vtable{other._vtable}
+  {
+    _copy(&other._buffer[0]);
+  }
+
+  virtual_array_deleter(virtual_array_deleter&& other) noexcept :
+    _vtable{std::move(other._vtable)}
+  {
+    _move(&other._buffer[0]);
+    other._vtable = nullptr;
+  }
+
+  ~virtual_array_deleter() noexcept { _destroy(); }
+
+public:
+  void operator()(T* ptr, size_t count) noexcept {
+    if (_vtable) {
+      std::invoke(_vtable->deleter, reinterpret_cast<void*>(&_buffer[0]), ptr, count);
+    }
+  }
+
+public:
+  virtual_array_deleter& operator=(const virtual_array_deleter& other) {
+    _destroy();
+
+    _vtable = other._vtable;
+    _copy(&other._buffer[0]);
+
+    return *this;
+  }
+
+  virtual_array_deleter& operator=(virtual_array_deleter&& other) noexcept {
+    _destroy();
+    
+    _vtable = std::move(other._vtable);
+    _move(&other._buffer[0]);
+
+    other._vtable = nullptr;
+
+    return *this;
+  }
+
+private:
+  template<typename U, typename... Args>
+  void _construct(Args&&... args) {
+    std::construct_at(reinterpret_cast<U*>(&_buffer[0]), std::forward<Args>(args)...);
+  }
+
+  void _copy(const uint8* other_buf) {
+    std::invoke(_vtable->copy,
+                reinterpret_cast<void*>(&_buffer[0]), reinterpret_cast<const void*>(other_buf));
+  }
+
+  void _move(uint8* other_buf) {
+    std::memcpy(&_buffer[0], other_buf, BUFFER_SIZE);
+  }
+
+  void _destroy() noexcept {
+    if (_vtable) {
+      std::invoke(_vtable->destroy, reinterpret_cast<void*>(&_buffer[0]));
+    }
+  }
+
+private:
+  uint8 _buffer[BUFFER_SIZE];
+  const vtable_t* _vtable;
+};
+
+template<typename T>
 using virtual_unique_array = unique_array<T, virtual_alloc_del<T>>;
 
 template<typename Arr, typename T>

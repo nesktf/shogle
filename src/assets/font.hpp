@@ -5,6 +5,7 @@
 #include "../stl/hashmap.hpp"
 
 #include <set>
+#include <map>
 
 namespace ntf {
 

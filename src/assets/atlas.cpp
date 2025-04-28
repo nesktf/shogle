@@ -1,6 +1,8 @@
 #include "./atlas.hpp"
 #include "./filesystem.hpp"
 
+#include <nlohmann/json.hpp>
+
 #define RET_ERR(msg, ...) \
   SHOGLE_LOG(error, "[ntf::grid_atlas_loader] " msg __VA_OPT__(,) __VA_ARGS__); \
   if constexpr (checked) { \
@@ -38,7 +40,7 @@ auto grid_atlas_loader_parse_impl(
   RET_ERR_IF(json_data.is_discarded(), "Failed to parse json file \"{}\"", path);
 
   auto tex_path = fmt::format("{}/{}", *dir_path, json_data["file"].get<std::string>());
-  auto tex_info = stb_image_loader::parse_meta(tex_path);
+  auto tex_info = stb_image_loader::parse_image(tex_path);
   RET_ERR_IF(!tex_info, "Failed to open texture file \"{}\"", tex_path);
   auto& [dim, _] = *tex_info;
 
