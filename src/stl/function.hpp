@@ -265,9 +265,9 @@ private:
   template<typename T>
   static constexpr R _invoke_for(void* obj, Args... args) {
     if constexpr (std::is_void_v<R>) {
-      std::invoke(*static_cast<const T*>(obj), std::forward<Args>(args)...);
+      std::invoke(*static_cast<T*>(obj), std::forward<Args>(args)...);
     } else {
-      return std::invoke(*static_cast<const T*>(obj), std::forward<Args>(args)...);
+      return std::invoke(*static_cast<T*>(obj), std::forward<Args>(args)...);
     }
   }
 
