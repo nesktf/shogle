@@ -100,12 +100,15 @@ SHOGLE_DECLARE_ATTRIB_TRAIT(ivec3,    r_attrib_type::ivec3);
 SHOGLE_DECLARE_ATTRIB_TRAIT(ivec4,    r_attrib_type::ivec4);
 
 template<shader_attribute_type T>
-constexpr r_push_constant r_format_pushconst(r_uniform location, const T& data) {
+constexpr r_push_constant r_format_pushconst(r_uniform uniform, const T& data) {
   return r_push_constant{
-    .location = location,
-    .data = std::addressof(data),
-    .type = r_attrib_traits<T>::tag,
-    .alignment = alignof(T),
+    .uniform = uniform,
+    .data = {
+      .data = std::addressof(data),
+      .type = r_attrib_traits<T>::tag,
+      .alignment = alignof(T),
+      .size = sizeof(T),
+    },
   };
 }
 

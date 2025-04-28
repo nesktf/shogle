@@ -105,14 +105,14 @@ struct r_texture_descriptor {
   uint32 levels;
 
   cspan<r_image_data> images;
-  bool gen_mipmaps{false};
+  bool gen_mipmaps;
   r_texture_sampler sampler;
   r_texture_address addressing;
 };
 
 struct r_texture_data {
   cspan<r_image_data> images;
-  bool gen_mipmaps{false};
+  bool gen_mipmaps;
   optional<r_texture_sampler> sampler;
   optional<r_texture_address> addressing;
 };
@@ -391,21 +391,18 @@ struct r_pipeline_descriptor {
   weak_cref<r_blend_opts> blending;
 };
 
-// SHOGLE_DECLARE_RENDER_HANDLE(r_uniform);
+NTF_DECLARE_OPAQUE_HANDLE(r_uniform);
 
-// struct r_uniform_descriptor {
-//   r_attrib_type type;
-//   r_uniform location;
-//   const void* data;
-// };
-
-using r_uniform = uint32;
-
-struct r_push_constant {
-  r_uniform location;
+struct r_uniform_data {
   const void* data;
   r_attrib_type type;
   size_t alignment;
+  size_t size;
+};
+
+struct r_push_constant {
+  r_uniform uniform;
+  r_uniform_data data;
 };
 
 r_expected<r_pipeline> r_create_pipeline(r_context ctx, const r_pipeline_descriptor& desc);
@@ -415,6 +412,11 @@ void r_destroy_pipeline(r_pipeline pip);
 r_stages_flag r_pipeline_get_stages(r_pipeline pip);
 optional<r_uniform> r_pipeline_get_uniform(r_pipeline pip, std::string_view name);
 r_uniform r_pipeline_get_uniform(unchecked_t, r_pipeline pip, std::string_view name);
+size_t r_pipeline_get_uniform_count(r_pipeline pip);
+void r_pipeline_get_all_uniforms(r_pipeline pip, span<r_uniform> target);
+
+r_attrib_type r_uniform_get_type(r_uniform unif);
+std::string_view r_uniform_get_name(r_uniform unif);
 
 r_context r_pipeline_get_ctx(r_pipeline pip);
 
@@ -448,7 +450,7 @@ struct r_framebuffer_attachment {
 };
 
 struct r_framebuffer_descriptor {
-  uvec2 extent;
+  extent2d extent;
   uvec4 viewport;
   color4 clear_color;
   r_clear_flag clear_flags;

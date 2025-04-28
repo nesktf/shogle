@@ -347,9 +347,6 @@ int main() {
     // cam_proj_fnt = glm::ortho(0.f, (float)w, 0.f, (float)h);
   });
 
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glDepthFunc(GL_LEQUAL);
   ntf::shogle_render_loop(window, ctx, ups, ntf::overload{
     [&](ntf::uint32 ups) {
       if (do_things) {

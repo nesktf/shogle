@@ -24,7 +24,7 @@ auto make_pipeline(r_shader_view vert, r_shader_view frag) {
     .dynamic = false,
   };
   const r_depth_test_opts depth_opts {
-    .test_func = ntf::r_test_func::less,
+    .test_func = ntf::r_test_func::lequal,
     .near_bound = 0.f,
     .far_bound = 1.f,
     .dynamic = false,

@@ -29,7 +29,7 @@
 namespace ntf {
 
 struct r_texture_ {
-  r_texture_(r_context ctx_, r_platform_texture handle_, const r_texture_descriptor& desc) :
+  r_texture_(r_context ctx_, r_platform_texture handle_, r_tex_desc&& desc) :
     ctx{ctx_}, handle{handle_},
     refcount{1},
     type{desc.type}, format{desc.format},
@@ -51,7 +51,7 @@ struct r_texture_ {
 };
 
 struct r_buffer_ {
-  r_buffer_(r_context ctx_, r_platform_buffer handle_, const r_buffer_descriptor& desc) :
+  r_buffer_(r_context ctx_, r_platform_buffer handle_, r_buff_desc&& desc) :
     ctx{ctx_}, handle{handle_},
     type{desc.type}, flags{desc.flags}, size{desc.size} {}
 
@@ -81,9 +81,6 @@ struct r_pipeline_ {
     ctx{ctx_}, handle{handle_},
     stages{stages_},
     primitive{desc.primitive}, poly_mode{desc.poly_mode},
-    front_face{desc.front_face}, cull_mode{desc.cull_mode},
-    tests{desc.tests},
-    depth_ops{desc.depth_compare_op}, stencil_ops{desc.stencil_compare_op},
     layout{std::move(layout_)}, uniforms{std::move(uniforms_)} {}
 
   r_context ctx;
@@ -92,12 +89,6 @@ struct r_pipeline_ {
   r_stages_flag stages;
   r_primitive primitive;
   r_polygon_mode poly_mode;
-  r_front_face front_face;
-  r_cull_mode cull_mode;
-
-  r_pipeline_test tests;
-  optional<r_compare_op> depth_ops;
-  optional<r_compare_op> stencil_ops;
 
   std::unique_ptr<vertex_layout> layout;
 
@@ -105,25 +96,32 @@ struct r_pipeline_ {
 };
 
 struct r_framebuffer_ {
-  r_framebuffer_(r_context ctx_, r_platform_fbo handle_, const r_framebuffer_descriptor& desc,
+  r_framebuffer_(r_context ctx_, r_platform_fbo handle_,
+                 extent2d extent_, r_test_buffer test_buffer_,
                  std::vector<r_framebuffer_attachment>&& attachments_) :
     ctx{ctx_}, handle{handle_},
-    extent{desc.extent},
-    buffers{desc.test_buffers}, buffer_format{desc.test_buffer_format},
-    color_buffer_format{desc.color_buffer_format},
+    extent{extent_},
+    test_buffer{test_buffer_},
     attachments{std::move(attachments_)} {}
 
+  r_framebuffer_(r_context ctx_, r_platform_fbo handle_,
+                 extent2d extent_, r_test_buffer test_buffer_,
+                 r_texture_format color_buffer_) :
+    ctx{ctx_}, handle{handle_},
+    extent{extent_},
+    test_buffer{test_buffer_},
+    attachments{color_buffer_} {}
+
   r_framebuffer_(r_context ctx_) :
-    ctx{ctx_}, handle{DEFAULT_FBO_HANDLE} {}
+    ctx{ctx_}, handle{DEFAULT_FBO_HANDLE},
+    attachments{std::vector<r_framebuffer_attachment>{}} {}
 
   r_context ctx;
   r_platform_fbo handle;
 
   extent2d extent;
-  r_test_buffer_flag buffers;
-  optional<r_test_buffer_format> buffer_format;
-  std::vector<r_framebuffer_attachment> attachments;
-  optional<r_texture_format> color_buffer_format;
+  r_test_buffer test_buffer;
+  std::variant<std::vector<r_framebuffer_attachment>, r_texture_format> attachments;
 };
 
 struct r_context_ {
@@ -347,9 +345,9 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
   ctx->d_list = ctx->draw_lists.at(cmd.target->handle);
   ctx->d_cmd.pipeline = cmd.pipeline;
 
-  ctx->d_cmd.count = cmd.draw_opts->count;
-  ctx->d_cmd.offset = cmd.draw_opts->offset;
-  ctx->d_cmd.instances = cmd.draw_opts->instances;
+  ctx->d_cmd.count = cmd.draw_opts.count;
+  ctx->d_cmd.offset = cmd.draw_opts.offset;
+  ctx->d_cmd.instances = cmd.draw_opts.instances;
 
   if (cmd.on_render) {
     ctx->d_cmd.on_render = [ctx, on_render=cmd.on_render]() { on_render(ctx); };
@@ -385,7 +383,20 @@ r_framebuffer r_get_default_framebuffer(r_context ctx) {
   return &ctx->default_fbo;
 }
 
-r_expected<r_buffer> r_create_buffer(r_context ctx, const r_buffer_descriptor& desc) {
+static auto transform_descriptor(
+  r_context, const r_buffer_descriptor& desc
+) -> r_buff_desc {
+  return {
+    .type = desc.type,
+    .flags = desc.flags,
+    .size = desc.size,
+    .initial_data = desc.data,
+  };
+}
+
+static auto check_and_transform_descriptor(
+  r_context ctx, const r_buffer_descriptor& desc
+) -> r_expected<r_buff_desc> {
   RET_ERROR_IF(!ctx,
                "[ntf::r_create_buffer]",
                "Invalid context handle");
@@ -404,32 +415,38 @@ r_expected<r_buffer> r_create_buffer(r_context ctx, const r_buffer_descriptor& d
                  "Attempted to create non dynamic buffer with no data");
   }
 
-  r_platform_buffer handle{};
-  try {
-    handle = ctx->platform->create_buffer(desc);
-    RET_ERROR_IF(!handle,
-                 "[ntf::r_create_buffer]",
-                 "Failed to create buffer");
-  }
-  RET_ERROR_CATCH("[ntf::r_create_buffer]",
-                  "Failed to create buffer");
+  return transform_descriptor(ctx, desc);
+}
 
-  [[maybe_unused]] auto [it, emplaced] = ctx->buffers.try_emplace(
-    handle, ctx, handle, desc
-  );
-  NTF_ASSERT(emplaced);
+r_expected<r_buffer> r_create_buffer(r_context ctx, const r_buffer_descriptor& desc) {
+  return check_and_transform_descriptor(ctx, desc)
+  .and_then([ctx](r_buff_desc&& buff_desc) -> r_expected<r_buffer> {
+    r_platform_buffer handle;
+    try {
+      handle = ctx->platform->create_buffer(buff_desc);
+      RET_ERROR_IF(!handle,
+                   "[ntf::r_create_buffer]",
+                   "Failed to create buffer");
+    }
+    RET_ERROR_CATCH("[ntf::r_create_buffer]",
+                    "Failed to create buffer");
 
-  return &it->second;
+    [[maybe_unused]] auto [it, emplaced] = ctx->buffers.try_emplace(
+      handle, ctx, handle, std::move(buff_desc)
+    );
+    NTF_ASSERT(emplaced);
+    return &it->second;
+  });
 }
 
 r_buffer r_create_buffer(unchecked_t, r_context ctx, const r_buffer_descriptor& desc) {
   NTF_ASSERT(ctx);
-  auto handle = ctx->platform->create_buffer(desc);
+  auto pdesc = transform_descriptor(ctx, desc);
+  auto handle = ctx->platform->create_buffer(pdesc);
   NTF_ASSERT(handle);
-  NTF_ASSERT(ctx->buffers.find(handle) == ctx->buffers.end());
 
   [[maybe_unused]] auto [it, emplaced] = ctx->buffers.try_emplace(
-    handle, ctx, handle, desc
+    handle, ctx, handle, std::move(pdesc)
   );
   NTF_ASSERT(emplaced);
 
@@ -452,6 +469,18 @@ void r_destroy_buffer(r_buffer buffer) {
   ctx->buffers.erase(it);
 }
 
+static void upload_buffer_data(
+  r_buffer buffer, size_t offset, size_t len, const void* data
+) {
+  NTF_ASSERT(buffer);
+  NTF_ASSERT(data);
+  r_buffer_data desc;
+  desc.data = data;
+  desc.size = len;
+  desc.offset = offset;
+  buffer->ctx->platform->update_buffer(buffer->handle, desc);
+}
+
 r_expected<void> r_buffer_upload(r_buffer buffer, size_t offset, size_t len, const void* data) {
   RET_ERROR_IF(!buffer,
                "[ntf::r_buffer_upload]",
@@ -470,12 +499,8 @@ r_expected<void> r_buffer_upload(r_buffer buffer, size_t offset, size_t len, con
                "Invalid buffer data offset");
 
   try {
-    r_buffer_data desc;
-    desc.data = data;
-    desc.size = len;
-    desc.offset = offset;
-    buffer->ctx->platform->update_buffer(buffer->handle, desc);
-  } 
+    upload_buffer_data(buffer, offset, len, data);
+  }
   RET_ERROR_CATCH("[ntf::r_buffer_upload]",
                   "Failed to update buffer");
 
@@ -484,12 +509,12 @@ r_expected<void> r_buffer_upload(r_buffer buffer, size_t offset, size_t len, con
 
 void r_buffer_upload(unchecked_t, r_buffer buffer, size_t offset, size_t len,
                      const void* data) {
+  upload_buffer_data(buffer, offset, len, data);
+}
+
+void* map_buffer(r_buffer buffer, size_t offset, size_t len) {
   NTF_ASSERT(buffer);
-  r_buffer_data desc;
-  desc.data = data;
-  desc.size = len;
-  desc.offset = offset;
-  buffer->ctx->platform->update_buffer(buffer->handle, desc);
+  return buffer->ctx->platform->map_buffer(buffer->handle, offset, len);
 }
 
 r_expected<void*> r_buffer_map(r_buffer buffer, size_t offset, size_t len) {
@@ -508,7 +533,7 @@ r_expected<void*> r_buffer_map(r_buffer buffer, size_t offset, size_t len) {
                "Invalid mapping size");
   void* ptr = nullptr;
   try {
-    ptr = buffer->ctx->platform->map_buffer(buffer->handle, offset, len);
+    ptr = map_buffer(buffer, offset, len);
   }
   RET_ERROR_CATCH("[ntf::r_buffer_map]",
                   "Failed to map buffer");
@@ -519,8 +544,7 @@ r_expected<void*> r_buffer_map(r_buffer buffer, size_t offset, size_t len) {
 }
 
 void* r_buffer_map(unchecked_t, r_buffer buffer, size_t offset, size_t len) {
-  NTF_ASSERT(buffer);
-  return buffer->ctx->platform->map_buffer(buffer->handle, offset, len);
+  return map_buffer(buffer, offset, len);
 }
 
 void r_buffer_unmap(r_buffer buffer, void* mapped) {
@@ -550,7 +574,25 @@ r_platform_buffer r_buffer_get_handle(r_buffer buffer) {
   return buffer->handle;
 }
 
-r_expected<r_texture> r_create_texture(r_context ctx, const r_texture_descriptor& desc) {
+static auto transform_descriptor(
+  r_context, const r_texture_descriptor& desc
+) -> r_tex_desc {
+  return {
+    .type = desc.type,
+    .format = desc.format,
+    .extent = desc.extent,
+    .layers = desc.layers,
+    .levels = desc.levels,
+    .initial_data = desc.images,
+    .gen_mipmaps = desc.gen_mipmaps,
+    .sampler = desc.sampler,
+    .addressing = desc.addressing,
+  };
+};
+
+static auto check_and_transform_descriptor(
+  r_context ctx, const r_texture_descriptor& desc
+) -> r_expected<r_tex_desc> {
   RET_ERROR_IF(!ctx,
                "[ntf::r_create_texture]",
                "Invalid context handle");
@@ -660,29 +702,37 @@ r_expected<r_texture> r_create_texture(r_context ctx, const r_texture_descriptor
     }
   }
 
-  r_platform_texture handle{};
-  try {
-    handle = ctx->platform->create_texture(desc);
-    RET_ERROR_IF(!handle,
-                 "[ntf::r_create_texture]",
-                 "Failed to create texture handle");
-  } 
-  RET_ERROR_CATCH("[ntf::r_context::texture_create]",
-                  "Failed to create texture handle");
+  return transform_descriptor(ctx, desc);
+}
 
-  auto [it, emplaced] = ctx->textures.try_emplace(
-    handle, ctx, handle, desc
-  );
-  NTF_ASSERT(emplaced);
+r_expected<r_texture> r_create_texture(r_context ctx, const r_texture_descriptor& desc) {
+  return check_and_transform_descriptor(ctx, desc)
+  .and_then([ctx](r_tex_desc&& tex_desc) -> r_expected<r_texture> {
+    r_platform_texture handle;
+    try {
+      handle = ctx->platform->create_texture(tex_desc);
+      RET_ERROR_IF(!handle,
+                   "[ntf::r_create_texture]",
+                   "Failed to create texture handle");
+    } 
+    RET_ERROR_CATCH("[ntf::r_context::texture_create]",
+                    "Failed to create texture handle");
 
-  return &it->second;
+    [[maybe_unused]] auto [it, emplaced] = ctx->textures.try_emplace(
+      handle, ctx, handle, std::move(tex_desc)
+    );
+    NTF_ASSERT(emplaced);
+
+    return &it->second;
+  });
 }
 
 r_texture r_create_texture(unchecked_t, r_context ctx, const r_texture_descriptor& desc) {
   NTF_ASSERT(ctx);
-  auto handle = ctx->platform->create_texture(desc);
-
+  auto tex_desc = transform_descriptor(ctx, desc);
+  auto handle = ctx->platform->create_texture(tex_desc);
   NTF_ASSERT(handle);
+
   [[maybe_unused]] auto [it, emplaced] = ctx->textures.try_emplace(
     handle, ctx, handle, desc
   );
@@ -885,45 +935,51 @@ r_expected<r_framebuffer> r_create_framebuffer(r_context ctx,
                "[ntf::r_create_framebuffer]",
                "Invalid context handle");
 
-  RET_ERROR_IF(+(desc.test_buffers & r_test_buffer_flag::none) && !desc.test_buffer_format,
-               "[ntf::r_create_framebuffer]",
-               "Invalid test buffer format");
-
-  RET_ERROR_IF(!desc.attachments && !desc.color_buffer_format,
-               "[ntf::r_create_framebuffer]",
-               "Invalid color buffer format");
-
-  for (uint32 i = 0; i < desc.attachments.size(); ++i) {
-    const auto& att = desc.attachments[i];
-    r_texture tex = att.handle;
-    RET_ERROR_IF(!tex || tex->ctx != ctx,
-                 "[ntf::r_create_framebuffer]",
-                 "Invalid texture handle at index {}",
-                 i);
-
-    RET_ERROR_IF(att.layer > tex->layers,
-                 "[ntf::r_create_framebuffer]",
-                 "Invalid texture layer at index {}",
-                 i);
-
-    RET_ERROR_IF(att.level > tex->levels,
-                 "[ntf::r_create_framebuffer]",
-                 "Invalid texture level at index {}",
-                 i);
-
-    RET_ERROR_IF(tex->extent.x != desc.extent.x || tex->extent.y != desc.extent.y,
-                 "[ntf::r_create_framebuffer]",
-                 "Invalid texture extent at index {}",
-                 i);
-  }
-
   if (desc.viewport.x+desc.viewport.z != desc.extent.x ||
       desc.viewport.y+desc.viewport.w != desc.extent.y) {
     SHOGLE_LOG(warning, "[ntf::r_create_framebuffer] Mismatching viewport size");
   }
 
-  std::vector<r_framebuffer_attachment> attachments;
-  attachments.reserve(desc.attachments.size());
+  if (std::holds_alternative<cspan<r_framebuffer_attachment>>(desc.attachments)) {
+    auto attachments_in = std::get<cspan<r_framebuffer_attachment>>(desc.attachments);
+    RET_ERROR_IF(attachments_in.empty(),
+                 "[ntf::r_create_framebuffer]",
+                 "Invalid attachment span");
+    for (uint32 i = 0; i < attachments_in.size(); ++i) {
+      const auto& att = attachments_in[i];
+      r_texture tex = att.handle;
+      RET_ERROR_IF(!tex || tex->ctx != ctx,
+                   "[ntf::r_create_framebuffer]",
+                   "Invalid texture handle at index {}",
+                   i);
+
+      RET_ERROR_IF(att.layer > tex->layers,
+                   "[ntf::r_create_framebuffer]",
+                   "Invalid texture layer at index {}",
+                   i);
+
+      RET_ERROR_IF(att.level > tex->levels,
+                   "[ntf::r_create_framebuffer]",
+                   "Invalid texture level at index {}",
+                   i);
+
+      RET_ERROR_IF(tex->extent.x != desc.extent.x || tex->extent.y != desc.extent.y,
+                   "[ntf::r_create_framebuffer]",
+                   "Invalid texture extent at index {}",
+                   i);
+    }
+    std::vector<r_framebuffer_attachment> attachments;
+    attachments.reserve(attachments_in.size());
+
+    r_platform_fbo handle{};
+    try {
+
+    }
+
+  } else {
+    // TODO: Handle the single color buffer case!
+    NTF_ASSERT(false, "Color buffer not implemented");
+  }
 
   r_platform_fbo handle{};
   try {

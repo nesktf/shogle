@@ -91,29 +91,117 @@ struct r_platform_meta {
   uint32 tex_max_extent3d;
 };
 
+struct r_buff_desc {
+  r_buffer_type type;
+  r_buffer_flag flags;
+  size_t size;
+  weak_cref<r_buffer_data> initial_data;
+};
+
+struct r_buff_data {
+  const void* data;
+  size_t len;
+  size_t offset;
+};
+
+struct r_buff_mapping {
+  size_t len;
+  size_t offset;
+};
+
+struct r_tex_desc {
+  r_texture_type type;
+  r_texture_format format;
+  extent3d extent;
+  uint32 layers;
+  uint32 levels;
+  cspan<r_image_data> initial_data;
+  bool gen_mipmaps;
+  r_texture_sampler sampler;
+  r_texture_address addressing;
+};
+
+struct r_tex_image_data {
+  const void* texels;
+  r_texture_format format;
+  r_image_alignment alignment;
+  extent3d extent;
+  extent2d offset;
+  uint32 layer;
+  uint32 level;
+  bool regen_mips;
+};
+
+struct r_tex_opts {
+  r_texture_sampler sampler;
+  r_texture_address addressing;
+};
+
+struct r_shad_desc {
+  r_shader_type type;
+  cspan<std::string_view> source;
+};
+
+struct r_pip_desc {
+  std::unique_ptr<vertex_layout> layout;
+  weak_ref<uniform_map> uniforms;
+
+  cspan<r_platform_shader> stages;
+  r_primitive primitive;
+  r_polygon_mode poly_mode;
+
+  weak_cref<r_stencil_test_opts> stencil_test;
+  weak_cref<r_depth_test_opts> depth_test;
+  weak_cref<r_scissor_test_opts> scissor_test;
+  weak_cref<r_face_cull_opts> face_culling;
+  weak_cref<r_blend_opts> blending;
+};
+
+struct r_pip_opts {
+  weak_cref<r_stencil_test_opts> stencil_test;
+  weak_cref<r_depth_test_opts> depth_test;
+  weak_cref<r_scissor_test_opts> scissor_test;
+  weak_cref<r_face_cull_opts> face_culling;
+  weak_cref<r_blend_opts> blending;
+};
+
+struct r_fbo_att {
+  r_platform_texture texture;
+  uint32 layer;
+  uint32 level;
+};
+
+struct r_fbo_desc {
+  extent2d extent;
+  uvec4 viewport;
+  r_test_buffer test_buffer;
+  std::variant<cspan<r_fbo_att>, r_texture_format> attachments;
+};
+
+
 struct r_platform_context {
   virtual ~r_platform_context() = default;
   virtual r_platform_meta get_meta() = 0;
 
-  virtual r_platform_buffer create_buffer(const r_buffer_descriptor& desc) = 0;
-  virtual void update_buffer(r_platform_buffer buf, const r_buffer_data& data) = 0;
-  virtual void* map_buffer(r_platform_buffer buf, size_t offset, size_t len) = 0;
+  virtual r_platform_buffer create_buffer(const r_buff_desc& desc) = 0;
+  virtual void update_buffer(r_platform_buffer buf, const r_buff_data& data) = 0;
+  virtual void* map_buffer(r_platform_buffer buf, const r_buff_mapping& mapping) = 0;
   virtual void unmap_buffer(r_platform_buffer buf, void* ptr) = 0;
   virtual void destroy_buffer(r_platform_buffer buf) noexcept = 0;
 
-  virtual r_platform_texture create_texture(const r_texture_descriptor& desc) = 0;
-  virtual void update_texture(r_platform_texture tex, const r_texture_data& desc) = 0;
+  virtual r_platform_texture create_texture(const r_tex_desc& desc) = 0;
+  virtual void update_texture_image(r_platform_texture tex, const r_tex_image_data& image) = 0;
+  virtual void update_texture_options(r_platform_texture tex, const r_tex_opts& opts) = 0;
   virtual void destroy_texture(r_platform_texture tex) noexcept = 0;
 
-  virtual r_platform_shader create_shader(const r_shader_descriptor& desc) = 0;
+  virtual r_platform_shader create_shader(const r_shad_desc& desc) = 0;
   virtual void destroy_shader(r_platform_shader shader) noexcept = 0;
 
-  virtual r_platform_pipeline create_pipeline(const r_pipeline_descriptor& desc,
-                                              weak_ref<vertex_layout> layout,
-                                              uniform_map& uniforms) = 0;
+  virtual r_platform_pipeline create_pipeline(const r_pip_desc& desc) = 0;
+  virtual void update_pipeline_options(r_pipeline pip, const r_pip_opts& opts) = 0;
   virtual void destroy_pipeline(r_platform_pipeline pipeline) noexcept = 0;
 
-  virtual r_platform_fbo create_framebuffer(const r_framebuffer_descriptor& desc) = 0;
+  virtual r_platform_fbo create_framebuffer(const r_fbo_desc& desc) = 0;
   virtual void destroy_framebuffer(r_platform_fbo fb) noexcept = 0;
 
   virtual void submit(const command_map& cmds) = 0;
