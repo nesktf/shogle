@@ -35,6 +35,7 @@ SHOGLE_DECLARE_RENDER_HANDLE(r_platform_buffer);
 SHOGLE_DECLARE_RENDER_HANDLE(r_platform_texture);
 SHOGLE_DECLARE_RENDER_HANDLE(r_platform_shader);
 SHOGLE_DECLARE_RENDER_HANDLE(r_platform_pipeline);
+SHOGLE_DECLARE_RENDER_HANDLE(r_platform_uniform);
 SHOGLE_DECLARE_RENDER_HANDLE(r_platform_fbo);
 
 constexpr r_platform_fbo DEFAULT_FBO_HANDLE{r_handle_tombstone};
@@ -52,8 +53,9 @@ using uniform_map = std::unordered_map<std::string, r_uniform>;
 
 struct uniform_descriptor {
   r_attrib_type type;
-  r_uniform location;
+  r_platform_uniform location;
   const void* data;
+  size_t size;
 };
 
 struct texture_binding {
@@ -126,15 +128,15 @@ struct r_tex_image_data {
   r_texture_format format;
   r_image_alignment alignment;
   extent3d extent;
-  extent2d offset;
+  extent3d offset;
   uint32 layer;
   uint32 level;
-  bool regen_mips;
 };
 
 struct r_tex_opts {
   r_texture_sampler sampler;
   r_texture_address addressing;
+  bool regen_mips;
 };
 
 struct r_shad_desc {

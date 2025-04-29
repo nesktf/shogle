@@ -74,6 +74,19 @@ struct r_shader_ {
   r_shader_type type;
 };
 
+struct r_uniform_ {
+  r_uniform_(r_pipeline pip, r_platform_uniform location_,
+             std::string name_, r_attrib_type type_, size_t size_) :
+    pipeline{pip}, location{location_},
+    name{std::move(name_)}, type{type_}, size{size_} {}
+
+  r_pipeline pipeline;
+  r_platform_uniform location;
+  std::string name;
+  r_attrib_type type;
+  size_t size;
+};
+
 struct r_pipeline_ {
   r_pipeline_(r_context ctx_, r_platform_pipeline handle_, const r_pipeline_descriptor& desc,
               std::unique_ptr<vertex_layout>&& layout_, uniform_map&& uniforms_,
@@ -366,11 +379,12 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
   }
 
   for (const auto& unif : cmd.uniforms) {
-    size_t data_sz = r_attrib_type_size(unif.type);
-    auto* data = ctx->frame_arena.allocate(data_sz, unif.alignment);
-    std::memcpy(data, unif.data, data_sz);
+    auto* data = ctx->frame_arena.allocate(unif.data.size, unif.data.alignment);
+    std::memcpy(data, unif.data.data, unif.data.size);
 
-    auto* desc = ctx->frame_arena.construct<uniform_descriptor>(unif.type, unif.location, data);
+    auto* desc = ctx->frame_arena.construct<uniform_descriptor>(unif.data.type,
+                                                                unif.uniform->location,
+                                                                data, unif.data.size);
     ctx->d_cmd.uniforms.emplace_back(desc);
   }
 
@@ -474,9 +488,9 @@ static void upload_buffer_data(
 ) {
   NTF_ASSERT(buffer);
   NTF_ASSERT(data);
-  r_buffer_data desc;
+  r_buff_data desc;
   desc.data = data;
-  desc.size = len;
+  desc.len = len;
   desc.offset = offset;
   buffer->ctx->platform->update_buffer(buffer->handle, desc);
 }
@@ -514,7 +528,10 @@ void r_buffer_upload(unchecked_t, r_buffer buffer, size_t offset, size_t len,
 
 void* map_buffer(r_buffer buffer, size_t offset, size_t len) {
   NTF_ASSERT(buffer);
-  return buffer->ctx->platform->map_buffer(buffer->handle, offset, len);
+  r_buff_mapping mapping;
+  mapping.len = len;
+  mapping.offset = offset;
+  return buffer->ctx->platform->map_buffer(buffer->handle, mapping);
 }
 
 r_expected<void*> r_buffer_map(r_buffer buffer, size_t offset, size_t len) {
@@ -761,127 +778,163 @@ void r_destroy_texture(r_texture tex) {
   ctx->textures.erase(it);
 }
 
+static void update_texture_images(r_texture tex, cspan<r_image_data> images) {
+  for (const auto& image_in : images) {
+    r_tex_image_data image;
+    image.texels = image_in.texels;
+    image.format = image_in.format;
+    image.alignment = image_in.alignment;
+    image.extent = image_in.extent;
+    image.offset = image_in.offset;
+    image.layer = image_in.layer;
+    image.level = image_in.level;
+    tex->ctx->platform->update_texture_image(tex->handle, image);
+  }
+}
+
+const void update_texture_opts(r_texture tex, optional<r_texture_sampler> sampler,
+                               optional<r_texture_address> addressing, bool regen_mips) {
+  r_tex_opts opts;
+  opts.addressing = addressing.value_or(tex->addressing);
+  opts.sampler = sampler.value_or(tex->sampler);
+  opts.regen_mips = regen_mips;
+  tex->ctx->platform->update_texture_options(tex->handle, opts);
+
+  if (addressing) {
+    tex->addressing = *addressing;
+  }
+  if (sampler) {
+    tex->sampler = *sampler;
+  }
+}
+
+static r_expected<void> check_images_to_upload(r_texture tex, cspan<r_image_data> images) {
+  // TODO: Unify the update & create image tests?
+  for (uint32 i = 0; i < images.size(); ++i) {
+    const auto& img = images[i];
+    const uvec3 upload_extent = img.offset+img.extent;
+
+    RET_ERROR_IF(!img.texels ||
+                 img.layer > tex->layers ||
+                 img.level > tex->levels,
+                 "[ntf::r_texture_upload]",
+                 "Invalid image at index {}",
+                 i);
+    switch (tex->type) {
+      case r_texture_type::texture1d: {
+        RET_ERROR_IF(upload_extent.x > tex->extent.x,
+                     "[ntf::r_texture_upload]",
+                     "Invalid image extent at index {}",
+                     i);
+        break;
+      }
+      case r_texture_type::cubemap: [[fallthrough]];
+      case r_texture_type::texture2d: {
+        RET_ERROR_IF(upload_extent.x > tex->extent.x ||
+                      upload_extent.y > tex->extent.y,
+                     "[ntf::r_texture_upload]",
+                     "Invalid image extent at index {}",
+                     i);
+        break;
+      }
+      case r_texture_type::texture3d: {
+        RET_ERROR_IF(upload_extent.x > tex->extent.x ||
+                      upload_extent.y > tex->extent.y ||
+                      upload_extent.z > tex->extent.z,
+                     "[ntf::r_texture_upload]",
+                     "Invalid image extent at index {}",
+                     i);
+        break;
+      }
+    }
+  }
+}
+
 r_expected<void> r_texture_upload(r_texture tex, const r_texture_data& data) {
   RET_ERROR_IF(!tex,
                "[ntf::r_texture_upload]",
                "Invalid handle");
 
-  const bool do_address = data.addressing && *data.addressing != tex->addressing;
-  const bool do_sampler = data.sampler && *data.sampler != tex->sampler;
-
-  if (!data.images) {
-    RET_ERROR_IF(!(do_sampler || do_address),
+  try {
+    const bool do_address = data.addressing && *data.addressing != tex->addressing;
+    const bool do_sampler = data.sampler && *data.sampler != tex->sampler;
+    RET_ERROR_IF(!(do_sampler || do_address) && data.images.empty(),
                  "[ntf::r_texture_upload]",
                  "Invalid update descriptor");
-  } else {
-    // TODO: Unify the update & create image tests?
-    for (uint32 i = 0; i < data.images.size(); ++i) {
-      const auto& img = data.images[i];
-      const uvec3 upload_extent = img.offset+img.extent;
-
-      RET_ERROR_IF(!img.texels ||
-                   img.layer > tex->layers ||
-                   img.level > tex->levels,
-                   "[ntf::r_texture_upload]",
-                   "Invalid image at index {}",
-                   i);
-      switch (tex->type) {
-        case r_texture_type::texture1d: {
-          RET_ERROR_IF(upload_extent.x > tex->extent.x,
-                       "[ntf::r_texture_upload]",
-                       "Invalid image extent at index {}",
-                       i);
-          break;
-        }
-        case r_texture_type::cubemap: [[fallthrough]];
-        case r_texture_type::texture2d: {
-          RET_ERROR_IF(upload_extent.x > tex->extent.x ||
-                        upload_extent.y > tex->extent.y,
-                       "[ntf::r_texture_upload]",
-                       "Invalid image extent at index {}",
-                       i);
-          break;
-        }
-        case r_texture_type::texture3d: {
-          RET_ERROR_IF(upload_extent.x > tex->extent.x ||
-                        upload_extent.y > tex->extent.y ||
-                        upload_extent.z > tex->extent.z,
-                       "[ntf::r_texture_upload]",
-                       "Invalid image extent at index {}",
-                       i);
-          break;
-        }
-      }
+    if (!data.images.empty()) {
+      return check_images_to_upload(tex, data.images)
+        .transform([&]() {
+          update_texture_images(tex, data.images);
+          update_texture_opts(tex, data.sampler, data.addressing, data.gen_mipmaps);
+        });
+    } else {
+      update_texture_opts(tex, data.sampler, data.addressing, data.gen_mipmaps);
     }
   }
-
-  try {
-    tex->ctx->platform->update_texture(tex->handle, data);
-  } 
   RET_ERROR_CATCH("[ntf::r_texture_upload]",
                   "Failed to update texture");
-
-  if (data.addressing) {
-    tex->addressing = *data.addressing;
-  }
-  if (data.sampler) {
-    tex->sampler = *data.sampler;
-  }
 
   return {};
 }
 
 void r_texture_upload(unchecked_t, r_texture tex, const r_texture_data& data) {
   NTF_ASSERT(tex);
-
-  tex->ctx->platform->update_texture(tex->handle, data);
-
-  if (data.addressing) {
-    tex->addressing = *data.addressing;
-  }
-  if (data.sampler) {
-    tex->sampler = *data.sampler;
-  }
+  update_texture_images(tex, data.images);
+  update_texture_opts(tex, data.sampler, data.addressing, data.gen_mipmaps);
 }
 
 r_expected<void> r_texture_upload(r_texture tex,
                                   cspan<r_image_data> images, bool gen_mips) {
-  return r_texture_upload(tex, r_texture_data{
-    .images = images,
-    .gen_mipmaps = gen_mips,
-  });
+  if (images.empty()) {
+    return {};
+  }
+
+  return check_images_to_upload(tex, images)
+    .transform([&]() {
+      update_texture_images(tex, images);
+      if (gen_mips) {
+        update_texture_opts(tex, nullopt, nullopt, true);
+      }
+    });
 }
 
 void r_texture_upload(unchecked_t, r_texture tex,
                       cspan<r_image_data> images, bool gen_mips) {
-  r_texture_upload(::ntf::unchecked, tex, r_texture_data{
-    .images = images,
-    .gen_mipmaps = gen_mips,
-  });
+  if (images.empty()) {
+    return;
+  }
+
+  NTF_ASSERT(tex);
+  update_texture_images(tex, images);
+  if (gen_mips) {
+    update_texture_opts(tex,nullopt, nullopt, true);
+  }
 }
 
 r_expected<void> r_texture_set_sampler(r_texture tex, r_texture_sampler sampler) {
-  return r_texture_upload(tex, r_texture_data{
-    .sampler = sampler,
-  });
+  RET_ERROR_IF(!tex,
+             "[ntf::r_texture_set_sampler]",
+             "Invalid handle");
+  update_texture_opts(tex, sampler, nullopt, false);
+  return {};
 }
 
 void r_texture_set_sampler(unchecked_t, r_texture tex, r_texture_sampler sampler) {
-  r_texture_upload(::ntf::unchecked, tex, r_texture_data{
-    .sampler = sampler,
-  });
+  NTF_ASSERT(tex);
+  update_texture_opts(tex, sampler, nullopt, false);
 }
 
 r_expected<void> r_texture_set_addressing(r_texture tex, r_texture_address adressing) {
-  return r_texture_upload(tex, r_texture_data{
-    .addressing = adressing,
-  });
+  RET_ERROR_IF(!tex,
+             "[ntf::r_texture_set_addressing]",
+             "Invalid handle");
+  update_texture_opts(tex, nullopt, adressing, false);
+  return {};
 }
 
 void r_texture_set_addressing(unchecked_t, r_texture tex, r_texture_address addressing) {
-  r_texture_upload(::ntf::unchecked, tex, r_texture_data{
-    .addressing = addressing,
-  });
+  NTF_ASSERT(tex);
+  update_texture_opts(tex, nullopt, addressing, false);
 }
 
 r_texture_type r_texture_get_type(r_texture tex) {
@@ -929,8 +982,21 @@ r_platform_texture r_texture_get_handle(r_texture tex) {
   return tex->handle;
 }
 
-r_expected<r_framebuffer> r_create_framebuffer(r_context ctx,
-                                               const r_framebuffer_descriptor& desc) {
+static auto transform_descriptor(
+  r_context ctx, const r_framebuffer_descriptor& desc
+) -> r_fbo_desc {
+
+  if (std::holds_alternative<cspan<r_framebuffer_attachment>>(desc.attachments)) {
+    auto attachments_in = std::get<cspan<r_framebuffer_attachment>>(desc.attachments);
+    std::vector<r_framebuffer_attachment> attachments;
+    attachments.reserve(attachments_in.size());
+  }
+
+};
+
+static auto check_and_transform_descriptor(
+  r_context ctx, const r_framebuffer_descriptor& desc
+) -> r_expected<r_fbo_desc> {
   RET_ERROR_IF(!ctx,
                "[ntf::r_create_framebuffer]",
                "Invalid context handle");
@@ -968,29 +1034,29 @@ r_expected<r_framebuffer> r_create_framebuffer(r_context ctx,
                    "Invalid texture extent at index {}",
                    i);
     }
-    std::vector<r_framebuffer_attachment> attachments;
-    attachments.reserve(attachments_in.size());
+  } else {
+    RET_ERROR("[ntf::r_create_framebuffer]",
+              "Color buffer not implemented");
+  }
 
+  return transform_descriptor(ctx, desc);
+}
+
+r_expected<r_framebuffer> r_create_framebuffer(r_context ctx,
+                                               const r_framebuffer_descriptor& desc) {
+
+  return check_and_transform_descriptor(ctx, desc)
+  .and_then([&](r_fbo_desc&& fbo) -> r_expected<r_framebuffer> {
     r_platform_fbo handle{};
     try {
-
+      handle = ctx->platform->create_framebuffer(desc);
+      RET_ERROR_IF(!handle,
+                   "[ntf::r_create_framebuffer]",
+                   "Failed to create framebuffer");
     }
-
-  } else {
-    // TODO: Handle the single color buffer case!
-    NTF_ASSERT(false, "Color buffer not implemented");
-  }
-
-  r_platform_fbo handle{};
-  try {
-    handle = ctx->platform->create_framebuffer(desc);
-    RET_ERROR_IF(!handle,
-                 "[ntf::r_create_framebuffer]",
-                 "Failed to create framebuffer");
-  }
-  RET_ERROR_CATCH("[ntf::r_create_framebuffer]",
-                  "Failed to create framebuffer");
-
+    RET_ERROR_CATCH("[ntf::r_create_framebuffer]",
+                    "Failed to create framebuffer");
+  });
   for (size_t i = 0; i < desc.attachments.size(); ++i) {
     attachments.push_back(desc.attachments[i]);
     desc.attachments[i].handle->refcount++;
