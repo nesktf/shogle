@@ -1,6 +1,5 @@
 #pragma once
 
-#include "./buffer.hpp"
 #include "./vertex.hpp"
 
 namespace ntf {

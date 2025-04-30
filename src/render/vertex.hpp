@@ -2,6 +2,8 @@
 
 #include "./renderer.hpp"
 
+#include "../math/matrix.hpp"
+
 #define SHOGLE_DECLARE_ATTRIB_TRAIT(_type, _tag) \
 template<> \
 struct r_attrib_traits<_type> { \

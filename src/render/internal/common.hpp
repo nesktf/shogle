@@ -1,32 +1,130 @@
 #pragma once
 
-#include "../context.hpp"
+#include "../renderer.hpp"
 #include "./platform.hpp"
 
 #include "../../stl/arena.hpp"
 
-#define RET_ERROR(_log_pfx, _fmt, ...) \
-  SHOGLE_LOG(error, _log_pfx " " _fmt __VA_OPT__(,) __VA_ARGS__); \
+#define RENDER_ERROR_LOG(_fmt, ...) \
+  SHOGLE_LOG(error, "{} " _fmt, NTF_FUNC __VA_OPT__(,) __VA_ARGS__)
+
+#define RENDER_WARN_LOG(_fmt, ...) \
+  SHOGLE_LOG(warning, "{} " _fmt, NTF_FUNC __VA_OPT__(,) __VA_ARGS__)
+
+#define RET_ERROR(_fmt, ...) \
+  RENDER_ERROR_LOG(_fmt __VA_OPT__(,) __VA_ARGS__); \
   return unexpected{r_error::format({_fmt} __VA_OPT__(,) __VA_ARGS__)}
 
-#define RET_ERROR_IF(_cond, _log_pfx, _fmt, ...) \
+#define RET_ERROR_IF(_cond, _fmt, ...) \
   if (_cond) { \
-    RET_ERROR(_log_pfx, _fmt, __VA_ARGS__); \
+    RET_ERROR(_fmt, __VA_ARGS__); \
   }
 
-#define RET_ERROR_CATCH(_log_pfx, _msg) \
+#define RET_ERROR_CATCH(_msg) \
   catch (r_error& err) { \
-    SHOGLE_LOG(error, _log_pfx " " _msg ": {}", err.what()); \
+    RENDER_ERROR_LOG(_msg ": {}", err.what()); \
     return unexpected{std::move(err)}; \
   } catch (const std::exception& ex) { \
-    SHOGLE_LOG(error, _log_pfx " " _msg ": {}", ex.what()); \
+    RENDER_ERROR_LOG(_msg ": {}", ex.what()); \
     return unexpected{r_error::format({"{}"}, ex.what())}; \
   } catch (...) { \
-    SHOGLE_LOG(error, _log_pfx " " _msg ": Caught (...)"); \
-    return unexpected{r_error{"Caught (...)"}}; \
+    RENDER_ERROR_LOG(_msg ": Caught (...)"); \
+    return unexpected{r_error{"Unknown error"}}; \
   }
 
 namespace ntf {
+
+class rp_alloc {
+private:
+  static constexpr r_allocator base_alloc {
+    .user_ptr = nullptr,
+    .mem_alloc = +[](void*, size_t sz, size_t) -> void* { return std::malloc(sz); },
+    .mem_free = +[](void*, void* mem) -> void { std::free(mem); }
+  };
+
+public:
+  rp_alloc() noexcept :
+    _arena{nullptr, 0u},
+    _user_ptr{base_alloc.user_ptr},
+    _malloc{base_alloc.mem_alloc}, _free{base_alloc.mem_free} {}
+
+  rp_alloc(const r_allocator& user_alloc) noexcept :
+    _arena{nullptr, 0u},
+    _user_ptr{user_alloc.user_ptr},
+    _malloc{user_alloc.mem_alloc}, _free{user_alloc.mem_free} {}
+
+public:
+  bool init_arena(size_t block_sz) {
+    void* mem = alloc(block_sz, 0u);
+    if (!mem) {
+      return false;
+    }
+    _arena = {mem, block_sz};
+    return true;
+  }
+
+  void destroy_arena() {
+    this->free(_arena.data());
+  }
+
+  bool resize_arena(size_t block_sz) {
+    void* old = _arena.data();
+    if (init_arena(block_sz)) {
+      this->free(old);
+      return true;
+    }
+    return false;
+  }
+
+  void clear_arena() {
+    _arena.clear();
+  }
+  
+public: 
+  void* alloc(size_t size, size_t alignment) {
+    return std::invoke(_malloc, _user_ptr, size, alignment);
+  }
+
+  void free(void* mem) {
+    std::invoke(_free, _user_ptr, mem);
+  }
+
+  void* arena_alloc(size_t size, size_t alignment) {
+    return _arena.allocate(size, alignment);
+  }
+
+  template<typename T, typename... Args>
+  T* construct(Args&&... args) {
+    T* obj = static_cast<T*>(alloc(sizeof(T), alignof(T)));
+    if (!obj) {
+      return nullptr;
+    }
+    std::construct_at(obj, std::forward<Args>(args)...);
+    return obj;
+  }
+
+  template<typename T>
+  void destroy(T* obj) {
+    obj->~T();
+    this->free(obj);
+  }
+
+  template<typename T, typename... Args>
+  T* arena_construct(Args&&... args) {
+    return _arena.construct<T>(std::forward<Args>(args)...);
+  }
+
+  template<typename T>
+  T* arena_alloc_uninited(size_t n) {
+    return _arena.allocate<T>(n);
+  }
+
+private:
+  arena_block_manager _arena;
+  void* _user_ptr;
+  void* (*_malloc)(void* user_ptr, size_t size, size_t alignment);
+  void  (*_free)(void* user_ptr, void* mem);
+};
 
 struct r_texture_ {
   r_texture_(r_context ctx_, r_platform_texture handle_, rp_tex_desc&& desc) :
@@ -138,30 +236,31 @@ struct r_framebuffer_ {
 };
 
 struct r_context_ {
-  r_context_(std::unique_ptr<r_platform_context>&& platform_, command_map&& map,
-             win_handle win_, renderer_api api_, linked_arena&& arena,
-             const r_allocator& alloc) noexcept :
-    api{api_}, win{win_}, platform{std::move(platform_)},
-    draw_lists{std::move(map)}, d_cmd{}, alloc{alloc},
-    default_fbo{this}, frame_arena{std::move(arena)} {}
+public:
+  r_context_(std::unique_ptr<r_platform_context>&& platform, command_map&& map,
+             r_window win, r_api api_, rp_alloc alloc) noexcept :
+    _api{api_}, _win{win}, _platform{std::move(platform)},
+    _draw_lists{std::move(map)},
+    _default_fbo{this}, _alloc{alloc} {}
 
-  renderer_api api;
-  win_handle win;
-  std::unique_ptr<r_platform_context> platform;
+public:
+  r_platform_context& pctx() { return *_platform; }
+  rp_alloc& alloc() { return _alloc; }
 
-  handle_map<r_platform_buffer, r_buffer_> buffers;
-  handle_map<r_platform_texture, r_texture_> textures;
-  handle_map<r_platform_fbo, r_framebuffer_> framebuffers;
-  handle_map<r_platform_shader, r_shader_> shaders;
-  handle_map<r_platform_pipeline, r_pipeline_> pipelines;
+public:
+  r_api _api;
+  r_window _win;
 
-  command_map draw_lists;
-  weak_ref<draw_list> d_list;
-  draw_command d_cmd;
+  std::unique_ptr<r_platform_context> _platform;
+  std::vector<std::unique_ptr<r_buffer_>> _buffers;
+  std::vector<std::unique_ptr<r_texture_>> _textures;
+  std::vector<std::unique_ptr<r_framebuffer_>> _framebuffers;
+  std::vector<std::unique_ptr<r_shader_>> _shaders;
+  std::vector<std::unique_ptr<r_pipeline_>> _pipelines;
 
-  r_allocator alloc;
-  r_framebuffer_ default_fbo;
-  linked_arena frame_arena;
+  command_map _draw_lists;
+  r_framebuffer_ _default_fbo;
+  rp_alloc _alloc;
 };
 
 } // namespace ntf

@@ -5,7 +5,7 @@
 #include "../stl/expected.hpp"
 #include "../stl/function.hpp"
 
-#include "../math/matrix.hpp"
+#include "../math/vector.hpp"
 
 namespace ntf {
 
@@ -22,14 +22,12 @@ enum class r_api {
 using r_error = ::ntf::error<void>;
 
 template<typename T>
-using r_expected = expected<T, r_error>;
+using r_expected = ::ntf::expected<T, r_error>;
 
 struct r_allocator {
   void* user_ptr;
   void* (*mem_alloc)(void* user_ptr, size_t size, size_t alignment);
   void  (*mem_free)(void* user_ptr, void* mem);
-  void* (*mem_scratch_alloc)(void* user_ptr, size_t size, size_t alignment);
-  void  (*mem_scratch_free)(void* user_ptr, void* mem);
 };
 
 NTF_DECLARE_OPAQUE_HANDLE(r_texture);

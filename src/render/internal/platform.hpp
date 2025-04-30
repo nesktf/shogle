@@ -16,13 +16,14 @@
 #define SHOGLE_GL_LOAD_PROC \
   reinterpret_cast<GLADloadproc>(glfwGetProcAddress)
 #define SHOGLE_GL_MAKE_CTX_CURRENT(win_handle) \
-  glfwMakeContextCurrent(win_handle)
+  glfwMakeContextCurrent(reinterpret_cast<GLFWwindow*>(win_handle))
 #define SHOGLE_GL_SET_SWAP_INTERVAL(win_handle, interval) \
   glfwSwapInterval(interval)
 #define SHOGLE_GL_SWAP_BUFFERS(win_handle) \
-  glfwSwapBuffers(win_handle)
+  glfwSwapBuffers(reinterpret_cast<GLFWwindow*>(win_handle))
 #define SHOGLE_VK_CREATE_SURFACE(win_handle, vk_instance, vk_surface_ptr, vk_alloc_ptr) \
-  glfwCreateWindowSurface(vk_instance, win_handle, vk_alloc_ptr, vk_surface_ptr)
+  glfwCreateWindowSurface(vk_instance, reinterpret_cast<GLFWwindow*>(win_handle), \
+                          vk_alloc_ptr, vk_surface_ptr)
 
 // TODO: Define inits for vulkan & software renderer
 #if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI

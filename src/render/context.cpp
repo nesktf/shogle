@@ -1,15 +1,15 @@
-#include "./common.hpp"
-#include "./opengl/context.hpp"
+#include "./internal/common.hpp"
+#include "./internal/opengl/context.hpp"
 
 namespace ntf {
 
 static auto load_platform_ctx(
-  renderer_api api, win_handle win, uint32 swap_interval
+  r_api api, r_window win, uint32 swap_interval
 ) -> r_expected<std::unique_ptr<r_platform_context>> {
   std::unique_ptr<r_platform_context> ctx;
   try {
     switch (api) {
-      case renderer_api::opengl: {
+      case r_api::opengl: {
         SHOGLE_GL_MAKE_CTX_CURRENT(win);
         SHOGLE_GL_SET_SWAP_INTERVAL(win, static_cast<int>(swap_interval));
         RET_ERROR_IF(!gladLoadGLLoader(SHOGLE_GL_LOAD_PROC),
@@ -24,8 +24,7 @@ static auto load_platform_ctx(
       }
     }
   }
-  RET_ERROR_CATCH("[ntf::load_platform_ctx]",
-                  "Failed to load platform context");
+  RET_ERROR_CATCH("Failed to load platform context");
 
   // TODO: Use a local imgui context instead of the global one
 #if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
@@ -37,11 +36,11 @@ static auto load_platform_ctx(
   ImGui::StyleColorsDark();
 
   switch (api) {
-    case renderer_api::opengl: {
+    case r_api::opengl: {
       SHOGLE_INIT_IMGUI_OPENGL(win, true, "#version 130");
       break;
     }
-    case renderer_api::vulkan: {
+    case r_api::vulkan: {
       SHOGLE_INIT_IMGUI_VULKAN(win, true);
       break;
     }
@@ -54,14 +53,6 @@ static auto load_platform_ctx(
 
   return ctx;
 }
-
-static r_allocator base_alloc {
-  .user_ptr = nullptr,
-  .mem_alloc = +[](void*, size_t sz, size_t) -> void* { return std::malloc(sz); },
-  .mem_free = +[](void*, void* mem) -> void { std::free(mem); },
-  .mem_scratch_alloc = +[](void*, size_t sz, size_t) -> void* { return std::malloc(sz); },
-  .mem_scratch_free = +[](void*, void* mem) -> void { std::free(mem); },
-};
 
 r_expected<r_context> r_create_context(const r_context_params& params) {
   return load_platform_ctx(params.api, params.window, params.swap_interval)

@@ -1,16 +1,16 @@
 #pragma once
 
-#include "./context.hpp"
+#include "./renderer.hpp"
 
 namespace ntf {
 
-using win_error = error<void>;
+using win_error = ::ntf::error<void>;
 
 template<typename T>
-using win_expected = expected<T, win_error>;
+using win_expected = ::ntf::expected<T, win_error>;
 
 template<typename... Ts>
-using win_ctx_params = std::variant<weak_ref<Ts>...>;
+using win_ctx_params = std::variant<weak_cref<Ts>...>;
 
 struct win_gl_params {
   uint32 ver_major;
