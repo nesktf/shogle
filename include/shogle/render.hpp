@@ -1,5 +1,19 @@
 #pragma once
 
+#if defined(SHOGLE_EXPOSE_GLFW) && SHOGLE_EXPOSE_GLFW
+#include <glad/glad.h>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#endif
+
+#if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
+#include <imgui.h>
+#if defined(SHOGLE_EXPOSE_GLFW) && SHOGLE_EXPOSE_GLFW
+#include <imgui_impl_opengl3.h>
+#include <imgui_impl_glfw.h>
+#endif
+#endif
+
 #include "../../src/core.hpp"
 
 #include "../../src/render/buffer.hpp"

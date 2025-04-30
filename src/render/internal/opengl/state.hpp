@@ -1,10 +1,8 @@
 #pragma once
 
-#include "./interface.hpp"
+#include "../platform.hpp"
 
 namespace ntf {
-
-class gl_context;
 
 class gl_state {
 public:
@@ -85,7 +83,7 @@ public:
   };
 
 public:
-  gl_state(gl_context& ctx) noexcept;
+  gl_state() noexcept;
 
 public:
   void init(const init_data_t& data) noexcept;
@@ -126,9 +124,9 @@ public:
   void update_texture_addressing(texture_t& tex, r_texture_address addressing) noexcept;
   void gen_texture_mipmaps(const texture_t& tex);
 
-  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, r_test_buffer_flag buffers,
+  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, rp_test_buffer_flag buffers,
                                                  r_texture_format format);
-  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, r_test_buffer_flag buffers,
+  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, rp_test_buffer_flag buffers,
                                                  const fbo_attachment_t* attachments,
                                                  uint32 att_count);
   void destroy_framebuffer(const framebuffer_t& fbo) noexcept;
@@ -146,7 +144,7 @@ public:
   [[nodiscard]] static GLenum attrib_underlying_type_cast(r_attrib_type type) noexcept;
   [[nodiscard]] static GLenum primitive_cast(r_primitive type) noexcept;
   [[nodiscard]] static GLenum shader_type_cast(r_shader_type type) noexcept;
-  [[nodiscard]] static GLenum fbo_attachment_cast(r_test_buffer_flag flag) noexcept;
+  [[nodiscard]] static GLenum fbo_attachment_cast(rp_test_buffer_flag flag) noexcept;
   [[nodiscard]] static GLenum texture_type_cast(r_texture_type type, bool is_array) noexcept;
   [[nodiscard]] static GLenum texture_format_cast(r_texture_format format) noexcept;
   [[nodiscard]] static GLenum texture_format_symbolic_cast(r_texture_format format) noexcept;
@@ -159,7 +157,6 @@ private:
   GLenum& _buffer_pos(GLenum type);
 
 private:
-  gl_context& _ctx;
   GLuint _bound_buffers[BUFFER_TYPE_COUNT];
   GLuint _bound_fbos[FBO_BIND_COUNT];
   GLuint _bound_vao;
@@ -172,108 +169,6 @@ private:
   } _tex_limits;
   std::vector<std::pair<GLuint, GLenum>> _bound_texs; // id, type
   size_t _active_tex;
-};
-
-class gl_context final : public r_platform_context {
-private:
-  template<typename T, typename H>
-  class res_container {
-  public:
-    res_container() = default;
-
-  public:
-    template<typename Fun>
-    void clear(Fun&& f) {
-      for (auto& res : _res) {
-        f(res);
-      }
-      _res.clear();
-      _free = {};
-    }
-
-    H acquire() {
-      if (!_free.empty()) {
-        H pos{_free.front()};
-        _free.pop();
-        return pos;
-      }
-      _res.emplace_back(T{});
-      return H{static_cast<r_handle_value>(_res.size()-1)};
-    }
-
-    void push(H pos) {
-      NTF_ASSERT(validate(pos));
-      _free.push(static_cast<r_handle_value>(pos));
-    }
-
-    T& get(H pos) {
-      NTF_ASSERT(validate(pos));
-      return _res[static_cast<r_handle_value>(pos)];
-    }
-
-    const T& get(H pos) const {
-      NTF_ASSERT(validate(pos));
-      return _res[static_cast<r_handle_value>(pos)];
-    }
-
-    bool validate(H pos) const {
-      return static_cast<r_handle_value>(pos) < _res.size();
-    }
-
-  private:
-    std::vector<T> _res;
-    std::queue<r_handle_value> _free;
-  };
-
-public:
-  gl_context(win_handle win, uint32 swap_interval) noexcept;
-
-public:
-  r_platform_meta get_meta() override;
-
-  r_platform_buffer create_buffer(const r_buffer_descriptor& desc) override;
-  void update_buffer(r_platform_buffer buf, const r_buffer_data& desc) override;
-  void destroy_buffer(r_platform_buffer buff) noexcept override;
-
-  r_platform_texture create_texture(const r_texture_descriptor& desc) override;
-  void update_texture(r_platform_texture tex, const r_texture_data& desc) override;
-  void destroy_texture(r_platform_texture tex) noexcept override;
-  void* map_buffer(r_platform_buffer buf, size_t offset, size_t len) override;
-  void unmap_buffer(r_platform_buffer buf, void* ptr) override;
-
-  r_platform_shader create_shader(const r_shader_descriptor& desc) override;
-  void destroy_shader(r_platform_shader shader) noexcept override;
-
-  r_platform_pipeline create_pipeline(const r_pipeline_descriptor& desc,
-                                      weak_ref<vertex_layout> layout,
-                                      uniform_map& uniforms) override;
-  void destroy_pipeline(r_platform_pipeline pipeline) noexcept override;
-
-  r_platform_fbo create_framebuffer(const r_framebuffer_descriptor& desc) override;
-  void destroy_framebuffer(r_platform_fbo fb) noexcept override;
-
-  void submit(const command_map& cmds) override;
-  void swap_buffers() override;
-
-private:
-  GLAPIENTRY static void debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity,
-                                        GLsizei len, const GLchar* msg, const void* user_ptr);
-
-private:
-  gl_state _state;
-  gl_state::vao_t _vao;
-
-  res_container<gl_state::buffer_t, r_platform_buffer> _buffers;
-  res_container<gl_state::texture_t, r_platform_texture> _textures;
-  res_container<gl_state::shader_t, r_platform_shader> _shaders;
-  res_container<gl_state::program_t, r_platform_pipeline> _programs;
-  res_container<gl_state::framebuffer_t, r_platform_fbo> _framebuffers;
-
-  win_handle _win;
-  uint32 _swap_interval;
-
-public:
-  NTF_DECLARE_NO_MOVE_NO_COPY(gl_context);
 };
 
 } // namespace ntf

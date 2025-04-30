@@ -1,5 +1,57 @@
 #pragma once
 
+#include "../../core.hpp"
+
+#include <glad/glad.h>
+
+#if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
+#include <imgui.h>
+#include <imgui_impl_opengl3.h> // Should work fine with OGL 4.x
+#endif
+
+#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
+#define SHOGLE_GL_LOAD_PROC \
+  reinterpret_cast<GLADloadproc>(glfwGetProcAddress)
+#define SHOGLE_GL_MAKE_CTX_CURRENT(win_handle) \
+  glfwMakeContextCurrent(win_handle)
+#define SHOGLE_GL_SET_SWAP_INTERVAL(win_handle, interval) \
+  glfwSwapInterval(interval)
+#define SHOGLE_GL_SWAP_BUFFERS(win_handle) \
+  glfwSwapBuffers(win_handle)
+#define SHOGLE_VK_CREATE_SURFACE(win_handle, vk_instance, vk_surface_ptr, vk_alloc_ptr) \
+  glfwCreateWindowSurface(vk_instance, win_handle, vk_alloc_ptr, vk_surface_ptr)
+
+// TODO: Define inits for vulkan & software renderer
+#if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
+#include <imgui_impl_glfw.h>
+#define SHOGLE_INIT_IMGUI_OPENGL(win, cbks, glsl_ver) \
+  ImGui_ImplGlfw_InitForOpenGL(win, cbks); \
+  ImGui_ImplOpenGL3_Init(glsl_ver)
+#define SHOGLE_INIT_IMGUI_VULKAN(win, cbks)
+#define SHOGLE_INIT_IMGUI_OTHER(win, cbks)
+
+#define SHOGLE_DESTROY_IMGUI_OPENGL() \
+  ImGui_ImplOpenGL3_Shutdown(); \
+  ImGui_ImplGlfw_Shutdown()
+#define SHOGLE_DESTROY_IMGUI_VULKAN()
+#define SHOGLE_DESTROY_IMGUI_OTHER()
+
+#define SHOGLE_IMGUI_OPENGL_NEW_FRAME() \
+  ImGui_ImplGlfw_NewFrame(); \
+  ImGui_ImplOpenGL3_NewFrame()
+#define SHOGLE_IMGUI_VULKAN_NEW_FRAME()
+#define SHOGLE_IMGUI_OTHER_NEW_FRAME()
+
+#define SHOGLE_IMGUI_OPENGL_END_FRAME(draw_data) \
+  ImGui_ImplOpenGL3_RenderDrawData(draw_data)
+#define SHOGLE_IMGUI_VULKAN_END_FRAME(draw_data)
+#define SHOGLE_IMGUI_OTHER_END_FRAME(draw_data)
+#endif
+#endif
+
 #include "../context.hpp"
 
 #define SHOGLE_DECLARE_RENDER_HANDLE(_name) \
@@ -43,6 +95,12 @@ constexpr r_platform_fbo DEFAULT_FBO_HANDLE{r_handle_tombstone};
 template<typename K, typename T>
 using handle_map = std::unordered_map<K, T, r_handle_hash<K>>;
 
+enum class rp_test_buffer_flag : uint8 {
+  none = 0,
+  depth,
+  stencil,
+};
+
 struct vertex_layout {
   uint32 binding;
   size_t stride;
@@ -83,8 +141,8 @@ struct draw_list {
 
 using command_map = handle_map<r_platform_fbo, draw_list>;
 
-struct r_platform_meta {
-  renderer_api api;
+struct rp_platform_meta {
+  r_api api;
   std::string name_str;
   std::string vendor_str;
   std::string version_str;
@@ -93,25 +151,25 @@ struct r_platform_meta {
   uint32 tex_max_extent3d;
 };
 
-struct r_buff_desc {
+struct rp_buff_desc {
   r_buffer_type type;
   r_buffer_flag flags;
   size_t size;
   weak_cref<r_buffer_data> initial_data;
 };
 
-struct r_buff_data {
+struct rp_buff_data {
   const void* data;
   size_t len;
   size_t offset;
 };
 
-struct r_buff_mapping {
+struct rp_buff_mapping {
   size_t len;
   size_t offset;
 };
 
-struct r_tex_desc {
+struct rp_tex_desc {
   r_texture_type type;
   r_texture_format format;
   extent3d extent;
@@ -123,7 +181,7 @@ struct r_tex_desc {
   r_texture_address addressing;
 };
 
-struct r_tex_image_data {
+struct rp_tex_image_data {
   const void* texels;
   r_texture_format format;
   r_image_alignment alignment;
@@ -133,18 +191,18 @@ struct r_tex_image_data {
   uint32 level;
 };
 
-struct r_tex_opts {
+struct rp_tex_opts {
   r_texture_sampler sampler;
   r_texture_address addressing;
   bool regen_mips;
 };
 
-struct r_shad_desc {
+struct rp_shad_desc {
   r_shader_type type;
   cspan<std::string_view> source;
 };
 
-struct r_pip_desc {
+struct rp_pip_desc {
   std::unique_ptr<vertex_layout> layout;
   weak_ref<uniform_map> uniforms;
 
@@ -159,7 +217,7 @@ struct r_pip_desc {
   weak_cref<r_blend_opts> blending;
 };
 
-struct r_pip_opts {
+struct rp_pip_opts {
   weak_cref<r_stencil_test_opts> stencil_test;
   weak_cref<r_depth_test_opts> depth_test;
   weak_cref<r_scissor_test_opts> scissor_test;
@@ -167,43 +225,43 @@ struct r_pip_opts {
   weak_cref<r_blend_opts> blending;
 };
 
-struct r_fbo_att {
+struct rp_fbo_att {
   r_platform_texture texture;
   uint32 layer;
   uint32 level;
 };
 
-struct r_fbo_desc {
+struct rp_fbo_desc {
   extent2d extent;
   uvec4 viewport;
   r_test_buffer test_buffer;
-  std::variant<cspan<r_fbo_att>, r_texture_format> attachments;
+  std::variant<cspan<rp_fbo_att>, r_texture_format> attachments;
 };
 
 
 struct r_platform_context {
   virtual ~r_platform_context() = default;
-  virtual r_platform_meta get_meta() = 0;
+  virtual void get_meta(rp_platform_meta& meta) = 0;
 
-  virtual r_platform_buffer create_buffer(const r_buff_desc& desc) = 0;
-  virtual void update_buffer(r_platform_buffer buf, const r_buff_data& data) = 0;
-  virtual void* map_buffer(r_platform_buffer buf, const r_buff_mapping& mapping) = 0;
-  virtual void unmap_buffer(r_platform_buffer buf, void* ptr) = 0;
+  virtual r_platform_buffer create_buffer(const rp_buff_desc& desc) = 0;
+  virtual void update_buffer(r_platform_buffer buf, const rp_buff_data& data) = 0;
+  virtual void* map_buffer(r_platform_buffer buf, const rp_buff_mapping& mapping) = 0;
+  virtual void unmap_buffer(r_platform_buffer buf, void* ptr) noexcept = 0;
   virtual void destroy_buffer(r_platform_buffer buf) noexcept = 0;
 
-  virtual r_platform_texture create_texture(const r_tex_desc& desc) = 0;
-  virtual void update_texture_image(r_platform_texture tex, const r_tex_image_data& image) = 0;
-  virtual void update_texture_options(r_platform_texture tex, const r_tex_opts& opts) = 0;
+  virtual r_platform_texture create_texture(const rp_tex_desc& desc) = 0;
+  virtual void update_texture_image(r_platform_texture tex, const rp_tex_image_data& image) = 0;
+  virtual void update_texture_options(r_platform_texture tex, const rp_tex_opts& opts) = 0;
   virtual void destroy_texture(r_platform_texture tex) noexcept = 0;
 
-  virtual r_platform_shader create_shader(const r_shad_desc& desc) = 0;
+  virtual r_platform_shader create_shader(const rp_shad_desc& desc) = 0;
   virtual void destroy_shader(r_platform_shader shader) noexcept = 0;
 
-  virtual r_platform_pipeline create_pipeline(const r_pip_desc& desc) = 0;
-  virtual void update_pipeline_options(r_pipeline pip, const r_pip_opts& opts) = 0;
+  virtual r_platform_pipeline create_pipeline(const rp_pip_desc& desc) = 0;
+  virtual void update_pipeline_options(r_pipeline pip, const rp_pip_opts& opts) = 0;
   virtual void destroy_pipeline(r_platform_pipeline pipeline) noexcept = 0;
 
-  virtual r_platform_fbo create_framebuffer(const r_fbo_desc& desc) = 0;
+  virtual r_platform_fbo create_framebuffer(const rp_fbo_desc& desc) = 0;
   virtual void destroy_framebuffer(r_platform_fbo fb) noexcept = 0;
 
   virtual void submit(const command_map& cmds) = 0;
