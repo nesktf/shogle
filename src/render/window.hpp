@@ -1,12 +1,6 @@
 #pragma once
 
-#include "./platform_macros.hpp"
-
-#include "../stl/ptr.hpp"
-#include "../stl/function.hpp"
-#include "../stl/expected.hpp"
-
-#include "../math/vector.hpp"
+#include "./context.hpp"
 
 namespace ntf {
 
@@ -36,78 +30,173 @@ struct win_params {
   win_ctx_params<win_gl_params, win_vk_params> ctx_params;
 };
 
+enum class win_key : int16 { // Follows GLFW key values
+  unknown = -1,
+  space = 32, apostrophe = 39,
+
+  comma = 44, minus, period, slash,
+  k0, k1, k2, k3, k4, k5, k6, k7, k8, k9,
+
+  semicolon = 59, equal = 61,
+
+  a = 65, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z,
+  lbracket, backslash, rbracket,
+
+  grave = 96,
+
+  world1 = 161, world2, // ?
+
+  escape = 256, enter, tab, backspace, insert, del, right, left, down, up,
+  pgup, pgdown, home, end,
+
+  capslock = 280, scrolllock, numlock, printscr, pause,
+
+  f1 = 290, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12,
+  f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25,
+
+  kp0 = 320, kp1, kp2, kp3, kp4, kp5, kp6, kp7, kp8, kp9,
+  kpdec, kpdiv, kpmul, kpsub, kpadd, kpenter, kpequal,
+
+  lshift = 340, lctrl, lalt, lsuper, rshift, rctrl, ralt, rsuper, menu,
+};
+
+using win_keyscancode = int32;
+
+enum class win_button : uint8 { // Follows GLFW button values
+  m1 = 0, m2, m3, m4, m5, m6, m7, m8,
+};
+
+enum class win_action : uint8 { // Follows GLFW action values
+  release = 0,
+  press,
+  repeat,
+};
+
+enum class win_keymod : uint8 { // Follows GLFW mod values
+  none     = 0x00,
+  shift    = 0x01,
+  ctrl     = 0x02,
+  alt      = 0x04,
+  super    = 0x08,
+  capslock = 0x10,
+  numlock  = 0x20,
+};
+NTF_DEFINE_ENUM_CLASS_FLAG_OPS(win_keymod);
+
+enum class win_mouse_state : int8 {
+  normal = 0,
+  hidden,
+  disabled,
+};
+
+struct win_key_data {
+  win_key key;
+  win_keyscancode scancode;
+  win_action action;
+  win_keymod mod;
+};
+
+struct win_button_data {
+  win_button button;
+  win_action action;
+  win_keymod mod;
+};
+
 class renderer_window {
 private:
+  struct callback_handler_t;
+  friend callback_handler_t;
+  
   template<typename Signature>
   using fun_t = std::function<Signature>;
 
 public:
-  using viewport_fun = fun_t<void(renderer_window&,uint32,uint32)>;
-  using key_fun = fun_t<void(renderer_window&,win_keycode,win_scancode,win_keystate,win_keymod)>;
-  using cursor_fun = fun_t<void(renderer_window&,float64,float64)>;
-  using scroll_fun = fun_t<void(renderer_window&,float64,float64)>;
+  using viewport_fun = fun_t<void(renderer_window&, extent2d)>;
+  using key_fun      = fun_t<void(renderer_window&, win_key_data)>;
+  using cursorp_fun  = fun_t<void(renderer_window&, dvec2)>;
+  using cursore_fun  = fun_t<void(renderer_window&, bool)>;
+  using scroll_fun   = fun_t<void(renderer_window&, dvec2)>;
+  using mouse_fun    = fun_t<void(renderer_window&, win_button_data)>;
+  using char_fun     = fun_t<void(renderer_window&, uint32)>;
 
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
 private:
-  static void fb_callback(win_handle handle, int w, int h);
-  static void key_callback(win_handle handle, int code, int scan, int state, int mod);
-  static void cursor_callback(win_handle handle, double xpos, double ypos);
-  static void scroll_callback(win_handle handle, double xoff, double yoff);
-#endif
-
-public:
-  renderer_window(win_handle handle, renderer_api ctx_api) noexcept;
+  renderer_window(r_window handle, r_api ctx_api) noexcept;
 
 public:
   [[nodiscard]] static win_expected<renderer_window> create(const win_params& params);
-  [[nodiscard]] static renderer_window create(unchecked_t, const win_params& params);
 
 public:
   template<typename F>
-  void viewport_event(F&& callback) {
-    _vp_event = std::forward<F>(callback);
+  requires(std::invocable<F, renderer_window&, extent2d>)
+  renderer_window& set_viewport_callback(F&& fun) {
+    _callbacks.viewport = std::forward<F>(fun);
+    return *this;
   }
 
   template<typename F>
-  void key_event(F&& callback) {
-    _key_event = std::forward<F>(callback);
+  requires(std::invocable<F, renderer_window&, win_key_data>)
+  renderer_window& set_key_press_callback(F&& fun) {
+    _callbacks.keypress = std::forward<F>(fun);
+    return *this;
   }
 
   template<typename F>
-  void cursor_event(F&& callback) {
-    _cur_event = std::forward<F>(callback);
+  requires(std::invocable<F, renderer_window&, win_button_data>)
+  renderer_window& set_button_press_callback(F&& fun) {
+    _callbacks.buttpress = std::forward<F>(fun);
+    return *this;
   }
 
   template<typename F>
-  void scroll_event(F&& callback) {
-    _scl_event = std::forward<F>(callback);
+  requires(std::invocable<F, renderer_window&, dvec2>)
+  renderer_window& set_cursor_pos_callback(F&& fun) {
+    _callbacks.cursorpos = std::forward<F>(fun);
+    return *this;
+  }
+
+  template<typename F>
+  requires(std::invocable<F, renderer_window&, bool>)
+  renderer_window& set_cursor_enter_callback(F&& fun) {
+    _callbacks.cursorenter = std::forward<F>(fun);
+    return *this;
+  }
+
+  template<typename F>
+  requires(std::invocable<F, renderer_window&, dvec2>)
+  renderer_window& set_scroll_callback(F&& fun) {
+    _callbacks.scroll = std::forward<F>(fun);
+    return *this;
   }
 
   void title(const std::string& title);
   void close();
   void poll_events();
+  void set_mouse_state(win_mouse_state state);
 
 public:
-  win_handle handle() const { return _handle; }
-  renderer_api renderer() const { return _ctx_api; }
+  r_window handle() const { return _handle; }
+  r_api renderer() const { return _ctx_api; }
 
   bool should_close() const;
-  bool poll_key(win_keycode key, win_keystate state) const;
+  win_action poll_key(win_key key) const;
+  win_action poll_button(win_button button) const;
   extent2d win_size() const;
   extent2d fb_size() const;
 
 private:
-  void _bind_callbacks();
-  void _reset(bool destroy);
+  void _destroy();
 
 private:
-  win_handle _handle;
-  renderer_api _ctx_api;
-
-  viewport_fun _vp_event;
-  key_fun _key_event;
-  cursor_fun _cur_event;
-  scroll_fun _scl_event;
+  r_window _handle;
+  r_api _ctx_api;
+  struct {
+    viewport_fun viewport;
+    key_fun keypress;
+    mouse_fun buttpress;
+    cursorp_fun cursorpos;
+    cursore_fun cursorenter;
+    scroll_fun scroll;
+  } _callbacks;
 
 public:
   NTF_DECLARE_MOVE_ONLY(renderer_window);
