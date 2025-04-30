@@ -28,9 +28,9 @@
 // TODO: Define inits for vulkan & software renderer
 #if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
 #include <imgui_impl_glfw.h>
-#define SHOGLE_INIT_IMGUI_OPENGL(win, cbks, glsl_ver) \
-  ImGui_ImplGlfw_InitForOpenGL(win, cbks); \
-  ImGui_ImplOpenGL3_Init(glsl_ver)
+#define SHOGLE_INIT_IMGUI_OPENGL(win, cbks) \
+  ImGui_ImplGlfw_InitForOpenGL(reinterpret_cast<GLFWwindow*>(win), cbks); \
+  ImGui_ImplOpenGL3_Init("version #150")
 #define SHOGLE_INIT_IMGUI_VULKAN(win, cbks)
 #define SHOGLE_INIT_IMGUI_OTHER(win, cbks)
 
@@ -110,37 +110,45 @@ struct vertex_layout {
 
 using uniform_map = std::unordered_map<std::string, r_uniform>;
 
-struct uniform_descriptor {
-  r_attrib_type type;
+struct rp_uniform_binding {
   r_platform_uniform location;
+  r_attrib_type type;
   const void* data;
   size_t size;
 };
 
-struct texture_binding {
-  r_texture handle;
+struct rp_texture_binding {
+  r_platform_texture tex;
   uint32 index;
 };
 
-struct draw_command {
-  r_pipeline pipeline;
-  std::vector<weak_ref<texture_binding>> textures;
-  std::vector<weak_ref<uniform_descriptor>> uniforms;
-  std::vector<weak_ref<r_buffer_binding>> buffers;
+struct rp_buffer_binding {
+  r_platform_buffer buffer;
+  r_buffer_type type;
+  optional<uint32> location;
+};
+
+struct rp_draw_command {
+  r_context ctx;
+  r_platform_pipeline pipeline;
+  span<rp_buffer_binding> buffers;
+  span<rp_texture_binding> textures;
+  span<rp_uniform_binding> uniforms;
   uint32 count;
   uint32 offset;
   uint32 instances;
-  std::function<void()> on_render;
+  uint32 sort_group;
+  function_view<void(r_context)> on_render;
 };
 
-struct draw_list {
+struct rp_draw_list {
   color4 color;
   uvec4 viewport;
   r_clear_flag clear;
-  std::vector<weak_ref<draw_command>> cmds;
+  std::vector<rp_draw_command> cmds;
 };
 
-using command_map = handle_map<r_platform_fbo, draw_list>;
+using rp_command_map = handle_map<r_platform_fbo, rp_draw_list>;
 
 struct rp_platform_meta {
   r_api api;
@@ -265,7 +273,7 @@ struct r_platform_context {
   virtual r_platform_fbo create_framebuffer(const rp_fbo_desc& desc) = 0;
   virtual void destroy_framebuffer(r_platform_fbo fb) noexcept = 0;
 
-  virtual void submit(const command_map& cmds) = 0;
+  virtual void submit(const rp_command_map& cmds) = 0;
 
   virtual void device_wait() noexcept {}
   virtual void swap_buffers() = 0;
