@@ -82,7 +82,7 @@ public:
   r_platform_fbo create_framebuffer(const rp_fbo_desc& desc) override;
   void destroy_framebuffer(r_platform_fbo fb) noexcept override;
 
-  void submit(const rp_command_map& cmds) override;
+  void submit(cspan<rp_draw_data> draw_data) override;
   void swap_buffers() override;
 
 private:

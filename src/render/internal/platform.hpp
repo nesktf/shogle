@@ -55,6 +55,8 @@
 
 #include "../context.hpp"
 
+#include "../../stl/arena.hpp"
+
 #define SHOGLE_DECLARE_RENDER_HANDLE(_name) \
 class _name { \
 public: \
@@ -108,7 +110,111 @@ struct vertex_layout {
   std::vector<r_attrib_descriptor> descriptors;
 };
 
-using uniform_map = std::unordered_map<std::string, r_uniform>;
+class rp_alloc {
+private:
+  static r_allocator base_alloc;
+
+public:
+  template<typename T>
+  using adaptor_t = allocator_adaptor<T, rp_alloc>;
+
+public:
+  rp_alloc() noexcept :
+    _arena{nullptr, 0u},
+    _user_ptr{base_alloc.user_ptr},
+    _malloc{base_alloc.mem_alloc}, _free{base_alloc.mem_free} {}
+
+  rp_alloc(const r_allocator& user_alloc) noexcept :
+    _arena{nullptr, 0u},
+    _user_ptr{user_alloc.user_ptr},
+    _malloc{user_alloc.mem_alloc}, _free{user_alloc.mem_free} {}
+  
+public: 
+  void* allocate(size_t size, size_t alignment) {
+    return std::invoke(_malloc, _user_ptr, size, alignment);
+  }
+
+  void deallocate(void* mem, size_t) {
+    std::invoke(_free, _user_ptr, mem);
+  }
+
+  template<typename T>
+  T* allocate_uninited(size_t n = 1u) {
+    return static_cast<T*>(allocate(n*sizeof(T), alignof(T)));
+  }
+
+  template<typename T, typename... Args>
+  T* construct(Args&&... args) {
+    T* obj = static_cast<T*>(allocate(sizeof(T), alignof(T)));
+    if (!obj) {
+      return nullptr;
+    }
+    std::construct_at(obj, std::forward<Args>(args)...);
+    return obj;
+  }
+
+  template<typename T>
+  void destroy(T* obj) {
+    obj->~T();
+    deallocate(obj, 1u);
+  }
+
+public:
+  bool arena_init(size_t block_sz) {
+void* mem = allocate(block_sz, 0u);
+    if (!mem) {
+      return false;
+    }
+    _arena = {mem, block_sz};
+    return true;
+  }
+
+  void arena_destroy() {
+    deallocate(_arena.data(), _arena.capacity());
+  }
+
+  bool resize_arena(size_t block_sz) {
+    void* data = _arena.data();
+    size_t cap = _arena.capacity();
+    if (arena_init(block_sz)) {
+      deallocate(data, cap);
+      return true;
+    }
+    return false;
+  }
+
+  void arena_clear() {
+    _arena.clear();
+  }
+
+  void* arena_allocate(size_t size, size_t alignment) {
+    return _arena.allocate(size, alignment);
+  }
+
+  template<typename T, typename... Args>
+  T* arena_construct(Args&&... args) {
+    return _arena.construct<T>(std::forward<Args>(args)...);
+  }
+
+  template<typename T>
+  T* arena_allocate_uninited(size_t n = 1u) {
+    return _arena.allocate<T>(n);
+  }
+
+private:
+  arena_block_manager _arena;
+  void* _user_ptr;
+  void* (*_malloc)(void* user_ptr, size_t size, size_t alignment);
+  void  (*_free)(void* user_ptr, void* mem);
+};
+
+struct rp_uniform_query {
+  r_platform_uniform location;
+  std::string name;
+  r_attrib_type type;
+  size_t size;
+};
+using rp_uniform_query_vec = std::vector<rp_uniform_query, rp_alloc::adaptor_t<rp_uniform_query>>;
 
 struct rp_uniform_binding {
   r_platform_uniform location;
@@ -128,7 +234,7 @@ struct rp_buffer_binding {
   optional<uint32> location;
 };
 
-struct rp_draw_command {
+struct rp_draw_cmd {
   r_context ctx;
   r_platform_pipeline pipeline;
   span<rp_buffer_binding> buffers;
@@ -141,14 +247,17 @@ struct rp_draw_command {
   function_view<void(r_context)> on_render;
 };
 
-struct rp_draw_list {
-  color4 color;
+struct rp_fbo_frame_data {
+  color4 clear_color;
   uvec4 viewport;
-  r_clear_flag clear;
-  std::vector<rp_draw_command> cmds;
+  r_clear_flag clear_flags;
 };
 
-using rp_command_map = handle_map<r_platform_fbo, rp_draw_list>;
+struct rp_draw_data {
+  r_platform_fbo target;
+  weak_cref<rp_fbo_frame_data> fdata;
+  cspan<rp_draw_cmd> cmds;
+};
 
 struct rp_platform_meta {
   r_api api;
@@ -212,10 +321,11 @@ struct rp_shad_desc {
 };
 
 struct rp_pip_desc {
-  std::unique_ptr<vertex_layout> layout;
-  weak_ref<uniform_map> uniforms;
+  vertex_layout* layout;
+  weak_ref<rp_uniform_query_vec> uniforms;
 
   cspan<r_platform_shader> stages;
+  r_stages_flag stages_flags;
   r_primitive primitive;
   r_polygon_mode poly_mode;
 
@@ -273,7 +383,7 @@ struct r_platform_context {
   virtual r_platform_fbo create_framebuffer(const rp_fbo_desc& desc) = 0;
   virtual void destroy_framebuffer(r_platform_fbo fb) noexcept = 0;
 
-  virtual void submit(const rp_command_map& cmds) = 0;
+  virtual void submit(cspan<rp_draw_data> draw_data) = 0;
 
   virtual void device_wait() noexcept {}
   virtual void swap_buffers() = 0;

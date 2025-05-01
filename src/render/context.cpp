@@ -1,6 +1,35 @@
 #include "./internal/common.hpp"
 #include "./internal/opengl/context.hpp"
 
+#define DEF_NODE_OPS(_type, _list, ...) \
+void r_context_::insert_node(_type res) { \
+  NTF_ASSERT(res && res->ctx == this); \
+  res->next = _list; \
+  if (_list) { \
+    _list->prev = res; \
+  } \
+  _list = res; \
+  __VA_OPT__(++) __VA_ARGS__ \
+} \
+void r_context_::remove_node(_type res) { \
+  NTF_ASSERT(res && res->ctx == this); \
+  if (!res->prev) { \
+    NTF_ASSERT(res == _list); \
+    if (_list->next) { \
+      _list->next->prev = nullptr; \
+    } \
+    _list = _list->next; \
+  } else { \
+    if (res->next) { \
+      res->next->prev = res->prev; \
+    } \
+    res->prev->next = res->next; \
+  } \
+  res->next = nullptr; \
+  res->prev = nullptr; \
+  __VA_OPT__(--) __VA_ARGS__ \
+}
+
 namespace ntf {
 
 static constexpr size_t INITIAL_ARENA_PAGE = mibs(4u);
@@ -10,6 +39,20 @@ r_allocator rp_alloc::base_alloc {
   .mem_alloc = +[](void*, size_t sz, size_t) -> void* { return std::malloc(sz); },
   .mem_free = +[](void*, void* mem) -> void { std::free(mem); }
 };
+
+r_context_::r_context_(r_window win, r_api api_, rp_alloc&& alloc, r_platform_context& platform,
+                       extent2d fbo_ext, r_test_buffer fbo_tbuff,
+                       const rp_fbo_frame_data& fdata) noexcept :
+  _api{api_}, _win{win}, _platform{platform},
+  _default_fbo{this, fbo_ext, fbo_tbuff, fdata}, _alloc{std::move(alloc)},
+  _fbo_list_sz{1u} {}
+
+DEF_NODE_OPS(r_buffer, _buff_list);
+DEF_NODE_OPS(r_texture, _tex_list);
+DEF_NODE_OPS(r_framebuffer, _fbo_list, _fbo_list_sz;);
+DEF_NODE_OPS(r_shader, _shad_list);
+DEF_NODE_OPS(r_pipeline, _pip_list);
+
 
 static r_expected<r_platform_context*> load_platform_ctx(
   rp_alloc& alloc, r_api api, r_window win, uint32 swap_interval
@@ -77,17 +120,17 @@ r_expected<r_context> r_create_context(const r_context_params& params) {
       ctx = alloc.allocate_uninited<r_context_>();
       RET_ERROR_IF(!ctx, "Failed to allocate context");
 
-      rp_command_map map; // TODO: use the allocator for this thing
-      auto [it, emplaced] = map.try_emplace(DEFAULT_FBO_HANDLE);
-      NTF_ASSERT(emplaced);
-      it->second.color = params.fb_color;
-      it->second.viewport = params.fb_viewport;
-      it->second.clear = params.fb_clear;
+      const rp_fbo_frame_data fdata {
+        .clear_color = params.fb_color,
+        .viewport = params.fb_viewport,
+        .clear_flags = params.fb_clear,
+      };
+      extent2d fext{0, 0}; // TODO: Get this things from the platform context
+      r_test_buffer ftbuff{r_test_buffer::depth24u_stencil8u};
 
       std::construct_at(ctx,
-                        *renderer, std::move(map),
-                        params.window, params.renderer_api,
-                        std::move(alloc));
+                        params.window, params.renderer_api, std::move(alloc),
+                        *renderer, fext, ftbuff, fdata);
     }
 
     rp_platform_meta meta;
@@ -135,9 +178,9 @@ void r_start_frame(r_context ctx) {
     return;
   }
 
-  for (auto& [_, list] : ctx->draw_lists()) {
-    list.cmds.clear();
-  }
+  ctx->for_each_fbo([](r_framebuffer_& fbo) {
+    fbo.cmds.clear();
+  }); 
   ctx->alloc().arena_clear();
 
 #if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
@@ -163,9 +206,24 @@ void r_end_frame(r_context ctx) {
   if (!ctx) {
     return;
   }
+  auto& alloc = ctx->alloc();
 
-  // TODO: Sort the draw lists before submiting
-  ctx->renderer().submit(ctx->draw_lists());
+  const size_t fbo_count = ctx->fbo_count();
+  auto* draw_data = alloc.arena_allocate_uninited<rp_draw_data>(fbo_count);
+  size_t fbos_to_blit = 0u;
+  ctx->for_each_fbo([&](r_framebuffer_& fbo) {
+    if (fbo.cmds.empty()) {
+      return;
+    }
+    // TODO: Sort the draw commands before submiting here
+    std::construct_at(draw_data+fbos_to_blit,
+                      fbo.handle, fbo.fdata,
+                      cspan<rp_draw_cmd>{fbo.cmds.data(), fbo.cmds.size()});
+    ++fbos_to_blit;
+  });
+  if (fbos_to_blit) {
+    ctx->renderer().submit(cspan<rp_draw_data>{draw_data, fbos_to_blit});
+  }
 
 #if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
   ImGui::Render();
@@ -200,11 +258,9 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
   }
 
   auto& alloc = ctx->alloc();
-  auto it = ctx->draw_lists().find(cmd.target->handle);
-  NTF_ASSERT(it != ctx->draw_lists().end());
 
-  it->second.cmds.emplace_back(); // TODO: Use the allocator here too
-  auto& d_cmd = it->second.cmds.back();
+  cmd.target->cmds.emplace_back(); // TODO: Use the allocator here too
+  auto& d_cmd = cmd.target->cmds.back();
 
   d_cmd.ctx = ctx;
   d_cmd.pipeline = cmd.pipeline->handle;
