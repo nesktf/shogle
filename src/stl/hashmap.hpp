@@ -154,8 +154,15 @@ public:
 
     try {
       flags = alloc.allocate(flag_sz*sizeof(uint32));
-      std::memset(flags, 0, flag_sz*sizeof(uint32));
+      if (!flags) {
+        return unexpected{error<void>{"Failed to allocate flags"}};
+      }
       array = alloc.allocate(size*sizeof(value_type));
+      if (!array) {
+        alloc.deallocate(flags, flag_sz*sizeof(uint32));
+        return unexpected{error<void>{"Failed to allocate array"}};
+      }
+      std::memset(flags, 0, flag_sz*sizeof(uint32));
     } catch (const std::exception& ex) {
       alloc.deallocate(array, size*sizeof(value_type));
       alloc.deallocate(flags, flag_sz*sizeof(uint32));

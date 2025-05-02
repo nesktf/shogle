@@ -415,9 +415,8 @@ void r_destroy_pipeline(r_pipeline pip);
 
 r_stages_flag r_pipeline_get_stages(r_pipeline pip);
 optional<r_uniform> r_pipeline_get_uniform(r_pipeline pip, std::string_view name);
-r_uniform r_pipeline_get_uniform(unchecked_t, r_pipeline pip, std::string_view name);
 size_t r_pipeline_get_uniform_count(r_pipeline pip);
-void r_pipeline_get_all_uniforms(r_pipeline pip, span<r_uniform> target);
+span<r_uniform> r_pipeline_get_all_uniforms(r_pipeline pip);
 
 r_attrib_type r_uniform_get_type(r_uniform unif);
 std::string_view r_uniform_get_name(r_uniform unif);
@@ -448,7 +447,7 @@ enum class r_clear_flag : uint8 {
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(r_clear_flag);
 
 struct r_framebuffer_attachment {
-  r_texture handle;
+  r_texture texture;
   uint32 layer;
   uint32 level;
 };

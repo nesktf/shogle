@@ -107,7 +107,7 @@ enum class rp_test_buffer_flag : uint8 {
 struct vertex_layout {
   uint32 binding;
   size_t stride;
-  std::vector<r_attrib_descriptor> descriptors;
+  span<r_attrib_descriptor> descriptors;
 };
 
 class rp_alloc {
@@ -128,6 +128,10 @@ public:
     _arena{nullptr, 0u},
     _user_ptr{user_alloc.user_ptr},
     _malloc{user_alloc.mem_alloc}, _free{user_alloc.mem_free} {}
+
+public:
+  template<typename T>
+  adaptor_t<T> make_adaptor() { return {*this}; }
   
 public: 
   void* allocate(size_t size, size_t alignment) {
@@ -235,7 +239,6 @@ struct rp_buffer_binding {
 };
 
 struct rp_draw_cmd {
-  r_context ctx;
   r_platform_pipeline pipeline;
   span<rp_buffer_binding> buffers;
   span<rp_texture_binding> textures;
@@ -312,12 +315,11 @@ struct rp_tex_image_data {
 struct rp_tex_opts {
   r_texture_sampler sampler;
   r_texture_address addressing;
-  bool regen_mips;
 };
 
 struct rp_shad_desc {
   r_shader_type type;
-  cspan<std::string_view> source;
+  std::string_view source;
 };
 
 struct rp_pip_desc {
@@ -352,9 +354,9 @@ struct rp_fbo_att {
 
 struct rp_fbo_desc {
   extent2d extent;
-  uvec4 viewport;
   r_test_buffer test_buffer;
-  std::variant<cspan<rp_fbo_att>, r_texture_format> attachments;
+  cspan<rp_fbo_att> attachments;
+  optional<r_texture_format> color_buffer;
 };
 
 
@@ -369,7 +371,8 @@ struct r_platform_context {
   virtual void destroy_buffer(r_platform_buffer buf) noexcept = 0;
 
   virtual r_platform_texture create_texture(const rp_tex_desc& desc) = 0;
-  virtual void update_texture_image(r_platform_texture tex, const rp_tex_image_data& image) = 0;
+  virtual void upload_texture_images(r_platform_texture tex,
+                                     cspan<rp_tex_image_data> images, bool regen_mips) = 0;
   virtual void update_texture_options(r_platform_texture tex, const rp_tex_opts& opts) = 0;
   virtual void destroy_texture(r_platform_texture tex) noexcept = 0;
 

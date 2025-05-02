@@ -107,7 +107,7 @@ public:
 
   [[nodiscard]] program_t create_program(shader_t const* const* shaders, uint32 count,
                                          r_primitive primitive);
-  void query_program_uniforms(const program_t& program, uniform_map& unif);
+  void query_program_uniforms(const program_t& program, rp_uniform_query_vec& unif);
   void destroy_program(const program_t& program) noexcept;
   bool bind_program(GLuint id) noexcept;
   void push_uniform(uint32 loc, r_attrib_type type, const void* data) noexcept;

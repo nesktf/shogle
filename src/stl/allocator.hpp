@@ -58,8 +58,8 @@ using rebind_deleter_t = rebind_deleter<Deleter, T>::type;
 namespace impl {
 
 template<typename T, typename PoolT>
-struct mem_pool_alloc_store {
-  constexpr mem_pool_alloc_store(PoolT& pool) noexcept :
+struct alloc_adaptor_store {
+  constexpr alloc_adaptor_store(PoolT& pool) noexcept :
     _pool{&pool} {}
 
   constexpr T* _allocate(size_t n) {
@@ -71,16 +71,17 @@ struct mem_pool_alloc_store {
   }
 
   constexpr PoolT& _get_pool() noexcept { return *_pool; }
+  constexpr const PoolT& _get_pool() const noexcept { return *_pool; }
 
   PoolT* _pool;
 };
 
 template<typename T, typename PoolT>
 requires(std::is_empty_v<PoolT> && std::is_default_constructible_v<PoolT>)
-struct mem_pool_alloc_store<T, PoolT> : private PoolT {
-  constexpr mem_pool_alloc_store() noexcept {}
+struct alloc_adaptor_store<T, PoolT> : private PoolT {
+  constexpr alloc_adaptor_store() noexcept {}
 
-  constexpr mem_pool_alloc_store(PoolT&) noexcept :
+  constexpr alloc_adaptor_store(PoolT&) noexcept :
     PoolT{} {}
 
   constexpr T* _allocate(size_t n) {
@@ -92,12 +93,13 @@ struct mem_pool_alloc_store<T, PoolT> : private PoolT {
   }
 
   constexpr PoolT& _get_pool() { return static_cast<PoolT&>(*this); }
+  constexpr const PoolT& _get_pool() const noexcept { return static_cast<const PoolT&>(*this); }
 };
 
 } // namespace impl
 
 template<typename T, mem_pool_type PoolT>
-class allocator_adaptor : public impl::mem_pool_alloc_store<T, PoolT> {
+class allocator_adaptor : public impl::alloc_adaptor_store<T, PoolT> {
 public:
   using pool_type = PoolT;
   using value_type = T;
@@ -109,13 +111,13 @@ public:
   using rebind = allocator_adaptor<U, PoolT>;
 
 private:
-  using store_base = impl::mem_pool_alloc_store<T, PoolT>;
+  using store_base = impl::alloc_adaptor_store<T, PoolT>;
 
 public:
   constexpr allocator_adaptor() noexcept :
     store_base{} {}
 
-  constexpr explicit allocator_adaptor(PoolT& pool) noexcept :
+  constexpr allocator_adaptor(PoolT& pool) noexcept :
     store_base{pool} {}
 
   template<typename U>
@@ -133,6 +135,7 @@ public:
 
 public:
   constexpr PoolT& get_pool() { return store_base::_get_pool(); }
+  constexpr const PoolT& get_pool() const { return store_base::_get_pool(); }
 
 public:
   constexpr bool operator==(const allocator_adaptor& other) const noexcept {
@@ -149,7 +152,7 @@ public:
     } else {
       return !(*this == other);
     }
-}
+  }
 };
 
 template<typename T>

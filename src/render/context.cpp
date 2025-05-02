@@ -262,7 +262,6 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
   cmd.target->cmds.emplace_back(); // TODO: Use the allocator here too
   auto& d_cmd = cmd.target->cmds.back();
 
-  d_cmd.ctx = ctx;
   d_cmd.pipeline = cmd.pipeline->handle;
   d_cmd.count = cmd.draw_opts.count;
   d_cmd.offset = cmd.draw_opts.offset;

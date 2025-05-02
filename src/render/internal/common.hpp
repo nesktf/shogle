@@ -47,15 +47,7 @@ public:
 
 struct r_texture_ : public rp_res_node<r_texture_> {
 public:
-  r_texture_(r_context ctx_, r_platform_texture handle_, const rp_tex_desc& desc);
-    // :
-    // rp_res_node<r_texture_>{ctx_},
-    // handle{handle_},
-    // refcount{1},
-    // type{desc.type}, format{desc.format},
-    // extent{desc.extent},
-    // levels{desc.levels}, layers{desc.layers},
-    // addressing{desc.addressing}, sampler{desc.sampler} {}
+  r_texture_(r_context ctx_, r_platform_texture handle_, const rp_tex_desc& desc) noexcept;
 
 public:
   r_platform_texture handle;
@@ -67,43 +59,41 @@ public:
   uint32 layers;
   r_texture_address addressing;
   r_texture_sampler sampler;
+
+public:
+  NTF_DECLARE_NO_MOVE_NO_COPY(r_texture_);
 };
 
 struct r_buffer_ : public rp_res_node<r_buffer_> {
 public:
-  r_buffer_(r_context ctx_, r_platform_buffer handle_, const rp_buff_desc& desc);
-    // :
-    // rp_res_node<r_buffer_>{ctx_},
-    // handle{handle_},
-    // type{desc.type}, flags{desc.flags}, size{desc.size} {}
+  r_buffer_(r_context ctx_, r_platform_buffer handle_, const rp_buff_desc& desc) noexcept;
 
 public:
   r_platform_buffer handle;
   r_buffer_type type;
   r_buffer_flag flags;
   size_t size;
+
+public:
+  NTF_DECLARE_NO_MOVE_NO_COPY(r_buffer_);
 };
 
 struct r_shader_ : public rp_res_node<r_shader_> {
 public:
-  r_shader_(r_context ctx_, r_platform_shader handle_, const rp_shad_desc& desc);
-    // :
-    // rp_res_node<r_shader_>{ctx_},
-    // handle{handle_},
-    // type{desc.type} {}
+  r_shader_(r_context ctx_, r_platform_shader handle_, const rp_shad_desc& desc) noexcept;
 
 public:
   r_platform_shader handle;
   r_shader_type type;
+
+public:
+  NTF_DECLARE_NO_MOVE_NO_COPY(r_shader_);
 };
 
 struct r_uniform_ {
 public:
   r_uniform_(r_pipeline pip, r_platform_uniform location_,
-             std::string name_, r_attrib_type type_, size_t size_);
-    // :
-    // pipeline{pip}, location{location_},
-    // name{std::move(name_)}, type{type_}, size{size_} {}
+             std::string name_, r_attrib_type type_, size_t size_) noexcept;
 
 public:
   r_pipeline pipeline;
@@ -114,13 +104,14 @@ public:
 };
 
 struct r_pipeline_ : public rp_res_node<r_pipeline_> {
-  r_pipeline_(r_context ctx_, r_platform_pipeline handle_, const rp_pip_desc& desc) ;
-    // :
-    // rp_res_node<r_pipeline_>{ctx_},
-    // handle{handle_},
-    // stages{desc.stages_flags},
-    // primitive{desc.primitive}, poly_mode{desc.poly_mode},
-    // layout{desc.layout}, uniforms{std::move(*desc.uniforms)} {}
+public:
+  using uniform_map = fixed_hashmap<std::string, r_uniform_,
+                                    std::hash<std::string>, std::equal_to<std::string>,
+                                    allocator_delete<uint8, rp_alloc::adaptor_t<uint8>>>;
+public:
+  r_pipeline_(r_context ctx_, r_platform_pipeline handle_,
+              r_stages_flag stages_, r_primitive primitive_, r_polygon_mode poly_mode_,
+              vertex_layout* layout_, uniform_map&& uniforms_) noexcept;
 
 public:
   r_platform_pipeline handle;
@@ -128,7 +119,7 @@ public:
   r_primitive primitive;
   r_polygon_mode poly_mode;
   vertex_layout* layout;
-  fixed_hashmap<std::string, r_uniform_> uniforms;
+  uniform_map uniforms;
 
 public:
   NTF_DECLARE_NO_MOVE_NO_COPY(r_pipeline_);
@@ -146,35 +137,16 @@ public:
   r_framebuffer_(r_context ctx_, r_platform_fbo handle_,
                  extent2d extent_, r_test_buffer test_buffer_,
                  span<r_framebuffer_attachment> attachments_,
-                 const rp_fbo_frame_data& fdata_);
-    // :
-    // rp_res_node<r_framebuffer_>{ctx_},
-    // handle{handle_},
-    // extent{extent_},
-    // test_buffer{test_buffer_},
-    // attachments{attachments_}, att_state{ATT_TEX} {}
+                 const rp_fbo_frame_data& fdata_) noexcept;
 
   r_framebuffer_(r_context ctx_, r_platform_fbo handle_,
                  extent2d extent_, r_test_buffer test_buffer_,
                  r_texture_format color_buffer_,
-                 const rp_fbo_frame_data& fdata_);
-    // :
-    // rp_res_node<r_framebuffer_>{ctx_},
-    // handle{handle_},
-    // extent{extent_},
-    // test_buffer{test_buffer_},
-    // color_buffer{color_buffer_}, att_state{ATT_BUFF} {}
+                 const rp_fbo_frame_data& fdata_) noexcept;
 
   r_framebuffer_(r_context ctx_,
                  extent2d extent_, r_test_buffer test_buffer_,
-                 const rp_fbo_frame_data& f_data_);
-    // :
-    // rp_res_node<r_framebuffer_>{ctx_},
-    // handle{DEFAULT_FBO_HANDLE},
-    // extent{extent_},
-    // test_buffer{test_buffer_},
-    // _dummy{}, att_state{ATT_NONE},
-    // cmds{rp_alloc::adaptor_t<rp_draw_cmd>{ctx->alloc()}}{}
+                 const rp_fbo_frame_data& fdata_) noexcept;
 
 public:
   r_platform_fbo handle;
