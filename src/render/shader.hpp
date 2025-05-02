@@ -50,19 +50,8 @@ public:
       });
   }
 
-  static auto create(
-    unchecked_t,
-    r_context_view ctx, const r_shader_descriptor& desc
-  ) -> renderer_shader
-  {
-    return renderer_shader{r_create_shader(::ntf::unchecked, ctx.handle(), desc)};
-  }
-
 private:
   uptr_type _handle;
 };
-
-
-
 
 } // namespace ntf

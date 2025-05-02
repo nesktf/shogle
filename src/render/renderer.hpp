@@ -27,7 +27,7 @@ using r_expected = ::ntf::expected<T, r_error>;
 struct r_allocator {
   void* user_ptr;
   void* (*mem_alloc)(void* user_ptr, size_t size, size_t alignment);
-  void  (*mem_free)(void* user_ptr, void* mem);
+  void  (*mem_free)(void* user_ptr, void* mem, size_t size);
 };
 
 NTF_DECLARE_OPAQUE_HANDLE(r_texture);
@@ -127,17 +127,12 @@ struct r_texture_binding {
 };
 
 r_expected<r_texture> r_create_texture(r_context ctx, const r_texture_descriptor& desc);
-r_texture r_create_texture(unchecked_t, r_context ctx, const r_texture_descriptor& desc);
-void r_destroy_texture(r_texture tex);
+void r_destroy_texture(r_texture tex) noexcept;
 
 r_expected<void> r_texture_upload(r_texture tex, const r_texture_data& data);
-void r_texture_upload(unchecked_t, r_texture tex, const r_texture_data& data);
-r_expected<void> r_texture_upload(r_texture tex, cspan<r_image_data> images, bool gen_mips);
-void r_texture_upload(unchecked_t, r_texture tex, cspan<r_image_data> images, bool gen_mips);
-r_expected<void> r_texture_set_sampler(r_texture tex, r_texture_sampler sampler);
-void r_texture_set_sampler(unchecked_t, r_texture tex, r_texture_sampler sampler);
-r_expected<void> r_texture_set_addressing(r_texture tex, r_texture_address adressing);
-void r_texture_set_addressing(unchecked_t, r_texture tex, r_texture_address addressing);
+r_expected<void> r_texture_upload(r_texture tex, cspan<r_image_data> images, bool regen_mips);
+void r_texture_set_sampler(r_texture tex, r_texture_sampler sampler);
+void r_texture_set_addressing(r_texture tex, r_texture_address adressing);
 
 r_texture_type r_texture_get_type(r_texture tex);
 r_texture_format r_texture_get_format(r_texture tex);
@@ -189,13 +184,10 @@ struct r_buffer_binding {
 };
 
 r_expected<r_buffer> r_create_buffer(r_context ctx, const r_buffer_descriptor& desc);
-r_buffer r_create_buffer(unchecked_t, r_context ctx, const r_buffer_descriptor& desc);
-void r_destroy_buffer(r_buffer buffer);
+void r_destroy_buffer(r_buffer buffer) noexcept;
 
 r_expected<void> r_buffer_upload(r_buffer buff, size_t offset, size_t len, const void* data);
-void r_buffer_upload(unchecked_t, r_buffer buff, size_t offset, size_t len, const void* data);
 r_expected<void*> r_buffer_map(r_buffer buff, size_t offset, size_t len);
-void* r_buffer_map(unchecked_t, r_buffer buff, size_t offset, size_t len);
 void r_buffer_unmap(r_buffer buff, void* mapped);
 
 r_buffer_type r_buffer_get_type(r_buffer buff);
@@ -231,8 +223,7 @@ struct r_shader_descriptor {
 };
 
 r_expected<r_shader> r_create_shader(r_context ctx, const r_shader_descriptor& desc);
-r_shader r_create_shader(unchecked_t, r_context ctx, const r_shader_descriptor& desc);
-void r_destroy_shader(r_shader shader);
+void r_destroy_shader(r_shader shader) noexcept;
 
 r_shader_type r_shader_get_type(r_shader shader);
 r_context r_shader_get_ctx(r_shader shader);
@@ -410,8 +401,7 @@ struct r_push_constant {
 };
 
 r_expected<r_pipeline> r_create_pipeline(r_context ctx, const r_pipeline_descriptor& desc);
-r_pipeline r_create_pipeline(unchecked_t, r_context ctx, const r_pipeline_descriptor& desc);
-void r_destroy_pipeline(r_pipeline pip);
+void r_destroy_pipeline(r_pipeline pip) noexcept;
 
 r_stages_flag r_pipeline_get_stages(r_pipeline pip);
 optional<r_uniform> r_pipeline_get_uniform(r_pipeline pip, std::string_view name);
@@ -463,11 +453,7 @@ struct r_framebuffer_descriptor {
 
 r_expected<r_framebuffer> r_create_framebuffer(r_context ctx,
                                                const r_framebuffer_descriptor& desc);
-                                               
-r_framebuffer r_create_framebuffer(unchecked_t, r_context ctx,
-                                   const r_framebuffer_descriptor& desc);
-                                   
-void r_destroy_framebuffer(r_framebuffer fbo);
+void r_destroy_framebuffer(r_framebuffer fbo) noexcept;
 
 void r_framebuffer_set_clear(r_framebuffer fbo, r_clear_flag flags);
 void r_framebuffer_set_viewport(r_framebuffer fbo, const uvec4& vp);

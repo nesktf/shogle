@@ -1,6 +1,7 @@
 #pragma once
 
 #include "./vertex.hpp"
+#include "./buffer.hpp"
 
 namespace ntf {
 
@@ -15,9 +16,6 @@ private:
 public:
   r_expected<quad_mesh> static create(r_context_view ctx,
                                       bool inverted_uvs = false, bool dynamic_storage = false);
-
-  quad_mesh static create(unchecked_t u, r_context_view ctx,
-                          bool inverted_uvs = false, bool dynamic_storage = false);
 
 public:
   static constexpr size_t attr_stride() { return sizeof(pnt_vertex); }
@@ -52,7 +50,6 @@ private:
 
 public:
   r_expected<cube_mesh> static create(r_context_view ctx, bool dynamic_storage = false);
-  cube_mesh static create(unchecked_t, r_context_view ctx, bool dynamic_storage = false);
 
 public:
   static constexpr size_t attr_stride() { return sizeof(pnt_vertex); }

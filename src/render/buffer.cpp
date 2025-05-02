@@ -34,15 +34,12 @@ static r_expected<void> validate_desc(const r_buffer_descriptor& desc) {
 r_expected<r_buffer> r_create_buffer(r_context ctx, const r_buffer_descriptor& desc) {
   RET_ERROR_IF(!ctx, "Invalid context handle");
   auto& alloc = ctx->alloc();
+  try {
   return validate_desc(desc)
     .transform([&]() -> rp_buff_desc { return transform_desc(desc); })
     .and_then([&](rp_buff_desc&& buff_desc) -> r_expected<r_buffer> {
-      r_platform_buffer handle;
-      try {
-        handle = ctx->renderer().create_buffer(buff_desc);
-        RET_ERROR_IF(!handle, "Failed to create buffer");
-      }
-      RET_ERROR_CATCH("Failed to create buffer");
+      r_platform_buffer handle = ctx->renderer().create_buffer(buff_desc);
+      RET_ERROR_IF(!handle, "Failed to create buffer");
 
       auto* buff = alloc.allocate_uninited<r_buffer_>(1u);
       if (!buff) {
@@ -55,37 +52,10 @@ r_expected<r_buffer> r_create_buffer(r_context ctx, const r_buffer_descriptor& d
       NTF_ASSERT(buff->prev == nullptr);
       return buff;
     });
+  } RET_ERROR_CATCH("Failed to create buffer");
 }
 
-r_buffer r_create_buffer(unchecked_t, r_context ctx, const r_buffer_descriptor& desc) {
-  if (!ctx) {
-    return nullptr;
-    RENDER_ERROR_LOG("No ctx provided");
-  }
-  auto& alloc = ctx->alloc();
-
-  auto buff_desc = transform_desc(desc);
-  auto handle = ctx->renderer().create_buffer(buff_desc);
-  if (!handle) {
-    RENDER_ERROR_LOG("Failed to create buffer");
-    return nullptr;
-  }
-
-  auto* buff = alloc.allocate_uninited<r_buffer_>(1u);
-  if (!buff) {
-    RENDER_ERROR_LOG("Failed to allocate buffer");
-    ctx->renderer().destroy_buffer(handle);
-    return nullptr;
-  }
-  std::construct_at(buff,
-                    ctx, handle, buff_desc);
-  ctx->insert_node(buff);
-  NTF_ASSERT(buff->prev == nullptr);
-
-  return buff;
-}
-
-void r_destroy_buffer(r_buffer buffer) {
+void r_destroy_buffer(r_buffer buffer) noexcept {
   if (!buffer) {
     return;
   }
@@ -125,10 +95,6 @@ r_expected<void> r_buffer_upload(r_buffer buffer, size_t offset, size_t len, con
   return {};
 }
 
-void r_buffer_upload(unchecked_t, r_buffer buffer, size_t offset, size_t len, const void* data) {
-  upload_buffer_data(buffer, offset, len, data);
-}
-
 void* map_buffer(r_buffer buffer, size_t offset, size_t len) {
   NTF_ASSERT(buffer);
   rp_buff_mapping mapping;
@@ -155,10 +121,6 @@ r_expected<void*> r_buffer_map(r_buffer buffer, size_t offset, size_t len) {
   RET_ERROR_CATCH("Failed to map buffer");
 
   return ptr;
-}
-
-void* r_buffer_map(unchecked_t, r_buffer buffer, size_t offset, size_t len) {
-  return map_buffer(buffer, offset, len);
 }
 
 void r_buffer_unmap(r_buffer buffer, void* mapped) {

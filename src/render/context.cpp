@@ -32,19 +32,40 @@ void r_context_::remove_node(_type res) { \
 
 namespace ntf {
 
-static constexpr size_t INITIAL_ARENA_PAGE = mibs(4u);
+static constexpr size_t INITIAL_ARENA_PAGE = mibs(16u);
 
-r_allocator rp_alloc::base_alloc {
+static r_allocator base_alloc {
   .user_ptr = nullptr,
   .mem_alloc = +[](void*, size_t sz, size_t) -> void* { return std::malloc(sz); },
-  .mem_free = +[](void*, void* mem) -> void { std::free(mem); }
+  .mem_free  = +[](void*, void* mem, size_t) -> void { std::free(mem); }
 };
 
-r_context_::r_context_(r_window win, r_api api_, rp_alloc&& alloc, r_platform_context& platform,
+auto rp_alloc::make_alloc(weak_cref<r_allocator> alloc_in, size_t arena_size) -> uptr_t<rp_alloc> {
+  auto& alloc = alloc_in ? *alloc_in : base_alloc;
+  auto* ptr = static_cast<rp_alloc*>(std::invoke(alloc.mem_alloc, alloc.user_ptr,
+                                                 sizeof(rp_alloc), alignof(rp_alloc)));
+  if (ptr) {
+    std::construct_at(ptr, alloc);
+    if (!ptr->arena_init(arena_size)) {
+      RENDER_ERROR_LOG("Failed to init allocator arena ({} bytes)", arena_size);
+      std::destroy_at(ptr);
+      std::invoke(alloc.mem_free, alloc.user_ptr, ptr, sizeof(rp_alloc));
+      ptr = nullptr;
+    } else {
+      SHOGLE_LOG(verbose, "[ntf::r_context] Allocator inited with arena of {} bytes)", arena_size);
+    }
+  }
+  return uptr_t<rp_alloc>{ptr, alloc_del_t<rp_alloc>{alloc.user_ptr, alloc.mem_free}};
+}
+
+r_context_::r_context_(rp_alloc::uptr_t<rp_alloc>&& alloc,
+                       rp_alloc::uptr_t<rp_context>&& renderer,
+                       r_window win, r_api api_,
                        extent2d fbo_ext, r_test_buffer fbo_tbuff,
                        const rp_fbo_frame_data& fdata) noexcept :
-  _api{api_}, _win{win}, _platform{platform},
-  _default_fbo{this, fbo_ext, fbo_tbuff, fdata}, _alloc{std::move(alloc)},
+  _alloc{std::move(alloc)}, _renderer{std::move(renderer)},
+  _api{api_}, _win{win},
+  _default_fbo{this, fbo_ext, fbo_tbuff, fdata},
   _fbo_list_sz{1u} {}
 
 DEF_NODE_OPS(r_buffer, _buff_list);
@@ -53,12 +74,51 @@ DEF_NODE_OPS(r_framebuffer, _fbo_list, _fbo_list_sz;);
 DEF_NODE_OPS(r_shader, _shad_list);
 DEF_NODE_OPS(r_pipeline, _pip_list);
 
+auto r_context_::on_destroy() -> rp_alloc::uptr_t<rp_alloc> {
+  auto* pip = _pip_list;
+  while (pip) {
+    pip = pip->next;
+    _renderer->destroy_pipeline(pip->handle);
+    _alloc->destroy(pip);
+  }
 
-static r_expected<r_platform_context*> load_platform_ctx(
+  auto* fbo = _fbo_list;
+  while (fbo) {
+    fbo = fbo->next;
+    _renderer->destroy_framebuffer(fbo->handle);
+    _alloc->destroy(fbo);
+  }
+
+  auto* shad = _shad_list;
+  while (shad) {
+    shad = shad->next;
+    _renderer->destroy_shader(shad->handle);
+    _alloc->destroy(shad);
+  }
+
+  auto* tex = _tex_list;
+  while (tex) {
+    tex = tex->next;
+    _renderer->destroy_texture(tex->handle);
+    _alloc->destroy(tex);
+  }
+
+  auto* buff = _buff_list;
+  while (buff) {
+    buff = buff->next;
+    _renderer->destroy_buffer(buff->handle);
+    _alloc->destroy(buff);
+  }
+
+  return std::move(_alloc);
+}
+
+
+static r_expected<rp_alloc::uptr_t<rp_context>> load_platform_ctx(
   rp_alloc& alloc, r_api api, r_window win, uint32 swap_interval
 ) {
   RET_ERROR_IF(!win, "Invalid window handle");
-  r_platform_context* ctx;
+  rp_context* ctx = nullptr;
   try {
     switch (api) {
       case r_api::opengl: {
@@ -66,7 +126,7 @@ static r_expected<r_platform_context*> load_platform_ctx(
         SHOGLE_GL_SET_SWAP_INTERVAL(win, static_cast<int>(swap_interval));
         RET_ERROR_IF(!gladLoadGLLoader(SHOGLE_GL_LOAD_PROC),
                      "Failed to load GLAD");
-        ctx = alloc.construct<gl_context>(win, swap_interval);
+        ctx = alloc.construct<gl_context>(alloc, win, swap_interval);
         break;
       }
       default: {
@@ -74,9 +134,9 @@ static r_expected<r_platform_context*> load_platform_ctx(
         break;
       }
     }
-    NTF_ASSERT(ctx);
   }
   RET_ERROR_CATCH("Failed to load platform context");
+  RET_ERROR_IF(!ctx, "Failed to allocate platform context");
 
   // TODO: Let the user handle the imgui context
   //       (and move imgui platform calls to their respective place)
@@ -106,32 +166,29 @@ static r_expected<r_platform_context*> load_platform_ctx(
   }
 #endif
 
-  return ctx;
+  return alloc.wrap_unique(ctx);
 }
 
 r_expected<r_context> r_create_context(const r_context_params& params) {
-  auto alloc = params.alloc ? rp_alloc{*params.alloc} : rp_alloc{};
-  RET_ERROR_IF(!alloc.arena_init(INITIAL_ARENA_PAGE), "Failed to allocate scratch arena");
+  auto alloc = rp_alloc::make_alloc(params.alloc, INITIAL_ARENA_PAGE);
+  RET_ERROR_IF(!alloc, "Failed to create allocator");
 
-  return load_platform_ctx(alloc, params.renderer_api, params.window, params.swap_interval)
-  .and_then([&](auto&& renderer) -> r_expected<r_context> {
-    r_context ctx = nullptr;
-    {
-      ctx = alloc.allocate_uninited<r_context_>();
-      RET_ERROR_IF(!ctx, "Failed to allocate context");
+  return load_platform_ctx(*alloc, params.renderer_api, params.window, params.swap_interval)
+  .and_then([&](rp_alloc::uptr_t<rp_context>&& renderer) -> r_expected<r_context> {
+    r_context ctx = alloc->allocate_uninited<r_context_>();
+    RET_ERROR_IF(!ctx, "Failed to allocate context");
 
-      const rp_fbo_frame_data fdata {
-        .clear_color = params.fb_color,
-        .viewport = params.fb_viewport,
-        .clear_flags = params.fb_clear,
-      };
-      extent2d fext{0, 0}; // TODO: Get this things from the platform context
-      r_test_buffer ftbuff{r_test_buffer::depth24u_stencil8u};
+    const rp_fbo_frame_data fdata {
+      .clear_color = params.fb_color,
+      .viewport = params.fb_viewport,
+      .clear_flags = params.fb_clear,
+    };
+    extent2d fext{0, 0}; // TODO: Get this things from the platform context
+    r_test_buffer ftbuff{r_test_buffer::depth24u_stencil8u};
 
-      std::construct_at(ctx,
-                        params.window, params.renderer_api, std::move(alloc),
-                        *renderer, fext, ftbuff, fdata);
-    }
+    std::construct_at(ctx,
+                      std::move(alloc), std::move(renderer),
+                      params.window, params.renderer_api, fext, ftbuff, fdata);
 
     rp_platform_meta meta;
     ctx->renderer().get_meta(meta);
@@ -165,11 +222,9 @@ void r_destroy_context(r_context ctx) {
   ImGui::DestroyContext();
 #endif
 
-  auto alloc = std::move(ctx->alloc());
-  auto& renderer = ctx->renderer();
-  alloc.destroy(ctx);
-  alloc.destroy(&renderer);
-  alloc.arena_destroy();
+  auto alloc = ctx->on_destroy();
+  alloc->destroy(ctx);
+  alloc->arena_destroy();
   SHOGLE_LOG(debug, "[ntf::r_context][DESTROY]");
 }
 

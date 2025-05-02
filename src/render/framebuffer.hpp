@@ -71,14 +71,6 @@ public:
       });
   }
 
-  static auto create(
-    unchecked_t,
-    r_context_view ctx, const r_framebuffer_descriptor& desc
-  ) -> renderer_framebuffer
-  {
-    return renderer_framebuffer{r_create_framebuffer(::ntf::unchecked, ctx.handle(), desc)};
-  }
-
 private:
   uptr_type _handle;
 };

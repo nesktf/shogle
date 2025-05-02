@@ -95,51 +95,106 @@ SHOGLE_DECLARE_RENDER_HANDLE(r_platform_fbo);
 
 constexpr r_platform_fbo DEFAULT_FBO_HANDLE{r_handle_tombstone};
 
-template<typename K, typename T>
-using handle_map = std::unordered_map<K, T, r_handle_hash<K>>;
-
-enum class rp_test_buffer_flag : uint8 {
-  none = 0,
-  depth,
-  stencil,
-};
-
-struct vertex_layout {
-  uint32 binding;
-  size_t stride;
-  span<r_attrib_descriptor> descriptors;
-};
-
 class rp_alloc {
-private:
-  static r_allocator base_alloc;
-
 public:
+  using malloc_fun = void*(*)(void* user_ptr, size_t size, size_t alignment);
+  using mfree_fun  = void (*)(void* user_ptr, void* mem, size_t size);
+
+  template<typename T> 
+  struct alloc_del_t {
+    alloc_del_t(void* user_ptr, mfree_fun mfree) noexcept :
+      _uptr{user_ptr}, _free{mfree} {}
+
+    template<typename U = T>
+    requires(std::is_convertible_v<U*, T*>)
+    void operator()(U* ptr) noexcept(std::is_nothrow_destructible_v<T>) {
+      if constexpr (!std::is_trivially_destructible_v<T>) {
+        static_cast<T*>(ptr)>~T();
+      }
+      std::invoke(_free, _uptr, ptr, sizeof(T));
+    }
+
+    template<typename U = T>
+    requires(std::is_convertible_v<U*, T*>)
+    void operator()(U* ptr, size_t n) noexcept(std::is_nothrow_destructible_v<T>) {
+      if constexpr (!std::is_trivially_destructible_v<T>) {
+        for (U* it = ptr; it < ptr+n; ++it) {
+          static_cast<T*>(it)>~T();
+        }
+      }
+      std::invoke(_free, _uptr, ptr, n*sizeof(T));
+    }
+
+  private:
+    void* _uptr;
+    mfree_fun _free;
+  };
+
   template<typename T>
-  using adaptor_t = allocator_adaptor<T, rp_alloc>;
+  struct adaptor_t {
+    using value_type = T;
+    using pointer = T*;
+    using size_type = size_t;
+    using difference_type = ptrdiff_t;
+
+    template<typename U>
+    using rebind = adaptor_t<U>;
+
+    adaptor_t(rp_alloc& alloc) noexcept :
+      _alloc{&alloc} {}
+
+    template<typename U>
+    adaptor_t(const adaptor_t<U>& other) noexcept :
+      _alloc{other._alloc} {}
+
+    adaptor_t(const adaptor_t&) noexcept = default;
+    
+    pointer allocate(size_t n) {
+      T* ptr = _alloc->allocate_uninited<T>(n);
+      if (!ptr) {
+        throw std::bad_alloc{};
+      }
+      return ptr;
+    }
+
+    void deallocate(pointer ptr, size_t n) noexcept {
+      _alloc->deallocate(ptr, n*sizeof(T));
+    }
+
+    rp_alloc* _alloc;
+  };
+
+  template<typename T>
+  using uptr_t = std::unique_ptr<T, alloc_del_t<T>>;
+
+  template<typename T>
+  using uarray_t = unique_array<T, alloc_del_t<T>>;
+
+  template<typename T>
+  using vec_t = std::vector<T, adaptor_t<T>>;
+
+  template<typename T>
+  using deque_t = std::deque<T, adaptor_t<T>>;
+
+  template<typename T>
+  using queue_t = std::queue<T, deque_t<T>>;
 
 public:
-  rp_alloc() noexcept :
-    _arena{nullptr, 0u},
-    _user_ptr{base_alloc.user_ptr},
-    _malloc{base_alloc.mem_alloc}, _free{base_alloc.mem_free} {}
-
   rp_alloc(const r_allocator& user_alloc) noexcept :
     _arena{nullptr, 0u},
     _user_ptr{user_alloc.user_ptr},
     _malloc{user_alloc.mem_alloc}, _free{user_alloc.mem_free} {}
 
 public:
-  template<typename T>
-  adaptor_t<T> make_adaptor() { return {*this}; }
+  static uptr_t<rp_alloc> make_alloc(weak_cref<r_allocator> alloc, size_t arena_size);
   
 public: 
   void* allocate(size_t size, size_t alignment) {
     return std::invoke(_malloc, _user_ptr, size, alignment);
   }
 
-  void deallocate(void* mem, size_t) {
-    std::invoke(_free, _user_ptr, mem);
+  void deallocate(void* mem, size_t sz) {
+    std::invoke(_free, _user_ptr, mem, sz);
   }
 
   template<typename T>
@@ -160,12 +215,49 @@ public:
   template<typename T>
   void destroy(T* obj) {
     obj->~T();
-    deallocate(obj, 1u);
+    deallocate(obj, sizeof(T));
+  }
+
+public:
+  template<typename T>
+  adaptor_t<T> make_adaptor() noexcept { return adaptor_t<T>{*this}; }
+
+  template<typename T>
+  alloc_del_t<T> make_deleter() noexcept { return alloc_del_t<T>{_user_ptr, _free}; }
+
+  template<typename T>
+  uptr_t<T> wrap_unique(T* ptr) noexcept {
+    return uptr_t<T>{ptr, alloc_del_t<T>{_user_ptr, _free}};
+  }
+
+  template<typename T, typename... Args>
+  uptr_t<T> make_unique(Args&&... args) {
+    return uptr_t<T>{construct<T>(std::forward<Args>(args)...), alloc_del_t<T>{_user_ptr, _free}};
+  }
+
+  template<typename T>
+  uarray_t<T> wrap_array(T* ptr, size_t count) {
+    return uarray_t<T>{ptr, count, alloc_del_t<T>{_user_ptr, _free}};
+  }
+
+  template<typename T>
+  uarray_t<T> make_uninited_array(size_t count) {
+    T* ptr = allocate_uninited<T>(count);
+    return uarray_t<T>{ptr, ptr ? count : 0u, alloc_del_t<T>{_user_ptr, _free}};
+  }
+
+  template<typename T>
+  vec_t<T> make_vector(size_t reserve = 0u) {
+    vec_t<T> vec{make_adaptor<T>()};
+    if (reserve) {
+      vec.reserve(reserve);
+    }
+    return vec;
   }
 
 public:
   bool arena_init(size_t block_sz) {
-void* mem = allocate(block_sz, 0u);
+    void* mem = allocate(block_sz, 0u);
     if (!mem) {
       return false;
     }
@@ -205,11 +297,18 @@ void* mem = allocate(block_sz, 0u);
     return _arena.allocate<T>(n);
   }
 
+public:
+  template<typename T>
+  span<T> arena_span(size_t count) {
+    auto* ptr = arena_allocate_uninited<T>(count);
+    return span<T>{ptr, ptr ? count : 0u};
+  }
+
 private:
   arena_block_manager _arena;
   void* _user_ptr;
-  void* (*_malloc)(void* user_ptr, size_t size, size_t alignment);
-  void  (*_free)(void* user_ptr, void* mem);
+  malloc_fun _malloc;
+  mfree_fun _free;
 };
 
 struct rp_uniform_query {
@@ -218,7 +317,22 @@ struct rp_uniform_query {
   r_attrib_type type;
   size_t size;
 };
-using rp_uniform_query_vec = std::vector<rp_uniform_query, rp_alloc::adaptor_t<rp_uniform_query>>;
+using rp_uniform_query_vec = rp_alloc::vec_t<rp_uniform_query>;
+
+template<typename K, typename T>
+using handle_map = std::unordered_map<K, T, r_handle_hash<K>>;
+
+enum class rp_test_buffer_flag : uint8 {
+  none = 0,
+  depth,
+  stencil,
+};
+
+struct vertex_layout {
+  uint32 binding;
+  size_t stride;
+  rp_alloc::uarray_t<r_attrib_descriptor> descriptors;
+};
 
 struct rp_uniform_binding {
   r_platform_uniform location;
@@ -323,7 +437,7 @@ struct rp_shad_desc {
 };
 
 struct rp_pip_desc {
-  vertex_layout* layout;
+  rp_alloc::uptr_t<vertex_layout> layout;
   weak_ref<rp_uniform_query_vec> uniforms;
 
   cspan<r_platform_shader> stages;
@@ -360,8 +474,8 @@ struct rp_fbo_desc {
 };
 
 
-struct r_platform_context {
-  virtual ~r_platform_context() = default;
+struct rp_context {
+  virtual ~rp_context() = default;
   virtual void get_meta(rp_platform_meta& meta) = 0;
 
   virtual r_platform_buffer create_buffer(const rp_buff_desc& desc) = 0;

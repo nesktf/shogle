@@ -4,12 +4,13 @@
 
 namespace ntf {
 
-class gl_context final : public r_platform_context {
+class gl_context final : public rp_context {
 private:
   template<typename T, typename H>
   class res_container {
   public:
-    res_container() = default;
+    res_container(rp_alloc& alloc) noexcept :
+      _res(alloc.make_adaptor<T>()), _free(alloc.make_adaptor<r_handle_value>()) {}
 
   public:
     template<typename Fun>
@@ -51,12 +52,12 @@ private:
     }
 
   private:
-    std::vector<T> _res;
-    std::queue<r_handle_value> _free;
+    rp_alloc::vec_t<T> _res;
+    rp_alloc::queue_t<r_handle_value> _free;
   };
 
 public:
-  gl_context(r_window win, uint32 swap_interval) noexcept;
+  gl_context(rp_alloc& alloc, r_window win, uint32 swap_interval) noexcept;
 
 public:
   void get_meta(rp_platform_meta& meta) override;
@@ -68,7 +69,8 @@ public:
   void destroy_buffer(r_platform_buffer buff) noexcept override;
 
   r_platform_texture create_texture(const rp_tex_desc&) override;
-  void update_texture_image(r_platform_texture tex, const rp_tex_image_data& desc) override;
+  void upload_texture_images(r_platform_texture tex,
+                             cspan<rp_tex_image_data> images, bool regen_mips) override;
   void update_texture_options(r_platform_texture tex, const rp_tex_opts& otps) override;
   void destroy_texture(r_platform_texture tex) noexcept override;
 
@@ -90,6 +92,10 @@ private:
                                         GLsizei len, const GLchar* msg, const void* user_ptr);
 
 private:
+  rp_alloc& _alloc;
+  r_window _win;
+  uint32 _swap_interval;
+
   gl_state _state;
   gl_state::vao_t _vao;
 
@@ -98,9 +104,6 @@ private:
   res_container<gl_state::shader_t, r_platform_shader> _shaders;
   res_container<gl_state::program_t, r_platform_pipeline> _programs;
   res_container<gl_state::framebuffer_t, r_platform_fbo> _framebuffers;
-
-  r_window _win;
-  uint32 _swap_interval;
 
 public:
   NTF_DECLARE_NO_MOVE_NO_COPY(gl_context);

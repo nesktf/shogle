@@ -32,6 +32,13 @@
     return unexpected{r_error{"Unknown error"}}; \
   }
 
+#define RENDER_ERROR_LOG_CATCH(_msg) \
+  catch (const std::exception& ex) { \
+    RENDER_ERROR_LOG(_msg ": {}", ex.what()); \
+  } catch (...) { \
+    RENDER_ERROR_LOG(_msg ": Caught (...)"); \
+  }
+
 namespace ntf {
 
 template<typename T>
@@ -111,14 +118,15 @@ public:
 public:
   r_pipeline_(r_context ctx_, r_platform_pipeline handle_,
               r_stages_flag stages_, r_primitive primitive_, r_polygon_mode poly_mode_,
-              vertex_layout* layout_, uniform_map&& uniforms_) noexcept;
+              rp_alloc::uptr_t<vertex_layout>&& layout_,
+              uniform_map&& uniforms_) noexcept;
 
 public:
   r_platform_pipeline handle;
   r_stages_flag stages;
   r_primitive primitive;
   r_polygon_mode poly_mode;
-  vertex_layout* layout;
+  rp_alloc::uptr_t<vertex_layout> layout;
   uniform_map uniforms;
 
 public:
@@ -136,7 +144,7 @@ public:
 public:
   r_framebuffer_(r_context ctx_, r_platform_fbo handle_,
                  extent2d extent_, r_test_buffer test_buffer_,
-                 span<r_framebuffer_attachment> attachments_,
+                 rp_alloc::uarray_t<r_framebuffer_attachment>&& attachments_,
                  const rp_fbo_frame_data& fdata_) noexcept;
 
   r_framebuffer_(r_context ctx_, r_platform_fbo handle_,
@@ -153,12 +161,12 @@ public:
   extent2d extent;
   r_test_buffer test_buffer;
   union {
-    span<r_framebuffer_attachment> attachments;
+    rp_alloc::uarray_t<r_framebuffer_attachment> attachments;
     r_texture_format color_buffer;
     char _dummy;
   };
   attachment_state att_state;
-  std::vector<rp_draw_cmd, rp_alloc::adaptor_t<rp_draw_cmd>> cmds;
+  rp_alloc::vec_t<rp_draw_cmd> cmds;
   rp_fbo_frame_data fdata;
 
 public:
@@ -167,7 +175,9 @@ public:
 
 struct r_context_ {
 public:
-  r_context_(r_window win, r_api api_, rp_alloc&& alloc, r_platform_context& platform,
+  r_context_(rp_alloc::uptr_t<rp_alloc>&& alloc,
+             rp_alloc::uptr_t<rp_context>&& renderer,
+             r_window win, r_api api_,
              extent2d fbo_ext, r_test_buffer fbo_tbuff,
              const rp_fbo_frame_data& fdata) noexcept;
 
@@ -202,18 +212,22 @@ public:
   size_t fbo_count() const { return _fbo_list_sz; }
 
 public:
-  r_platform_context& renderer() { return _platform; }
-  rp_alloc& alloc() { return _alloc; }
+  rp_context& renderer() { return *_renderer; }
+  rp_alloc& alloc() { return *_alloc; }
   r_api api() const { return _api; }
   r_framebuffer_& default_fbo() { return _default_fbo;}
 
+public:
+  rp_alloc::uptr_t<rp_alloc> on_destroy();
+
 private:
+  rp_alloc::uptr_t<rp_alloc> _alloc;
+  rp_alloc::uptr_t<rp_context> _renderer;
+
   r_api _api;
   r_window _win;
-  r_platform_context& _platform;
 
   r_framebuffer_ _default_fbo;
-  rp_alloc _alloc;
 
   r_buffer_* _buff_list;
   r_texture_* _tex_list;

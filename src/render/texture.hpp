@@ -221,26 +221,14 @@ public:
   r_expected<void> upload(const r_texture_data& data) const {
     return r_texture_upload(_tex, data);
   }
-  void upload(unchecked_t, const r_texture_data& data) const {
-    r_texture_upload(::ntf::unchecked, _tex, data);
-  }
   r_expected<void> upload(cspan<r_image_data> images, bool gen_mips) const {
     return r_texture_upload(_tex, images, gen_mips);
   }
-  void upload(unchecked_t, cspan<r_image_data> images, bool gen_mips) const {
-    r_texture_upload(::ntf::unchecked, _tex, images, gen_mips);
+  void sampler(r_texture_sampler sampler) const {
+    r_texture_set_sampler(_tex, sampler);
   }
-  r_expected<void> sampler(r_texture_sampler sampler) const {
-    return r_texture_set_sampler(_tex, sampler);
-  }
-  void sampler(unchecked_t, r_texture_sampler sampler) const {
-    r_texture_set_sampler(::ntf::unchecked, _tex, sampler);
-  }
-  r_expected<void> addressing(r_texture_address addressing) const {
-    return r_texture_set_addressing(_tex, addressing);
-  }
-  void addressing(unchecked_t, r_texture_address addressing) const {
-    r_texture_set_addressing(::ntf::unchecked, _tex, addressing);
+  void addressing(r_texture_address addressing) const {
+    r_texture_set_addressing(_tex, addressing);
   }
 
 public:
@@ -303,14 +291,6 @@ public:
       .transform([](r_texture tex) -> renderer_texture {
         return renderer_texture{tex};
       });
-  }
-
-  static auto create(
-    unchecked_t,
-    r_context_view ctx, const r_texture_descriptor& desc
-  ) -> renderer_texture
-  {
-    return renderer_texture{r_create_texture(::ntf::unchecked, ctx.handle(), desc)};
   }
 
 private:

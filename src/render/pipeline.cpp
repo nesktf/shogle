@@ -9,16 +9,14 @@ r_uniform_::r_uniform_(r_pipeline pip, r_platform_uniform location_,
 
 r_pipeline_::r_pipeline_(r_context ctx_, r_platform_pipeline handle_,
                          r_stages_flag stages_, r_primitive primitive_, r_polygon_mode poly_mode_,
-                         vertex_layout* layout_, uniform_map&& uniforms_) noexcept :
+                         rp_alloc::uptr_t<vertex_layout>&& layout_,
+                         uniform_map&& uniforms_) noexcept :
   rp_res_node<r_pipeline_>{ctx_},
   handle{handle_},
   stages{stages_}, primitive{primitive_}, poly_mode{poly_mode_},
-  layout{layout_}, uniforms{std::move(uniforms_)} {}
+  layout{std::move(layout_)}, uniforms{std::move(uniforms_)} {}
 
-r_pipeline_::~r_pipeline_() noexcept {
-  ctx->alloc().destroy(layout->descriptors.data());
-  ctx->alloc().destroy(layout);
-}
+r_pipeline_::~r_pipeline_() noexcept {}
 
 static r_stages_flag parse_stages(cspan<r_shader> shaders) {
   r_stages_flag out = r_stages_flag::none;
@@ -53,42 +51,29 @@ static r_stages_flag parse_stages(cspan<r_shader> shaders) {
   return out;
 }
 
-// TODO: Make allocating things less ugly?
 static r_expected<rp_pip_desc> transform_desc(rp_alloc& alloc,
                                               weak_ref<rp_uniform_query_vec> unifs,
                                               const r_pipeline_descriptor& desc) {
-  auto* stages = alloc.arena_allocate_uninited<r_platform_shader>(desc.stages.size());
+  auto stages = alloc.arena_span<r_platform_shader>(desc.stages.size());
   RET_ERROR_IF(!stages, "Failed to allocate stage handles");
   for (size_t i = 0u; const auto& stage : desc.stages) {
     stages[i] = stage->handle;
   }
 
-  auto* layout = alloc.allocate_uninited<vertex_layout>(1u);
-  if (!layout) {
-    alloc.deallocate(stages, desc.stages.size_bytes());
-    RET_ERROR("Failed to allocate vertex layout");
+  auto descs = alloc.make_uninited_array<r_attrib_descriptor>(desc.attribs.size());
+  RET_ERROR_IF(!descs, "Failed to allocate layout descriptors");
+  for (size_t i = 0u; const auto& attrib : desc.attribs) {
+    std::construct_at(descs.get()+i, attrib);
   }
 
-  auto* descs = alloc.allocate_uninited<r_attrib_descriptor>(desc.attribs.size());
-  if (!descs) {
-    alloc.deallocate(stages, desc.stages.size_bytes());
-    alloc.deallocate(layout, sizeof(vertex_layout));
-    RET_ERROR("Failed to allocate layout descriptors");
-  }
-  layout->binding = desc.attrib_binding;
-  layout->stride = desc.attrib_stride;
-  layout->descriptors = {descs, desc.attribs.size()};
-  for (size_t i = 0u; const auto& attrib : desc.attribs) {
-    layout->descriptors[i].binding = attrib.binding;
-    layout->descriptors[i].type = attrib.type;
-    layout->descriptors[i].location = attrib.location;
-    layout->descriptors[i].offset = attrib.offset;
-  }
+  auto layout = alloc.make_unique<vertex_layout>(desc.attrib_binding, desc.attrib_stride,
+                                                 std::move(descs));
+  RET_ERROR_IF(!layout, "Failed to allocate vertex layout");
 
   return rp_pip_desc{
-    .layout = layout,
+    .layout = std::move(layout),
     .uniforms = unifs,
-    .stages = {stages, desc.stages.size()},
+    .stages = stages,
     .stages_flags = parse_stages(desc.stages),
     .primitive = desc.primitive,
     .poly_mode = desc.poly_mode,
@@ -102,13 +87,13 @@ static r_expected<rp_pip_desc> transform_desc(rp_alloc& alloc,
 static r_expected<r_pipeline_::uniform_map> copy_uniforms(rp_alloc& alloc, r_pipeline pip,
                                                           const rp_uniform_query_vec& unifs)
 {
-  auto map = r_pipeline_::uniform_map::from_size(unifs.size(), alloc.make_adaptor<uint8>());
-  if (map) {
+  return r_pipeline_::uniform_map::from_size(unifs.size(), alloc.make_adaptor<uint8>())
+  .transform([&](r_pipeline_::uniform_map&& map) -> r_pipeline_::uniform_map {
     for (const auto& unif : unifs) {
-      map->try_emplace(unif.name, pip, unif.location, unif.name, unif.type, unif.size);
+      map.try_emplace(unif.name, pip, unif.location, unif.name, unif.type, unif.size);
     }
-  }
-  return map;
+    return map;
+  });
 }
 
 r_expected<void> validate_desc(const r_pipeline_descriptor&) {
@@ -119,92 +104,39 @@ r_expected<r_pipeline> r_create_pipeline(r_context ctx, const r_pipeline_descrip
   RET_ERROR_IF(!ctx, "Invalid context handle");
 
   auto& alloc = ctx->alloc();
-  rp_uniform_query_vec unif_query{alloc.make_adaptor<rp_uniform_query>()};
+  auto unif_query = alloc.make_vector<rp_uniform_query>();
 
-  return validate_desc(desc)
-  .and_then([&]() -> r_expected<rp_pip_desc> { return transform_desc(alloc, unif_query, desc); })
-  .and_then([&](rp_pip_desc&& pip_desc) -> r_expected<r_pipeline> { 
-    r_platform_pipeline handle;
-    try {
-      handle = ctx->renderer().create_pipeline(pip_desc);
+  try {
+    return validate_desc(desc)
+    .and_then([&]() -> r_expected<rp_pip_desc> { return transform_desc(alloc, unif_query, desc); })
+    .and_then([&](rp_pip_desc&& pip_desc) -> r_expected<r_pipeline> { 
+      r_platform_pipeline handle = ctx->renderer().create_pipeline(pip_desc);
       RET_ERROR_IF(!handle, "Failed to create pipeline");
-    }
-    RET_ERROR_CATCH("Failed to create pipeline");
 
-    auto* pip = alloc.allocate_uninited<r_pipeline_>(1u);
-    if (!pip) {
-      ctx->renderer().destroy_pipeline(handle);
-      alloc.destroy(pip_desc.layout->descriptors.data());
-      alloc.destroy(pip_desc.layout);
-      RET_ERROR("Failed to allocate pipeline");
-    }
+      auto* pip = alloc.allocate_uninited<r_pipeline_>(1u);
+      if (!pip) {
+        ctx->renderer().destroy_pipeline(handle);
+        RET_ERROR("Failed to allocate pipeline");
+      }
 
-    auto unifs = copy_uniforms(alloc, pip, unif_query);
-    if (!unifs) {
-      alloc.deallocate(pip, sizeof(r_pipeline_));
-      ctx->renderer().destroy_pipeline(handle);
-      alloc.destroy(pip_desc.layout->descriptors.data());
-      alloc.destroy(pip_desc.layout);
-      RET_ERROR("Failed to allocate uniforms, {}", unifs.error().what());
-    }
-    std::construct_at(pip,
-                      ctx, handle, pip_desc.stages_flags, pip_desc.primitive, pip_desc.poly_mode,
-                      pip_desc.layout, std::move(*unifs));
-    ctx->insert_node(pip);
-    NTF_ASSERT(pip->prev == nullptr);
+      auto unifs = copy_uniforms(alloc, pip, unif_query);
+      if (!unifs) {
+        alloc.deallocate(pip, sizeof(r_pipeline_));
+        ctx->renderer().destroy_pipeline(handle);
+        RET_ERROR("Failed to allocate uniforms, {}", unifs.error().what());
+      }
+      std::construct_at(pip,
+                        ctx, handle, pip_desc.stages_flags, pip_desc.primitive, pip_desc.poly_mode,
+                        std::move(pip_desc.layout), std::move(*unifs));
+      ctx->insert_node(pip);
+      NTF_ASSERT(pip->prev == nullptr);
 
-    return pip;
-  });
+      return pip;
+    });
+  } RET_ERROR_CATCH("Failed to create pipeline");
 }
 
-r_pipeline r_create_pipeline(unchecked_t, r_context ctx, const r_pipeline_descriptor& desc) {
-  if (!ctx) {
-    RENDER_ERROR_LOG("Invalid ctx handle");
-    return nullptr;
-  }
-  auto& alloc = ctx->alloc();
-  rp_uniform_query_vec unif_query{alloc.make_adaptor<rp_uniform_query>()};
-  auto pip_desc = transform_desc(alloc, unif_query, desc);
-  if (!pip_desc) {
-    return nullptr;
-  }
-
-  auto handle = ctx->renderer().create_pipeline(*pip_desc);
-  if (!handle) {
-    alloc.destroy(pip_desc->layout->descriptors.data());
-    alloc.destroy(pip_desc->layout);
-    RENDER_ERROR_LOG("Failed to create pipeline");
-    return nullptr;
-  }
-
-  auto* pip = alloc.allocate_uninited<r_pipeline_>(1u);
-  if (!pip) {
-    ctx->renderer().destroy_pipeline(handle);
-    alloc.destroy(pip_desc->layout->descriptors.data());
-    alloc.destroy(pip_desc->layout);
-    RENDER_ERROR_LOG("Failed to allocate pipeline");
-    return nullptr;
-  }
-
-  auto unifs = copy_uniforms(alloc, pip, unif_query);
-  if (!unifs) {
-    alloc.deallocate(pip, sizeof(r_pipeline_));
-    ctx->renderer().destroy_pipeline(handle);
-    alloc.destroy(pip_desc->layout->descriptors.data());
-    alloc.destroy(pip_desc->layout);
-    RENDER_ERROR_LOG("Failed to allocate uniforms, {}", unifs.error().what());
-    return nullptr;
-  }
-  std::construct_at(pip,
-                    ctx, handle, pip_desc->stages_flags, pip_desc->primitive, pip_desc->poly_mode,
-                    pip_desc->layout, std::move(*unifs));
-  ctx->insert_node(pip);
-  NTF_ASSERT(pip->prev == nullptr);
-
-  return pip;
-}
-
-void r_destroy_pipeline(r_pipeline pip) {
+void r_destroy_pipeline(r_pipeline pip) noexcept {
   if (!pip) {
     return;
   }
@@ -241,15 +173,15 @@ size_t r_pipeline_get_uniform_count(r_pipeline pip) {
 }
 
 span<r_uniform> r_pipeline_get_all_uniforms(r_pipeline pip) {
-  auto&& alloc = pip->ctx->alloc();
-  auto* unifs = alloc.arena_allocate_uninited<r_uniform>(pip->uniforms.size());
+  auto& alloc = pip->ctx->alloc();
+  auto unifs = alloc.arena_span<r_uniform>(pip->uniforms.size());
   if (!unifs) {
     return {};
   }
   for (size_t i = 0u; auto& [_, unif] : pip->uniforms) {
     unifs[i] = &unif;
   }
-  return {unifs, pip->uniforms.size()};
+  return unifs;
 }
 
 r_attrib_type r_uniform_get_type(r_uniform unif) {

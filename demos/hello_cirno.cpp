@@ -28,7 +28,7 @@ static auto init_ctx() {
 
   auto ctx = ntf::renderer_context::create({
     .window = window->handle(),
-    .api = window->renderer(),
+    .renderer_api = window->renderer(),
     .swap_interval = 0,
     .fb_viewport = vp,
     .fb_clear = clear_flags,
@@ -93,8 +93,8 @@ int main() {
 
   auto [window, ctx] = init_ctx();
 
-  auto quad = ntf::quad_mesh::create(ntf::unchecked, ctx);
-  auto cube = ntf::cube_mesh::create(ntf::unchecked, ctx);
+  auto quad = ntf::quad_mesh::create(ctx).value();
+  auto cube = ntf::cube_mesh::create(ctx).value();
 
   ntf::text_buffer text_buffer;
   ntf::mat4 cam_proj_fnt = glm::ortho(0.f, 1280.f, 0.f, 720.f);
@@ -115,7 +115,7 @@ int main() {
   }
 
   auto cirno_img_data = cirno_img->make_descriptor();
-  auto tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
+  auto tex = ntf::renderer_texture::create(ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8nu,
     .extent = ntf::tex_extent_cast(cirno_img->extent),
@@ -125,10 +125,10 @@ int main() {
     .gen_mipmaps = true,
     .sampler = ntf::r_texture_sampler::nearest,
     .addressing = ntf::r_texture_address::repeat,
-  });
+  }).value();
 
   auto atlas_img_data = atlas_img->make_descriptor();
-  auto atlas_tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
+  auto atlas_tex = ntf::renderer_texture::create(ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgba8nu,
     .extent = ntf::tex_extent_cast(atlas_img->extent),
@@ -138,7 +138,7 @@ int main() {
     .gen_mipmaps = true,
     .sampler = ntf::r_texture_sampler::nearest,
     .addressing = ntf::r_texture_address::repeat,
-  });
+  }).value();
 
   ntf::r_buffer_data fumo_data[] {
     {
@@ -152,22 +152,21 @@ int main() {
       .offset = 0,
     }
   };
-  auto fumo_vbo = ntf::renderer_buffer::create(ntf::unchecked, ctx, {
+  auto fumo_vbo = ntf::renderer_buffer::create(ctx, {
     .type = ntf::r_buffer_type::vertex,
     .flags = ntf::r_buffer_flag::dynamic_storage,
     .size = fumo_mesh.vertices_size(),
     .data = &fumo_data[0],
-  });
-
-  auto fumo_ebo = ntf::renderer_buffer::create(ntf::unchecked, ctx, {
+  }).value();
+  auto fumo_ebo = ntf::renderer_buffer::create(ctx, {
     .type = ntf::r_buffer_type::index,
     .flags = ntf::r_buffer_flag::dynamic_storage,
     .size = fumo_mesh.indices_size(),
     .data = &fumo_data[1],
-  });
+  }).value();
 
   auto fumo_img_data = fumo_diffuse->make_descriptor();
-  auto fumo_tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
+  auto fumo_tex = ntf::renderer_texture::create(ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8nu,
     .extent = ntf::tex_extent_cast(fumo_diffuse->extent),
@@ -177,24 +176,24 @@ int main() {
     .gen_mipmaps = true,
     .sampler = ntf::r_texture_sampler::linear,
     .addressing = ntf::r_texture_address::repeat,
-  });
+  }).value();
 
-  auto vertex = ntf::renderer_shader::create(ntf::unchecked, ctx, {
+  auto vertex = ntf::renderer_shader::create(ctx, {
     .type = ntf::r_shader_type::vertex,
     .source = {vert_src},
-  });
-  auto fragment_color = ntf::renderer_shader::create(ntf::unchecked, ctx, {
+  }).value();
+  auto fragment_color = ntf::renderer_shader::create(ctx, {
     .type = ntf::r_shader_type::fragment,
     .source = {frag_col_src},
-  });
-  auto fragment_tex = ntf::renderer_shader::create(ntf::unchecked, ctx, {
+  }).value();
+  auto fragment_tex = ntf::renderer_shader::create(ctx, {
     .type = ntf::r_shader_type::fragment,
     .source = {frag_tex_src},
-  });
-  auto vertex_atlas = ntf::renderer_shader::create(ntf::unchecked, ctx, {
+  }).value();
+  auto vertex_atlas = ntf::renderer_shader::create(ctx, {
     .type = ntf::r_shader_type::vertex,
     .source = {vert_atl_src},
-  });
+  }).value();
 
   auto load_pipeline = [&](ntf::r_shader vert, ntf::r_shader frag) {
     const auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
@@ -213,7 +212,7 @@ int main() {
       .dynamic = false,
     };
 
-    return ntf::renderer_pipeline::create(ntf::unchecked, ctx, {
+    return ntf::renderer_pipeline::create(ctx, {
       .attrib_binding = 0u,
       .attrib_stride = sizeof(ntf::pnt_vertex),
       .attribs = attr_desc,
@@ -225,13 +224,13 @@ int main() {
       .scissor_test = nullptr,
       .face_culling = nullptr,
       .blending = blending_opts,
-    });
+    }).value();
   };
   auto pipe_col = load_pipeline(vertex.handle(), fragment_color.handle());
   auto pipe_tex = load_pipeline(vertex.handle(), fragment_tex.handle());
   auto pipe_atl = load_pipeline(vertex_atlas.handle(), fragment_tex.handle());
 
-  auto fb_tex = ntf::renderer_texture::create(ntf::unchecked, ctx, {
+  auto fb_tex = ntf::renderer_texture::create(ctx, {
     .type = ntf::r_texture_type::texture2d,
     .format = ntf::r_texture_format::rgb8nu,
     .extent = ntf::uvec3{1280, 720, 0},
@@ -241,39 +240,39 @@ int main() {
     .gen_mipmaps = false,
     .sampler = ntf::r_texture_sampler::nearest,
     .addressing = ntf::r_texture_address::repeat,
-  });
+  }).value();
 
   const ntf::r_framebuffer_attachment fb_att {
-    .handle = fb_tex.handle(),
+    .texture = fb_tex.handle(),
     .layer = 0,
     .level = 0,
   };
-  auto fbo = ntf::renderer_framebuffer::create(ntf::unchecked, ctx, {
+  auto fbo = ntf::renderer_framebuffer::create(ctx, {
     .extent = {1280, 720},
     .viewport = {0, 0, 1280, 720},
     .clear_color = {1.f, 0.f, 0.f, 1.f},
     .clear_flags = ntf::r_clear_flag::color_depth,
     .test_buffer = ntf::r_test_buffer::depth24u_stencil8u,
     .attachments = ntf::cspan<ntf::r_framebuffer_attachment>{fb_att},
-  });
+  }).value();
 
-  auto u_col_model = pipe_col.uniform(ntf::unchecked, "model");
-  auto u_col_proj = pipe_col.uniform(ntf::unchecked, "proj");
-  auto u_col_view = pipe_col.uniform(ntf::unchecked, "view");
-  auto u_col_color = pipe_col.uniform(ntf::unchecked, "color");
+  auto u_col_model = pipe_col.uniform("model").value();
+  auto u_col_proj = pipe_col.uniform("proj").value();
+  auto u_col_view = pipe_col.uniform("view").value();
+  auto u_col_color = pipe_col.uniform("color").value();
 
-  auto u_tex_model = pipe_tex.uniform(ntf::unchecked, "model");
-  auto u_tex_proj = pipe_tex.uniform(ntf::unchecked, "proj");
-  auto u_tex_view = pipe_tex.uniform(ntf::unchecked, "view");
-  auto u_tex_color = pipe_tex.uniform(ntf::unchecked, "color");
-  auto u_tex_sampler = pipe_tex.uniform(ntf::unchecked, "sampler0");
+  auto u_tex_model = pipe_tex.uniform("model").value();
+  auto u_tex_proj = pipe_tex.uniform("proj").value();
+  auto u_tex_view = pipe_tex.uniform("view").value();
+  auto u_tex_color = pipe_tex.uniform("color").value();
+  auto u_tex_sampler = pipe_tex.uniform("sampler0").value();
 
-  auto u_atl_model = pipe_atl.uniform(ntf::unchecked, "model");
-  auto u_atl_proj = pipe_atl.uniform(ntf::unchecked, "proj");
-  auto u_atl_view = pipe_atl.uniform(ntf::unchecked, "view");
-  auto u_atl_offset = pipe_atl.uniform(ntf::unchecked, "offset");
-  auto u_atl_color = pipe_atl.uniform(ntf::unchecked, "color");
-  auto u_atl_sampler = pipe_atl.uniform(ntf::unchecked, "sampler0");
+  auto u_atl_model = pipe_atl.uniform("model").value();
+  auto u_atl_proj = pipe_atl.uniform("proj").value();
+  auto u_atl_view = pipe_atl.uniform("view").value();
+  auto u_atl_offset = pipe_atl.uniform("offset").value();
+  auto u_atl_color = pipe_atl.uniform("color").value();
+  auto u_atl_sampler = pipe_atl.uniform("sampler0").value();
 
   ntf::float32 fb_ratio = 1280.f/720.f;
   auto transf_cube = ntf::transform3d<ntf::float32>{}
@@ -319,27 +318,28 @@ int main() {
 
   bool do_things = true;
 
-  window.key_event([&](ntf::renderer_window& win,
-                       ntf::win_keycode code, auto, ntf::win_keystate state, auto) {
+  window.set_key_press_callback([&](ntf::renderer_window& win, const ntf::win_key_data& key_data) {
     const float ts = 4.f;
-    if (state == ntf::win_keystate::press) {
-      if (code == ntf::win_keycode::key_escape) {
+    if (key_data.action == ntf::win_action::press) {
+      if (key_data.key == ntf::win_key::escape) {
         win.close();
       }
-      if (code == ntf::win_keycode::key_space) {
+      if (key_data.key == ntf::win_key::space) {
         do_things = !do_things;
       }
 
-      if (code == ntf::win_keycode::key_left) {
+      if (key_data.key == ntf::win_key::left) {
         t -= ts/static_cast<float>(ups);
-      } else if (code == ntf::win_keycode::key_right) {
+      } else if (key_data.key == ntf::win_key::right) {
         t += ts/static_cast<float>(ups);
       }
     }
   });
 
   const auto default_fbo = ntf::renderer_framebuffer::default_fbo(ctx);
-  window.viewport_event([&](auto&, ntf::uint32 w, ntf::uint32 h) {
+  window.set_viewport_callback([&](auto&, const ntf::extent2d& extent) {
+    ntf::uint32 w = extent.x;
+    ntf::uint32 h = extent.y;
     default_fbo.viewport(ntf::uvec4{0, 0, w, h});
     fb_ratio = static_cast<ntf::float32>(w)/static_cast<ntf::float32>(h);
     cam_proj_fumo = glm::perspective(glm::radians(45.f), fb_ratio, .1f, 100.f);

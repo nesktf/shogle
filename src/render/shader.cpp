@@ -51,6 +51,7 @@ static r_expected<void> validate_desc(const r_shader_descriptor& desc) {
 
 r_expected<r_shader> r_create_shader(r_context ctx, const r_shader_descriptor& desc) {
   RET_ERROR_IF(!ctx, "Invalid context handle");
+  try {
   auto& alloc = ctx->alloc();
   return validate_desc(desc)
     .and_then([&]() -> r_expected<rp_shad_desc> {
@@ -59,12 +60,8 @@ r_expected<r_shader> r_create_shader(r_context ctx, const r_shader_descriptor& d
       return rp_shad_desc{.type = desc.type, .source = src};
     })
     .and_then([&](rp_shad_desc&& shad_desc) -> r_expected<r_shader> {
-      r_platform_shader handle;
-      try {
-        handle = ctx->renderer().create_shader(shad_desc);
-        RET_ERROR_IF(!handle, "Failed to create shader");
-      }
-      RET_ERROR_CATCH("Failed to create shader");
+      r_platform_shader handle = ctx->renderer().create_shader(shad_desc);
+      RET_ERROR_IF(!handle, "Failed to create shader");
 
       auto* shad = alloc.allocate_uninited<r_shader_>(1u);
       if (!shad) {
@@ -77,40 +74,10 @@ r_expected<r_shader> r_create_shader(r_context ctx, const r_shader_descriptor& d
       NTF_ASSERT(shad->prev == nullptr);
       return shad;
     });
+  } RET_ERROR_CATCH("Failed to create shader");
 }
 
-r_shader r_create_shader(unchecked_t, r_context ctx, const r_shader_descriptor& desc) {
-  if (!ctx) {
-    RENDER_ERROR_LOG("Invalid ctx");
-    return nullptr;
-  }
-  auto& alloc = ctx->alloc();
-
-  const rp_shad_desc shad_desc {
-    .type = desc.type,
-    .source = concatenate_sources(alloc, desc.source)
-  };
-  auto handle = ctx->renderer().create_shader(shad_desc);
-  if (!handle) {
-    RENDER_ERROR_LOG("Failed to create shader");
-    return nullptr;
-  }
-
-  auto* shad = alloc.allocate_uninited<r_shader_>(1u);
-  if (!shad) {
-    RENDER_ERROR_LOG("Failed to allocate shader");
-    ctx->renderer().destroy_shader(handle);
-    return nullptr;
-  }
-  std::construct_at(shad,
-                    ctx, handle, shad_desc);
-  ctx->insert_node(shad);
-  NTF_ASSERT(shad->prev == nullptr);
-
-  return shad;
-}
-
-void r_destroy_shader(r_shader shader) {
+void r_destroy_shader(r_shader shader) noexcept {
   if (!shader) {
     return;
   }

@@ -19,9 +19,6 @@ public:
   optional<r_uniform> uniform(std::string_view name) const {
     return r_pipeline_get_uniform(_pip, name);
   }
-  r_uniform uniform(unchecked_t, std::string_view name) const {
-    return r_pipeline_get_uniform(::ntf::unchecked, _pip, name);
-  }
 
 protected:
   r_pipeline _pip;
@@ -50,14 +47,6 @@ public:
       .transform([](r_pipeline pip) -> renderer_pipeline {
         return renderer_pipeline{pip};
       });
-  }
-
-  static auto create(
-    unchecked_t,
-    r_context_view ctx, const r_pipeline_descriptor& desc
-  ) -> renderer_pipeline
-  {
-    return renderer_pipeline{r_create_pipeline(::ntf::unchecked, ctx.handle(), desc)};
   }
 
 private:

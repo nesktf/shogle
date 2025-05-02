@@ -132,15 +132,12 @@ static r_expected<void> validate_desc(r_context ctx, const r_texture_descriptor&
 r_expected<r_texture> r_create_texture(r_context ctx, const r_texture_descriptor& desc) {
   RET_ERROR_IF(!ctx, "Invalid context handle");
   auto& alloc = ctx->alloc();
+  try {
   return validate_desc(ctx, desc)
     .transform([&]() -> rp_tex_desc { return transform_desc(desc); })
     .and_then([&](rp_tex_desc&& tex_desc)-> r_expected<r_texture> {
-      r_platform_texture handle;
-      try {
-        handle = ctx->renderer().create_texture(tex_desc);
-        RET_ERROR_IF(!handle, "Failed to create texture handle");
-      } 
-      RET_ERROR_CATCH("Failed to create texture handle");
+      r_platform_texture handle = ctx->renderer().create_texture(tex_desc);
+      RET_ERROR_IF(!handle, "Failed to create texture handle");
 
       auto* tex = alloc.allocate_uninited<r_texture_>(1u);
       if (!tex) {
@@ -154,41 +151,19 @@ r_expected<r_texture> r_create_texture(r_context ctx, const r_texture_descriptor
 
       return tex;
     });
+  } RET_ERROR_CATCH("Failed to create texture");
 }
 
-r_texture r_create_texture(unchecked_t, r_context ctx, const r_texture_descriptor& desc) {
-  if (!ctx) {
-    RENDER_ERROR_LOG("Invalid ctx handle");
-    return nullptr;
-  }
-  auto& alloc = ctx->alloc();
-
-  auto tex_desc = transform_desc(desc);
-  auto handle = ctx->renderer().create_texture(tex_desc);
-  if (!handle) {
-    RENDER_ERROR_LOG("Failed to create texture");
-    return nullptr;
-  }
-
-  auto* tex = alloc.allocate_uninited<r_texture_>(1u);
-  if (!tex) {
-    RENDER_ERROR_LOG("Failed to allocate texture");
-    ctx->renderer().destroy_texture(handle);
-    return nullptr;
-  }
-  std::construct_at(tex,
-                    ctx, handle, tex_desc);
-  ctx->insert_node(tex);
-  NTF_ASSERT(tex->prev == nullptr);
-  return tex;
-}
-
-void r_destroy_texture(r_texture tex) {
+void r_destroy_texture(r_texture tex) noexcept {
   if (!tex) {
     return;
   }
   const auto handle = tex->handle;
   auto* ctx = tex->ctx;
+
+  if (--tex->refcount > 0) {
+    return;
+  }
 
   ctx->remove_node(tex);
   ctx->renderer().destroy_texture(handle);
@@ -256,20 +231,14 @@ r_expected<void> r_texture_upload(r_texture tex, const r_texture_data& data) {
   return {};
 }
 
-void r_texture_upload(unchecked_t, r_texture tex, const r_texture_data& data) {
-  NTF_ASSERT(tex);
-  update_texture_images(tex, data.images, data.gen_mipmaps);
-  update_texture_opts(tex, data.sampler, data.addressing);
-}
-
 r_expected<void> r_texture_upload(r_texture tex,
-                                  cspan<r_image_data> images, bool gen_mips) {
+                                  cspan<r_image_data> images, bool regen_mips) {
   RET_ERROR_IF(!tex, "Invalid handle");
   try {
-  return validate_images(images, tex->extent,
-                         tex->layers, tex->levels, tex->type)
+    return validate_images(images, tex->extent,
+                           tex->layers, tex->levels, tex->type)
     .and_then([&]() -> r_expected<void> {
-      RET_ERROR_IF(!update_texture_images(tex, images, gen_mips),
+      RET_ERROR_IF(!update_texture_images(tex, images, regen_mips),
                    "Failed to allocate image descriptors");
       return {};
     });
@@ -279,38 +248,26 @@ r_expected<void> r_texture_upload(r_texture tex,
   return {};
 }
 
-void r_texture_upload(unchecked_t, r_texture tex,
-                      cspan<r_image_data> images, bool gen_mips) {
-  NTF_ASSERT(tex);
-  update_texture_images(tex, images, gen_mips);
-}
-
-r_expected<void> r_texture_set_sampler(r_texture tex, r_texture_sampler sampler) {
-  RET_ERROR_IF(!tex, "Invalid handle");
+void r_texture_set_sampler(r_texture tex, r_texture_sampler sampler) {
+  if (!tex) {
+    RENDER_ERROR_LOG("Invalid texture handle");
+    return;
+  }
   try {
     update_texture_opts(tex, sampler, nullopt);
   }
-  RET_ERROR_CATCH("Failed to update sampler");
-  return {};
+  RENDER_ERROR_LOG_CATCH("Failed to update sampler");
 }
 
-void r_texture_set_sampler(unchecked_t, r_texture tex, r_texture_sampler sampler) {
-  NTF_ASSERT(tex);
-  update_texture_opts(tex, sampler, nullopt);
-}
-
-r_expected<void> r_texture_set_addressing(r_texture tex, r_texture_address addressing) {
-  RET_ERROR_IF(!tex, "Invalid handle");
+void r_texture_set_addressing(r_texture tex, r_texture_address addressing) {
+  if (!tex) {
+    RENDER_ERROR_LOG("Invalid texture handle");
+    return;
+  }
   try {
     update_texture_opts(tex, nullopt, addressing);
   }
-  RET_ERROR_CATCH("Failed to update addressing");
-  return {};
-}
-
-void r_texture_set_addressing(unchecked_t, r_texture tex, r_texture_address addressing) {
-  NTF_ASSERT(tex);
-  update_texture_opts(tex, nullopt, addressing);
+  RENDER_ERROR_LOG_CATCH("Failed to upadte addressing");
 }
 
 r_texture_type r_texture_get_type(r_texture tex) {
