@@ -187,7 +187,7 @@ public:
     for (size_t i = 0; i < capacity(); ++i, idx = (idx+1)%capacity()) {
       if (_flag_at(idx) != FLAG_USED) {
         std::construct_at(_values+idx,
-                          std::make_pair(std::forward<Key>(key), std::forward<Args>(args)...));
+                          std::make_pair(std::forward<Key>(key), T{std::forward<Args>(args)...}));
         ++_used;
         _flag_set(idx, FLAG_USED);
         return std::make_pair(iterator{this, idx}, true);

@@ -10,35 +10,35 @@ static r_window win_cast(GLFWwindow* win) { return reinterpret_cast<r_window>(wi
 
 struct renderer_window::callback_handler_t {
 #if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
-  static void fb_callback(GLFWwindow* handle, int w, int h) {
+  static void fb_size_callback(GLFWwindow* handle, int w, int h) {
     auto* ptr = glfwGetWindowUserPointer(handle);
     NTF_ASSERT(ptr);
     auto& win = *static_cast<renderer_window*>(ptr);
-    if (win._vp_event) {
-      win._vp_event(win, {w, h});
+    if (win._callbacks.viewport) {
+      std::invoke(win._callbacks.viewport, win, extent2d{w, h});
     }
   }
 
-  static void key_callback(GLFWwindow* handle, int code, int scan, int state, int mod) {
+  static void key_callback(GLFWwindow* handle, int key, int scancode, int action, int mod) {
     auto* ptr = glfwGetWindowUserPointer(handle);
     NTF_ASSERT(ptr);
     auto& win = *static_cast<renderer_window*>(ptr);
-    if (win._key_event) {
-      win._key_event(win,{
-        static_cast<win_keycode>(code),
-        static_cast<win_scancode>(scan),
-        static_cast<win_keystate>(state),
-        static_cast<win_keymod>(mod)
+    if (win._callbacks.keypress) {
+      std::invoke(win._callbacks.keypress, win, win_key_data{
+        .key = static_cast<win_key>(key),
+        .scancode = static_cast<win_keyscancode>(scancode),
+        .action = static_cast<win_action>(action),
+        .mod = static_cast<win_keymod>(mod)
       });
     }
   }
 
-  static void cursor_callback(GLFWwindow* handle, double xpos, double ypos) {
+  static void cursor_pos_callback(GLFWwindow* handle, double xpos, double ypos) {
     auto* ptr = glfwGetWindowUserPointer(handle);
     NTF_ASSERT(ptr);
     auto& win = *static_cast<renderer_window*>(ptr);
-    if (win._cur_event) {
-      win._cur_event(win, {xpos, ypos});
+    if (win._callbacks.cursorpos) {
+      std::invoke(win._callbacks.cursorpos, win, dvec2{xpos, ypos});
     }
   }
 
@@ -46,8 +46,39 @@ struct renderer_window::callback_handler_t {
     auto* ptr = glfwGetWindowUserPointer(handle);
     NTF_ASSERT(ptr);
     auto& win = *static_cast<renderer_window*>(ptr);
-    if (win._scl_event) {
-      win._scl_event(win, {xoff, yoff});
+    if (win._callbacks.scroll) {
+      std::invoke(win._callbacks.scroll, win, dvec2{xoff, yoff});
+    }
+  }
+
+  static void cursor_enter_callback(GLFWwindow* handle, int enters) {
+    auto* ptr = glfwGetWindowUserPointer(handle);
+    NTF_ASSERT(ptr);
+    auto& win = *static_cast<renderer_window*>(ptr);
+    if (win._callbacks.cursorenter) {
+      std::invoke(win._callbacks.cursorenter, win, static_cast<bool>(enters));
+    }
+  }
+
+  static void char_callback(GLFWwindow* handle, uint32 codepoint) {
+    auto* ptr = glfwGetWindowUserPointer(handle);
+    NTF_ASSERT(ptr);
+    auto& win = *static_cast<renderer_window*>(ptr);
+    if (win._callbacks.char_input) {
+      std::invoke(win._callbacks.cursorenter, win, codepoint);
+    }
+  }
+
+  static void button_callback(GLFWwindow* handle, int button, int action, int mods) {
+    auto* ptr = glfwGetWindowUserPointer(handle);
+    NTF_ASSERT(ptr);
+    auto& win = *static_cast<renderer_window*>(ptr);
+    if (win._callbacks.buttpress) {
+      std::invoke(win._callbacks.buttpress, win, win_button_data{
+        .button = static_cast<win_button>(button),
+        .action = static_cast<win_action>(action),
+        .mod = static_cast<win_keymod>(mods),
+      });
     }
   }
 #endif
@@ -69,13 +100,13 @@ win_expected<renderer_window> renderer_window::create(const win_params& params) 
 
   r_api ctx_api;
   params.ctx_params | ::ntf::overload {
-    [&](weak_ref<win_gl_params> gl_params) {
+    [&](weak_cref<win_gl_params> gl_params) {
       glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, gl_params->ver_major);
       glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, gl_params->ver_minor);
       glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
       ctx_api = r_api::opengl;
     },
-    [&](weak_ref<win_vk_params>) {
+    [&](weak_cref<win_vk_params>) {
       glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
       ctx_api = r_api::vulkan;
     }
@@ -113,10 +144,13 @@ renderer_window::renderer_window(r_window handle, r_api ctx_api) noexcept :
   _handle{handle}, _ctx_api{ctx_api}
 { 
   GLFWwindow* win = win_cast(_handle);
-  glfwSetFramebufferSizeCallback(win, callback_handler_t::fb_callback);
+  glfwSetFramebufferSizeCallback(win, callback_handler_t::fb_size_callback);
   glfwSetKeyCallback(win, callback_handler_t::key_callback);
-  glfwSetCursorPosCallback(win, callback_handler_t::cursor_callback);
+  glfwSetCursorPosCallback(win, callback_handler_t::cursor_pos_callback);
+  glfwSetCursorEnterCallback(win, callback_handler_t::cursor_enter_callback);
   glfwSetScrollCallback(win, callback_handler_t::scroll_callback);
+  glfwSetCharCallback(win, callback_handler_t::char_callback);
+  glfwSetMouseButtonCallback(win, callback_handler_t::button_callback);
   glfwSetWindowUserPointer(win, this);
 }
 
@@ -128,7 +162,7 @@ void renderer_window::_destroy() {
     return;
   }
   glfwDestroyWindow(win_cast(_handle));
-  SHOGLE_LOG(debug, "[ntf::r_window][CONSTRUCT]");
+  SHOGLE_LOG(debug, "[ntf::r_window][DESTROY]");
   if (--win_count == 0) {
     glfwTerminate();
     SHOGLE_LOG(verbose, "[ntf::r_window][OTHER] GLFW terminated");
@@ -180,10 +214,17 @@ bool renderer_window::should_close() const {
 #endif
 }
 
-win_keystate renderer_window::poll_key(win_keycode key) const {
+win_action renderer_window::poll_key(win_key key) const {
 #if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
   NTF_ASSERT(_handle);
-  return static_cast<win_keystate>(glfwGetKey(win_cast(_handle), static_cast<int>(key)));
+  return static_cast<win_action>(glfwGetKey(win_cast(_handle), static_cast<int>(key)));
+#endif
+}
+
+win_action renderer_window::poll_button(win_button button) const {
+#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+  NTF_ASSERT(_handle);
+  return static_cast<win_action>(glfwGetMouseButton(win_cast(_handle), static_cast<int>(button)));
 #endif
 }
 

@@ -66,7 +66,11 @@ r_context_::r_context_(rp_alloc::uptr_t<rp_alloc>&& alloc,
   _alloc{std::move(alloc)}, _renderer{std::move(renderer)},
   _api{api_}, _win{win},
   _default_fbo{this, fbo_ext, fbo_tbuff, fdata},
-  _fbo_list_sz{1u} {}
+  _fbo_list_sz{1u},
+  _buff_list{nullptr}, _tex_list{nullptr}, _shad_list{nullptr},
+  _fbo_list{nullptr}, _pip_list{nullptr} {}
+
+r_context_::~r_context_() noexcept {}
 
 DEF_NODE_OPS(r_buffer, _buff_list);
 DEF_NODE_OPS(r_texture, _tex_list);
@@ -277,7 +281,7 @@ void r_end_frame(r_context ctx) {
     ++fbos_to_blit;
   });
   if (fbos_to_blit) {
-    ctx->renderer().submit(cspan<rp_draw_data>{draw_data, fbos_to_blit});
+    ctx->renderer().submit(ctx, cspan<rp_draw_data>{draw_data, fbos_to_blit});
   }
 
 #if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
@@ -357,6 +361,7 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
       std::construct_at(unifs+i,
                         unif.uniform->location, unif.uniform->type,
                         data, data_sz);
+      ++i;
     }
     d_cmd.uniforms = {unifs, uniform_count};
   }

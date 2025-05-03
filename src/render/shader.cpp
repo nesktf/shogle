@@ -72,6 +72,8 @@ r_expected<r_shader> r_create_shader(r_context ctx, const r_shader_descriptor& d
                         ctx, handle, shad_desc);
       ctx->insert_node(shad);
       NTF_ASSERT(shad->prev == nullptr);
+      SHOGLE_LOG(debug, "[ntf::r_create_shader] Shader created");
+
       return shad;
     });
   } RET_ERROR_CATCH("Failed to create shader");
@@ -87,6 +89,8 @@ void r_destroy_shader(r_shader shader) noexcept {
   ctx->remove_node(shader);
   ctx->renderer().destroy_shader(handle);
   ctx->alloc().destroy(shader);
+
+  SHOGLE_LOG(debug, "[ntf::r_destroy_shader] Shader destroyed");
 }
 
 r_shader_type r_shader_get_type(r_shader shader) {

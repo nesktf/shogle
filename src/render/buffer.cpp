@@ -50,6 +50,8 @@ r_expected<r_buffer> r_create_buffer(r_context ctx, const r_buffer_descriptor& d
                         ctx, handle, buff_desc);
       ctx->insert_node(buff);
       NTF_ASSERT(buff->prev == nullptr);
+      SHOGLE_LOG(debug, "[ntf::r_create_buffer] Buffer created");
+
       return buff;
     });
   } RET_ERROR_CATCH("Failed to create buffer");
@@ -65,6 +67,7 @@ void r_destroy_buffer(r_buffer buffer) noexcept {
   ctx->remove_node(buffer);
   ctx->renderer().destroy_buffer(handle);
   ctx->alloc().destroy(buffer);
+  SHOGLE_LOG(debug, "[ntf::r_destroy_buffer] Buffer destroyed");
 }
 
 static void upload_buffer_data(r_buffer buffer, size_t offset, size_t len, const void* data) {

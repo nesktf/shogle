@@ -14,6 +14,36 @@ r_texture_::r_texture_(r_context ctx_, r_platform_texture handle_,
 
 r_texture_::~r_texture_() noexcept {}
 
+
+static const char* tex_type_str(r_texture_type type) {
+  switch (type) {
+    case r_texture_type::cubemap: return "CUBEMAP";
+    case r_texture_type::texture1d: return "TEX1D";
+    case r_texture_type::texture2d: return "TEX2D";
+    case r_texture_type::texture3d: return "TEX3D";
+  }
+  NTF_UNREACHABLE();
+}
+
+static const char* tex_add_str(r_texture_address add) {
+  switch (add) {
+    case r_texture_address::repeat: return "REPEAT";
+    case r_texture_address::repeat_mirrored: return "REPEAT_MIRROR";
+    case r_texture_address::clamp_edge: return "CLAMP_EDGE";
+    case r_texture_address::clamp_border: return "CLAMP_BORDER";
+    case r_texture_address::clamp_edge_mirrored: return "CLAMP_EDGE_MIRROR";
+  }
+  NTF_UNREACHABLE();
+}
+
+static const char* tex_smpl_str(r_texture_sampler smpl) {
+  switch (smpl) {
+    case r_texture_sampler::linear: return "LINEAR";
+    case r_texture_sampler::nearest: return "NEAREST";
+  }
+  NTF_UNREACHABLE();
+}
+
 static rp_tex_desc transform_desc(const r_texture_descriptor& desc) {
   return {
     .type = desc.type,
@@ -62,6 +92,7 @@ static r_expected<void> validate_images(cspan<r_image_data> images, const extent
         break;
       }
     }
+    ++i;
   }
   return {};
 }
@@ -148,6 +179,10 @@ r_expected<r_texture> r_create_texture(r_context ctx, const r_texture_descriptor
                         ctx, handle, tex_desc);
       ctx->insert_node(tex);
       NTF_ASSERT(tex->prev == nullptr);
+      SHOGLE_LOG(debug, "[ntf::r_create_texture] {} {}x{}x{} (lvl: {}, lyr: {}, a: {}, s: {})",
+                 tex_type_str(tex->type), tex->extent.x, tex->extent.y, tex->extent.z,
+                 tex->levels, tex->layers,
+                 tex_add_str(tex->addressing), tex_smpl_str(tex->sampler));
 
       return tex;
     });
@@ -164,6 +199,10 @@ void r_destroy_texture(r_texture tex) noexcept {
   if (--tex->refcount > 0) {
     return;
   }
+  SHOGLE_LOG(debug, "[ntf::r_destroy_texture] {} {}x{}x{} (lvl: {}, lyr: {}, a: {}, s: {})",
+             tex_type_str(tex->type), tex->extent.x, tex->extent.y, tex->extent.z,
+             tex->levels, tex->layers,
+             tex_add_str(tex->addressing), tex_smpl_str(tex->sampler));
 
   ctx->remove_node(tex);
   ctx->renderer().destroy_texture(handle);

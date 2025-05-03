@@ -168,6 +168,13 @@ public:
     return *this;
   }
 
+  template<typename F>
+  requires(std::invocable<F, renderer_window&, uint32>)
+  renderer_window& set_char_input_callback(F&& fun) {
+    _callbacks.char_input = std::forward<F>(fun);
+    return *this;
+  }
+
   void title(const std::string& title);
   void close();
   void poll_events();
@@ -196,6 +203,7 @@ private:
     cursorp_fun cursorpos;
     cursore_fun cursorenter;
     scroll_fun scroll;
+    char_fun char_input;
   } _callbacks;
 
 public:

@@ -30,7 +30,7 @@
 #include <imgui_impl_glfw.h>
 #define SHOGLE_INIT_IMGUI_OPENGL(win, cbks) \
   ImGui_ImplGlfw_InitForOpenGL(reinterpret_cast<GLFWwindow*>(win), cbks); \
-  ImGui_ImplOpenGL3_Init("version #150")
+  ImGui_ImplOpenGL3_Init("#version 150")
 #define SHOGLE_INIT_IMGUI_VULKAN(win, cbks)
 #define SHOGLE_INIT_IMGUI_OTHER(win, cbks)
 
@@ -109,7 +109,7 @@ public:
     requires(std::is_convertible_v<U*, T*>)
     void operator()(U* ptr) noexcept(std::is_nothrow_destructible_v<T>) {
       if constexpr (!std::is_trivially_destructible_v<T>) {
-        static_cast<T*>(ptr)>~T();
+        static_cast<T*>(ptr)->~T();
       }
       std::invoke(_free, _uptr, ptr, sizeof(T));
     }
@@ -119,7 +119,7 @@ public:
     void operator()(U* ptr, size_t n) noexcept(std::is_nothrow_destructible_v<T>) {
       if constexpr (!std::is_trivially_destructible_v<T>) {
         for (U* it = ptr; it < ptr+n; ++it) {
-          static_cast<T*>(it)>~T();
+          static_cast<T*>(it)->~T();
         }
       }
       std::invoke(_free, _uptr, ptr, n*sizeof(T));
@@ -322,12 +322,6 @@ using rp_uniform_query_vec = rp_alloc::vec_t<rp_uniform_query>;
 template<typename K, typename T>
 using handle_map = std::unordered_map<K, T, r_handle_hash<K>>;
 
-enum class rp_test_buffer_flag : uint8 {
-  none = 0,
-  depth,
-  stencil,
-};
-
 struct vertex_layout {
   uint32 binding;
   size_t stride;
@@ -500,7 +494,7 @@ struct rp_context {
   virtual r_platform_fbo create_framebuffer(const rp_fbo_desc& desc) = 0;
   virtual void destroy_framebuffer(r_platform_fbo fb) noexcept = 0;
 
-  virtual void submit(cspan<rp_draw_data> draw_data) = 0;
+  virtual void submit(r_context ctx, cspan<rp_draw_data> draw_data) = 0;
 
   virtual void device_wait() noexcept {}
   virtual void swap_buffers() = 0;

@@ -2,7 +2,34 @@
 
 #include "../platform.hpp"
 
+#ifdef SHOGLE_GL_DISABLE_ASSERTIONS
+#define GL_CALL(fun, ...) fun(__VA_ARGS__)
+#define GL_CALL_RET(fun, ...) fun(__VA_ARGS__)
+#else
+#define GL_CALL(fun, ...) \
+do { \
+  fun(__VA_ARGS__); \
+  GLenum glerr = ::ntf::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
+  NTF_ASSERT(glerr == 0, "GL ERROR: {}", glerr); \
+} while(0) 
+#define GL_CALL_RET(fun, ...) \
+[&]() { \
+  auto ret = fun(__VA_ARGS__); \
+  GLenum glerr = ::ntf::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
+  NTF_ASSERT(glerr == 0, "GL ERROR: {}", glerr); \
+  return ret; \
+}()
+#endif
+
+#define GL_CHECK(fun, ...) \
+[&]() { \
+  fun(__VA_ARGS__); \
+  return ::ntf::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
+}()
+
 namespace ntf {
+
+class gl_context;
 
 class gl_state {
 public:
@@ -74,6 +101,7 @@ public:
 
   struct init_data_t {
     GLDEBUGPROC dbg;
+    gl_context* ctx;
   };
 
   struct fbo_attachment_t {
@@ -90,7 +118,7 @@ public:
 
 public:
   [[nodiscard]] buffer_t create_buffer(r_buffer_type type, r_buffer_flag flags, size_t size,
-                                       weak_ref<r_buffer_data> data);
+                                       weak_cref<r_buffer_data> data);
   void destroy_buffer(const buffer_t& buffer) noexcept;
   bool bind_buffer(GLuint id, GLenum type) noexcept;
   void update_buffer(const buffer_t& buffer, const void* data,
@@ -124,9 +152,9 @@ public:
   void update_texture_addressing(texture_t& tex, r_texture_address addressing) noexcept;
   void gen_texture_mipmaps(const texture_t& tex);
 
-  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, rp_test_buffer_flag buffers,
+  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, r_test_buffer buffers,
                                                  r_texture_format format);
-  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, rp_test_buffer_flag buffers,
+  [[nodiscard]] framebuffer_t create_framebuffer(uint32 w, uint32 h, r_test_buffer buffers,
                                                  const fbo_attachment_t* attachments,
                                                  uint32 att_count);
   void destroy_framebuffer(const framebuffer_t& fbo) noexcept;
@@ -144,7 +172,7 @@ public:
   [[nodiscard]] static GLenum attrib_underlying_type_cast(r_attrib_type type) noexcept;
   [[nodiscard]] static GLenum primitive_cast(r_primitive type) noexcept;
   [[nodiscard]] static GLenum shader_type_cast(r_shader_type type) noexcept;
-  [[nodiscard]] static GLenum fbo_attachment_cast(rp_test_buffer_flag flag) noexcept;
+  [[nodiscard]] static GLenum fbo_attachment_cast(r_test_buffer att) noexcept;
   [[nodiscard]] static GLenum texture_type_cast(r_texture_type type, bool is_array) noexcept;
   [[nodiscard]] static GLenum texture_format_cast(r_texture_format format) noexcept;
   [[nodiscard]] static GLenum texture_format_symbolic_cast(r_texture_format format) noexcept;
@@ -152,6 +180,10 @@ public:
   [[nodiscard]] static GLenum texture_sampler_cast(r_texture_sampler samp, bool mips) noexcept;
   [[nodiscard]] static GLenum texture_addressing_cast(r_texture_address address) noexcept;
   [[nodiscard]] static GLbitfield clear_bit_cast(r_clear_flag flags) noexcept;
+  [[nodiscard]] static r_attrib_type uniform_type_cast(GLenum type) noexcept;
+
+public:
+  static GLenum check_error(const char* file, const char* func, int line) noexcept;
 
 private:
   GLenum& _buffer_pos(GLenum type);

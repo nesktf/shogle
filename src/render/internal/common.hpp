@@ -229,11 +229,11 @@ private:
 
   r_framebuffer_ _default_fbo;
 
+  size_t _fbo_list_sz;
   r_buffer_* _buff_list;
   r_texture_* _tex_list;
   r_shader_* _shad_list;
   r_framebuffer_* _fbo_list;
-  size_t _fbo_list_sz;
   r_pipeline_* _pip_list;
 
 public:

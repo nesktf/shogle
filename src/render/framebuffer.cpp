@@ -46,6 +46,18 @@ r_framebuffer_::~r_framebuffer_() noexcept {
   }
 }
 
+const char* test_buff_str(r_test_buffer test) {
+  switch (test) {
+    case r_test_buffer::depth16u: return "DEPTH16U";
+    case r_test_buffer::depth24u: return "DEPTH24U";
+    case r_test_buffer::depth32f: return "DEPTH32F";
+    case r_test_buffer::depth24u_stencil8u: return "DEPTH24U_STENCIL8U";
+    case r_test_buffer::depth32f_stencil8u: return "DEPTH32F_STENCIL8U";
+    case r_test_buffer::no_buffer: return "NONE";
+  }
+  NTF_UNREACHABLE();
+}
+
 static auto copy_attachments(rp_alloc& alloc, cspan<r_framebuffer_attachment> atts_in) {
   auto atts = alloc.make_uninited_array<r_framebuffer_attachment>(atts_in.size());
   if (!atts) {
@@ -67,6 +79,7 @@ static r_expected<rp_fbo_desc> transform_desc(rp_alloc& alloc,
       atts[i].layer = att.layer;
       atts[i].level = att.level;
       atts[i].texture = att.texture->handle;
+      ++i;
     }
     return rp_fbo_desc {
       .extent = desc.extent,
@@ -151,6 +164,9 @@ r_expected<r_framebuffer> r_create_framebuffer(r_context ctx,
       }
       ctx->insert_node(fbo);
       NTF_ASSERT(fbo->prev == nullptr);
+      SHOGLE_LOG(debug, "[ntf::r_create_framebuffer] FBO {}x{} (tbuff: {}, att: {})",
+                 fbo->extent.x, fbo->extent.y, test_buff_str(fbo->test_buffer),
+                 fbo->att_state == r_framebuffer_::ATT_TEX ? "TEX" : "COLOR");
 
       return fbo;
     });
@@ -163,6 +179,10 @@ void r_destroy_framebuffer(r_framebuffer fbo) noexcept {
   }
   const auto handle = fbo->handle;
   auto* ctx = fbo->ctx;
+
+  SHOGLE_LOG(debug, "[ntf::r_destroy_framebuffer] FBO {}x{} (tbuff: {}, att: {})",
+             fbo->extent.x, fbo->extent.y, test_buff_str(fbo->test_buffer),
+             fbo->att_state == r_framebuffer_::ATT_TEX ? "TEX" : "COLOR");
 
   ctx->remove_node(fbo);
   ctx->renderer().destroy_framebuffer(handle);

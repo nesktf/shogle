@@ -58,12 +58,14 @@ static r_expected<rp_pip_desc> transform_desc(rp_alloc& alloc,
   RET_ERROR_IF(!stages, "Failed to allocate stage handles");
   for (size_t i = 0u; const auto& stage : desc.stages) {
     stages[i] = stage->handle;
+    ++i;
   }
 
   auto descs = alloc.make_uninited_array<r_attrib_descriptor>(desc.attribs.size());
   RET_ERROR_IF(!descs, "Failed to allocate layout descriptors");
   for (size_t i = 0u; const auto& attrib : desc.attribs) {
     std::construct_at(descs.get()+i, attrib);
+    ++i;
   }
 
   auto layout = alloc.make_unique<vertex_layout>(desc.attrib_binding, desc.attrib_stride,
@@ -130,6 +132,7 @@ r_expected<r_pipeline> r_create_pipeline(r_context ctx, const r_pipeline_descrip
                         std::move(pip_desc.layout), std::move(*unifs));
       ctx->insert_node(pip);
       NTF_ASSERT(pip->prev == nullptr);
+      SHOGLE_LOG(debug, "[ntf::r_create_pipeline] Pipeline created");
 
       return pip;
     });
@@ -147,6 +150,7 @@ void r_destroy_pipeline(r_pipeline pip) noexcept {
   ctx->remove_node(pip);
   ctx->renderer().destroy_pipeline(handle);
   ctx->alloc().destroy(pip);
+  SHOGLE_LOG(debug, "[ntf::r_destroy_pipeline] Pipeline destroyed");
 }
 
 r_stages_flag r_pipeline_get_stages(r_pipeline pip) {
@@ -180,6 +184,7 @@ span<r_uniform> r_pipeline_get_all_uniforms(r_pipeline pip) {
   }
   for (size_t i = 0u; auto& [_, unif] : pip->uniforms) {
     unifs[i] = &unif;
+    ++i;
   }
   return unifs;
 }

@@ -1,5 +1,6 @@
 #include "./font.hpp"
 #include "../assets/shaders/instanced_font.hpp"
+#include "../render/shader.hpp"
 
 // TODO: Validate uniform type!
 #define RET_IF_NO_UNIFORM(_name, _type, _pipeline) \
