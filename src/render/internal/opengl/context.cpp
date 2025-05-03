@@ -172,7 +172,7 @@ r_platform_fbo gl_context::create_framebuffer(const rp_fbo_desc& desc) {
     NTF_ASSERT(desc.attachments);
     auto atts = _alloc.arena_span<gl_state::fbo_attachment_t>(desc.attachments.size());
     if (!atts) {
-      throw ntf::error<>{"Failed to allocate attachment descriptors"};
+      throw std::bad_alloc{};
     }
     for (size_t i = 0u; const auto& att : desc.attachments) {
       auto& tex = _textures.get(att.texture);
@@ -225,7 +225,7 @@ r_platform_pipeline gl_context::create_pipeline(const rp_pip_desc& desc) {
   NTF_ASSERT(desc.stages);
   auto shads = _alloc.arena_span<gl_state::shader_t*>(desc.stages.size());
   if (!shads) {
-    throw ntf::error<>{"Failed to allocate stages descriptors"};
+    throw std::bad_alloc{};
   }
   for (size_t i = 0u; const auto& stage : desc.stages) {
     auto& shader = _shaders.get(stage);
@@ -233,7 +233,8 @@ r_platform_pipeline gl_context::create_pipeline(const rp_pip_desc& desc) {
     ++i;
   }
   gl_state::program_t prog = _state.create_program(
-    shads.data(), shads.size(), desc.primitive
+    shads, desc.primitive, desc.poly_mode, desc.poly_width,
+    desc.stencil_test, desc.depth_test, desc.scissor_test, desc.blending, desc.face_culling
   );
 
   NTF_ASSERT(desc.uniforms);
@@ -252,7 +253,11 @@ void gl_context::destroy_pipeline(r_platform_pipeline pipeline) noexcept {
   _programs.push(pipeline);
 }
 
-void gl_context::update_pipeline_options(r_pipeline pip, const rp_pip_opts& opts) {
+void gl_context::update_pipeline_options(r_platform_pipeline pip, const rp_pip_opts& opts) {
+  auto& prog = _programs.get(pip);
+  _state.update_program(prog,
+                        opts.stencil_test, opts.depth_test,
+                        opts.scissor_test, opts.blending, opts.face_culling);
 }
 
 void gl_context::submit(r_context ctx, cspan<rp_draw_data> draw_data) {
@@ -297,7 +302,7 @@ void gl_context::submit(r_context ctx, cspan<rp_draw_data> draw_data) {
       const auto& prog = _programs.get(cmd.pipeline);
       NTF_ASSERT(prog.id);
 
-      rebind = (_state.bind_program(prog.id) || rebind);
+      rebind = (_state.prepare_program(prog) || rebind);
       if (rebind) {
         auto& layout = prog.layout;
         _state.bind_attributes(

@@ -78,7 +78,7 @@ public:
   void destroy_shader(r_platform_shader shader) noexcept override;
 
   r_platform_pipeline create_pipeline(const rp_pip_desc& desc) override;
-  void update_pipeline_options(r_pipeline pip, const rp_pip_opts& opts) override;
+  void update_pipeline_options(r_platform_pipeline pip, const rp_pip_opts& opts) override;
   void destroy_pipeline(r_platform_pipeline pipeline) noexcept override;
 
   r_platform_fbo create_framebuffer(const rp_fbo_desc& desc) override;

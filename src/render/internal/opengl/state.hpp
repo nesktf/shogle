@@ -67,9 +67,56 @@ public:
     GLenum type;
   };
 
+  enum program_flags : uint8 {
+    PROG_ENABLE_NOTHING = 0,
+    PROG_ENABLE_CULLING = 1<<0,
+    PROG_ENABLE_BLENDING = 1<<1,
+    PROG_ENABLE_STENCIL = 1<<2,
+    PROG_ENABLE_DEPTH = 1<<3,
+    PROG_ENABLE_SCISSOR = 1<<4,
+  };
+
   struct program_t {
     GLuint id{0};
     GLenum primitive;
+    GLenum poly;
+    float poly_width;
+
+    uint8 flags;
+    struct {
+      GLenum mode;
+      GLenum face;
+    } culling;
+
+    struct {
+      GLenum mode;
+      GLenum src_fac;
+      GLenum dst_fac;
+      float r, g, b, a;
+    } blending;
+
+    struct {
+      GLenum func;
+      int32 func_ref;
+      uint32 func_mask;
+
+      GLenum sfail;
+      GLenum dpfail;
+      GLenum dppass;
+
+      uint32 mask;
+    } stencil;
+
+    struct {
+      GLenum func;
+      double near, far;
+    } depth;
+
+    struct {
+      uint32 x, y;
+      uint32 w, h;
+    } scissor;
+
     weak_ref<vertex_layout> layout;
   };
 
@@ -133,12 +180,25 @@ public:
   [[nodiscard]] shader_t create_shader(r_shader_type type, std::string_view src);
   void destroy_shader(const shader_t& shader) noexcept;
 
-  [[nodiscard]] program_t create_program(shader_t const* const* shaders, uint32 count,
-                                         r_primitive primitive);
+  [[nodiscard]] program_t create_program(cspan<shader_t*> shaders,
+                                         r_primitive primitive,
+                                         r_polygon_mode poly_mode, optional<float> poly_width,
+                                         weak_cref<r_stencil_test_opts> stencil,
+                                         weak_cref<r_depth_test_opts> depth,
+                                         weak_cref<r_scissor_test_opts> scissor,
+                                         weak_cref<r_blend_opts> blending,
+                                         weak_cref<r_face_cull_opts> culling);
   void query_program_uniforms(const program_t& program, rp_uniform_query_vec& unif);
   void destroy_program(const program_t& program) noexcept;
   bool bind_program(GLuint id) noexcept;
-  void push_uniform(uint32 loc, r_attrib_type type, const void* data) noexcept;
+  bool prepare_program(const program_t& prog) noexcept;
+  void update_program(program_t& prog,
+                      weak_cref<r_stencil_test_opts> stencil,
+                      weak_cref<r_depth_test_opts> depth,
+                      weak_cref<r_scissor_test_opts> scissor,
+                      weak_cref<r_blend_opts> blending,
+                      weak_cref<r_face_cull_opts> culling);
+void push_uniform(uint32 loc, r_attrib_type type, const void* data) noexcept;
 
   [[nodiscard]] texture_t create_texture(r_texture_type type, r_texture_format format,
                                          r_texture_sampler sampler, r_texture_address addressing,
@@ -169,18 +229,30 @@ public:
 
 public:
   [[nodiscard]] static GLenum buffer_type_cast(r_buffer_type type) noexcept;
-  [[nodiscard]] static GLenum attrib_underlying_type_cast(r_attrib_type type) noexcept;
-  [[nodiscard]] static GLenum primitive_cast(r_primitive type) noexcept;
+
   [[nodiscard]] static GLenum shader_type_cast(r_shader_type type) noexcept;
+
   [[nodiscard]] static GLenum fbo_attachment_cast(r_test_buffer att) noexcept;
+
   [[nodiscard]] static GLenum texture_type_cast(r_texture_type type, bool is_array) noexcept;
   [[nodiscard]] static GLenum texture_format_cast(r_texture_format format) noexcept;
   [[nodiscard]] static GLenum texture_format_symbolic_cast(r_texture_format format) noexcept;
   [[nodiscard]] static GLenum texture_format_underlying_cast(r_texture_format format) noexcept;
   [[nodiscard]] static GLenum texture_sampler_cast(r_texture_sampler samp, bool mips) noexcept;
   [[nodiscard]] static GLenum texture_addressing_cast(r_texture_address address) noexcept;
+
+  [[nodiscard]] static GLenum attrib_underlying_type_cast(r_attrib_type type) noexcept;
   [[nodiscard]] static GLbitfield clear_bit_cast(r_clear_flag flags) noexcept;
+
   [[nodiscard]] static r_attrib_type uniform_type_cast(GLenum type) noexcept;
+  [[nodiscard]] static GLenum primitive_cast(r_primitive type) noexcept;
+  [[nodiscard]] static GLenum poly_mode_cast(r_polygon_mode poly_mode) noexcept;
+  [[nodiscard]] static GLenum test_func_cast(r_test_func func) noexcept;
+  [[nodiscard]] static GLenum stencil_op_cast(r_stencil_op op) noexcept;
+  [[nodiscard]] static GLenum blend_func_cast(r_blend_factor func) noexcept;
+  [[nodiscard]] static GLenum cull_mode_cast(r_cull_mode mode) noexcept;
+  [[nodiscard]] static GLenum cull_face_cast(r_cull_face face) noexcept;
+  [[nodiscard]] static GLenum blend_eq_cast(r_blend_mode eq) noexcept;
 
 public:
   static GLenum check_error(const char* file, const char* func, int line) noexcept;

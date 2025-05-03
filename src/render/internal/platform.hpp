@@ -438,6 +438,7 @@ struct rp_pip_desc {
   r_stages_flag stages_flags;
   r_primitive primitive;
   r_polygon_mode poly_mode;
+  optional<float> poly_width;
 
   weak_cref<r_stencil_test_opts> stencil_test;
   weak_cref<r_depth_test_opts> depth_test;
@@ -488,7 +489,7 @@ struct rp_context {
   virtual void destroy_shader(r_platform_shader shader) noexcept = 0;
 
   virtual r_platform_pipeline create_pipeline(const rp_pip_desc& desc) = 0;
-  virtual void update_pipeline_options(r_pipeline pip, const rp_pip_opts& opts) = 0;
+  virtual void update_pipeline_options(r_platform_pipeline pip, const rp_pip_opts& opts) = 0;
   virtual void destroy_pipeline(r_platform_pipeline pipeline) noexcept = 0;
 
   virtual r_platform_fbo create_framebuffer(const rp_fbo_desc& desc) = 0;

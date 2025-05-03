@@ -38,6 +38,7 @@ auto make_pipeline(r_shader_view vert, r_shader_view frag) {
     .stages = stages,
     .primitive = ntf::r_primitive::triangles,
     .poly_mode = ntf::r_polygon_mode::fill,
+    .poly_width = ntf::nullopt,
     .stencil_test = nullptr,
     .depth_test = depth_opts,
     .scissor_test = nullptr,

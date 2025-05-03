@@ -219,6 +219,7 @@ int main() {
       .stages = stages,
       .primitive = ntf::r_primitive::triangles,
       .poly_mode = ntf::r_polygon_mode::fill,
+      .poly_width = ntf::nullopt,
       .stencil_test = nullptr,
       .depth_test = depth_opts,
       .scissor_test = nullptr,

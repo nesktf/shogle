@@ -334,14 +334,16 @@ struct r_stencil_rule {
   r_stencil_op on_pass;
 };
 
+struct r_stencil_func {
+  r_test_func func;
+  int32 ref;
+  uint32 mask;
+};
+
 struct r_stencil_test_opts {
-  r_test_func test_func;
-  int32 ref_value;
-  uint32 ref_mask;
+  r_stencil_func stencil_func;
   r_stencil_rule stencil_rule;
-  optional<r_stencil_rule> alt_rule;
   uint32 stencil_mask;
-  optional<uint32> alt_mask;
   bool dynamic;
 };
 
@@ -378,6 +380,7 @@ struct r_pipeline_descriptor {
   cspan<r_shader> stages;
   r_primitive primitive;
   r_polygon_mode poly_mode;
+  optional<float> poly_width;
 
   weak_cref<r_stencil_test_opts> stencil_test;
   weak_cref<r_depth_test_opts> depth_test;
