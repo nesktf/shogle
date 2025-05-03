@@ -65,7 +65,7 @@ struct renderer_window::callback_handler_t {
     NTF_ASSERT(ptr);
     auto& win = *static_cast<renderer_window*>(ptr);
     if (win._callbacks.char_input) {
-      std::invoke(win._callbacks.cursorenter, win, codepoint);
+      std::invoke(win._callbacks.char_input, win, codepoint);
     }
   }
 

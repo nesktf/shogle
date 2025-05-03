@@ -200,12 +200,12 @@ public:
 public:
   template<typename F>
   void for_each_fbo(F&& fun) {
-    fun(_default_fbo);
     r_framebuffer_* curr = _fbo_list;
     while (curr) {
       fun(*curr);
       curr = curr->next;
     }
+    fun(_default_fbo);
   }
 
 public:

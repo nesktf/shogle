@@ -340,7 +340,7 @@ public:
   constexpr function_view& operator=(function_view&&) noexcept = default;
 
 public:
-  constexpr bool is_empty() const { return (_data && _invoke_functor) || _invoke_ptr == nullptr; }
+  constexpr bool is_empty() const { return !(_data && _invoke_functor) || _invoke_ptr == nullptr; }
   constexpr explicit operator bool() const { return !is_empty(); }
 
 private:
