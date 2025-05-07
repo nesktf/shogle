@@ -13,7 +13,6 @@ set(LIBS_LINK)
 
 set(SHOGLE_LIB "${CMAKE_CURRENT_SOURCE_DIR}/../")
 # add_subdirectory(${SHOGLE_LIB})
-list(APPEND LIBS_INCLUDE "${SHOGLE_LIB}/include")
 list(APPEND LIBS_LINK shogle)
 
 # file(GLOB_RECURSE SOURCE_FILES "src/*.cpp")

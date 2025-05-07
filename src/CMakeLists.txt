@@ -6,6 +6,3 @@ file(GLOB_RECURSE SOURCE_FILES "${SRC_DIR}/*.cpp")
 
 configure_file("${SRC_DIR}/version.hpp.in" "shogle/version.hpp")
 set(SHOGLE_SOURCE ${SOURCE_FILES} PARENT_SCOPE)
-
-# set(SHOGLE_INCLUDE "${SRC_DIR}/shogle.hpp" PARENT_SCOPE)
-set(SHOGLE_INCLUDE ${SRC_DIR} PARENT_SCOPE)

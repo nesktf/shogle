@@ -256,23 +256,37 @@ r_expected<font_renderer> font_renderer::create(r_context_view ctx, font_atlas_d
   };
 }
 
-void font_renderer::ssbo_callback_t::operator()(r_context ctx) const {
+void font_renderer::ssbo_callback_t::operator()(r_context) const {
   // TODO: Investigate how to abstract GPU synchronization when writting to
   //       mapped buffers, to avoid rebinding for uploads each frame
   ssbo.upload(0u, glyph_count*sizeof(text_buffer::glyph_entry), buffer_data.data()+offset);
 }
 
-void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
-                           rendering_rule& render_rule, const text_buffer& buffer,
-                           uint32 sort_group)
-{
-  auto ctx = fbo.context();
-
+void font_renderer::clear_state() {
   _write_callbacks.clear();
   _uniform_cache.clear();
-  auto pipeline = render_rule.retrieve_uniforms(_uniform_cache);
+}
+
+void font_renderer::append_text(const text_buffer& buffer) {
   const auto buffer_data = buffer.data();
   const size_t batches = (buffer_data.size()/_batch_sz)+1;
+  for (size_t i = 0; i < batches; ++i) {
+    const size_t left = buffer_data.size()-(_batch_sz*i);
+    size_t glyph_count;
+    if (left < _batch_sz) {
+      glyph_count = static_cast<uint32>(left);
+    } else {
+      glyph_count = static_cast<uint32>(_batch_sz);
+    }
+    _write_callbacks.emplace_back(_ssbo, buffer_data, glyph_count, _batch_sz*i);
+  }
+}
+
+void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
+                           rendering_rule& render_rule, uint32 sort_group)
+{
+  auto ctx = fbo.context();
+  auto pipeline = render_rule.retrieve_uniforms(_uniform_cache);
 
   const r_buffer_binding buf_binds[] = {
     {quad.vbo().handle(), r_buffer_type::vertex, nullopt},
@@ -283,19 +297,12 @@ void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
     {.texture = _atlas_tex.handle(), .location = ATLAS_SAMPLER},
   };
 
-  for (size_t i = 0; i < batches; ++i) {
+  for (auto& cb : _write_callbacks) {
     r_draw_opts opts;
     opts.count = 6;
     opts.offset = 0;
     opts.sort_group = sort_group;
-
-    const size_t left = buffer_data.size()-(_batch_sz*i);
-    if (left < _batch_sz) {
-      opts.instances = static_cast<uint32>(left);
-    } else {
-      opts.instances = static_cast<uint32>(_batch_sz);
-    }
-    _write_callbacks.emplace_back(_ssbo, buffer_data, opts.instances, _batch_sz*i);
+    opts.instances = cb.glyph_count;
 
     ctx.submit_command({
       .target = fbo.handle(),
@@ -304,9 +311,16 @@ void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
       .textures = tex_binds,
       .uniforms = {_uniform_cache.data(), _uniform_cache.size()},
       .draw_opts = opts,
-      .on_render = _write_callbacks.back(),
+      .on_render = cb,
     });
   }
+}
+void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
+                           rendering_rule& render_rule, const text_buffer& buffer,
+                           uint32 sort_group) {
+  clear_state();
+  append_text(buffer);
+  render(quad, fbo, render_rule, sort_group);
 }
 
 } // namespace ntf

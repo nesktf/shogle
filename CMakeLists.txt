@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(SHOGLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(SRC_DIR "${SHOGLE_DIR}/src")
+set(INC_DIR "${SHOGLE_DIR}/include")
 set(EXTERN_DIR "${SHOGLE_DIR}/extern")
 set(DEMOS_DIR "${SHOGLE_DIR}/demos")
 set(TESTS_DIR "${SHOGLE_DIR}/tests")
@@ -48,11 +49,10 @@ add_subdirectory(${EXTERN_DIR})
 message(STATUS "ShOGLE: Configuring source files")
 add_subdirectory(${SRC_DIR})
 
-
 add_library(${PROJECT_NAME} STATIC ${SHOGLE_SOURCE} ${EXTERN_SOURCE})
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 target_include_directories(${PROJECT_NAME} PUBLIC
-  ${SHOGLE_INCLUDE} ${EXTERN_INCLUDE} "${PROJECT_BINARY_DIR}/src")
+  ${INC_DIR} ${EXTERN_INCLUDE} "${PROJECT_BINARY_DIR}/src")
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERN_LINK})
 target_compile_definitions(${PROJECT_NAME} PUBLIC ${SHOGLE_DEFS})
 

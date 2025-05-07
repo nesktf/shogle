@@ -25,17 +25,17 @@ private:
     return h;
   }
 
-public:
+protected:
   template<typename... Args>
-  requires(std::constructible_from<T, Args...>)
-  static T& construct(Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>) {
+  static T& _construct(Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>) {
     auto& storage = _instance();
     NTF_ASSERT(!storage.inited);
-    std::construct_at(&storage.obj, std::forward<Args>(args)...);
+    new (&storage.obj) T(std::forward<Args>(args)...);
     storage.inited = true;
     return storage.obj;
   }
 
+public:
   static void destroy() noexcept(std::is_nothrow_destructible_v<T>) {
     auto& storage = _instance();
     NTF_ASSERT(storage.inited);

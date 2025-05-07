@@ -271,9 +271,6 @@ void r_end_frame(r_context ctx) {
   auto* draw_data = alloc.arena_allocate_uninited<rp_draw_data>(fbo_count);
   size_t fbos_to_blit = 0u;
   ctx->for_each_fbo([&](r_framebuffer_& fbo) {
-    if (fbo.cmds.empty()) {
-      return;
-    }
     // TODO: Sort the draw commands before submiting here
     std::construct_at(draw_data+fbos_to_blit,
                       fbo.handle, fbo.fdata,

@@ -277,9 +277,13 @@ public:
                                           size_t batch_size = 64u);
 
 public:
+  void clear_state();
+  void append_text(const text_buffer& buffer);
+  void render(const quad_mesh& quad, r_framebuffer_view fbo, rendering_rule& render_rule,
+              uint32 sort_group = 0u);
   void render(const quad_mesh& quad, r_framebuffer_view fbo,
               rendering_rule& render_rule, const text_buffer& buffer,
-              uint32 sort_group = 0);
+              uint32 sort_group = 0u);
 
 public:
   glyph_meta glyphs() const { return std::make_tuple(&_glyphs, &_glyph_map, _bitmap_extent); }
