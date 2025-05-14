@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "stl/ptr.hpp"
+#include "../../src/stl/ptr.hpp"
 
 TEST(stl_ptr, unique_arr_default) {
   ntf::unique_array<int> int_arr;

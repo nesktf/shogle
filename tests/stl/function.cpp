@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "stl/function.hpp"
+#include "../../src/stl/function.hpp"
 
 namespace {
 
