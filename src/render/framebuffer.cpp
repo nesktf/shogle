@@ -209,7 +209,7 @@ r_clear_flag r_framebuffer_get_clear(r_framebuffer fbo) {
   return fbo->fdata.clear_flags;
 }
 
-uvec4 r_frambuffer_get_viewport(r_framebuffer fbo) {
+uvec4 r_framebuffer_get_viewport(r_framebuffer fbo) {
   NTF_ASSERT(fbo);
   return fbo->fdata.viewport;
 }

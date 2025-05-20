@@ -151,6 +151,12 @@ void imgui_ctx::end_frame(r_framebuffer target, ImDrawData* draw_data) {
     _draw_data = ImGui::GetDrawData();
   }
   target = target ? target : r_get_default_framebuffer(_ctx);
+
+  // hack
+  const auto fb = r_framebuffer_get_viewport(target);
+  _draw_data->DisplaySize.x = fb.z;
+  _draw_data->DisplaySize.y = fb.w;
+
   r_submit_external_command(_ctx, target, {*this});
 }
 
