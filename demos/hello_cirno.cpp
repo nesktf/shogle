@@ -3,45 +3,7 @@
 #include "shogle/math.hpp"
 #include "shogle/version.hpp"
 #include "shogle/scene.hpp"
-
-static auto init_ctx() {
-  ntf::win_gl_params gl_params {
-    .ver_major = 4,
-    .ver_minor = 6,
-  };
-  auto window = ntf::renderer_window::create({
-    .width = 1280,
-    .height = 720,
-    .title = "test - hello_cirno - ShOGLE " SHOGLE_VERSION_STRING,
-    .x11_class_name = "test",
-    .x11_instance_name = nullptr,
-    .ctx_params = &gl_params,
-  });
-  if (!window) {
-    ntf::logger::error("Failed to create window: {}", window.error().what());
-    std::exit(EXIT_FAILURE);
-  }
-
-  const ntf::color4 main_color{.3f, .3f, .3f, 1.f};
-  const auto clear_flags = ntf::r_clear_flag::color_depth;
-  const auto vp = ntf::uvec4{0, 0, window->fb_size()};
-
-  auto ctx = ntf::renderer_context::create({
-    .window = window->handle(),
-    .renderer_api = window->renderer(),
-    .swap_interval = 0,
-    .fb_viewport = vp,
-    .fb_clear = clear_flags,
-    .fb_color = main_color,
-    .alloc = nullptr,
-  });
-  if (!ctx) {
-    ntf::logger::error("Failed to initialize context: {}", ctx.error().what());
-    std::exit(EXIT_FAILURE);
-  }
-
-  return std::make_pair(std::move(*window), std::move(*ctx));
-}
+#include "shogle/boilerplate.hpp"
 
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
@@ -91,7 +53,8 @@ int main() {
   const auto& fumo_verts = fumo->meshes.vertices;
   const auto& fumo_inds = fumo->meshes.indices;
 
-  auto [window, ctx] = init_ctx();
+  const char win_title[] = "test - hello_cirno - " SHOGLE_VERSION_STRING;
+  auto [window, ctx] = ntf::r_make_gl_ctx(1280, 720, win_title).value();
   auto imgui = ntf::imgui_ctx::create(ctx.handle());
 
   auto quad = ntf::quad_mesh::create(ctx).value();
@@ -115,31 +78,15 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  auto cirno_img_data = cirno_img->make_descriptor();
-  auto tex = ntf::renderer_texture::create(ctx, {
-    .type = ntf::r_texture_type::texture2d,
-    .format = ntf::r_texture_format::rgb8nu,
-    .extent = ntf::tex_extent_cast(cirno_img->extent),
-    .layers = 1,
-    .levels = 7,
-    .images = {cirno_img_data},
-    .gen_mipmaps = true,
-    .sampler = ntf::r_texture_sampler::nearest,
-    .addressing = ntf::r_texture_address::repeat,
-  }).value();
-
-  auto atlas_img_data = atlas_img->make_descriptor();
-  auto atlas_tex = ntf::renderer_texture::create(ctx, {
-    .type = ntf::r_texture_type::texture2d,
-    .format = ntf::r_texture_format::rgba8nu,
-    .extent = ntf::tex_extent_cast(atlas_img->extent),
-    .layers = 1,
-    .levels = 7,
-    .images = {atlas_img_data},
-    .gen_mipmaps = true,
-    .sampler = ntf::r_texture_sampler::nearest,
-    .addressing = ntf::r_texture_address::repeat,
-  }).value();
+  auto tex = ntf::r_make_texture2d(ctx, *cirno_img,
+                                   ntf::r_texture_sampler::nearest,
+                                   ntf::r_texture_address::repeat).value();
+  auto atlas_tex = ntf::r_make_texture2d(ctx, *atlas_img,
+                                         ntf::r_texture_sampler::nearest,
+                                         ntf::r_texture_address::repeat).value();
+  auto fumo_tex = ntf::r_make_texture2d(ctx, *fumo_diffuse,
+                                        ntf::r_texture_sampler::linear,
+                                        ntf::r_texture_address::repeat).value();
 
   ntf::r_buffer_data fumo_data[] {
     {
@@ -166,97 +113,18 @@ int main() {
     .data = &fumo_data[1],
   }).value();
 
-  auto fumo_img_data = fumo_diffuse->make_descriptor();
-  auto fumo_tex = ntf::renderer_texture::create(ctx, {
-    .type = ntf::r_texture_type::texture2d,
-    .format = ntf::r_texture_format::rgb8nu,
-    .extent = ntf::tex_extent_cast(fumo_diffuse->extent),
-    .layers = 1,
-    .levels = 7,
-    .images = {fumo_img_data},
-    .gen_mipmaps = true,
-    .sampler = ntf::r_texture_sampler::linear,
-    .addressing = ntf::r_texture_address::repeat,
-  }).value();
 
-  auto vertex = ntf::renderer_shader::create(ctx, {
-    .type = ntf::r_shader_type::vertex,
-    .source = {vert_src},
-  }).value();
-  auto fragment_color = ntf::renderer_shader::create(ctx, {
-    .type = ntf::r_shader_type::fragment,
-    .source = {frag_col_src},
-  }).value();
-  auto fragment_tex = ntf::renderer_shader::create(ctx, {
-    .type = ntf::r_shader_type::fragment,
-    .source = {frag_tex_src},
-  }).value();
-  auto vertex_atlas = ntf::renderer_shader::create(ctx, {
-    .type = ntf::r_shader_type::vertex,
-    .source = {vert_atl_src},
-  }).value();
+  auto vertex = ntf::r_make_vertex_shader(ctx, vert_src).value();
+  auto fragment_color = ntf::r_make_fragment_shader(ctx, frag_col_src).value();
+  auto fragment_tex = ntf::r_make_fragment_shader(ctx, frag_tex_src).value();
+  auto vertex_atlas = ntf::r_make_vertex_shader(ctx, vert_atl_src).value();
 
-  auto load_pipeline = [&](ntf::r_shader vert, ntf::r_shader frag) {
-    const auto attr_desc = ntf::pnt_vertex::attrib_descriptor(); 
-    const ntf::r_shader stages[] = {vert, frag};
-    const ntf::r_blend_opts blending_opts {
-      .mode = ntf::r_blend_mode::add,
-      .src_factor = ntf::r_blend_factor::src_alpha,
-      .dst_factor = ntf::r_blend_factor::inv_src_alpha,
-      .color = {0.f, 0.f, 0.f, 0.f},
-      .dynamic = false,
-    };
-    const ntf::r_depth_test_opts depth_opts {
-      .test_func = ntf::r_test_func::less,
-      .near_bound = 0.f,
-      .far_bound = 1.f,
-      .dynamic = false,
-    };
+  auto pipe_col = ntf::r_make_pipeline<ntf::pnt_vertex>(vertex, fragment_color).value();
+  auto pipe_tex = ntf::r_make_pipeline<ntf::pnt_vertex>(vertex, fragment_tex).value();
+  auto pipe_atl = ntf::r_make_pipeline<ntf::pnt_vertex>(vertex_atlas, fragment_tex).value();
 
-    return ntf::renderer_pipeline::create(ctx, {
-      .attrib_binding = 0u,
-      .attrib_stride = sizeof(ntf::pnt_vertex),
-      .attribs = attr_desc,
-      .stages = stages,
-      .primitive = ntf::r_primitive::triangles,
-      .poly_mode = ntf::r_polygon_mode::fill,
-      .poly_width = ntf::nullopt,
-      .stencil_test = nullptr,
-      .depth_test = depth_opts,
-      .scissor_test = nullptr,
-      .face_culling = nullptr,
-      .blending = blending_opts,
-    }).value();
-  };
-  auto pipe_col = load_pipeline(vertex.handle(), fragment_color.handle());
-  auto pipe_tex = load_pipeline(vertex.handle(), fragment_tex.handle());
-  auto pipe_atl = load_pipeline(vertex_atlas.handle(), fragment_tex.handle());
-
-  auto fb_tex = ntf::renderer_texture::create(ctx, {
-    .type = ntf::r_texture_type::texture2d,
-    .format = ntf::r_texture_format::rgb8nu,
-    .extent = ntf::uvec3{1280, 720, 0},
-    .layers = 1,
-    .levels = 1,
-    .images = {},
-    .gen_mipmaps = false,
-    .sampler = ntf::r_texture_sampler::nearest,
-    .addressing = ntf::r_texture_address::repeat,
-  }).value();
-
-  const ntf::r_framebuffer_attachment fb_att {
-    .texture = fb_tex.handle(),
-    .layer = 0,
-    .level = 0,
-  };
-  auto fbo = ntf::renderer_framebuffer::create(ctx, {
-    .extent = {1280, 720},
-    .viewport = {0, 0, 1280, 720},
-    .clear_color = {1.f, 0.f, 0.f, 1.f},
-    .clear_flags = ntf::r_clear_flag::color_depth,
-    .test_buffer = ntf::r_test_buffer::depth24u_stencil8u,
-    .attachments = ntf::cspan<ntf::r_framebuffer_attachment>{fb_att},
-  }).value();
+  auto [fbo, fbo_tex] = ntf::r_make_fbo(ctx, {1280, 720}, {1.f, 0.f, 0.f, 1.f},
+                                        ntf::r_clear_flag::color_depth).value();
 
   auto u_col_model = pipe_col.uniform("model").value();
   auto u_col_proj = pipe_col.uniform("proj").value();
@@ -427,7 +295,7 @@ int main() {
         {.texture = atlas_tex.handle(), .location = 0},
       };
       const ntf::r_texture_binding fb_tbind[] = {
-        {.texture = fb_tex.handle(), .location = 0},
+        {.texture = fbo_tex.handle(), .location = 0},
       };
 
       // Uniforms

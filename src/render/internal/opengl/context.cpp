@@ -301,6 +301,7 @@ void gl_context::submit(r_context ctx, cspan<rp_draw_data> draw_data) {
                                fdata->clear_flags, fdata->viewport, fdata->clear_color);
 
     for (const auto& cmd : data.cmds) {
+      bool skip_render = false;
       cmd.on_render | overload {
         [&](function_view<void(r_context)> on_render) {
           if (on_render) {
@@ -313,9 +314,10 @@ void gl_context::submit(r_context ctx, cspan<rp_draw_data> draw_data) {
           }
           _state.prepare_external_state(*cmd.external);
           std::invoke(on_render, ctx, static_cast<r_platform_handle>(fbo_id));
+          skip_render = true;
         },
       };
-      if (cmd.external.has_value()) {
+      if (skip_render) {
         continue;
       }
 

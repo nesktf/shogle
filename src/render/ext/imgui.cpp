@@ -1,4 +1,5 @@
 #include "../internal/platform.hpp"
+#include "../../../include/shogle/boilerplate.hpp"
 #include "./imgui.hpp"
 
 #include <imgui_impl_opengl3.h> // Should work fine with OGL 4.x
@@ -144,7 +145,7 @@ void imgui_ctx::operator()(r_context, r_platform_handle) {
   }
 }
 
-void imgui_ctx::end_frame(r_framebuffer target, const r_external_state& state,
+void imgui_ctx::end_frame(r_framebuffer target, const r_external_state* state,
                           ImDrawData* draw_data) {
   _draw_data = draw_data;
   if (!_draw_data) {
@@ -160,7 +161,7 @@ void imgui_ctx::end_frame(r_framebuffer target, const r_external_state& state,
 
   r_submit_external_command(_ctx, {
     .target = target,
-    .state = state,
+    .state = state ? *state : r_def_ext_state,
     .callback = {*this},
   });
 }
