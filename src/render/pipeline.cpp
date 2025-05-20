@@ -83,6 +83,7 @@ static r_expected<rp_pip_desc> transform_desc(rp_alloc& alloc,
     .stencil_test = desc.stencil_test,
     .depth_test = desc.depth_test,
     .scissor_test = desc.scissor_test,
+    .face_culling = desc.face_culling,
     .blending = desc.blending,
   };
 }

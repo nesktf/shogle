@@ -134,7 +134,7 @@ private:
   fixed_hashmap(value_type* values, uint32* flags, size_t cap,
                 const HashT& hash, const EqualsT& eqs, const DelT& del) :
     ops_base{hash, eqs}, del_base{del},
-    _values{values}, _flags{flags}, _used{0}, _cap{cap} {}
+    _flags{flags}, _values{values}, _used{0}, _cap{cap} {}
 
 public:
   template<typename HashU=HashT, typename EqualsU=EqualsT, typename Alloc=std::allocator<uint8>>

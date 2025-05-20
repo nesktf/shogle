@@ -85,12 +85,14 @@ static r_expected<rp_fbo_desc> transform_desc(rp_alloc& alloc,
       .extent = desc.extent,
       .test_buffer = desc.test_buffer,
       .attachments = atts,
+      .color_buffer = nullopt,
     };
 
   } else {
     return rp_fbo_desc {
       .extent = desc.extent,
       .test_buffer = desc.test_buffer,
+      .attachments = {},
       .color_buffer = std::get<r_texture_format>(desc.attachments),
     };
   }

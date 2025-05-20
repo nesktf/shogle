@@ -236,9 +236,9 @@ static bool update_texture_images(r_texture tex, cspan<r_image_data> images, boo
   return true;
 }
 
-const void update_texture_opts(r_texture tex,
-                               optional<r_texture_sampler> sampler,
-                               optional<r_texture_address> addressing)
+void update_texture_opts(r_texture tex,
+                         optional<r_texture_sampler> sampler,
+                         optional<r_texture_address> addressing)
 {
   rp_tex_opts opts;
   opts.addressing = addressing.value_or(tex->addressing);
