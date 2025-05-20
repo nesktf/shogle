@@ -273,9 +273,6 @@ bool gl_state::bind_program(GLuint id) noexcept {
 
 bool gl_state::prepare_program(const program_t& prog) noexcept {
   bool rebind = bind_program(prog.id);
-  if (!rebind) {
-    return rebind;
-  }
 
   GL_CALL(glPolygonMode, GL_FRONT_AND_BACK, prog.poly);
   if (prog.poly == GL_LINE) {
