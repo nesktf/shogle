@@ -1,4 +1,4 @@
-#include "./internal/platform.hpp"
+#include "../internal/platform.hpp"
 #include "./window.hpp"
 
 namespace ntf {

@@ -216,6 +216,7 @@ public:
   rp_alloc& alloc() { return *_alloc; }
   r_api api() const { return _api; }
   r_framebuffer_& default_fbo() { return _default_fbo;}
+  r_window window() const { return _win; }
 
 public:
   rp_alloc::uptr_t<rp_alloc> on_destroy();

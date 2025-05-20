@@ -141,35 +141,6 @@ static r_expected<rp_alloc::uptr_t<rp_context>> load_platform_ctx(
   }
   RET_ERROR_CATCH("Failed to load platform context");
   RET_ERROR_IF(!ctx, "Failed to allocate platform context");
-
-  // TODO: Let the user handle the imgui context
-  //       (and move imgui platform calls to their respective place)
-#if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-  ImGuiIO& io = ImGui::GetIO();
-  // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-  ImGui::StyleColorsDark();
-
-  const bool bind_callbacks = true;
-
-  switch (api) {
-    case r_api::opengl: {
-      SHOGLE_INIT_IMGUI_OPENGL(win, bind_callbacks);
-      break;
-    }
-    case r_api::vulkan: {
-      SHOGLE_INIT_IMGUI_VULKAN(win, bind_callbacks);
-      break;
-    }
-    default: {
-      SHOGLE_INIT_IMGUI_OTHER(win, bind_callbacks);
-      break;
-    }
-  }
-#endif
-
   return alloc.wrap_unique(ctx);
 }
 
@@ -208,24 +179,6 @@ void r_destroy_context(r_context ctx) {
     return;
   }
 
-#if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
-  switch (ctx->api()) {
-    case r_api::opengl: {
-      SHOGLE_DESTROY_IMGUI_OPENGL();
-      break;
-    }
-    case r_api::vulkan: {
-      SHOGLE_DESTROY_IMGUI_VULKAN();
-      break;
-    }
-    default: {
-      SHOGLE_DESTROY_IMGUI_OTHER();
-      break;
-    }
-  }
-  ImGui::DestroyContext();
-#endif
-
   auto alloc = ctx->on_destroy();
   alloc->destroy(ctx);
   alloc->arena_destroy();
@@ -241,24 +194,6 @@ void r_start_frame(r_context ctx) {
     fbo.cmds.clear();
   }); 
   ctx->alloc().arena_clear();
-
-#if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
-  switch (ctx->api()) {
-    case r_api::opengl: {
-      SHOGLE_IMGUI_OPENGL_NEW_FRAME();
-      break;
-    }
-    case r_api::vulkan: {
-      SHOGLE_IMGUI_VULKAN_NEW_FRAME();
-      break;
-    }
-    default: {
-      SHOGLE_IMGUI_OTHER_NEW_FRAME();
-      break;
-    }
-  }
-  ImGui::NewFrame();
-#endif
 }
 
 void r_end_frame(r_context ctx) {
@@ -281,23 +216,6 @@ void r_end_frame(r_context ctx) {
     ctx->renderer().submit(ctx, cspan<rp_draw_data>{draw_data, fbos_to_blit});
   }
 
-#if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
-  ImGui::Render();
-  switch (ctx->api()) {
-    case r_api::opengl: {
-      SHOGLE_IMGUI_OPENGL_END_FRAME(ImGui::GetDrawData());
-      break;
-    }
-    case r_api::vulkan: {
-      SHOGLE_IMGUI_VULKAN_END_FRAME(ImGui::GetDrawData());
-      break;
-    }
-    default: {
-      SHOGLE_IMGUI_OTHER_END_FRAME(ImGui::GetDrawData());
-    }
-  }
-#endif
-
   ctx->renderer().swap_buffers();
 }
 
@@ -308,6 +226,19 @@ void r_device_wait(r_context ctx) {
   ctx->renderer().device_wait();
 }
 
+void r_submit_external_command(r_context ctx, r_framebuffer target,
+                               function_view<void(r_context, r_platform_handle)> callback) {
+  if (!ctx || !target) {
+    return;
+  }
+
+  auto& alloc = ctx->alloc();
+
+  target->cmds.emplace_back(callback);
+  auto& d_cmd = target->cmds.back();
+  d_cmd.on_render = callback;
+}
+
 void r_submit_command(r_context ctx, const r_draw_command& cmd) {
   if (!ctx) {
     return;
@@ -315,7 +246,7 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
 
   auto& alloc = ctx->alloc();
 
-  cmd.target->cmds.emplace_back(); // TODO: Use the allocator here too
+  cmd.target->cmds.emplace_back(cmd.on_render);
   auto& d_cmd = cmd.target->cmds.back();
 
   d_cmd.pipeline = cmd.pipeline->handle;
@@ -323,7 +254,6 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
   d_cmd.offset = cmd.draw_opts.offset;
   d_cmd.instances = cmd.draw_opts.instances;
   d_cmd.sort_group = cmd.draw_opts.sort_group;
-  d_cmd.on_render = cmd.on_render;
 
   if (!cmd.buffers.empty()) {
     const size_t buff_count = cmd.buffers.size();
@@ -363,5 +293,34 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
     d_cmd.uniforms = {unifs, uniform_count};
   }
 }
+
+r_window r_get_window(r_context ctx) {
+  if (!ctx) {
+    return nullptr;
+  }
+  return ctx->window();
+}
+
+r_api r_get_api(r_context ctx) {
+  if (!ctx) {
+    return r_api::none;
+  }
+  return ctx->api();
+}
+
+// void r_assert_binded_fbo(r_framebuffer fbo) {
+//   if (!fbo) {
+//     return;
+//   }
+//   auto ctx = fbo->ctx;
+//   enum binding {
+//     FBO_READ = 0,
+//     FBO_WRITE = 1,
+//     FBO_BOTH = 3,
+//   };
+//   const auto handle = fbo == &ctx->default_fbo() ?
+//         static_cast<r_handle_value>(DEFAULT_FBO_HANDLE): static_cast<r_handle_value>(fbo->handle);
+//   fbo->ctx->renderer().immediate_bind(handle, rp_res_type::framebuffer, (int32)FBO_BOTH);
+// }
 
 } // namespace

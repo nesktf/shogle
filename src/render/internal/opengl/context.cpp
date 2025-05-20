@@ -260,18 +260,61 @@ void gl_context::update_pipeline_options(r_platform_pipeline pip, const rp_pip_o
                         opts.scissor_test, opts.blending, opts.face_culling);
 }
 
+// void gl_context::immediate_bind(r_handle_value handle, rp_res_type type, int32 binding) {
+//   switch (type) {
+//     case rp_res_type::framebuffer: {
+//       if (handle == r_handle_tombstone) {
+//         _state.bind_framebuffer(gl_state::DEFAULT_FBO,static_cast<gl_state::fbo_binding>(binding));
+//       } else {
+//         auto& fbo = _framebuffers.get(r_platform_fbo{handle});
+//         _state.bind_framebuffer(fbo.id, static_cast<gl_state::fbo_binding>(binding));
+//       }
+//       break;
+//     }
+//     case rp_res_type::texture: {
+//       auto& tex = _textures.get(r_platform_texture{handle});
+//       _state.bind_texture(tex.id, tex.type, (uint32)binding);
+//       break;
+//     }
+//     case rp_res_type::buffer: {
+//       auto& buff = _buffers.get(r_platform_buffer{handle});
+//       _state.bind_buffer(buff.id, buff.type);
+//       break;
+//     }
+//     case rp_res_type::pipeline: {
+//       auto& prog = _programs.get(r_platform_pipeline{handle});
+//       _state.prepare_program(prog);
+//       break;
+//     }
+//     default: break;
+//   }
+// }
+
 void gl_context::submit(r_context ctx, cspan<rp_draw_data> draw_data) {
   SHOGLE_GL_MAKE_CTX_CURRENT(_win);
   _state.bind_vao(_vao.id);
   for (const auto& data : draw_data) {
     auto target = data.target;
     auto fdata = data.fdata;
-    _state.prepare_draw_target(target ? _framebuffers.get(target).id : gl_state::DEFAULT_FBO,
+    const auto fbo_id = target ? _framebuffers.get(target).id : gl_state::DEFAULT_FBO;
+    _state.prepare_draw_target(fbo_id,
                                fdata->clear_flags, fdata->viewport, fdata->clear_color);
 
     for (const auto& cmd : data.cmds) {
-      if (cmd.on_render) {
-        cmd.on_render(ctx);
+      cmd.on_render | overload {
+        [&](function_view<void(r_context)> on_render) {
+          if (on_render) {
+            std::invoke(on_render, ctx);
+          }
+        },
+        [&](function_view<void(r_context, r_platform_handle)> on_render) {
+          if (on_render) {
+            std::invoke(on_render, ctx, static_cast<r_platform_handle>(fbo_id));
+          }
+        },
+      };
+      if (cmd.is_external) {
+        continue;
       }
 
       bool index_buffer = false;

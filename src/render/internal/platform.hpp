@@ -4,11 +4,6 @@
 
 #include <glad/glad.h>
 
-#if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
-#include <imgui.h>
-#include <imgui_impl_opengl3.h> // Should work fine with OGL 4.x
-#endif
-
 #if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -24,33 +19,6 @@
 #define SHOGLE_VK_CREATE_SURFACE(win_handle, vk_instance, vk_surface_ptr, vk_alloc_ptr) \
   glfwCreateWindowSurface(vk_instance, reinterpret_cast<GLFWwindow*>(win_handle), \
                           vk_alloc_ptr, vk_surface_ptr)
-
-// TODO: Define inits for vulkan & software renderer
-#if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
-#include <imgui_impl_glfw.h>
-#define SHOGLE_INIT_IMGUI_OPENGL(win, cbks) \
-  ImGui_ImplGlfw_InitForOpenGL(reinterpret_cast<GLFWwindow*>(win), cbks); \
-  ImGui_ImplOpenGL3_Init("#version 150")
-#define SHOGLE_INIT_IMGUI_VULKAN(win, cbks)
-#define SHOGLE_INIT_IMGUI_OTHER(win, cbks)
-
-#define SHOGLE_DESTROY_IMGUI_OPENGL() \
-  ImGui_ImplOpenGL3_Shutdown(); \
-  ImGui_ImplGlfw_Shutdown()
-#define SHOGLE_DESTROY_IMGUI_VULKAN()
-#define SHOGLE_DESTROY_IMGUI_OTHER()
-
-#define SHOGLE_IMGUI_OPENGL_NEW_FRAME() \
-  ImGui_ImplGlfw_NewFrame(); \
-  ImGui_ImplOpenGL3_NewFrame()
-#define SHOGLE_IMGUI_VULKAN_NEW_FRAME()
-#define SHOGLE_IMGUI_OTHER_NEW_FRAME()
-
-#define SHOGLE_IMGUI_OPENGL_END_FRAME(draw_data) \
-  ImGui_ImplOpenGL3_RenderDrawData(draw_data)
-#define SHOGLE_IMGUI_VULKAN_END_FRAME(draw_data)
-#define SHOGLE_IMGUI_OTHER_END_FRAME(draw_data)
-#endif
 #endif
 
 #include "../context.hpp"
@@ -347,6 +315,13 @@ struct rp_buffer_binding {
 };
 
 struct rp_draw_cmd {
+  rp_draw_cmd(function_view<void(r_context)> on_render_) :
+    on_render(on_render_), is_external{false} {}
+
+  rp_draw_cmd(function_view<void(r_context, r_platform_handle)> on_render_) :
+    on_render{on_render_}, is_external{true} {}
+
+
   r_platform_pipeline pipeline;
   span<rp_buffer_binding> buffers;
   span<rp_texture_binding> textures;
@@ -355,7 +330,12 @@ struct rp_draw_cmd {
   uint32 offset;
   uint32 instances;
   uint32 sort_group;
-  function_view<void(r_context)> on_render;
+
+  std::variant<
+    function_view<void(r_context, r_platform_handle)>,
+    function_view<void(r_context)>
+  > on_render;
+  bool is_external;
 };
 
 struct rp_fbo_frame_data {
@@ -468,6 +448,13 @@ struct rp_fbo_desc {
   optional<r_texture_format> color_buffer;
 };
 
+// enum class rp_res_type {
+//   buffer,
+//   texture,
+//   framebuffer,
+//   shader,
+//   pipeline,
+// };
 
 struct rp_context {
   virtual ~rp_context() = default;
@@ -496,6 +483,7 @@ struct rp_context {
   virtual void destroy_framebuffer(r_platform_fbo fb) noexcept = 0;
 
   virtual void submit(r_context ctx, cspan<rp_draw_data> draw_data) = 0;
+  // virtual void immediate_bind(r_handle_value handle, rp_res_type type, int32 binding) = 0;
 
   virtual void device_wait() noexcept {}
   virtual void swap_buffers() = 0;
@@ -506,6 +494,8 @@ r_platform_texture r_texture_get_handle(r_texture tex);
 r_platform_fbo r_framebuffer_get_handle(r_framebuffer fbo);
 r_platform_shader r_shader_get_handle(r_shader shader);
 r_platform_pipeline r_pipeline_get_handle(r_pipeline pip);
+
+// void r_assert_binded_fbo(r_framebuffer fbo);
 
 } // namespace ntf
 

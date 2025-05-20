@@ -92,6 +92,7 @@ int main() {
   const auto& fumo_inds = fumo->meshes.indices;
 
   auto [window, ctx] = init_ctx();
+  auto imgui = ntf::imgui_ctx::create(ctx.handle());
 
   auto quad = ntf::quad_mesh::create(ctx).value();
   auto cube = ntf::cube_mesh::create(ctx).value();
@@ -389,6 +390,7 @@ int main() {
         avg_fps /= 120.f;
       }
 
+      imgui.start_frame();
       const ntf::uint32 ups_min = 1;
       const ntf::uint32 ups_max = 85;
       const auto gui_flags =
@@ -403,6 +405,7 @@ int main() {
         ImGui::SliderFloat("font scale: ", &font_scale, 1.f, 8.f);
       ImGui::End();
       ImGui::ShowDemoWindow();
+      imgui.end_frame();
 
 
       // Buffer bindings

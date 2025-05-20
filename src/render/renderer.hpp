@@ -19,6 +19,8 @@ enum class r_api {
   software,
 };
 
+using r_platform_handle = uint64;
+
 using r_error = ::ntf::error<void>;
 
 template<typename T>
@@ -505,5 +507,9 @@ void r_start_frame(r_context ctx);
 void r_end_frame(r_context ctx);
 void r_device_wait(r_context ctx);
 void r_submit_command(r_context ctx, const r_draw_command& cmd);
+void r_submit_external_command(r_context ctx, r_framebuffer target,
+                               function_view<void(r_context, r_platform_handle)> callback);
+r_window r_get_window(r_context ctx);
+r_api r_get_api(r_context ctx);
 
 } // namespace ntf

@@ -286,12 +286,12 @@ public:
     _data{nullptr}, _invoke_ptr{fun} {}
 
   template<typename T>
-  requires(std::is_invocable_r_v<R, T, Args...>)
+  requires(std::is_invocable_r_v<R, T, Args...> && !std::is_same_v<function_view, T>)
   constexpr function_view(T& functor) noexcept :
     _data{static_cast<void*>(std::addressof(functor))}, _invoke_functor{&_invoke_for<T>} {}
 
   template<typename T>
-  requires(std::is_invocable_r_v<R, T, Args...>)
+  requires(std::is_invocable_r_v<R, T, Args...> && !std::is_same_v<function_view, T>)
   constexpr function_view(T* functor) noexcept :
     _data{static_cast<void*>(functor)}, _invoke_functor{&_invoke_for<T>} {}
 
@@ -330,6 +330,7 @@ public:
   }
 
   template<typename T>
+  requires(std::is_invocable_r_v<R, T, Args...> && !std::is_same_v<function_view, T>)
   constexpr function_view& operator=(T& functor) noexcept {
     _data = std::addressof(functor);
     _invoke_functor = &_invoke_for<T>;
