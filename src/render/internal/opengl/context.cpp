@@ -308,12 +308,14 @@ void gl_context::submit(r_context ctx, cspan<rp_draw_data> draw_data) {
           }
         },
         [&](function_view<void(r_context, r_platform_handle)> on_render) {
-          if (on_render) {
-            std::invoke(on_render, ctx, static_cast<r_platform_handle>(fbo_id));
+          if (!on_render) {
+            return;
           }
+          _state.prepare_external_state(*cmd.external);
+          std::invoke(on_render, ctx, static_cast<r_platform_handle>(fbo_id));
         },
       };
-      if (cmd.is_external) {
+      if (cmd.external.has_value()) {
         continue;
       }
 

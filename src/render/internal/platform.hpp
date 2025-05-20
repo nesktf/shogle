@@ -316,10 +316,11 @@ struct rp_buffer_binding {
 
 struct rp_draw_cmd {
   rp_draw_cmd(function_view<void(r_context)> on_render_) :
-    on_render(on_render_), is_external{false} {}
+    on_render(on_render_), external{nullopt} {}
 
-  rp_draw_cmd(function_view<void(r_context, r_platform_handle)> on_render_) :
-    on_render{on_render_}, is_external{true} {}
+  rp_draw_cmd(function_view<void(r_context, r_platform_handle)> on_render_,
+              const r_external_state& external_state) :
+    on_render{on_render_}, external{external_state} {}
 
 
   r_platform_pipeline pipeline;
@@ -335,7 +336,7 @@ struct rp_draw_cmd {
     function_view<void(r_context, r_platform_handle)>,
     function_view<void(r_context)>
   > on_render;
-  bool is_external;
+  optional<r_external_state> external;
 };
 
 struct rp_fbo_frame_data {

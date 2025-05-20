@@ -488,6 +488,23 @@ struct r_draw_command {
   function_view<void(r_context)> on_render;
 };
 
+struct r_external_state {
+  r_primitive primitive;
+  r_polygon_mode poly_mode;
+  optional<float> poly_width;
+  weak_cref<r_stencil_test_opts> stencil_test;
+  weak_cref<r_depth_test_opts> depth_test;
+  weak_cref<r_scissor_test_opts> scissor_test;
+  weak_cref<r_face_cull_opts> face_culling;
+  weak_cref<r_blend_opts> blending;
+};
+
+struct r_external_command {
+  r_framebuffer target;
+  r_external_state state;
+  function_view<void(r_context, r_platform_handle)> callback;
+};
+
 struct r_context_params {
   r_window window;
   r_api renderer_api;
@@ -507,8 +524,7 @@ void r_start_frame(r_context ctx);
 void r_end_frame(r_context ctx);
 void r_device_wait(r_context ctx);
 void r_submit_command(r_context ctx, const r_draw_command& cmd);
-void r_submit_external_command(r_context ctx, r_framebuffer target,
-                               function_view<void(r_context, r_platform_handle)> callback);
+void r_submit_external_command(r_context ctx, const r_external_command& cmd);
 r_window r_get_window(r_context ctx);
 r_api r_get_api(r_context ctx);
 

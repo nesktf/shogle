@@ -178,4 +178,66 @@ void gl_state::prepare_draw_target(GLuint fb, r_clear_flag flags,
   GL_CALL(glClear, clear_bit_cast(flags));
 }
 
+void gl_state::prepare_external_state(const r_external_state& state) {
+  const auto poly_mode = poly_mode_cast(state.poly_mode);
+  GL_CALL(glPolygonMode, GL_FRONT_AND_BACK, poly_mode);
+  if (poly_mode == GL_LINE) {
+    GL_CALL(glLineWidth, state.poly_width.value_or(1.f));
+  } else {
+    GL_CALL(glPointSize, state.poly_width.value_or(1.f));
+  }
+
+  if (state.depth_test) {
+    const auto& dp = state.depth_test;
+    GL_CALL(glEnable, GL_DEPTH_TEST);
+    GL_CALL(glDepthFunc, test_func_cast(dp->test_func));
+    GL_CALL(glDepthRange, dp->near_bound, dp->far_bound);
+  } else {
+    GL_CALL(glDisable, GL_DEPTH_TEST);
+  }
+
+  if (state.stencil_test) {
+    const auto& st = state.stencil_test;
+    const auto& func = state.stencil_test->stencil_func;
+    GL_CALL(glEnable, GL_STENCIL_TEST);
+    GL_CALL(glStencilFunc, test_func_cast(func.func), func.ref, func.mask);
+
+    const auto& rule = st->stencil_rule;
+    GL_CALL(glStencilOp,
+            stencil_op_cast(rule.on_stencil_fail),
+            stencil_op_cast(rule.on_depth_fail),
+            stencil_op_cast(rule.on_pass));
+    GL_CALL(glStencilMask, st->stencil_mask);
+  } else {
+    GL_CALL(glDisable, GL_STENCIL_TEST);
+  }
+
+  if (state.blending) {
+    const auto& bl = state.blending;
+    GL_CALL(glEnable, GL_BLEND);
+    GL_CALL(glBlendEquation, blend_eq_cast(bl->mode));
+    GL_CALL(glBlendFunc, blend_func_cast(bl->src_factor), blend_func_cast(bl->dst_factor));
+    GL_CALL(glBlendColor, bl->color.r, bl->color.g, bl->color.b, bl->color.a);
+  } else {
+    GL_CALL(glDisable, GL_BLEND);
+  }
+
+  if (state.scissor_test) {
+    const auto& sc = state.scissor_test;
+    GL_CALL(glEnable, GL_SCISSOR_TEST);
+    GL_CALL(glScissor, sc->pos.x, sc->pos.y, sc->size.x, sc->size.y);
+  } else {
+    GL_CALL(glDisable, GL_SCISSOR_TEST);
+  }
+
+  if (state.face_culling) {
+    const auto& cu = state.face_culling;
+    GL_CALL(glEnable, GL_CULL_FACE);
+    GL_CALL(glCullFace, cull_mode_cast(cu->mode));
+    GL_CALL(glFrontFace, cull_face_cast(cu->front_face));
+  } else {
+    GL_CALL(glDisable, GL_CULL_FACE);
+  }
+}
+
 } // namespace ntf

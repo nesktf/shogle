@@ -144,7 +144,8 @@ void imgui_ctx::operator()(r_context, r_platform_handle) {
   }
 }
 
-void imgui_ctx::end_frame(r_framebuffer target, ImDrawData* draw_data) {
+void imgui_ctx::end_frame(r_framebuffer target, const r_external_state& state,
+                          ImDrawData* draw_data) {
   _draw_data = draw_data;
   if (!_draw_data) {
     ImGui::Render();
@@ -157,7 +158,11 @@ void imgui_ctx::end_frame(r_framebuffer target, ImDrawData* draw_data) {
   _draw_data->DisplaySize.x = fb.z;
   _draw_data->DisplaySize.y = fb.w;
 
-  r_submit_external_command(_ctx, target, {*this});
+  r_submit_external_command(_ctx, {
+    .target = target,
+    .state = state,
+    .callback = {*this},
+  });
 }
 
 } // namespace ntf

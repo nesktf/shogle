@@ -226,17 +226,14 @@ void r_device_wait(r_context ctx) {
   ctx->renderer().device_wait();
 }
 
-void r_submit_external_command(r_context ctx, r_framebuffer target,
-                               function_view<void(r_context, r_platform_handle)> callback) {
-  if (!ctx || !target) {
+
+void r_submit_external_command(r_context ctx, const r_external_command& cmd) {
+  if (!ctx) {
     return;
   }
 
-  auto& alloc = ctx->alloc();
-
-  target->cmds.emplace_back(callback);
-  auto& d_cmd = target->cmds.back();
-  d_cmd.on_render = callback;
+  auto target = cmd.target;
+  target->cmds.emplace_back(cmd.callback, cmd.state);
 }
 
 void r_submit_command(r_context ctx, const r_draw_command& cmd) {

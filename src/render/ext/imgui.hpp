@@ -7,6 +7,18 @@
 namespace ntf {
 
 class imgui_ctx {
+public:
+  static inline const r_external_state default_state {
+    .primitive = ntf::r_primitive::triangles,
+    .poly_mode = ntf::r_polygon_mode::fill,
+    .poly_width = ntf::nullopt,
+    .stencil_test = nullptr,
+    .depth_test = nullptr,
+    .scissor_test = nullptr,
+    .face_culling = nullptr,
+    .blending = nullptr,
+  };
+
 private:
   imgui_ctx(r_context win, r_api shogle_api) noexcept;
 
@@ -30,7 +42,9 @@ public:
 
 public:
   void start_frame();
-  void end_frame(r_framebuffer target = nullptr, ImDrawData* draw_data = nullptr);
+  void end_frame(r_framebuffer target = nullptr, 
+                 const r_external_state& = default_state,
+                 ImDrawData* draw_data = nullptr);
 
 private:
   void _destroy() noexcept;
