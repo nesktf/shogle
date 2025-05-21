@@ -53,9 +53,9 @@ auto grid_atlas_loader_parse_impl(
       sprite_count += content["offset"]["count"].get<size_t>();
       seq_count += content["anim"].size();
     }
-    atlas_data.sprites.reset(alloc<sprite_data>{}.allocate(sprite_count), sprite_count);
-    atlas_data.groups.reset(alloc<sprite_data::group>{}.allocate(group_count), group_count);
-    atlas_data.sequences.reset(alloc<sprite_data::sequence>{}.allocate(seq_count), seq_count);
+    atlas_data.sprites.reset(sprite_count, alloc<sprite_data>{}.allocate(sprite_count));
+    atlas_data.groups.reset(group_count, alloc<sprite_data::group>{}.allocate(group_count));
+    atlas_data.sequences.reset(seq_count, alloc<sprite_data::sequence>{}.allocate(seq_count));
   } catch(const json::exception& ex) {
     RET_ERR("Failed to allocate atlas data: \"{}\"", ex.what());
   } catch(const std::exception& ex) {
@@ -221,7 +221,14 @@ auto grid_atlas_loader::sequences(data_t& data) -> optional<array_type<sprite_da
 
 auto grid_atlas_loader::indices(data_t& data) -> array_type<atlas_index> {
   NTF_ASSERT(!data.indices.empty());
-  return array_type<atlas_index>::from_container(data.indices);
+
+  const size_t count = data.indices.size();
+  array_type<atlas_index> out{uninitialized, count};
+  for (size_t i = 0; const auto& index : data.indices) {
+    out[i] = index;
+    ++i;
+  }
+  return out;
 }
 
 } // namespace ntf

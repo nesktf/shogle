@@ -253,7 +253,7 @@ font_atlas_data ft2_font_loader::_load_bitmap(
 
   using del_t = virtual_alloc_del<uint8>;
   return font_atlas_data {
-    bitmap_t{bitmap, bitmap_sz, del_t{std::move(bitmap_alloc)}},
+    bitmap_t{bitmap_sz, bitmap, del_t{std::move(bitmap_alloc)}},
     bitmap_extent, r_texture_format::r8nu, r_image_alignment::bytes1,
     std::move(glyphs), std::move(map)
   };

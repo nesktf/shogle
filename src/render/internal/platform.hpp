@@ -211,7 +211,7 @@ public:
   template<typename T>
   uarray_t<T> make_uninited_array(size_t count) {
     T* ptr = allocate_uninited<T>(count);
-    return uarray_t<T>{ptr, ptr ? count : 0u, alloc_del_t<T>{_user_ptr, _free}};
+    return uarray_t<T>{ptr ? count : 0u, ptr, alloc_del_t<T>{_user_ptr, _free}};
   }
 
   template<typename T>

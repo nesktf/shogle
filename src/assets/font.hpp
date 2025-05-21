@@ -29,12 +29,12 @@ struct glyph_metrics {
   ivec2 advance;
 };
 
-using font_glyphs = virtual_unique_array<glyph_metrics>;
+using font_glyphs = unique_array<glyph_metrics, virtual_alloc_del<glyph_metrics>>;
 using glyph_map = virtual_fixed_hashmap<char32_t, size_t>;
 
 struct font_atlas_data {
 public:
-  using bitmap_t = virtual_unique_array<uint8>;
+  using bitmap_t = unique_array<uint8, virtual_alloc_del<uint8>>;
 
 public:
   using iterator = font_glyphs::iterator;

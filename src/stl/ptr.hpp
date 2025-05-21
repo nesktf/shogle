@@ -318,12 +318,12 @@ private:
   using del_base = impl::unique_array_del<T, DelT>;
 
 public:
-  constexpr unique_array()
+  unique_array()
   noexcept(std::is_nothrow_default_constructible_v<DelT>) :
     del_base{},
     _arr{nullptr}, _sz{0u} {}
 
-  constexpr unique_array(std::nullptr_t)
+  unique_array(std::nullptr_t)
   noexcept(std::is_nothrow_default_constructible_v<DelT>) :
     del_base{},
     _arr{nullptr}, _sz{0u} {}
@@ -338,27 +338,55 @@ public:
     del_base{std::move(del)},
     _arr{nullptr}, _sz{0u} {}
 
-  explicit unique_array(pointer arr, size_t sz)
+  unique_array(size_type size, pointer arr)
   noexcept(std::is_nothrow_default_constructible_v<DelT>) :
     del_base{},
-    _arr{arr}, _sz{sz} {}
+    _arr{arr}, _sz{size} {}
 
-  unique_array(pointer arr, size_t sz, const DelT& del)
+  unique_array(size_type size, pointer arr, const DelT& del)
   noexcept(std::is_nothrow_copy_constructible_v<DelT>) :
     del_base{del},
-    _arr{arr}, _sz{sz} {}
+    _arr{arr}, _sz{size} {}
 
-  unique_array(pointer arr, size_t sz, DelT&& del)
+  unique_array(size_type size, pointer arr, DelT&& del)
   noexcept(std::is_nothrow_move_constructible_v<DelT>) :
     del_base{std::move(del)},
-    _arr{arr}, _sz{sz} {}
+    _arr{arr}, _sz{size} {}
+  
+  template<typename Alloc = std::allocator<T>>
+  requires(allocator_type<std::remove_cvref_t<Alloc>, T> && std::copy_constructible<T>)
+  explicit unique_array(size_type size, const T& copy_obj = {}, Alloc&& alloc = {}) :
+    del_base{alloc}, _sz{size}
+  {
+    try {
+      _arr = alloc.allocate(size);
+      for (size_t i = 0; i < size; ++i) {
+        new (_arr+i) T(copy_obj);
+      }
+    } catch (...) {
+      alloc.deallocate(_arr, size);
+      throw;
+    }
+  }
+
+  template<typename Alloc = std::allocator<T>>
+  requires(allocator_type<std::remove_cvref_t<Alloc>, T>)
+  explicit unique_array(uninitialized_t, size_type size, Alloc&& alloc = {}) :
+    del_base{alloc}, _sz{size}
+  {
+    try {
+      _arr = alloc.allocate(size);
+    } catch (...) {
+      alloc.deallocate(_arr, size);
+      throw;
+    }
+  }
 
   unique_array(unique_array&& other)
   noexcept(std::is_nothrow_move_constructible_v<DelT>) :
     del_base{static_cast<del_base&&>(other)},
     _arr{std::move(other._arr)}, _sz{std::move(other._sz)}
   {
-    other._arr = nullptr;
     other._sz = 0u;
   }
 
@@ -367,27 +395,73 @@ public:
   ~unique_array() noexcept { reset(); }
 
 public:
-  void reset(pointer arr, size_t sz) noexcept {
-    if (_arr) {
+  template<typename Alloc = std::allocator<T>>
+  requires(allocator_type<std::remove_cvref_t<Alloc>, T> && std::copy_constructible<T>)
+  static auto from_allocator(
+    size_type size, const T& copy_obj = {}, Alloc&& alloc = {}
+  ) -> unique_array<T, allocator_delete<T, std::remove_cvref_t<Alloc>>>{
+    using del_t = allocator_delete<T, std::remove_cvref_t<Alloc>>;
+
+    pointer arr = nullptr;
+    size_type sz = size;
+    try {
+      arr = alloc.allocate(sz);
+      if (arr) {
+        for (size_t i = 0; i < sz; ++i) {
+          new (arr+i) T(copy_obj);
+        }
+      } else {
+        sz = 0u;
+      }
+    } catch (...) {
+      alloc.deallocate(arr, sz);
+      throw;
+    }
+    return {sz, arr, del_t{std::forward<Alloc>(alloc)}};
+  }
+
+  template<typename Alloc = std::allocator<T>>
+  requires(allocator_type<std::remove_cvref_t<Alloc>, T>)
+  static auto from_allocator(
+    uninitialized_t, size_type size, Alloc&& alloc = {}
+  ) -> unique_array<T, allocator_delete<T, std::remove_cvref_t<Alloc>>> {
+    using del_t = allocator_delete<T, std::remove_cvref_t<Alloc>>;
+
+    pointer arr = nullptr;
+    size_type sz = size;
+    try {
+      arr = alloc.allocate(sz);
+      if (!arr) {
+        sz = 0u;
+      }
+    } catch (...) {
+      alloc.deallocate(arr, sz);
+      throw;
+    }
+    return {sz, arr, del_t{std::forward<Alloc>(alloc)}};
+  }
+
+public:
+  void reset(size_type size, pointer arr) noexcept {
+    if (!empty()) {
       del_base::_delete_array(_arr, _sz);
     }
     _arr = arr;
-    _sz = sz;
+    _sz = size;
   }
 
-  void reset() noexcept { reset(nullptr, 0u); }
+  void reset() noexcept { reset(0u, nullptr); }
 
-  [[nodiscard]] std::pair<T*, size_t> release() noexcept {
+  [[nodiscard]] std::pair<pointer, size_type> release() noexcept {
     pointer ptr = get();
-    size_t sz = size();
-    _arr = nullptr;
+    size_type sz = size();
     _sz = 0;
     return std::make_pair(ptr, sz);
   }
 
   template<typename F>
   void for_each(F&& fun) {
-    if (!has_data()) {
+    if (!empty()) {
       return;
     }
     for (auto it = begin(); it != end(); ++it) {
@@ -397,7 +471,7 @@ public:
 
   template<typename F>
   void for_each(F&& fun) const {
-    if (!has_data()) {
+    if (!empty()) {
       return;
     }
     for (auto it = begin(); it != end(); ++it) {
@@ -414,7 +488,7 @@ public:
   unique_array& operator=(unique_array&& other)
     noexcept(std::is_nothrow_move_assignable_v<DelT>)
   {
-    if (_arr) {
+    if (!empty()) {
       del_base::_delete_array(_arr, _sz);
     }
 
@@ -430,37 +504,37 @@ public:
 
   unique_array& operator=(const unique_array&) = delete;
 
-  value_type& operator[](size_t idx) {
+  value_type& operator[](size_type idx) {
     NTF_ASSERT(idx < size());
     return get()[idx];
   }
-  const value_type& operator[](size_t idx) const {
+  const value_type& operator[](size_type idx) const {
     NTF_ASSERT(idx < size());
     return get()[idx];
   }
 
-  pointer at(size_t idx) noexcept {
-    if (!has_data() || idx >= size()) {
+  pointer at(size_type idx) noexcept {
+    if (empty() || idx >= size()) {
       return nullptr;
     }
     return get()+idx;
   }
 
-  const_pointer at(size_t idx) const noexcept {
-    if (!has_data() || idx >= size()) {
+  const_pointer at(size_type idx) const noexcept {
+    if (!empty() || idx >= size()) {
       return nullptr;
     }
     return get()+idx;
   }
 
 public:
-  size_t size() const noexcept { return _sz; }
+  size_type size() const noexcept { return _sz; }
 
   pointer get() noexcept { return _arr; }
   const_pointer get() const noexcept { return _arr; }
 
-  bool has_data() const noexcept { return get() != nullptr; }
-  explicit operator bool() const noexcept { return has_data(); }
+  bool empty() const noexcept { return _sz == 0u; }
+  explicit operator bool() const noexcept { return !empty(); }
 
   DelT& get_deleter() noexcept { return del_base::_get_deleter(); }
   const DelT& get_deleter() const noexcept { del_base::_get_deleter(); }
@@ -472,101 +546,6 @@ public:
   iterator end() noexcept { return get()+size(); }
   const_iterator end() const noexcept { return get()+size(); }
   const_iterator cend() const noexcept { return get()+size(); }
-
-public:
-  template<typename Cont>
-  requires(std::copy_constructible<T>)
-  static auto from_container(
-    Cont&& container
-  ) {
-    using del_t = allocator_delete<T, std::remove_cvref_t<decltype(container.get_allocator())>>;
-
-    pointer arr = nullptr;
-    size_t sz = container.size();
-    auto&& alloc = container.get_allocator();
-    try {
-      arr = alloc.allocate(sz);
-      if (!arr) {
-        return unique_array<T, del_t>{nullptr, 0u, del_t{alloc}};
-      }
-      size_t i = 0u;
-      for (auto it = container.begin(); it != container.end(); ++i, ++it) {
-        std::construct_at(arr+i, *it);
-      }
-    } catch (...) {
-      alloc.deallocate(arr, sz);
-      throw;
-    }
-    return unique_array<T, del_t>{arr, sz, del_t{alloc}};
-  }
-
-  template<typename Cont, allocator_type<T> Alloc>
-  requires(allocator_type<std::remove_cvref_t<Alloc>, T> && std::copy_constructible<T>)
-  static auto from_container(
-    Cont&& container, Alloc&& alloc
-  ) -> unique_array<T, allocator_delete<T, std::remove_cvref_t<Alloc>>> {
-    using del_t = allocator_delete<T, std::remove_cvref_t<Alloc>>;
-
-    pointer arr = nullptr;
-    size_t sz = container.size();
-    try {
-      arr = alloc.allocate(sz);
-      if (!arr) {
-        return {nullptr, 0u, del_t{std::forward<Alloc>(alloc)}};
-      }
-      size_t i = 0u;
-      for (auto it = container.begin(); it != container.end(); ++i, ++it) {
-        std::construct_at(arr+i, *it);
-      }
-    } catch (...) {
-      alloc.deallocate(arr, sz);
-      throw;
-    }
-    return {arr, sz, del_t{alloc}};
-  }
-
-  template<typename Alloc = std::allocator<T>>
-  requires(allocator_type<std::remove_cvref_t<Alloc>, T> && std::copy_constructible<T>)
-  static auto from_allocator(
-    size_t sz, const T& copy_obj, Alloc&& alloc = {}
-  ) -> unique_array<T, allocator_delete<T, std::remove_cvref_t<Alloc>>>{
-    using del_t = allocator_delete<T, std::remove_cvref_t<Alloc>>;
-
-    pointer arr = nullptr;
-    try {
-      arr = alloc.allocate(sz);
-      if (!arr) {
-        return {nullptr, 0u, del_t{std::forward<Alloc>(alloc)}};
-      }
-      for (size_t i = 0; i < sz; ++i) {
-        std::construct_at(arr+i, copy_obj);
-      }
-    } catch (...) {
-      alloc.deallocate(arr, sz);
-      throw;
-    }
-    return {arr, sz, del_t{std::forward<Alloc>(alloc)}};
-  }
-
-  template<typename Alloc = std::allocator<T>>
-  requires(allocator_type<std::remove_cvref_t<Alloc>, T>)
-  static auto from_allocator(
-    uninitialized_t, size_t sz, Alloc&& alloc = {}
-  ) -> unique_array<T, allocator_delete<T, std::remove_cvref_t<Alloc>>> {
-    using del_t = allocator_delete<T, std::remove_cvref_t<Alloc>>;
-
-    pointer arr = nullptr;
-    try {
-      arr = alloc.allocate(sz);
-      if (!arr) {
-        return {nullptr, 0u, del_t{std::forward<Alloc>(alloc)}};
-      }
-    } catch (...) {
-      alloc.deallocate(arr, sz);
-      throw;
-    }
-    return {arr, sz, del_t{std::forward<Alloc>(alloc)}};
-  }
 
 private:
   pointer _arr;
@@ -702,9 +681,6 @@ private:
   uint8 _buffer[BUFFER_SIZE];
   const vtable_t* _vtable;
 };
-
-template<typename T>
-using virtual_unique_array = unique_array<T, virtual_alloc_del<T>>;
 
 template<typename Arr, typename T>
 struct unique_array_check_t : public std::false_type {};

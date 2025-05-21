@@ -315,6 +315,7 @@ struct alloc_del_dealloc : private Alloc {
   }
 
   Alloc& _get_allocator() { return static_cast<Alloc&>(*this); }
+  const Alloc& _get_allocator() const { return static_cast<const Alloc&>(*this); }
 };
 
 } // namespace impl
@@ -341,10 +342,15 @@ public:
   noexcept(std::is_nothrow_copy_constructible_v<Alloc>):
     deall_base{alloc} {}
 
-  template<typename U>
-  allocator_delete(const allocator_delete<U, rebind_alloc_t<Alloc, U>>& other)
+  allocator_delete(const allocator_delete& other)
   noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
     deall_base{other.get_allocator()} {}
+
+  // template<typename U>
+  // requires(!std::same_as<T, U>)
+  // allocator_delete(const allocator_delete<U, rebind_alloc_t<Alloc, U>>& other)
+  // noexcept(std::is_nothrow_copy_constructible_v<Alloc>) :
+  //   deall_base{other.get_allocator()} {}
 
 public:
   template<typename U = T>

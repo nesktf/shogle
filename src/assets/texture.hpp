@@ -153,7 +153,7 @@ public:
 
       const size_t arr_sz = image.channels*image.height*image.width*sizeof(DepthT);
       return image_data{
-        image_data::texel_array{image.data, arr_sz, virtual_array_deleter<uint8>{stbi_deleter{}}},
+        image_data::texel_array{arr_sz, image.data, virtual_array_deleter<uint8>{stbi_deleter{}}},
         extent2d{image.width, image.height}, *format, r_image_alignment::bytes4
       };
     });
