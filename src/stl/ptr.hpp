@@ -301,7 +301,7 @@ struct unique_array_del<T, std::default_delete<T[]>> : private std::default_dele
 } // namespace impl
 
 template<typename T, array_deleter_type<T> DelT = default_alloc_del<T>>
-requires(!std::is_pointer_v<T> && !std::is_reference_v<T>)
+requires(!std::is_reference_v<T>)
 class unique_array : private impl::unique_array_del<T, DelT> {
 public:
   using value_type = T;
@@ -521,7 +521,7 @@ public:
   }
 
   const_pointer at(size_type idx) const noexcept {
-    if (!empty() || idx >= size()) {
+    if (empty() || idx >= size()) {
       return nullptr;
     }
     return get()+idx;
