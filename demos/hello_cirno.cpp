@@ -273,7 +273,7 @@ int main() {
         ImGui::SliderFloat("font scale: ", &font_scale, 1.f, 8.f);
       ImGui::End();
       ImGui::ShowDemoWindow();
-      imgui.end_frame();
+      imgui.end_frame(default_fbo.handle(), 1u);
 
 
       // Buffer bindings
@@ -404,7 +404,7 @@ int main() {
       text_buffer.clear();
       text_buffer.append_fmt(frenderer->glyphs(), 40.f, 400.f, font_scale,
                             "Hello World! ~ze\n{:.2f}fps - {:.2f}ms", avg_fps, 1000/avg_fps);
-      frenderer->render(quad, default_fbo, *sdf_rule, text_buffer);
+      frenderer->render(quad, default_fbo, *sdf_rule, text_buffer, 1u);
     }
   });
 

@@ -206,8 +206,14 @@ void r_end_frame(r_context ctx) {
   const size_t fbo_count = ctx->fbo_count();
   auto* draw_data = alloc.arena_allocate_uninited<rp_draw_data>(fbo_count);
   size_t fbos_to_blit = 0u;
+  auto cmd_sort = [](const rp_draw_cmd& a, const rp_draw_cmd& b) -> bool {
+    // Sort by group, then by pipeline index
+    const uint32 pip_a = static_cast<uint32>(a.pipeline);
+    const uint32 pip_b = static_cast<uint32>(b.pipeline);
+    return (a.sort_group < b.sort_group || (a.sort_group == b.sort_group && (pip_a < pip_b)));
+  };
   ctx->for_each_fbo([&](r_framebuffer_& fbo) {
-    // TODO: Sort the draw commands before submiting here
+    std::sort(fbo.cmds.begin(), fbo.cmds.end(), cmd_sort);
     std::construct_at(draw_data+fbos_to_blit,
                       fbo.handle, fbo.fdata,
                       cspan<rp_draw_cmd>{fbo.cmds.data(), fbo.cmds.size()});
@@ -242,6 +248,7 @@ void r_submit_external_command(r_context ctx, const r_external_command& cmd) {
     tcmd.external = *cmd.state;
   }
   tcmd.sort_group = cmd.sort_group;
+  tcmd.pipeline = static_cast<r_platform_pipeline>(r_handle_tombstone); // for sorting, draw last
 }
 
 void r_submit_command(r_context ctx, const r_draw_command& cmd) {
