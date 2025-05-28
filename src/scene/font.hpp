@@ -10,11 +10,9 @@
 
 namespace ntf {
 
-using uniform_list = std::vector<r_push_constant>;
-
-struct rendering_rule {
-  // Note: No virtual destructor, used with non owning references (at least for now)
-  virtual r_pipeline retrieve_uniforms(uniform_list& uniforms) = 0;
+struct font_render_rule {
+  virtual ~font_render_rule() = default;
+  virtual std::pair<r_pipeline, r_shader_buffer> write_uniforms() = 0;
 };
 
 template<font_codepoint_type CodeT>
@@ -84,46 +82,34 @@ private:
   std::vector<glyph_entry> _glyph_cache;
 };
 
-class sdf_text_rule final : public rendering_rule {
+class sdf_text_rule final : public font_render_rule {
 private:
-  struct text_props {
+  struct glyph_props {
     color3 text_color;
-    color3 out_color;
-    vec2 out_offset;
     float text_width;
-    float text_edge;
-    float out_width;
-    float out_edge;
-  };
 
-  enum uniform_index {
-    U_TRANSFORM = 0,
-    U_SAMPLER,
-    U_COLOR,
-    U_WIDTH,
-    U_EDGE,
-    U_OUT_COLOR,
-    U_OUT_OFFSET,
-    U_OUT_WIDTH,
-    U_OUT_EDGE,
-    
-    U_COUNT,
+    color3 out_color;
+    float out_width;
+
+    float text_edge;
+    float out_edge;
+
+    vec2 out_offset;
   };
-  using uniform_handles = std::array<r_uniform, U_COUNT>;
 
 private:
-  sdf_text_rule(renderer_pipeline pipeline, const text_props& props,
-                const mat4& transform, const uniform_handles& uniforms);
+  sdf_text_rule(renderer_pipeline&& pipeline, renderer_buffer&& uniform_buffer,
+                const glyph_props& props);
 
 public:
-  static r_expected<sdf_text_rule> create(r_context_view ctx, const mat4& transform,
+  static r_expected<sdf_text_rule> create(r_context_view ctx,
                                           const color3& color, float width, float edge,
                                           const color3& outline_color = {0.f, 0.f, 0.f},
                                           const vec2& outline_offset = {0.f, 0.f},
                                           float outline_width = 0.f, float outline_edge = 0.f);
 
 public:
-  r_pipeline retrieve_uniforms(uniform_list& uniforms) override;
+  std::pair<r_pipeline, r_shader_buffer> write_uniforms() override;
 
 public:
   sdf_text_rule& text_color(const color3& color) & {
@@ -173,11 +159,6 @@ public:
     _props.out_edge = edge;
     return *this;
   }
-  
-  sdf_text_rule& transform(const mat4& mat) & {
-    _transform = mat;
-    return *this;
-  }
 
 public:
   color3 text_color() const { return _props.text_color; }
@@ -189,37 +170,22 @@ public:
   float outline_width() const { return _props.out_width; }
   float outline_edge() const { return _props.out_edge; }
 
-  const mat4& transform() const { return _transform; }
-
 private:
   renderer_pipeline _pipeline;
-  uniform_handles _unifs;
-  mat4 _transform;
-  text_props _props;
-  int32 _sampler;
+  renderer_buffer _uniform_buffer;
+  glyph_props _props;
 };
 
-class bitmap_text_rule final : public rendering_rule {
+class bitmap_text_rule final : public font_render_rule {
 private:
-  enum uniform_index {
-    U_TRANSFORM = 0,
-    U_SAMPLER,
-    U_COLOR,
-
-    U_COUNT,
-  };
-  using uniform_handles = std::array<r_uniform, U_COUNT>;
-
-private:
-  bitmap_text_rule(renderer_pipeline pipeline, const color3& color,
-                   const mat4& transform, const uniform_handles& uniforms);
+  bitmap_text_rule(renderer_pipeline&& pipeline, renderer_buffer&& uniform_buffer,
+                   const color3& color);
 
 public:
-  static r_expected<bitmap_text_rule> create(r_context_view ctx, const mat4& transform,
-                                             const color3& color);
+  static r_expected<bitmap_text_rule> create(r_context_view ctx, const color3& color);
 
 public:
-  r_pipeline retrieve_uniforms(uniform_list& uniforms) override;
+  std::pair<r_pipeline, r_shader_buffer> write_uniforms() override;
 
 public:
   bitmap_text_rule& color(const color3& col) & {
@@ -234,28 +200,16 @@ public:
     return *this;
   }
 
-  bitmap_text_rule& transform(const mat4& mat) & {
-    _transform = mat;
-    return *this;
-  }
-
 public:
   color3 color() const { return _text_color; }
 
-  const mat4& transform() const { return _transform; }
-
 private:
   renderer_pipeline _pipeline;
-  uniform_handles _unifs;
-  mat4 _transform;
+  renderer_buffer _uniform_buffer;
   color3 _text_color;
-  int32 _sampler;
 };
 
 class font_renderer {
-public:
-  static constexpr int32 ATLAS_SAMPLER = 0;
-
 private:
   struct ssbo_callback_t {
     r_buffer_view ssbo;
@@ -267,29 +221,31 @@ private:
   };
 
 private:
-  font_renderer(renderer_buffer ssbo, renderer_texture atlas,
+  font_renderer(renderer_buffer&& ssbo, renderer_texture&& atlas,
                 font_glyphs&& glyphs, glyph_map&& map,
-                vec2 bitmap_extent, size_t batch) noexcept;
+                const mat4& transform, vec2 bitmap_extent, size_t batch) noexcept;
 
 public:
-  static r_expected<font_renderer> create(r_context_view ctx, font_atlas_data&& font, 
+  static r_expected<font_renderer> create(r_context_view ctx, 
+                                          const mat4& transform,
+                                          font_atlas_data&& font, 
                                           r_texture_sampler sampler = r_texture_sampler::linear,
                                           size_t batch_size = 64u);
 
 public:
   void clear_state();
   void append_text(const text_buffer& buffer);
-  void render(const quad_mesh& quad, r_framebuffer_view fbo, rendering_rule& render_rule,
+  void render(const quad_mesh& quad, r_framebuffer_view fbo,
+              font_render_rule& render_rule,
               uint32 sort_group = 0u);
   void render(const quad_mesh& quad, r_framebuffer_view fbo,
-              rendering_rule& render_rule, const text_buffer& buffer,
+              font_render_rule& render_rule, const text_buffer& buffer,
               uint32 sort_group = 0u);
 
 public:
   glyph_meta glyphs() const { return std::make_tuple(&_glyphs, &_glyph_map, _bitmap_extent); }
   
 private:
-  uniform_list _uniform_cache;
   std::vector<ssbo_callback_t> _write_callbacks;
 
   renderer_buffer _ssbo;
@@ -298,6 +254,7 @@ private:
   font_glyphs _glyphs;
   glyph_map _glyph_map;
 
+  mat4 _transform;
   vec2 _bitmap_extent;
   size_t _batch_sz;
 };

@@ -11,8 +11,10 @@ layout (location = 0) in vec3 att_coords;
 layout (location = 1) in vec3 att_normals;
 layout (location = 2) in vec2 att_texcoords;
 
-out vec3 vert_normals;
-out vec2 tex_coord;
+out VS_OUT {
+  vec3 vert_normals;
+  vec2 tex_coord;
+} vs_out;
 
 uniform mat4 u_text_transform;
 
@@ -36,36 +38,42 @@ void main() {
            + glyphs[gl_InstanceID].transf_offset.y;
   gl_Position = u_text_transform*vec4(coords, 0.f, 1.0f);
 
-  tex_coord.x = att_texcoords.x*glyphs[gl_InstanceID].uv_scale.x
-              + glyphs[gl_InstanceID].uv_offset.x;
-  tex_coord.y = att_texcoords.y*glyphs[gl_InstanceID].uv_scale.y
-              + glyphs[gl_InstanceID].uv_offset.y;
-  vert_normals = att_normals;
+  vs_out.tex_coord.x = att_texcoords.x*glyphs[gl_InstanceID].uv_scale.x
+                     + glyphs[gl_InstanceID].uv_offset.x;
+  vs_out.tex_coord.y = att_texcoords.y*glyphs[gl_InstanceID].uv_scale.y
+                     + glyphs[gl_InstanceID].uv_offset.y;
+  vs_out.vert_normals = att_normals;
 }
 )glsl";
 
 constexpr inline std::string_view shad_frag_font_sdf = R"glsl(
 #version 460 core
 
-in vec3 vert_normals;
-in vec2 tex_coord;
-
 out vec4 frag_color;
+
+in VS_OUT {
+  vec3 vert_normals;
+  vec2 tex_coord;
+} fs_in;
+
+layout (std140, binding = 2) uniform font_props {
+  vec3 u_text_color;
+  float u_text_width;
+
+  vec3 u_text_out_color;
+  float u_text_out_width;
+
+  float u_text_edge;
+  float u_text_out_edge;
+
+  vec2 u_text_out_offset;
+};
 
 uniform sampler2D u_atlas_sampler;
 
-uniform vec3 u_text_color;
-uniform float u_text_width;
-uniform float u_text_edge;
-
-uniform vec3 u_text_out_color;
-uniform vec2 u_text_out_offset;
-uniform float u_text_out_width;
-uniform float u_text_out_edge;
-
 void main() {
-  const float text_sdf = 1.f-texture(u_atlas_sampler, tex_coord).r;
-  const float outline_sdf = 1.f-texture(u_atlas_sampler, tex_coord+u_text_out_offset).r;
+  const float text_sdf = 1.f-texture(u_atlas_sampler, fs_in.tex_coord).r;
+  const float outline_sdf = 1.f-texture(u_atlas_sampler, fs_in.tex_coord+u_text_out_offset).r;
 
   const float text_alpha = 1.f-smoothstep(u_text_width, u_text_width+u_text_edge,
                                           text_sdf);
@@ -82,17 +90,21 @@ void main() {
 constexpr inline std::string_view shad_frag_font_normal = R"glsl(
 #version 460 core
 
-in vec3 vert_normals;
-in vec2 tex_coord;
-
 out vec4 frag_color;
+
+in VS_OUT {
+  vec3 vert_normals;
+  vec2 tex_coord;
+} fs_in;
+
+layout (std140, binding = 2) uniform font_props {
+  vec3 u_text_color;
+};
 
 uniform sampler2D u_atlas_sampler;
 
-uniform vec3 u_text_color;
-
 void main() {
-  const float text_alpha = texture(u_atlas_sampler, tex_coord).r;
+  const float text_alpha = texture(u_atlas_sampler, fs_in.tex_coord).r;
   frag_color = vec4(u_text_color, text_alpha);
 }
 

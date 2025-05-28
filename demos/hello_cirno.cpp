@@ -62,7 +62,7 @@ int main() {
 
   ntf::text_buffer text_buffer;
   ntf::mat4 cam_proj_fnt = glm::ortho(0.f, 1280.f, 0.f, 720.f);
-  auto sdf_rule = ntf::sdf_text_rule::create(ctx, cam_proj_fnt,
+  auto sdf_rule = ntf::sdf_text_rule::create(ctx,
                                              ntf::color3{1.f, 0.f, 0.f}, 0.5f, 0.05f,
                                              ntf::color3{0.f, 0.f, 0.f},
                                              ntf::vec2{-0.005f, -0.005f},
@@ -72,7 +72,7 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  auto frenderer = ntf::font_renderer::create(ctx, std::move(*cousine));
+  auto frenderer = ntf::font_renderer::create(ctx, cam_proj_fnt, std::move(*cousine));
   if (!frenderer) {
     ntf::logger::error("[main] Failed to create font renderer: {}", frenderer.error().what());
     return EXIT_FAILURE;
