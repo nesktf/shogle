@@ -118,7 +118,7 @@ public:
 public:
   r_pipeline_(r_context ctx_, r_platform_pipeline handle_,
               r_stages_flag stages_, r_primitive primitive_, r_polygon_mode poly_mode_,
-              rp_alloc::uptr_t<vertex_layout>&& layout_,
+              rp_alloc::uarray_t<r_attrib_binding>&& layout_,
               uniform_map&& uniforms_) noexcept;
 
 public:
@@ -126,7 +126,7 @@ public:
   r_stages_flag stages;
   r_primitive primitive;
   r_polygon_mode poly_mode;
-  rp_alloc::uptr_t<vertex_layout> layout;
+  rp_alloc::uarray_t<r_attrib_binding> layout;
   uniform_map uniforms;
 
 public:

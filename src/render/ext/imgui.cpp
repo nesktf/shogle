@@ -145,7 +145,9 @@ void imgui_ctx::operator()(r_context, r_platform_handle) {
   }
 }
 
-void imgui_ctx::end_frame(r_framebuffer target, const r_external_state* state,
+void imgui_ctx::end_frame(r_framebuffer target,
+                          uint32 sort_group,
+                          weak_cref<r_external_state> state,
                           ImDrawData* draw_data) {
   _draw_data = draw_data;
   if (!_draw_data) {
@@ -161,7 +163,8 @@ void imgui_ctx::end_frame(r_framebuffer target, const r_external_state* state,
 
   r_submit_external_command(_ctx, {
     .target = target,
-    .state = state ? *state : r_def_ext_state,
+    .state = state,
+    .sort_group = sort_group,
     .callback = {*this},
   });
 }

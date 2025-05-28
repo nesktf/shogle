@@ -290,46 +290,39 @@ using rp_uniform_query_vec = rp_alloc::vec_t<rp_uniform_query>;
 template<typename K, typename T>
 using handle_map = std::unordered_map<K, T, r_handle_hash<K>>;
 
-struct vertex_layout {
-  uint32 binding;
-  size_t stride;
-  rp_alloc::uarray_t<r_attrib_descriptor> descriptors;
-};
-
-struct rp_uniform_binding {
-  r_platform_uniform location;
-  r_attrib_type type;
-  const void* data;
-  size_t size;
-};
-
-struct rp_texture_binding {
-  r_platform_texture tex;
-  uint32 index;
-};
-
-struct rp_buffer_binding {
-  r_platform_buffer buffer;
-  r_buffer_type type;
-  optional<uint32> location;
-};
-
 struct rp_draw_cmd {
+public:
+  struct uniform_const {
+    r_platform_uniform location;
+    r_attrib_type type;
+    const void* data;
+    size_t size;
+  };
+
+  struct shader_buffer {
+    r_platform_buffer handle;
+    uint32 binding;
+    size_t offset;
+    size_t size;
+  };
+
+public:
   rp_draw_cmd(function_view<void(r_context)> on_render_) :
-    on_render(on_render_), external{nullopt} {}
+    on_render(on_render_), index_buffer{nullopt}, external{nullopt} {}
 
-  rp_draw_cmd(function_view<void(r_context, r_platform_handle)> on_render_,
-              const r_external_state& external_state) :
-    on_render{on_render_}, external{external_state} {}
+  rp_draw_cmd(function_view<void(r_context, r_platform_handle)> on_render_) :
+    on_render{on_render_}, index_buffer{nullopt}, external{nullopt} {}
 
-
+public:
   r_platform_pipeline pipeline;
-  span<rp_buffer_binding> buffers;
-  span<rp_texture_binding> textures;
-  span<rp_uniform_binding> uniforms;
-  uint32 count;
-  uint32 offset;
-  uint32 instances;
+  span<r_platform_texture> textures;
+
+  r_platform_buffer vertex_buffer;
+  optional<r_platform_buffer> index_buffer;
+  span<shader_buffer> shader_buffers;
+  span<uniform_const> uniforms;
+
+  r_draw_opts draw_opts;
   uint32 sort_group;
 
   std::variant<
@@ -412,7 +405,7 @@ struct rp_shad_desc {
 };
 
 struct rp_pip_desc {
-  rp_alloc::uptr_t<vertex_layout> layout;
+  rp_alloc::uarray_t<r_attrib_binding> layout;
   weak_ref<rp_uniform_query_vec> uniforms;
 
   cspan<r_platform_shader> stages;

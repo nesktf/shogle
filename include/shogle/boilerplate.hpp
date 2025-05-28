@@ -184,14 +184,12 @@ const inline r_blend_opts r_def_blending_opts {
   .src_factor = r_blend_factor::src_alpha,
   .dst_factor = r_blend_factor::inv_src_alpha,
   .color = {0.f, 0.f, 0.f, 0.f},
-  .dynamic = false,
 };
 
 const inline r_depth_test_opts r_def_depth_opts {
   .test_func = r_test_func::less,
   .near_bound = 0.f,
   .far_bound = 1.f,
-  .dynamic = false,
 };
 
 inline r_expected<renderer_texture> r_make_texture2d(r_context_view ctx, const r_image_data& desc,
@@ -254,12 +252,10 @@ r_expected<renderer_pipeline> r_make_pipeline(
   weak_cref<r_blend_opts> blending = r_def_blending_opts
 ) {
   auto ctx = vert.context();
-  const auto attr_desc = Vert::attrib_descriptor();
+  const auto attribs = Vert::aos_binding();
   const r_shader stages[] = {vert.handle(), frag.handle()};
   return renderer_pipeline::create(ctx, {
-    .attrib_binding = 0u,
-    .attrib_stride = sizeof(Vert),
-    .attribs = attr_desc,
+    .attributes = {attribs.data(), attribs.size()},
     .stages = stages,
     .primitive = r_primitive::triangles,
     .poly_mode = r_polygon_mode::fill,
@@ -284,16 +280,14 @@ r_expected<renderer_pipeline> r_make_pipeline(
   if (!vert) {
     return unexpected{std::move(vert.error())};
   }
-  auto frag = r_make_fragment_shader(ctx, vert_src);
+  auto frag = r_make_fragment_shader(ctx, frag_src);
   if (!frag) {
     return unexpected{std::move(frag.error())};
   }
-  const auto attr_desc = Vert::attrib_descriptor();
+  const auto attribs = Vert::aos_binding();
   const r_shader stages[] = {vert->handle(), frag->handle()};
   return renderer_pipeline::create(ctx, {
-    .attrib_binding = 0u,
-    .attrib_stride = sizeof(Vert),
-    .attribs = attr_desc,
+    .attributes = {attribs.data(), attribs.size()},
     .stages = stages,
     .primitive = r_primitive::triangles,
     .poly_mode = r_polygon_mode::fill,

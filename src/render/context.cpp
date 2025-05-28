@@ -52,7 +52,8 @@ auto rp_alloc::make_alloc(weak_cref<r_allocator> alloc_in, size_t arena_size) ->
       std::invoke(alloc.mem_free, alloc.user_ptr, ptr, sizeof(rp_alloc));
       ptr = nullptr;
     } else {
-      SHOGLE_LOG(verbose, "[ntf::r_context] Allocator inited with arena of {} bytes)", arena_size);
+      SHOGLE_LOG(verbose, "[ntf::r_context] Allocator inited with arena of {} bytes)",
+                 arena_size);
     }
   }
   return uptr_t<rp_alloc>{ptr, alloc_del_t<rp_alloc>{alloc.user_ptr, alloc.mem_free}};
@@ -233,7 +234,14 @@ void r_submit_external_command(r_context ctx, const r_external_command& cmd) {
   }
 
   auto target = cmd.target;
-  target->cmds.emplace_back(cmd.callback, cmd.state);
+  NTF_ASSERT(cmd.callback);
+  target->cmds.emplace_back(cmd.callback);
+  auto& tcmd = target->cmds.back();
+
+  if (cmd.state) {
+    tcmd.external = *cmd.state;
+  }
+  tcmd.sort_group = cmd.sort_group;
 }
 
 void r_submit_command(r_context ctx, const r_draw_command& cmd) {
@@ -244,40 +252,47 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
   auto& alloc = ctx->alloc();
 
   cmd.target->cmds.emplace_back(cmd.on_render);
-  auto& d_cmd = cmd.target->cmds.back();
+  auto& tcmd = cmd.target->cmds.back();
 
-  d_cmd.pipeline = cmd.pipeline->handle;
-  d_cmd.count = cmd.draw_opts.count;
-  d_cmd.offset = cmd.draw_opts.offset;
-  d_cmd.instances = cmd.draw_opts.instances;
-  d_cmd.sort_group = cmd.draw_opts.sort_group;
+  NTF_ASSERT(cmd.pipeline);
+  tcmd.pipeline = cmd.pipeline->handle;
+  tcmd.draw_opts = cmd.draw_opts;
+  tcmd.sort_group = cmd.sort_group;
 
-  if (!cmd.buffers.empty()) {
-    const size_t buff_count = cmd.buffers.size();
-    auto* buffers = alloc.arena_allocate_uninited<rp_buffer_binding>(buff_count);
-    for (size_t i = 0u; const auto& buff : cmd.buffers) {
+  NTF_ASSERT(cmd.buffers.vertex);
+  tcmd.vertex_buffer = cmd.buffers.vertex->handle;
+  if (cmd.buffers.index) {
+    tcmd.index_buffer = cmd.buffers.index->handle;
+  }
+
+  if (!cmd.buffers.shader.empty()) {
+    const size_t buff_count = cmd.buffers.shader.size();
+    auto* buffers = alloc.arena_allocate_uninited<rp_draw_cmd::shader_buffer>(buff_count);
+    for (size_t i = 0u; const auto& buff : cmd.buffers.shader) {
+      NTF_ASSERT(buff.buffer);
       std::construct_at(buffers+i,
-                        buff.buffer->handle, buff.type, buff.location);
+                        buff.buffer->handle, buff.binding, buff.offset, buff.size);
       ++i;
     }
-    d_cmd.buffers = {buffers, buff_count};
+    tcmd.shader_buffers = {buffers, buff_count};
   }
 
   if (!cmd.textures.empty()) {
     const size_t tex_count = cmd.textures.size();
-    auto* textures = alloc.arena_allocate_uninited<rp_texture_binding>(tex_count);
-    for (size_t i = 0u; const auto& tex : cmd.textures) {
-      std::construct_at(textures+i,
-                        tex.texture->handle, tex.location);
+    auto* textures = alloc.arena_allocate_uninited<r_platform_texture>(tex_count);
+    for (size_t i = 0u; r_texture tex : cmd.textures) {
+      NTF_ASSERT(tex);
+      std::construct_at(textures+i, tex->handle);
       ++i;
     }
-    d_cmd.textures = {textures, tex_count};
+    tcmd.textures = {textures, tex_count};
   }
 
   if (!cmd.uniforms.empty()) {
     const size_t uniform_count = cmd.uniforms.size();
-    auto* unifs = alloc.arena_allocate_uninited<rp_uniform_binding>(uniform_count);
+    auto* unifs = alloc.arena_allocate_uninited<rp_draw_cmd::uniform_const>(uniform_count);
     for (size_t i = 0u; const auto& unif : cmd.uniforms) {
+      NTF_ASSERT(unif.uniform);
       const size_t data_sz = unif.data.size;
       const size_t data_align = unif.data.alignment;
       auto* data = alloc.arena_allocate(data_sz, data_align);
@@ -287,7 +302,7 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
                         data, data_sz);
       ++i;
     }
-    d_cmd.uniforms = {unifs, uniform_count};
+    tcmd.uniforms = {unifs, uniform_count};
   }
 }
 
@@ -304,20 +319,5 @@ r_api r_get_api(r_context ctx) {
   }
   return ctx->api();
 }
-
-// void r_assert_binded_fbo(r_framebuffer fbo) {
-//   if (!fbo) {
-//     return;
-//   }
-//   auto ctx = fbo->ctx;
-//   enum binding {
-//     FBO_READ = 0,
-//     FBO_WRITE = 1,
-//     FBO_BOTH = 3,
-//   };
-//   const auto handle = fbo == &ctx->default_fbo() ?
-//         static_cast<r_handle_value>(DEFAULT_FBO_HANDLE): static_cast<r_handle_value>(fbo->handle);
-//   fbo->ctx->renderer().immediate_bind(handle, rp_res_type::framebuffer, (int32)FBO_BOTH);
-// }
 
 } // namespace

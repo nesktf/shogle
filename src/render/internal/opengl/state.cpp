@@ -142,13 +142,9 @@ void gl_state::destroy_vao(const vao_t& vao) noexcept {
   GL_CALL(glDeleteVertexArrays, 1, &id);
 }
 
-void gl_state::bind_attributes(const r_attrib_descriptor* attrs, uint32 count, 
-                               size_t stride) noexcept {
-  NTF_ASSERT(attrs);
-  NTF_ASSERT(count > 0);
-  NTF_ASSERT(stride > 0);
-  for (uint32 i = 0; i < count; ++i) {
-    const auto& attr = attrs[i];
+void gl_state::bind_attributes(cspan<r_attrib_binding> attribs) noexcept { 
+  NTF_ASSERT(!attribs.empty());
+  for (const auto& attr : attribs) {
     // TODO: Don't re-enable already enabled attribs (and disable others)
     GL_CALL(glEnableVertexAttribArray, attr.location);
 
@@ -157,13 +153,8 @@ void gl_state::bind_attributes(const r_attrib_descriptor* attrs, uint32 count,
     const GLenum gl_underlying_type = gl_state::attrib_underlying_type_cast(attr.type);
     NTF_ASSERT(gl_underlying_type);
     GL_CALL(glVertexAttribPointer,
-      attr.location,
-      type_dim,
-      gl_underlying_type,
-      GL_FALSE, // Don't normalize
-      stride,
-      reinterpret_cast<void*>(attr.offset)
-    );
+      attr.location, type_dim, gl_underlying_type, GL_FALSE,
+      attr.stride, reinterpret_cast<void*>(attr.offset));
   }
 }
 

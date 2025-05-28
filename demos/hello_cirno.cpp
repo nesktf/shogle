@@ -277,26 +277,8 @@ int main() {
 
 
       // Buffer bindings
-      const ntf::r_buffer_binding fumo_bbind[] = {
-        {fumo_vbo.handle(), ntf::r_buffer_type::vertex, ntf::nullopt},
-        {fumo_ebo.handle(), ntf::r_buffer_type::index, ntf::nullopt},
-      };
       const auto quad_bbind = quad.bindings();
       const auto cube_bbind = cube.bindings();
-
-      // Texture bindings
-      const ntf::r_texture_binding fumo_tbind[] = {
-        {.texture = fumo_tex.handle(), .location = 0},
-      };
-      const ntf::r_texture_binding cino_tbind[] = {
-        {.texture = tex.handle(), .location = 0},
-      };
-      const ntf::r_texture_binding rin_tbind[] = {
-        {.texture = atlas_tex.handle(), .location = 0},
-      };
-      const ntf::r_texture_binding fb_tbind[] = {
-        {.texture = fbo_tex.handle(), .location = 0},
-      };
 
       // Uniforms
       const ntf::r_push_constant fumo_unifs[] = {
@@ -339,51 +321,58 @@ int main() {
         .count = static_cast<ntf::uint32>(fumo_mesh.indices.count),
         .offset = 0,
         .instances = 0,
-        .sort_group = 0,
       };
       ntf::r_draw_opts quad_opts {
         .count = 6,
         .offset = 0,
         .instances = 0,
-        .sort_group = 0,
       };
       ntf::r_draw_opts cube_opts {
         .count = 36,
         .offset = 0,
         .instances = 0,
-        .sort_group = 0,
       };
 
       // Fumo
+      auto fumo_tex_handle = fumo_tex.handle();
       ctx.submit_command({
         .target = default_fbo.handle(),
         .pipeline = pipe_tex.handle(),
-        .buffers = fumo_bbind,
-        .textures = fumo_tbind,
+        .buffers = {
+          .vertex = fumo_vbo.handle(),
+          .index = fumo_ebo.handle(),
+          .shader = {},
+        },
+        .textures = {fumo_tex_handle},
         .uniforms = fumo_unifs,
         .draw_opts = fumo_opts,
+        .sort_group = 0u,
         .on_render = {},
       });
 
       // Rin sprite
+      auto rin_tex_handle = atlas_tex.handle();
       ctx.submit_command({
         .target = default_fbo.handle(),
         .pipeline = pipe_atl.handle(),
         .buffers = quad_bbind,
-        .textures = rin_tbind,
+        .textures = {rin_tex_handle},
         .uniforms = rin_unifs,
         .draw_opts = quad_opts,
+        .sort_group = 0u,
         .on_render = {},
       });
 
       // Framebuffer viewport
+      auto fbo_tex_handle = fbo_tex.handle();
       ctx.submit_command({
         .target = default_fbo.handle(),
         .pipeline = pipe_tex.handle(),
         .buffers = quad_bbind,
-        .textures = fb_tbind,
+        .textures = {fbo_tex_handle},
         .uniforms = fb_unifs,
         .draw_opts = quad_opts,
+        .sort_group = 0u,
         .on_render = {},
       });
 
@@ -395,17 +384,20 @@ int main() {
         .textures = {},
         .uniforms = cube_unifs,
         .draw_opts = cube_opts,
+        .sort_group = 0u,
         .on_render = {},
       });
 
       // Cirno quad
+      auto cino_tex_handle = tex.handle();
       ctx.submit_command({
         .target = fbo.handle(),
         .pipeline = pipe_tex.handle(),
         .buffers = quad_bbind,
-        .textures = cino_tbind,
+        .textures = {cino_tex_handle},
         .uniforms = cino_unifs,
         .draw_opts = quad_opts,
+        .sort_group = 0u,
         .on_render = {},
       });
 

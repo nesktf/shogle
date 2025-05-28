@@ -31,7 +31,8 @@ public:
 public:
   void start_frame();
   void end_frame(r_framebuffer target = nullptr, 
-                 const r_external_state* = nullptr,
+                 uint32 sort_group = 0u,
+                 weak_cref<r_external_state> state = nullptr,
                  ImDrawData* draw_data = nullptr);
 
 private:

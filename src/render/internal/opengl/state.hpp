@@ -117,7 +117,7 @@ public:
       uint32 w, h;
     } scissor;
 
-    weak_ref<vertex_layout> layout;
+    cspan<r_attrib_binding> layout;
   };
 
   struct texture_t {
@@ -222,7 +222,8 @@ void push_uniform(uint32 loc, r_attrib_type type, const void* data) noexcept;
   void prepare_draw_target(GLuint fb, r_clear_flag flags,
                            const uvec4& vp, const color4& col) noexcept;
 
-  void bind_attributes(const r_attrib_descriptor* attrs, uint32 count, size_t stride) noexcept;
+  void bind_attributes(cspan<r_attrib_binding> attrs) noexcept;
+  // void bind_attributes(const r_attrib_descriptor* attrs, uint32 count, size_t stride) noexcept;
   void prepare_external_state(const r_external_state& state);
 
 public:

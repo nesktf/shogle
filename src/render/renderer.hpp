@@ -123,11 +123,6 @@ struct r_texture_data {
   optional<r_texture_address> addressing;
 };
 
-struct r_texture_binding {
-  r_texture texture;
-  uint32 location;
-};
-
 r_expected<r_texture> r_create_texture(r_context ctx, const r_texture_descriptor& desc);
 void r_destroy_texture(r_texture tex) noexcept;
 
@@ -177,12 +172,6 @@ struct r_buffer_descriptor {
   size_t size;
 
   weak_cref<r_buffer_data> data;
-};
-
-struct r_buffer_binding {
-  r_buffer buffer;
-  r_buffer_type type;
-  optional<uint32> location;
 };
 
 r_expected<r_buffer> r_create_buffer(r_context ctx, const r_buffer_descriptor& desc);
@@ -327,7 +316,6 @@ struct r_blend_opts {
   r_blend_factor src_factor;
   r_blend_factor dst_factor;
   color4 color;
-  bool dynamic;
 };
 
 struct r_stencil_rule {
@@ -346,40 +334,35 @@ struct r_stencil_test_opts {
   r_stencil_func stencil_func;
   r_stencil_rule stencil_rule;
   uint32 stencil_mask;
-  bool dynamic;
 };
 
 struct r_depth_test_opts {
   r_test_func test_func;
   double near_bound;
   double far_bound;
-  bool dynamic;
 };
 
 struct r_scissor_test_opts {
   extent2d pos;
   extent2d size;
-  bool dynamic;
 };
 
 struct r_face_cull_opts {
   r_cull_mode mode;
   r_cull_face front_face;
-  bool dynamic;
 };
 
-struct r_attrib_descriptor {
+struct r_attrib_binding {
   r_attrib_type type;
-  uint32 binding;
   uint32 location;
   size_t offset;
+  size_t stride;
 };
 
 struct r_pipeline_descriptor {
-  uint32 attrib_binding;
-  size_t attrib_stride;
-  cspan<r_attrib_descriptor> attribs;
+  cspan<r_attrib_binding> attributes;
   cspan<r_shader> stages;
+
   r_primitive primitive;
   r_polygon_mode poly_mode;
   optional<float> poly_width;
@@ -392,18 +375,6 @@ struct r_pipeline_descriptor {
 };
 
 NTF_DECLARE_OPAQUE_HANDLE(r_uniform);
-
-struct r_uniform_data {
-  const void* data;
-  r_attrib_type type;
-  size_t alignment;
-  size_t size;
-};
-
-struct r_push_constant {
-  r_uniform uniform;
-  r_uniform_data data;
-};
 
 r_expected<r_pipeline> r_create_pipeline(r_context ctx, const r_pipeline_descriptor& desc);
 void r_destroy_pipeline(r_pipeline pip) noexcept;
@@ -471,20 +442,45 @@ uvec4 r_framebuffer_get_viewport(r_framebuffer fbo);
 r_framebuffer r_get_default_framebuffer(r_context ctx);
 r_context r_framebuffer_get_ctx(r_framebuffer fbo);
 
+struct r_shader_buffer {
+  r_buffer buffer;
+  uint32 binding;
+  size_t offset;
+  size_t size;
+};
+
+struct r_buffer_binding {
+  r_buffer vertex;
+  r_buffer index;
+  cspan<r_shader_buffer> shader;
+};
+
+struct r_uniform_data {
+  const void* data;
+  r_attrib_type type;
+  size_t alignment;
+  size_t size;
+};
+
+struct r_push_constant {
+  r_uniform uniform;
+  r_uniform_data data;
+};
+
 struct r_draw_opts {
   uint32 count;
   uint32 offset;
   uint32 instances;
-  uint32 sort_group;
 };
 
 struct r_draw_command {
   r_framebuffer target;
   r_pipeline pipeline;
-  cspan<r_buffer_binding> buffers;
-  cspan<r_texture_binding> textures;
+  r_buffer_binding buffers;
+  cspan<r_texture> textures;
   cspan<r_push_constant> uniforms;
   r_draw_opts draw_opts;
+  uint32 sort_group;
   function_view<void(r_context)> on_render;
 };
 
@@ -501,7 +497,8 @@ struct r_external_state {
 
 struct r_external_command {
   r_framebuffer target;
-  r_external_state state;
+  weak_cref<r_external_state> state;
+  uint32 sort_group;
   function_view<void(r_context, r_platform_handle)> callback;
 };
 
@@ -514,7 +511,7 @@ struct r_context_params {
   r_clear_flag fb_clear;
   color4 fb_color;
 
-  weak_cref<r_allocator> alloc; // Placeholder!!!
+  weak_cref<r_allocator> alloc;
 };
 
 r_expected<r_context> r_create_context(const r_context_params& params);

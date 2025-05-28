@@ -18,18 +18,11 @@ public:
                                       bool inverted_uvs = false, bool dynamic_storage = false);
 
 public:
-  static constexpr size_t attr_stride() { return sizeof(pnt_vertex); }
-  static constexpr auto attr_descriptor(const std::array<uint32, 3>& binds = {0, 0, 0}) {
-    return pnt_vertex::attrib_descriptor(binds);
-  }
+  static constexpr auto attribute_binding() { return pnt_vertex::aos_binding(); }
 
 public:
-  std::array<r_buffer_binding, 2u> bindings(optional<uint32> vbo_location = nullopt,
-                                            optional<uint32> ebo_location = nullopt) const {
-    return {{
-      {.buffer = _vbo.handle(), .type = r_buffer_type::vertex, .location = vbo_location},
-      {.buffer = _ebo.handle(), .type = r_buffer_type::index,  .location = ebo_location},
-    }};
+  r_buffer_binding bindings(cspan<r_shader_buffer> shader_buffers = {}) const {
+    return { .vertex = _vbo.handle(), .index = _ebo.handle(), .shader = shader_buffers };
   }
   r_buffer_view vbo() const { return _vbo; }
   r_buffer_view ebo() const { return _ebo; }
@@ -52,18 +45,11 @@ public:
   r_expected<cube_mesh> static create(r_context_view ctx, bool dynamic_storage = false);
 
 public:
-  static constexpr size_t attr_stride() { return sizeof(pnt_vertex); }
-  static constexpr auto attr_descriptor(const std::array<uint32, 3>& binds = {0, 0, 0}) {
-    return pnt_vertex::attrib_descriptor(binds);
-  }
+  static constexpr auto attribute_binding() { return pnt_vertex::aos_binding(); }
 
 public:
-  std::array<r_buffer_binding, 1u> bindings(optional<uint32> vbo_location = nullopt) const {
-                                            // optional<uint32> ebo_location = nullopt) const {
-    return {{
-      {.buffer = _vbo.handle(), .type = r_buffer_type::vertex, .location = vbo_location},
-      // {.buffer = _ebo.handle(), .type = r_buffer_type::index,  .location = ebo_location},
-    }};
+  r_buffer_binding bindings(cspan<r_shader_buffer> shader_buffers = {}) const {
+    return { .vertex = _vbo.handle(), .index = nullptr, .shader = shader_buffers };
   }
   r_buffer_view vbo() const { return _vbo; }
   // r_buffer_view ebo() const { return _ebo;}

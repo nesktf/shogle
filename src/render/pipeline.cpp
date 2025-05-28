@@ -9,7 +9,7 @@ r_uniform_::r_uniform_(r_pipeline pip, r_platform_uniform location_,
 
 r_pipeline_::r_pipeline_(r_context ctx_, r_platform_pipeline handle_,
                          r_stages_flag stages_, r_primitive primitive_, r_polygon_mode poly_mode_,
-                         rp_alloc::uptr_t<vertex_layout>&& layout_,
+                         rp_alloc::uarray_t<r_attrib_binding>&& layout_,
                          uniform_map&& uniforms_) noexcept :
   rp_res_node<r_pipeline_>{ctx_},
   handle{handle_},
@@ -61,16 +61,12 @@ static r_expected<rp_pip_desc> transform_desc(rp_alloc& alloc,
     ++i;
   }
 
-  auto descs = alloc.make_uninited_array<r_attrib_descriptor>(desc.attribs.size());
-  RET_ERROR_IF(!descs, "Failed to allocate layout descriptors");
-  for (size_t i = 0u; const auto& attrib : desc.attribs) {
-    std::construct_at(descs.get()+i, attrib);
+  auto layout = alloc.make_uninited_array<r_attrib_binding>(desc.attributes.size());
+  RET_ERROR_IF(!layout, "Failed to allocate layout descriptors");
+  for (size_t i = 0u; const auto& attrib : desc.attributes) {
+    std::construct_at(layout.get()+i, attrib);
     ++i;
   }
-
-  auto layout = alloc.make_unique<vertex_layout>(desc.attrib_binding, desc.attrib_stride,
-                                                 std::move(descs));
-  RET_ERROR_IF(!layout, "Failed to allocate vertex layout");
 
   return rp_pip_desc{
     .layout = std::move(layout),

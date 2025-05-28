@@ -239,7 +239,7 @@ r_platform_pipeline gl_context::create_pipeline(const rp_pip_desc& desc) {
 
   NTF_ASSERT(desc.uniforms);
   _state.query_program_uniforms(prog, *desc.uniforms);
-  prog.layout = desc.layout.get();
+  prog.layout = {desc.layout.get(), desc.layout.size()};
 
   NTF_ASSERT(prog.id);
   auto handle = _programs.acquire();
@@ -260,39 +260,82 @@ void gl_context::update_pipeline_options(r_platform_pipeline pip, const rp_pip_o
                         opts.scissor_test, opts.blending, opts.face_culling);
 }
 
-// void gl_context::immediate_bind(r_handle_value handle, rp_res_type type, int32 binding) {
-//   switch (type) {
-//     case rp_res_type::framebuffer: {
-//       if (handle == r_handle_tombstone) {
-//         _state.bind_framebuffer(gl_state::DEFAULT_FBO,static_cast<gl_state::fbo_binding>(binding));
-//       } else {
-//         auto& fbo = _framebuffers.get(r_platform_fbo{handle});
-//         _state.bind_framebuffer(fbo.id, static_cast<gl_state::fbo_binding>(binding));
-//       }
-//       break;
-//     }
-//     case rp_res_type::texture: {
-//       auto& tex = _textures.get(r_platform_texture{handle});
-//       _state.bind_texture(tex.id, tex.type, (uint32)binding);
-//       break;
-//     }
-//     case rp_res_type::buffer: {
-//       auto& buff = _buffers.get(r_platform_buffer{handle});
-//       _state.bind_buffer(buff.id, buff.type);
-//       break;
-//     }
-//     case rp_res_type::pipeline: {
-//       auto& prog = _programs.get(r_platform_pipeline{handle});
-//       _state.prepare_program(prog);
-//       break;
-//     }
-//     default: break;
-//   }
-// }
-
 void gl_context::submit(r_context ctx, cspan<rp_draw_data> draw_data) {
   SHOGLE_GL_MAKE_CTX_CURRENT(_win);
   _state.bind_vao(_vao.id);
+
+  auto render_data = [this](const rp_draw_cmd& cmd) {
+    // Bind vertex buffer
+    auto& vbo = _buffers.get(cmd.vertex_buffer);
+    NTF_ASSERT(vbo.type == GL_ARRAY_BUFFER);
+    _state.bind_buffer(vbo.id, vbo.type);
+
+    // Bind program
+    NTF_ASSERT(cmd.pipeline);
+    const auto& prog = _programs.get(cmd.pipeline);
+    NTF_ASSERT(prog.id);
+    _state.prepare_program(prog);
+
+    // Bind vertex attributes
+    NTF_ASSERT(!prog.layout.empty());
+    _state.bind_attributes(prog.layout);
+
+    // Bind index buffer (if any)
+    if (cmd.index_buffer) {
+      auto& ebo = _buffers.get(*cmd.index_buffer);
+      NTF_ASSERT(ebo.type == GL_ELEMENT_ARRAY_BUFFER);
+      _state.bind_buffer(ebo.id, ebo.type);
+    }
+
+    // Bind uniform & shader buffers
+    for (const auto& buffer : cmd.shader_buffers) {
+      const auto& gl_buff = _buffers.get(buffer.handle);
+      NTF_ASSERT(gl_buff.type == GL_SHADER_STORAGE_BUFFER || gl_buff.type == GL_UNIFORM_BUFFER);
+      NTF_ASSERT(buffer.offset+buffer.size <= gl_buff.size);
+      GL_CALL(glBindBufferRange,
+              gl_buff.type, buffer.binding, gl_buff.id, buffer.offset, buffer.size);
+    }
+
+    // Bind textures, set the sampler index in order
+    for (uint32 index = 0u; const auto& tex_handle : cmd.textures) {
+      const auto& tex = _textures.get(tex_handle);
+      _state.bind_texture(tex.id, tex.type, index);
+      ++index;
+    }
+
+    // Upload uniforms, if any
+    for (const auto& unif : cmd.uniforms) {
+      _state.push_uniform(static_cast<uint32>(unif.location), unif.type, unif.data);
+    }
+
+    // Draw things
+    const auto& draw_opts = cmd.draw_opts;
+    NTF_ASSERT(draw_opts.count);
+    if (cmd.index_buffer) {
+      const void* offset = reinterpret_cast<const void*>(draw_opts.offset*sizeof(uint32));
+      const GLenum format = GL_UNSIGNED_INT;
+      if (draw_opts.instances) {
+        GL_CALL(glDrawElementsInstanced,
+          prog.primitive, draw_opts.count, format, offset, draw_opts.instances
+        );
+      } else {
+        GL_CALL(glDrawElements,
+          prog.primitive, draw_opts.count, format, offset
+        );
+      }
+    } else {
+      if (draw_opts.instances) {
+        GL_CALL(glDrawArraysInstanced,
+          prog.primitive, draw_opts.offset, draw_opts.count, draw_opts.instances
+        );
+      } else {
+        GL_CALL(glDrawArrays,
+          prog.primitive, draw_opts.offset, draw_opts.count
+        );
+      }
+    }
+  };
+
   for (const auto& data : draw_data) {
     auto target = data.target;
     auto fdata = data.fdata;
@@ -301,7 +344,7 @@ void gl_context::submit(r_context ctx, cspan<rp_draw_data> draw_data) {
                                fdata->clear_flags, fdata->viewport, fdata->clear_color);
 
     for (const auto& cmd : data.cmds) {
-      bool skip_render = false;
+      bool external_render = false;
       cmd.on_render | overload {
         [&](function_view<void(r_context)> on_render) {
           if (on_render) {
@@ -309,85 +352,16 @@ void gl_context::submit(r_context ctx, cspan<rp_draw_data> draw_data) {
           }
         },
         [&](function_view<void(r_context, r_platform_handle)> on_render) {
-          if (!on_render) {
-            return;
+          NTF_ASSERT(on_render);
+          if (cmd.external) {
+            _state.prepare_external_state(*cmd.external);
           }
-          _state.prepare_external_state(*cmd.external);
           std::invoke(on_render, ctx, static_cast<r_platform_handle>(fbo_id));
-          skip_render = true;
+          external_render = true;
         },
       };
-      if (skip_render) {
-        continue;
-      }
-
-      bool index_buffer = false;
-      bool rebind = false;
-      for (const auto& buffer : cmd.buffers) {
-        const auto& gl_buff = _buffers.get(buffer.buffer);
-        if (gl_buff.type == GL_ELEMENT_ARRAY_BUFFER) {
-          index_buffer = true;
-        }
-
-        if (gl_buff.type == GL_ARRAY_BUFFER) {
-          rebind = _state.bind_buffer(gl_buff.id, gl_buff.type);
-        } else {
-          _state.bind_buffer(gl_buff.id, gl_buff.type);
-        }
-        if (gl_buff.type == GL_SHADER_STORAGE_BUFFER) {
-          if (!buffer.location) {
-            SHOGLE_LOG(warning, "[ntf::gl_context::submit] No binding provided for SSBO");
-            continue;
-          }
-          GL_CALL(glBindBufferBase, GL_SHADER_STORAGE_BUFFER, *buffer.location, gl_buff.id);
-        }
-      }
-
-      NTF_ASSERT(cmd.count);
-      NTF_ASSERT(cmd.pipeline);
-
-      const auto& prog = _programs.get(cmd.pipeline);
-      NTF_ASSERT(prog.id);
-
-      rebind = (_state.prepare_program(prog) || rebind);
-      if (rebind) {
-        auto& layout = prog.layout;
-        _state.bind_attributes(
-          layout->descriptors.get(), layout->descriptors.size(), layout->stride
-        );
-      }
-
-      for (const auto& bind : cmd.textures) {
-        const auto& tex = _textures.get(bind.tex);
-        _state.bind_texture(tex.id, tex.type, bind.index);
-      }
-
-      for (const auto& unif : cmd.uniforms) {
-        _state.push_uniform(static_cast<uint32>(unif.location), unif.type, unif.data);
-      }
-
-      if (index_buffer) {
-        const void* offset = reinterpret_cast<const void*>(cmd.offset*sizeof(uint32));
-        const GLenum format = GL_UNSIGNED_INT;
-        if (cmd.instances) {
-          GL_CALL(glDrawElementsInstanced,
-            prog.primitive, cmd.count, format, offset, cmd.instances
-          );
-        } else {
-          GL_CALL(glDrawElements,
-            prog.primitive, cmd.count, format, offset
-          );
-        }
-      } else {
-        if (cmd.instances) {
-          GL_CALL(glDrawArraysInstanced,
-            prog.primitive, cmd.offset, cmd.count, cmd.instances
-          );
-        } else {
-          GL_CALL(glDrawArrays,
-            prog.primitive, cmd.offset, cmd.count
-          );
-        }
+      if (!external_render) {
+        render_data(cmd);
       }
     }
   }

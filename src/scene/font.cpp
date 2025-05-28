@@ -15,26 +15,22 @@ namespace {
 
 auto make_pipeline(r_shader_view vert, r_shader_view frag) {
   auto ctx = vert.context();
-  const auto attribs = quad_mesh::attr_descriptor();
+  const auto attribs = quad_mesh::attribute_binding();
   const r_shader stages[] = {vert.handle(), frag.handle()};
   const r_blend_opts blending_opts {
     .mode = r_blend_mode::add,
     .src_factor = ntf::r_blend_factor::src_alpha,
     .dst_factor = ntf::r_blend_factor::inv_src_alpha,
     .color = {0.f, 0.f, 0.f, 0.f},
-    .dynamic = false,
   };
   const r_depth_test_opts depth_opts {
     .test_func = ntf::r_test_func::lequal,
     .near_bound = 0.f,
     .far_bound = 1.f,
-    .dynamic = false,
   };
 
   return renderer_pipeline::create(ctx, {
-    .attrib_binding = 0u,
-    .attrib_stride = quad_mesh::attr_stride(),
-    .attribs = attribs,
+    .attributes = {attribs.data(), attribs.size()},
     .stages = stages,
     .primitive = ntf::r_primitive::triangles,
     .poly_mode = ntf::r_polygon_mode::fill,
@@ -288,29 +284,27 @@ void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
   auto ctx = fbo.context();
   auto pipeline = render_rule.retrieve_uniforms(_uniform_cache);
 
-  const r_buffer_binding buf_binds[] = {
-    {quad.vbo().handle(), r_buffer_type::vertex, nullopt},
-    {quad.ebo().handle(), r_buffer_type::index, nullopt},
-    {_ssbo.handle(), r_buffer_type::shader_storage, 1},
+  const r_shader_buffer ssbo_bind {
+    .buffer = _ssbo.handle(),
+    .binding = 1,
+    .offset = 0u,
+    .size = _ssbo.size(),
   };
-  const r_texture_binding tex_binds[] = {
-    {.texture = _atlas_tex.handle(), .location = ATLAS_SAMPLER},
-  };
+  auto atlas_tex_handle = _atlas_tex.handle();
 
   for (auto& cb : _write_callbacks) {
-    r_draw_opts opts;
-    opts.count = 6;
-    opts.offset = 0;
-    opts.sort_group = sort_group;
-    opts.instances = cb.glyph_count;
-
     ctx.submit_command({
       .target = fbo.handle(),
       .pipeline = pipeline,
-      .buffers = buf_binds,
-      .textures = tex_binds,
+      .buffers = quad.bindings({ssbo_bind}),
+      .textures = {atlas_tex_handle},
       .uniforms = {_uniform_cache.data(), _uniform_cache.size()},
-      .draw_opts = opts,
+      .draw_opts = {
+        .count = 6,
+        .offset = 0,
+        .instances = static_cast<uint32>(cb.glyph_count),
+      },
+      .sort_group = sort_group,
       .on_render = cb,
     });
   }
