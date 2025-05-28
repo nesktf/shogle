@@ -308,10 +308,10 @@ public:
 
 public:
   rp_draw_cmd(function_view<void(r_context)> on_render_) :
-    on_render(on_render_), index_buffer{nullopt}, external{nullopt} {}
+    index_buffer{nullopt}, on_render{on_render_}, external{nullopt} {}
 
   rp_draw_cmd(function_view<void(r_context, r_platform_handle)> on_render_) :
-    on_render{on_render_}, index_buffer{nullopt}, external{nullopt} {}
+    index_buffer{nullopt}, on_render{on_render_}, external{nullopt} {}
 
 public:
   r_platform_pipeline pipeline;
