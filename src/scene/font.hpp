@@ -233,6 +233,7 @@ public:
                                           size_t batch_size = 64u);
 
 public:
+  void set_transform(const mat4& transform) { _transform = transform; }
   void clear_state();
   void append_text(const text_buffer& buffer);
   void render(const quad_mesh& quad, r_framebuffer_view fbo,
