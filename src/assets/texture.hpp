@@ -7,33 +7,33 @@
 
 namespace ntf {
 
-struct image_data {
+struct bitmap_data {
 public:
   using texel_array = unique_array<uint8, allocator_delete<uint8, virtual_allocator<uint8>>>;
 
 public:
-  image_data(texel_array&& texels_, extent3d extent_,
-             r_texture_format format_, r_image_alignment alignment_) noexcept :
+  bitmap_data(texel_array&& texels_, extent3d extent_,
+             ntfr::image_format format_, ntfr::image_alignment alignment_) noexcept :
     texels{std::move(texels_)}, extent{extent_},
     format{format_}, alignment{alignment_} {}
 
-  image_data(texel_array&& texels_, extent2d extent_,
-             r_texture_format format_, r_image_alignment alignment_) noexcept :
+  bitmap_data(texel_array&& texels_, extent2d extent_,
+             ntfr::image_format format_, ntfr::image_alignment alignment_) noexcept :
     texels{std::move(texels_)}, extent{extent_.x, extent_.y, 1u},
     format{format_}, alignment{alignment_} {}
 
-  image_data(texel_array&& texels_, extent1d extent_,
-             r_texture_format format_, r_image_alignment alignment_) noexcept :
+  bitmap_data(texel_array&& texels_, extent1d extent_,
+             ntfr::image_format format_, ntfr::image_alignment alignment_) noexcept :
     texels{std::move(texels_)}, extent{extent_, 1u, 1u},
     format{format_}, alignment{alignment_} {}
 
 public:
-  template<tex_dim_type DimT = extent3d>
-  r_image_data make_descriptor(
-    const DimT& offset = {}, uint32 level = 0, uint32 layer = 0
+  template<meta::image_dim_type T = extent3d>
+  ntfr::image_data make_descriptor(
+    const T& offset = {}, uint32 level = 0, uint32 layer = 0
   ) const noexcept {
     return {
-      .texels = texels.get(),
+      .bitmap = texels.get(),
       .format = format,
       .alignment = alignment,
       .extent = extent,
@@ -46,8 +46,8 @@ public:
 public:
   texel_array texels;
   extent3d extent;
-  r_texture_format format;
-  r_image_alignment alignment;
+  ntfr::image_format format;
+  ntfr::image_alignment alignment;
 };
 
 struct cubemap_data {
@@ -56,22 +56,22 @@ public:
 
 public:
   cubemap_data(std::array<texel_array, 6u>&& texels_, extent1d extent_,
-               r_texture_format format_, r_image_alignment alignment_) noexcept :
+               ntfr::image_format format_, ntfr::image_alignment alignment_) noexcept :
     texels{std::move(texels_)}, extent{extent_, extent_},
     format{format_}, alignment{alignment_} {}
 
 public:
-  std::array<r_image_data, 6u> make_descriptor(
+  std::array<ntfr::image_data, 6u> make_descriptor(
     const extent2d& offset = {}, uint32 level = 0
   ) const noexcept {
-    std::array<r_image_data, 6u> images;
+    std::array<ntfr::image_data, 6u> images;
 
     for (size_t i = 0; auto& image : images) {
-      image.texels = texels[i].get();
+      image.bitmap = texels[i].get();
       image.format = format;
       image.alignment = alignment;
-      image.extent = tex_extent_cast(extent);
-      image.offset = tex_array_offset(offset, i);
+      image.extent = meta::image_dim_traits<extent2d>::extent_cast(extent);
+      image.offset = meta::image_dim_traits<extent2d>::offset_cast(offset, i);
       image.layer = static_cast<uint32>(i);
       image.level = level;
       ++i;
@@ -83,8 +83,8 @@ public:
 public:
   std::array<texel_array, 6u> texels;
   extent2d extent;
-  r_texture_format format;
-  r_image_alignment alignment;
+  ntfr::image_format format;
+  ntfr::image_alignment alignment;
 };
 
 enum class image_load_flags {
@@ -129,7 +129,7 @@ public:
 public:
   template<typename DepthT>
   requires(meta::same_as_any<DepthT, uint8, uint16, float>)
-  asset_expected<image_data> load_image(
+  asset_expected<bitmap_data> load_image(
     cspan<uint8> file_data, image_load_flags flags, uint32 channels
   ) {
     constexpr image_format stbi_format = [](){
@@ -143,48 +143,48 @@ public:
     }();
 
     return _load_image(file_data, channels, +(flags & image_load_flags::flip_y), stbi_format)
-    .and_then([flags](stbi_data&& image) -> asset_expected<image_data> {
+    .and_then([flags](stbi_data&& image) -> asset_expected<bitmap_data> {
       const uint8 channel_flags =
-        (+(flags & image_load_flags::mark_nonlinear) ? TEX_DEPTH_NONLINEAR_BIT : 0) |
-        (+(flags & image_load_flags::mark_normalized) ? TEX_DEPTH_NORMALIZE_BIT : 0) |
-        (image.channels & TEX_DEPTH_CHANNELS_MASK);
+        (+(flags & image_load_flags::mark_nonlinear) ? ntfr::IMAGE_DEPTH_NONLINEAR_BIT : 0) |
+        (+(flags & image_load_flags::mark_normalized) ? ntfr::IMAGE_DEPTH_NORMALIZE_BIT : 0) |
+        (image.channels & ntfr::IMAGE_DEPTH_CHANNELS_MASK);
 
-      auto format = tex_depth_traits<DepthT>::parse_channels(channel_flags);
+      auto format = meta::image_depth_traits<DepthT>::parse_channels(channel_flags);
       if (!format) {
         _stbi_delete(image.data);
         return unexpected{asset_error{"Failed to parse channel tag"}};
       }
       SHOGLE_LOG(debug, "[ntf::stb_image_loader] Loaded {} {}x{} image with {} channels",
-                 tex_depth_traits<DepthT>::name, image.width, image.height, image.channels);
+                 meta::image_depth_traits<DepthT>::name, image.width, image.height, image.channels);
 
       const size_t arr_sz = image.channels*image.height*image.width*sizeof(DepthT);
 
       virtual_allocator<uint8> stbi_alloc{std::in_place_type_t<stbi_deleter>{}};
-      return image_data{
-        image_data::texel_array{arr_sz, image.data,
+      return bitmap_data{
+        bitmap_data::texel_array{arr_sz, image.data,
           allocator_delete<uint8, virtual_allocator<uint8>>{std::move(stbi_alloc)}
         },
-        extent2d{image.width, image.height}, *format, r_image_alignment::bytes4
+        extent2d{image.width, image.height}, *format, 4u // alignment = 4 bytes
       };
     });
   }
 
-  asset_expected<image_data> load_image(
-    tex_depth_traits<uint8>::tag_type,
+  asset_expected<bitmap_data> load_image(
+    meta::image_depth_traits<uint8>::tag_type,
     cspan<uint8> file_data, image_load_flags flags, uint32 channels
   ) {
     return load_image<uint8>(file_data, flags, channels);
   }
 
-  asset_expected<image_data> load_image(
-    tex_depth_traits<uint16>::tag_type,
+  asset_expected<bitmap_data> load_image(
+    meta::image_depth_traits<uint16>::tag_type,
     cspan<uint8> file_data, image_load_flags flags, uint32 channels
   ) {
     return load_image<uint16>(file_data, flags, channels);
   }
 
-  asset_expected<image_data> load_image(
-    tex_depth_traits<float>::tag_type,
+  asset_expected<bitmap_data> load_image(
+    meta::image_depth_traits<float>::tag_type,
     cspan<uint8> file_data, image_load_flags flags, uint32 channels
   ) {
     return load_image<float>(file_data, flags, channels);
@@ -203,8 +203,8 @@ private:
   static void _stbi_delete(void* data) noexcept;
 };
 
-template<tex_depth_type DepthT, typename Loader = stb_image_loader>
-asset_expected<image_data> load_image(
+template<meta::image_depth_type DepthT, typename Loader = stb_image_loader>
+asset_expected<bitmap_data> load_image(
   const std::string& path,
   image_load_flags flags = image_load_flags::mark_normalized | image_load_flags::flip_y,
   uint32 channels = 0u, Loader&& loader = {}
@@ -212,7 +212,7 @@ asset_expected<image_data> load_image(
   SHOGLE_LOG(debug, "[ntf::load_image] Loading image from file '{}'", path);
   return file_data(path)
     .and_then([&](auto&& buffer) {
-      return loader.load_image(tex_depth_traits<DepthT>::tag,
+      return loader.load_image(meta::image_depth_traits<DepthT>::tag,
                                cspan<uint8>{buffer.get(), buffer.size()}, flags, channels);
     });
 }

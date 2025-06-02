@@ -2,12 +2,12 @@
 
 #include "../context.hpp"
 
-namespace ntf {
+namespace ntf::render {
 
 using win_error = ::ntf::error<void>;
 
 template<typename T>
-using win_expected = ::ntf::expected<T, win_error>;
+using win_expect = ::ntf::expected<T, win_error>;
 
 template<typename... Ts>
 using win_ctx_params = std::variant<weak_cptr<Ts>...>;
@@ -102,7 +102,7 @@ struct win_button_data {
   win_keymod mod;
 };
 
-class renderer_window {
+class window {
 private:
   struct callback_handler_t;
   friend callback_handler_t;
@@ -111,66 +111,66 @@ private:
   using fun_t = std::function<Signature>;
 
 public:
-  using viewport_fun = fun_t<void(renderer_window&, extent2d)>;
-  using key_fun      = fun_t<void(renderer_window&, win_key_data)>;
-  using cursorp_fun  = fun_t<void(renderer_window&, dvec2)>;
-  using cursore_fun  = fun_t<void(renderer_window&, bool)>;
-  using scroll_fun   = fun_t<void(renderer_window&, dvec2)>;
-  using mouse_fun    = fun_t<void(renderer_window&, win_button_data)>;
-  using char_fun     = fun_t<void(renderer_window&, uint32)>;
+  using viewport_fun = fun_t<void(window&, extent2d)>;
+  using key_fun      = fun_t<void(window&, win_key_data)>;
+  using cursorp_fun  = fun_t<void(window&, dvec2)>;
+  using cursore_fun  = fun_t<void(window&, bool)>;
+  using scroll_fun   = fun_t<void(window&, dvec2)>;
+  using mouse_fun    = fun_t<void(window&, win_button_data)>;
+  using char_fun     = fun_t<void(window&, uint32)>;
 
 private:
-  renderer_window(r_window handle, r_api ctx_api) noexcept;
+  window(window_ptr handle, context_api ctx_api) noexcept;
 
 public:
-  [[nodiscard]] static win_expected<renderer_window> create(const win_params& params);
+  [[nodiscard]] static win_expect<window> create(const win_params& params);
 
 public:
   template<typename F>
-  requires(std::invocable<F, renderer_window&, extent2d>)
-  renderer_window& set_viewport_callback(F&& fun) {
+  requires(std::invocable<F, window&, extent2d>)
+  window& set_viewport_callback(F&& fun) {
     _callbacks.viewport = std::forward<F>(fun);
     return *this;
   }
 
   template<typename F>
-  requires(std::invocable<F, renderer_window&, win_key_data>)
-  renderer_window& set_key_press_callback(F&& fun) {
+  requires(std::invocable<F, window&, win_key_data>)
+  window& set_key_press_callback(F&& fun) {
     _callbacks.keypress = std::forward<F>(fun);
     return *this;
   }
 
   template<typename F>
-  requires(std::invocable<F, renderer_window&, win_button_data>)
-  renderer_window& set_button_press_callback(F&& fun) {
+  requires(std::invocable<F, window&, win_button_data>)
+  window& set_button_press_callback(F&& fun) {
     _callbacks.buttpress = std::forward<F>(fun);
     return *this;
   }
 
   template<typename F>
-  requires(std::invocable<F, renderer_window&, dvec2>)
-  renderer_window& set_cursor_pos_callback(F&& fun) {
+  requires(std::invocable<F, window&, dvec2>)
+  window& set_cursor_pos_callback(F&& fun) {
     _callbacks.cursorpos = std::forward<F>(fun);
     return *this;
   }
 
   template<typename F>
-  requires(std::invocable<F, renderer_window&, bool>)
-  renderer_window& set_cursor_enter_callback(F&& fun) {
+  requires(std::invocable<F, window&, bool>)
+  window& set_cursor_enter_callback(F&& fun) {
     _callbacks.cursorenter = std::forward<F>(fun);
     return *this;
   }
 
   template<typename F>
-  requires(std::invocable<F, renderer_window&, dvec2>)
-  renderer_window& set_scroll_callback(F&& fun) {
+  requires(std::invocable<F, window&, dvec2>)
+  window& set_scroll_callback(F&& fun) {
     _callbacks.scroll = std::forward<F>(fun);
     return *this;
   }
 
   template<typename F>
-  requires(std::invocable<F, renderer_window&, uint32>)
-  renderer_window& set_char_input_callback(F&& fun) {
+  requires(std::invocable<F, window&, uint32>)
+  window& set_char_input_callback(F&& fun) {
     _callbacks.char_input = std::forward<F>(fun);
     return *this;
   }
@@ -181,8 +181,8 @@ public:
   void set_mouse_state(win_mouse_state state);
 
 public:
-  r_window handle() const { return _handle; }
-  r_api renderer() const { return _ctx_api; }
+  window_ptr get() const { return _handle; }
+  context_api renderer() const { return _ctx_api; }
 
   bool should_close() const;
   win_action poll_key(win_key key) const;
@@ -194,8 +194,8 @@ private:
   void _destroy();
 
 private:
-  r_window _handle;
-  r_api _ctx_api;
+  window_ptr _handle;
+  context_api _ctx_api;
   struct {
     viewport_fun viewport;
     key_fun keypress;
@@ -207,7 +207,7 @@ private:
   } _callbacks;
 
 public:
-  NTF_DECLARE_MOVE_ONLY(renderer_window);
+  NTF_DECLARE_MOVE_ONLY(window);
 };
 
-} // namespace ntf
+} // namespace ntf::render

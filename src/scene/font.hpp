@@ -12,7 +12,7 @@ namespace ntf {
 
 struct font_render_rule {
   virtual ~font_render_rule() = default;
-  virtual std::pair<r_pipeline, r_shader_buffer> write_uniforms() = 0;
+  virtual std::pair<ntfr::pipeline_ptr, ntfr::shader_buffer> write_uniforms() = 0;
 };
 
 template<font_codepoint_type CodeT>
@@ -98,18 +98,18 @@ private:
   };
 
 private:
-  sdf_text_rule(renderer_pipeline&& pipeline, renderer_buffer&& uniform_buffer,
+  sdf_text_rule(ntfr::pipeline&& pipeline, ntfr::uniform_buffer&& uniform_buffer,
                 const glyph_props& props);
 
 public:
-  static r_expected<sdf_text_rule> create(r_context_view ctx,
-                                          const color3& color, float width, float edge,
-                                          const color3& outline_color = {0.f, 0.f, 0.f},
-                                          const vec2& outline_offset = {0.f, 0.f},
-                                          float outline_width = 0.f, float outline_edge = 0.f);
+  static ntfr::expect<sdf_text_rule> create(ntfr::context_view ctx,
+                                            const color3& color, float width, float edge,
+                                            const color3& outline_color = {0.f, 0.f, 0.f},
+                                            const vec2& outline_offset = {0.f, 0.f},
+                                            float outline_width = 0.f, float outline_edge = 0.f);
 
 public:
-  std::pair<r_pipeline, r_shader_buffer> write_uniforms() override;
+  std::pair<ntfr::pipeline_ptr, ntfr::shader_buffer> write_uniforms() override;
 
 public:
   sdf_text_rule& text_color(const color3& color) & {
@@ -171,21 +171,21 @@ public:
   float outline_edge() const { return _props.out_edge; }
 
 private:
-  renderer_pipeline _pipeline;
-  renderer_buffer _uniform_buffer;
+  ntfr::pipeline _pipeline;
+  ntfr::uniform_buffer _uniform_buffer;
   glyph_props _props;
 };
 
 class bitmap_text_rule final : public font_render_rule {
 private:
-  bitmap_text_rule(renderer_pipeline&& pipeline, renderer_buffer&& uniform_buffer,
+  bitmap_text_rule(ntfr::pipeline&& pipeline, ntfr::uniform_buffer&& uniform_buffer,
                    const color3& color);
 
 public:
-  static r_expected<bitmap_text_rule> create(r_context_view ctx, const color3& color);
+  static ntfr::expect<bitmap_text_rule> create(ntfr::context_view ctx, const color3& color);
 
 public:
-  std::pair<r_pipeline, r_shader_buffer> write_uniforms() override;
+  std::pair<ntfr::pipeline_ptr, ntfr::shader_buffer> write_uniforms() override;
 
 public:
   bitmap_text_rule& color(const color3& col) & {
@@ -204,42 +204,44 @@ public:
   color3 color() const { return _text_color; }
 
 private:
-  renderer_pipeline _pipeline;
-  renderer_buffer _uniform_buffer;
+  ntfr::pipeline _pipeline;
+  ntfr::uniform_buffer _uniform_buffer;
   color3 _text_color;
 };
 
 class font_renderer {
 private:
   struct ssbo_callback_t {
-    r_buffer_view ssbo;
+    ntfr::shader_storage_buffer_view ssbo;
     cspan<text_buffer::glyph_entry> buffer_data;
     size_t glyph_count;
     size_t offset;
 
-    void operator()(r_context ctx) const;
+    void operator()(ntfr::context_ptr ctx) const;
   };
 
 private:
-  font_renderer(renderer_buffer&& ssbo, renderer_texture&& atlas,
+  font_renderer(ntfr::shader_storage_buffer&& ssbo, ntfr::texture2d&& atlas,
                 font_glyphs&& glyphs, glyph_map&& map,
                 const mat4& transform, vec2 bitmap_extent, size_t batch) noexcept;
 
 public:
-  static r_expected<font_renderer> create(r_context_view ctx, 
-                                          const mat4& transform,
-                                          font_atlas_data&& font, 
-                                          r_texture_sampler sampler = r_texture_sampler::linear,
-                                          size_t batch_size = 64u);
+  static ntfr::expect<font_renderer> create(
+    ntfr::context_view ctx, 
+    const mat4& transform,
+    font_atlas_data&& font, 
+    ntfr::texture_sampler sampler = ntfr::texture_sampler::linear,
+    size_t batch_size = 64u
+  );
 
 public:
   void set_transform(const mat4& transform) { _transform = transform; }
   void clear_state();
   void append_text(const text_buffer& buffer);
-  void render(const quad_mesh& quad, r_framebuffer_view fbo,
+  void render(const ntfr::quad_mesh& quad, ntfr::framebuffer_view fbo,
               font_render_rule& render_rule,
               uint32 sort_group = 0u);
-  void render(const quad_mesh& quad, r_framebuffer_view fbo,
+  void render(const ntfr::quad_mesh& quad, ntfr::framebuffer_view fbo,
               font_render_rule& render_rule, const text_buffer& buffer,
               uint32 sort_group = 0u);
 
@@ -249,8 +251,8 @@ public:
 private:
   std::vector<ssbo_callback_t> _write_callbacks;
 
-  renderer_buffer _ssbo;
-  renderer_texture _atlas_tex;
+  ntfr::shader_storage_buffer _ssbo;
+  ntfr::texture2d _atlas_tex;
 
   font_glyphs _glyphs;
   glyph_map _glyph_map;

@@ -50,24 +50,23 @@ public:
 
 public:
   font_atlas_data(bitmap_t&& bitmap_, extent2d bitmap_extent_,
-                  r_texture_format bitmap_format_, r_image_alignment bitmap_alignment_,
+                  ntfr::image_format bitmap_format_, ntfr::image_alignment bitmap_alignment_,
                   font_glyphs&& glyphs_, glyph_map&& glyph_map_) noexcept :
     bitmap{std::move(bitmap_)}, glyphs{std::move(glyphs_)}, map{std::move(glyph_map_)},
     bitmap_extent{bitmap_extent_}, bitmap_format{bitmap_format_},
     bitmap_alignment{bitmap_alignment_} {}
 
 public:
-  template<tex_dim_type Dim = extent2d>
-  auto make_bitmap_descriptor(
-    const Dim& offset = {}, uint32 layer = 0, uint32 level = 0
-  ) const noexcept -> r_image_data
-  {
-    return r_image_data{
-      .texels = bitmap.get(),
+  template<meta::image_dim_type T = extent2d>
+  ntfr::image_data make_bitmap_descriptor(
+    const T& offset = {}, uint32 layer = 0, uint32 level = 0
+  ) const noexcept {
+    return ntfr::image_data{
+      .bitmap = bitmap.get(),
       .format = bitmap_format,
       .alignment = bitmap_alignment,
-      .extent = tex_extent_cast(bitmap_extent),
-      .offset = tex_offset_cast(offset),
+      .extent = meta::image_dim_traits<extent2d>::extent_cast(bitmap_extent),
+      .offset = meta::image_dim_traits<T>::offset_cast(offset),
       .layer = layer,
       .level = level,
     };
@@ -89,8 +88,8 @@ public:
   font_glyphs glyphs;
   glyph_map map;
   extent2d bitmap_extent;
-  r_texture_format bitmap_format;
-  r_image_alignment bitmap_alignment;
+  ntfr::image_format bitmap_format;
+  ntfr::image_alignment bitmap_alignment;
 };
 
 enum class font_load_flags {

@@ -39,7 +39,7 @@ int main() {
   auto vert_atl_src = ntf::file_contents("./demos/res/shaders/vert_atlas.vs.glsl").value();
 
   const auto fumo_flag = ntf::model_load_flags::triangulate;
-  auto fumo = ntf::load_model<ntf::pnt_vertex>("./demos/res/cirno_fumo/cirno_fumo.obj", fumo_flag);
+  auto fumo = ntf::load_model<ntfr::pnt_vertex>("./demos/res/cirno_fumo/cirno_fumo.obj", fumo_flag);
   if (!fumo) {
     ntf::logger::error("[main] Failed to load fumo model: {}", fumo.error().what());
     return EXIT_FAILURE;
@@ -56,11 +56,11 @@ int main() {
   const auto& fumo_inds = fumo->meshes.indices;
 
   const char win_title[] = "test - hello_cirno - " SHOGLE_VERSION;
-  auto [window, ctx] = ntf::r_make_gl_ctx(1280, 720, win_title).value();
-  auto imgui = ntf::imgui_ctx::create(ctx.handle());
+  auto [window, ctx] = ntfr::make_gl_ctx(1280, 720, win_title).value();
+  auto imgui = ntfr::imgui_ctx::create(ctx.get());
 
-  auto quad = ntf::quad_mesh::create(ctx).value();
-  auto cube = ntf::cube_mesh::create(ctx).value();
+  auto quad = ntfr::quad_mesh::create(ctx).value();
+  auto cube = ntfr::cube_mesh::create(ctx).value();
 
   ntf::text_buffer text_buffer;
   ntf::mat4 cam_proj_fnt = glm::ortho(0.f, 1280.f, 0.f, 720.f);
@@ -80,71 +80,61 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  auto tex = ntf::r_make_texture2d(ctx, *cirno_img,
-                                   ntf::r_texture_sampler::nearest,
-                                   ntf::r_texture_address::repeat).value();
-  auto atlas_tex = ntf::r_make_texture2d(ctx, *atlas_img,
-                                         ntf::r_texture_sampler::nearest,
-                                         ntf::r_texture_address::repeat).value();
-  auto fumo_tex = ntf::r_make_texture2d(ctx, *fumo_diffuse,
-                                        ntf::r_texture_sampler::linear,
-                                        ntf::r_texture_address::repeat).value();
+  auto tex = ntfr::make_texture2d(ctx, *cirno_img,
+                                  ntfr::texture_sampler::nearest,
+                                  ntfr::texture_addressing::repeat).value();
+  auto atlas_tex = ntfr::make_texture2d(ctx, *atlas_img,
+                                        ntfr::texture_sampler::nearest,
+                                        ntfr::texture_addressing::repeat).value();
+  auto fumo_tex = ntfr::make_texture2d(ctx, *fumo_diffuse,
+                                       ntfr::texture_sampler::linear,
+                                       ntfr::texture_addressing::repeat).value();
 
-  ntf::r_buffer_data fumo_data[] {
-    {
-      .data = fumo_mesh.vertex_data(fumo_verts),
-      .size = fumo_mesh.vertices_size(),
-      .offset = 0,
-    },
-    {
-      .data = fumo_mesh.index_data(fumo_inds),
-      .size = fumo_mesh.indices_size(),
-      .offset = 0,
-    }
-  };
-  auto fumo_vbo = ntf::renderer_buffer::create(ctx, {
-    .type = ntf::r_buffer_type::vertex,
-    .flags = ntf::r_buffer_flag::dynamic_storage,
+  auto fumo_vbo = ntfr::vertex_buffer::create(ctx, {
+    .flags = ntfr::buffer_flag::dynamic_storage,
     .size = fumo_mesh.vertices_size(),
-    .data = &fumo_data[0],
+    .initial_data = ntf::optional<ntfr::buffer_upload_data>{
+      ntf::in_place, fumo_mesh.vertex_data(fumo_verts), fumo_mesh.vertices_size(), 0u
+    },
   }).value();
-  auto fumo_ebo = ntf::renderer_buffer::create(ctx, {
-    .type = ntf::r_buffer_type::index,
-    .flags = ntf::r_buffer_flag::dynamic_storage,
+  auto fumo_ebo = ntfr::index_buffer::create(ctx, {
+    .flags = ntfr::buffer_flag::dynamic_storage,
     .size = fumo_mesh.indices_size(),
-    .data = &fumo_data[1],
+    .initial_data = ntf::optional<ntfr::buffer_upload_data>{
+      ntf::in_place, fumo_mesh.index_data(fumo_inds), fumo_mesh.indices_size(), 0u,
+    },
   }).value();
 
 
-  auto vertex = ntf::r_make_vertex_shader(ctx, vert_src).value();
-  auto fragment_color = ntf::r_make_fragment_shader(ctx, frag_col_src).value();
-  auto fragment_tex = ntf::r_make_fragment_shader(ctx, frag_tex_src).value();
-  auto vertex_atlas = ntf::r_make_vertex_shader(ctx, vert_atl_src).value();
+  auto vertex = ntfr::vertex_shader::create(ctx, {vert_src}).value();
+  auto vertex_atlas = ntfr::vertex_shader::create(ctx, {vert_atl_src}).value();
+  auto fragment_color = ntfr::fragment_shader::create(ctx, {frag_col_src}).value();
+  auto fragment_tex = ntfr::fragment_shader::create(ctx, {frag_tex_src}).value();
 
-  auto pipe_col = ntf::r_make_pipeline<ntf::pnt_vertex>(vertex, fragment_color).value();
-  auto pipe_tex = ntf::r_make_pipeline<ntf::pnt_vertex>(vertex, fragment_tex).value();
-  auto pipe_atl = ntf::r_make_pipeline<ntf::pnt_vertex>(vertex_atlas, fragment_tex).value();
+  auto pipe_col = ntfr::make_pipeline<ntfr::pnt_vertex>(vertex, fragment_color).value();
+  auto pipe_tex = ntfr::make_pipeline<ntfr::pnt_vertex>(vertex, fragment_tex).value();
+  auto pipe_atl = ntfr::make_pipeline<ntfr::pnt_vertex>(vertex_atlas, fragment_tex).value();
 
-  auto [fbo, fbo_tex] = ntf::r_make_fbo(ctx, {1280, 720}, {1.f, 0.f, 0.f, 1.f},
-                                        ntf::r_clear_flag::color_depth).value();
+  auto [fbo, fbo_tex] = ntfr::make_fbo(ctx, {1280, 720}, {1.f, 0.f, 0.f, 1.f},
+                                        ntfr::clear_flag::color_depth).value();
 
-  auto u_col_model = pipe_col.uniform("model").value();
-  auto u_col_proj = pipe_col.uniform("proj").value();
-  auto u_col_view = pipe_col.uniform("view").value();
-  auto u_col_color = pipe_col.uniform("color").value();
+  auto u_col_model = pipe_col.uniform("model");
+  auto u_col_proj = pipe_col.uniform("proj");
+  auto u_col_view = pipe_col.uniform("view");
+  auto u_col_color = pipe_col.uniform("color");
 
-  auto u_tex_model = pipe_tex.uniform("model").value();
-  auto u_tex_proj = pipe_tex.uniform("proj").value();
-  auto u_tex_view = pipe_tex.uniform("view").value();
-  auto u_tex_color = pipe_tex.uniform("color").value();
-  auto u_tex_sampler = pipe_tex.uniform("sampler0").value();
+  auto u_tex_model = pipe_tex.uniform("model");
+  auto u_tex_proj = pipe_tex.uniform("proj");
+  auto u_tex_view = pipe_tex.uniform("view");
+  auto u_tex_color = pipe_tex.uniform("color");
+  auto u_tex_sampler = pipe_tex.uniform("sampler0");
 
-  auto u_atl_model = pipe_atl.uniform("model").value();
-  auto u_atl_proj = pipe_atl.uniform("proj").value();
-  auto u_atl_view = pipe_atl.uniform("view").value();
-  auto u_atl_offset = pipe_atl.uniform("offset").value();
-  auto u_atl_color = pipe_atl.uniform("color").value();
-  auto u_atl_sampler = pipe_atl.uniform("sampler0").value();
+  auto u_atl_model = pipe_atl.uniform("model");
+  auto u_atl_proj = pipe_atl.uniform("proj");
+  auto u_atl_view = pipe_atl.uniform("view");
+  auto u_atl_offset = pipe_atl.uniform("offset");
+  auto u_atl_color = pipe_atl.uniform("color");
+  auto u_atl_sampler = pipe_atl.uniform("sampler0");
 
   ntf::float32 fb_ratio = 1280.f/720.f;
   auto transf_cube = ntf::transform3d<ntf::float32>{}
@@ -190,25 +180,25 @@ int main() {
 
   bool do_things = true;
 
-  window.set_key_press_callback([&](ntf::renderer_window& win, const ntf::win_key_data& key_data) {
+  window.set_key_press_callback([&](ntfr::window& win, const ntfr::win_key_data& key_data) {
     const float ts = 4.f;
-    if (key_data.action == ntf::win_action::press) {
-      if (key_data.key == ntf::win_key::escape) {
+    if (key_data.action == ntfr::win_action::press) {
+      if (key_data.key == ntfr::win_key::escape) {
         win.close();
       }
-      if (key_data.key == ntf::win_key::space) {
+      if (key_data.key == ntfr::win_key::space) {
         do_things = !do_things;
       }
 
-      if (key_data.key == ntf::win_key::left) {
+      if (key_data.key == ntfr::win_key::left) {
         t -= ts/static_cast<float>(ups);
-      } else if (key_data.key == ntf::win_key::right) {
+      } else if (key_data.key == ntfr::win_key::right) {
         t += ts/static_cast<float>(ups);
       }
     }
   });
 
-  const auto default_fbo = ntf::renderer_framebuffer::default_fbo(ctx);
+  const auto default_fbo = ntfr::framebuffer::get_default(ctx);
   window.set_viewport_callback([&](auto&, const ntf::extent2d& extent) {
     ntf::uint32 w = extent.x;
     ntf::uint32 h = extent.y;
@@ -219,7 +209,7 @@ int main() {
     // cam_proj_fnt = glm::ortho(0.f, (float)w, 0.f, (float)h);
   });
 
-  ntf::shogle_render_loop(window, ctx, ups, ntf::overload{
+  ntfr::render_loop(window, ctx, ups, ntf::overload{
     [&](ntf::uint32 ups) {
       if (do_things) {
         ntf::float32 dt = 1/static_cast<ntf::float32>(ups);
@@ -275,7 +265,7 @@ int main() {
         ImGui::SliderFloat("font scale: ", &font_scale, 1.f, 8.f);
       ImGui::End();
       ImGui::ShowDemoWindow();
-      imgui.end_frame(default_fbo.handle(), 1u);
+      imgui.end_frame(default_fbo.get(), 1u);
 
 
       // Buffer bindings
@@ -283,124 +273,124 @@ int main() {
       const auto cube_bbind = cube.bindings();
 
       // Uniforms
-      const ntf::r_push_constant fumo_unifs[] = {
-        ntf::r_format_pushconst(u_tex_model, transf_fumo.world()),
-        ntf::r_format_pushconst(u_tex_proj, cam_proj_fumo),
-        ntf::r_format_pushconst(u_tex_view, cam_view_cube),
-        ntf::r_format_pushconst(u_tex_color, color_quad),
-        ntf::r_format_pushconst(u_tex_sampler, 0),
+      const ntfr::uniform_const fumo_unifs[] = {
+        ntfr::format_uniform_const(u_tex_model, transf_fumo.world()),
+        ntfr::format_uniform_const(u_tex_proj, cam_proj_fumo),
+        ntfr::format_uniform_const(u_tex_view, cam_view_cube),
+        ntfr::format_uniform_const(u_tex_color, color_quad),
+        ntfr::format_uniform_const(u_tex_sampler, 0),
       };
-      const ntf::r_push_constant cino_unifs[] = {
-        ntf::r_format_pushconst(u_tex_model, transf_quad0.world()),
-        ntf::r_format_pushconst(u_tex_proj, cam_proj_quad),
-        ntf::r_format_pushconst(u_tex_view, cam_view_quad),
-        ntf::r_format_pushconst(u_tex_color, color_quad),
-        ntf::r_format_pushconst(u_tex_sampler, 0),
+      const ntfr::uniform_const cino_unifs[] = {
+        ntfr::format_uniform_const(u_tex_model, transf_quad0.world()),
+        ntfr::format_uniform_const(u_tex_proj, cam_proj_quad),
+        ntfr::format_uniform_const(u_tex_view, cam_view_quad),
+        ntfr::format_uniform_const(u_tex_color, color_quad),
+        ntfr::format_uniform_const(u_tex_sampler, 0),
       };
-      const ntf::r_push_constant fb_unifs[] = {
-        ntf::r_format_pushconst(u_tex_model, transf_quad1.world()),
-        ntf::r_format_pushconst(u_tex_proj, cam_proj_quad),
-        ntf::r_format_pushconst(u_tex_view, cam_view_quad),
-        ntf::r_format_pushconst(u_tex_color, color_quad),
-        ntf::r_format_pushconst(u_tex_sampler, 0),
+      const ntfr::uniform_const fb_unifs[] = {
+        ntfr::format_uniform_const(u_tex_model, transf_quad1.world()),
+        ntfr::format_uniform_const(u_tex_proj, cam_proj_quad),
+        ntfr::format_uniform_const(u_tex_view, cam_view_quad),
+        ntfr::format_uniform_const(u_tex_color, color_quad),
+        ntfr::format_uniform_const(u_tex_sampler, 0),
       };
-      const ntf::r_push_constant rin_unifs[] = {
-        ntf::r_format_pushconst(u_atl_model, transf_rin.world()),
-        ntf::r_format_pushconst(u_atl_proj, cam_proj_quad),
-        ntf::r_format_pushconst(u_atl_view, cam_view_quad),
-        ntf::r_format_pushconst(u_atl_color, color_quad),
-        ntf::r_format_pushconst(u_atl_offset, *rin_uvs),
-        ntf::r_format_pushconst(u_atl_sampler, 0),
+      const ntfr::uniform_const rin_unifs[] = {
+        ntfr::format_uniform_const(u_atl_model, transf_rin.world()),
+        ntfr::format_uniform_const(u_atl_proj, cam_proj_quad),
+        ntfr::format_uniform_const(u_atl_view, cam_view_quad),
+        ntfr::format_uniform_const(u_atl_color, color_quad),
+        ntfr::format_uniform_const(u_atl_offset, *rin_uvs),
+        ntfr::format_uniform_const(u_atl_sampler, 0),
       };
-      const ntf::r_push_constant cube_unifs[] = {
-        ntf::r_format_pushconst(u_col_model, transf_cube.world()),
-        ntf::r_format_pushconst(u_col_proj, cam_proj_cube),
-        ntf::r_format_pushconst(u_col_view, cam_view_cube),
-        ntf::r_format_pushconst(u_col_color, color_cube),
+      const ntfr::uniform_const cube_unifs[] = {
+        ntfr::format_uniform_const(u_col_model, transf_cube.world()),
+        ntfr::format_uniform_const(u_col_proj, cam_proj_cube),
+        ntfr::format_uniform_const(u_col_view, cam_view_cube),
+        ntfr::format_uniform_const(u_col_color, color_cube),
       };
 
-      ntf::r_draw_opts fumo_opts {
-        .count = static_cast<ntf::uint32>(fumo_mesh.indices.count),
-        .offset = 0,
+      const ntfr::render_opts fumo_opts {
+        .vertex_count = static_cast<ntf::uint32>(fumo_mesh.indices.count),
+        .vertex_offset = 0,
         .instances = 0,
       };
-      ntf::r_draw_opts quad_opts {
-        .count = 6,
-        .offset = 0,
+      const ntfr::render_opts quad_opts {
+        .vertex_count = 6,
+        .vertex_offset = 0,
         .instances = 0,
       };
-      ntf::r_draw_opts cube_opts {
-        .count = 36,
-        .offset = 0,
+      const ntfr::render_opts cube_opts {
+        .vertex_count = 36,
+        .vertex_offset = 0,
         .instances = 0,
       };
 
       // Fumo
-      auto fumo_tex_handle = fumo_tex.handle();
-      ctx.submit_command({
-        .target = default_fbo.handle(),
-        .pipeline = pipe_tex.handle(),
+      auto fumo_tex_handle = fumo_tex.get();
+      ctx.submit_render_command({
+        .target = default_fbo,
+        .pipeline = pipe_tex,
         .buffers = {
-          .vertex = fumo_vbo.handle(),
-          .index = fumo_ebo.handle(),
+          .vertex = fumo_vbo,
+          .index = fumo_ebo,
           .shader = {},
         },
         .textures = {fumo_tex_handle},
-        .uniforms = fumo_unifs,
-        .draw_opts = fumo_opts,
+        .consts = fumo_unifs,
+        .opts = fumo_opts,
         .sort_group = 0u,
-        .on_render = {},
+        .render_callback = {},
       });
 
       // Rin sprite
-      auto rin_tex_handle = atlas_tex.handle();
-      ctx.submit_command({
-        .target = default_fbo.handle(),
-        .pipeline = pipe_atl.handle(),
+      auto rin_tex_handle = atlas_tex.get();
+      ctx.submit_render_command({
+        .target = default_fbo,
+        .pipeline = pipe_atl,
         .buffers = quad_bbind,
         .textures = {rin_tex_handle},
-        .uniforms = rin_unifs,
-        .draw_opts = quad_opts,
+        .consts = rin_unifs,
+        .opts = quad_opts,
         .sort_group = 0u,
-        .on_render = {},
+        .render_callback = {},
       });
 
       // Framebuffer viewport
-      auto fbo_tex_handle = fbo_tex.handle();
-      ctx.submit_command({
-        .target = default_fbo.handle(),
-        .pipeline = pipe_tex.handle(),
+      auto fbo_tex_handle = fbo_tex.get();
+      ctx.submit_render_command({
+        .target = default_fbo,
+        .pipeline = pipe_tex,
         .buffers = quad_bbind,
         .textures = {fbo_tex_handle},
-        .uniforms = fb_unifs,
-        .draw_opts = quad_opts,
+        .consts = fb_unifs,
+        .opts = quad_opts,
         .sort_group = 0u,
-        .on_render = {},
+        .render_callback = {},
       });
 
       // Cube
-      ctx.submit_command({
-        .target = fbo.handle(),
-        .pipeline = pipe_col.handle(),
+      ctx.submit_render_command({
+        .target = fbo,
+        .pipeline = pipe_col,
         .buffers = cube_bbind,
         .textures = {},
-        .uniforms = cube_unifs,
-        .draw_opts = cube_opts,
+        .consts = cube_unifs,
+        .opts = cube_opts,
         .sort_group = 0u,
-        .on_render = {},
+        .render_callback = {},
       });
 
       // Cirno quad
-      auto cino_tex_handle = tex.handle();
-      ctx.submit_command({
-        .target = fbo.handle(),
-        .pipeline = pipe_tex.handle(),
+      auto cino_tex_handle = tex.get();
+      ctx.submit_render_command({
+        .target = fbo,
+        .pipeline = pipe_tex,
         .buffers = quad_bbind,
         .textures = {cino_tex_handle},
-        .uniforms = cino_unifs,
-        .draw_opts = quad_opts,
+        .consts = cino_unifs,
+        .opts = quad_opts,
         .sort_group = 0u,
-        .on_render = {},
+        .render_callback = {},
       });
 
       text_buffer.clear();

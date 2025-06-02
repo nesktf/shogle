@@ -63,7 +63,7 @@ struct mesh_data {
 };
 
 template<size_t num_weights>
-struct mesh_data<soa_vertices<num_weights>> {
+struct mesh_data<ntfr::soa_vertices<num_weights>> {
   struct mesh {
     std::string name;
     uint32 material;
@@ -94,7 +94,7 @@ struct mesh_data<soa_vertices<num_weights>> {
   };
 
   std::vector<mesh> data;
-  soa_vertices<num_weights> vertices;
+  ntfr::soa_vertices<num_weights> vertices;
   std::vector<uint32> indices;
 
   size_t size() const { return data.size(); }
@@ -301,8 +301,8 @@ load_model_ret<Vertex, checked>::type load_model(const std::string& path,
 
 } // namespace impl
 
-template<is_aos_vertex Vertex, size_t num_weights>
-mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
+template<meta::is_aos_vertex Vertex, size_t num_weights>
+mesh_data<Vertex> soa_to_aos(const mesh_data<ntfr::soa_vertices<num_weights>>& data) {
   mesh_data<Vertex> out;
   auto& out_verts = out.vertices;
   out.data.reserve(data.size());
@@ -321,7 +321,7 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
       });
     }
 
-    if constexpr (vert_has_normals<Vertex>) {
+    if constexpr (meta::vert_has_normals<Vertex>) {
       if (mesh.has_normals()) {
         uint32 count = 0;
         NTF_ASSERT(mesh.normals.count == mesh_verts);
@@ -337,7 +337,7 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
       }
     }
 
-    if constexpr (vert_has_uvs<Vertex>) {
+    if constexpr (meta::vert_has_uvs<Vertex>) {
       if (mesh.has_uvs()) {
         uint32 count = 0;
         NTF_ASSERT(mesh.uvs.count == mesh_verts);
@@ -353,7 +353,7 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
       }
     }
 
-    if constexpr (vert_has_tangents<Vertex>) {
+    if constexpr (meta::vert_has_tangents<Vertex>) {
       if (mesh.has_tangents()) {
         uint32 count = 0;
         NTF_ASSERT(mesh.tangents.count == mesh_verts);
@@ -375,7 +375,7 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
       }
     }
 
-    if constexpr (vert_has_colors<Vertex>) {
+    if constexpr (meta::vert_has_colors<Vertex>) {
       if (mesh.has_colors()) {
         uint32 count = 0;
         NTF_ASSERT(mesh.colors.count == mesh_verts);
@@ -392,16 +392,17 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
       }
     }
 
-    if constexpr (vert_has_weights<Vertex, num_weights>) {
+    if constexpr (meta::vert_has_weights<Vertex, num_weights>) {
       if (mesh.has_weights()) {
         uint32 count = 0;
         NTF_ASSERT(mesh.weights.count == mesh_verts);
-        mesh.weights.for_each(in_verts.weights, [&](const vertex_weights<num_weights>& weights) {
+        mesh.weights.for_each(in_verts.weights,
+                              [&](const ntfr::vertex_weights<num_weights>& weights) {
           out_verts[offset+count].set_weights(weights);
           ++count;
         });
       } else {
-        const vertex_weights<num_weights> def;
+        const ntfr::vertex_weights<num_weights> def;
         for (uint32 count = 0; count < mesh_verts; ++count) { 
           out_verts[offset+count].set_weights(def);
         }
@@ -421,7 +422,7 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
 
 class assimp_loader {
 public:
-  using vert_type = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>;
+  using vert_type = ntfr::soa_vertices<SHOGLE_ASSIMP_WEIGHTS>;
 
 public:
   assimp_loader();
@@ -435,7 +436,7 @@ public:
 
   template<typename Vertex>
   void get_meshes(mesh_data<Vertex>& data) {
-    if constexpr (is_soa_vertex<Vertex>) {
+    if constexpr (meta::is_soa_vertex<Vertex>) {
       static_assert(std::is_same_v<Vertex, vert_type>, "Invalid vertex type");
       return parse_meshes(data);
     } else {
@@ -460,7 +461,7 @@ static_assert(impl::model_loader_animations<assimp_loader>);
 static_assert(impl::model_loader_armatures<assimp_loader>);
 
 template<
-  typename Vertex = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>, 
+  typename Vertex = ntfr::soa_vertices<SHOGLE_ASSIMP_WEIGHTS>, 
   impl::model_loader<Vertex> Loader = assimp_loader
 >
 model_data<Vertex> load_model(
@@ -473,7 +474,7 @@ model_data<Vertex> load_model(
 }
 
 template<
-  typename Vertex = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>,
+  typename Vertex = ntfr::soa_vertices<SHOGLE_ASSIMP_WEIGHTS>,
   impl::model_loader<Vertex> Loader = assimp_loader
 >
 asset_expected<model_data<Vertex>> load_model(
