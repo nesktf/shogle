@@ -165,7 +165,7 @@ public:
 
 public:
   [[nodiscard]] buffer_t create_buffer(r_buffer_type type, r_buffer_flag flags, size_t size,
-                                       weak_cref<r_buffer_data> data);
+                                       weak_cptr<r_buffer_data> data);
   void destroy_buffer(const buffer_t& buffer) noexcept;
   bool bind_buffer(GLuint id, GLenum type) noexcept;
   void update_buffer(const buffer_t& buffer, const void* data,
@@ -183,21 +183,21 @@ public:
   [[nodiscard]] program_t create_program(cspan<shader_t*> shaders,
                                          r_primitive primitive,
                                          r_polygon_mode poly_mode, optional<float> poly_width,
-                                         weak_cref<r_stencil_test_opts> stencil,
-                                         weak_cref<r_depth_test_opts> depth,
-                                         weak_cref<r_scissor_test_opts> scissor,
-                                         weak_cref<r_blend_opts> blending,
-                                         weak_cref<r_face_cull_opts> culling);
+                                         weak_cptr<r_stencil_test_opts> stencil,
+                                         weak_cptr<r_depth_test_opts> depth,
+                                         weak_cptr<r_scissor_test_opts> scissor,
+                                         weak_cptr<r_blend_opts> blending,
+                                         weak_cptr<r_face_cull_opts> culling);
   void query_program_uniforms(const program_t& program, rp_uniform_query_vec& unif);
   void destroy_program(const program_t& program) noexcept;
   bool bind_program(GLuint id) noexcept;
   bool prepare_program(const program_t& prog) noexcept;
   void update_program(program_t& prog,
-                      weak_cref<r_stencil_test_opts> stencil,
-                      weak_cref<r_depth_test_opts> depth,
-                      weak_cref<r_scissor_test_opts> scissor,
-                      weak_cref<r_blend_opts> blending,
-                      weak_cref<r_face_cull_opts> culling);
+                      weak_cptr<r_stencil_test_opts> stencil,
+                      weak_cptr<r_depth_test_opts> depth,
+                      weak_cptr<r_scissor_test_opts> scissor,
+                      weak_cptr<r_blend_opts> blending,
+                      weak_cptr<r_face_cull_opts> culling);
 void push_uniform(uint32 loc, r_attrib_type type, const void* data) noexcept;
 
   [[nodiscard]] texture_t create_texture(r_texture_type type, r_texture_format format,

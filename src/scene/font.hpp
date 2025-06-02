@@ -18,7 +18,7 @@ struct font_render_rule {
 template<font_codepoint_type CodeT>
 using text_string_view = std::basic_string_view<CodeT, std::char_traits<CodeT>>;
 
-using glyph_meta = std::tuple<weak_ref<const font_glyphs>, weak_ref<const glyph_map>, vec2>;
+using glyph_meta = std::tuple<weak_ptr<const font_glyphs>, weak_ptr<const glyph_map>, vec2>;
 
 class text_buffer {
 public:

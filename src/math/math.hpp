@@ -1,26 +1,20 @@
 #pragma once
 
-#include "../stl/types.hpp"
+#include <ntfstl/types.hpp>
 
-#ifdef SHOGLE_USE_GLM
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#endif
 
 #include <cmath>
 
 namespace ntf {
 
-constexpr inline float32 rad(float32 deg) {
-#if SHOGLE_USE_GLM
+constexpr inline f32 rad(f32 deg) {
   return glm::radians(deg);
-#endif
 }
 
-constexpr inline float32 deg(float32 rad) {
-#if SHOGLE_USE_GLM
+constexpr inline f32 deg(f32 rad) {
   return glm::degrees(rad);
-#endif
 }
 
 template<typename TL, typename TR>

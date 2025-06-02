@@ -81,14 +81,14 @@ public:
     return sprites[static_cast<size_t>(handle)];
   }
   value_type* at(atlas_index handle) {
-    return sprites.at(static_cast<size_t>(handle));
+    return &sprites.at(static_cast<size_t>(handle));
   }
 
   const value_type& operator[](atlas_index handle) const {
     return sprites[static_cast<size_t>(handle)];
   }
   const value_type* at(atlas_index handle) const {
-    return sprites.at(static_cast<size_t>(handle));
+    return &sprites.at(static_cast<size_t>(handle));
   }
 
   iterator begin() { return sprites.begin(); }
@@ -191,7 +191,7 @@ concept atlas_loader_with_groups = atlas_loader_type<Loader> &&
                                             typename Loader::data_t& data) {
   { loader.indices(data) } -> std::same_as<sprite_atlas_data::template array_type<atlas_index>>;
   { loader.groups(data) }
-    -> same_as_any<
+    -> meta::same_as_any<
       sprite_atlas_data::template array_type<sprite_data::group>,
       optional<sprite_atlas_data::template array_type<sprite_data::group>>
     >;
@@ -203,7 +203,7 @@ concept atlas_loader_with_sequences = atlas_loader_type<Loader> &&
                                                typename Loader::data_t data) {
   { loader.indices(data) } -> std::same_as<sprite_atlas_data::template array_type<atlas_index>>;
   { loader.sequences(data) }
-    -> same_as_any<
+    -> meta::same_as_any<
       sprite_atlas_data::template array_type<sprite_data::sequence>,
       optional<sprite_atlas_data::template array_type<sprite_data::sequence>>
     >;
@@ -227,7 +227,7 @@ auto load_atlas(
       auto seqs = loader.sequences(data);
       using gret_t = decltype(groups);
       using sret_t = decltype(seqs);
-      if constexpr (optional_type<gret_t> && optional_type<sret_t>) {
+      if constexpr (meta::optional_type<gret_t> && meta::optional_type<sret_t>) {
         if (groups && seqs) {
           return atlas_data_t {
             loader.image_path(data),
@@ -256,7 +256,7 @@ auto load_atlas(
             loader.sprites(data),
           };
         }
-      } else if constexpr (optional_type<gret_t>) {
+      } else if constexpr (meta::optional_type<gret_t>) {
         if (groups) {
           return atlas_data_t {
             loader.image_path(data),
@@ -273,7 +273,7 @@ auto load_atlas(
             std::move(seqs)
           };
         }
-      } else if constexpr (optional_type<sret_t>) {
+      } else if constexpr (meta::optional_type<sret_t>) {
         if (seqs) {
           return atlas_data_t {
             loader.image_path(data),

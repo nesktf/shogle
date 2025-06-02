@@ -4,7 +4,7 @@
 
 #include <glad/glad.h>
 
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -23,7 +23,11 @@
 
 #include "../context.hpp"
 
-#include "../../stl/arena.hpp"
+#include <ntfstl/allocator.hpp>
+#include <ntfstl/unique_array.hpp>
+
+#include <deque>
+#include <queue>
 
 #define SHOGLE_DECLARE_RENDER_HANDLE(_name) \
 class _name { \
@@ -39,7 +43,7 @@ public: \
   } \
 private: \
   r_handle_value _handle; \
-}; \
+}
 
 namespace ntf {
 
@@ -80,6 +84,18 @@ public:
         static_cast<T*>(ptr)->~T();
       }
       std::invoke(_free, _uptr, ptr, sizeof(T));
+    }
+
+    template<typename U = T>
+    requires(std::is_convertible_v<U*, T*>)
+    void operator()(uninitialized_t, U* ptr) noexcept(std::is_nothrow_destructible_v<T>) {
+      std::invoke(_free, _uptr, ptr, sizeof(T));
+    }
+
+    template<typename U = T>
+    requires(std::is_convertible_v<U*, T*>)
+    void operator()(uninitialized_t, U* ptr, size_t n) noexcept(std::is_nothrow_destructible_v<T>) {
+      std::invoke(_free, _uptr, ptr, n*sizeof(T));
     }
 
     template<typename U = T>
@@ -132,6 +148,9 @@ public:
     rp_alloc* _alloc;
   };
 
+  // template<typename T>
+  // using adaptor_t = allocator_adaptor<T, rp_alloc>;
+
   template<typename T>
   using uptr_t = std::unique_ptr<T, alloc_del_t<T>>;
 
@@ -148,13 +167,13 @@ public:
   using queue_t = std::queue<T, deque_t<T>>;
 
 public:
-  rp_alloc(const r_allocator& user_alloc) noexcept :
-    _arena{nullptr, 0u},
+  rp_alloc(const r_allocator& user_alloc, linked_arena&& arena) noexcept :
+    _arena{std::move(arena)},
     _user_ptr{user_alloc.user_ptr},
     _malloc{user_alloc.mem_alloc}, _free{user_alloc.mem_free} {}
 
 public:
-  static uptr_t<rp_alloc> make_alloc(weak_cref<r_allocator> alloc, size_t arena_size);
+  static uptr_t<rp_alloc> make_alloc(weak_cptr<r_allocator> alloc, size_t arena_size);
   
 public: 
   void* allocate(size_t size, size_t alignment) {
@@ -224,29 +243,6 @@ public:
   }
 
 public:
-  bool arena_init(size_t block_sz) {
-    void* mem = allocate(block_sz, 0u);
-    if (!mem) {
-      return false;
-    }
-    _arena = {mem, block_sz};
-    return true;
-  }
-
-  void arena_destroy() {
-    deallocate(_arena.data(), _arena.capacity());
-  }
-
-  bool resize_arena(size_t block_sz) {
-    void* data = _arena.data();
-    size_t cap = _arena.capacity();
-    if (arena_init(block_sz)) {
-      deallocate(data, cap);
-      return true;
-    }
-    return false;
-  }
-
   void arena_clear() {
     _arena.clear();
   }
@@ -262,7 +258,7 @@ public:
 
   template<typename T>
   T* arena_allocate_uninited(size_t n = 1u) {
-    return _arena.allocate<T>(n);
+    return _arena.allocate_uninited<T>(n);
   }
 
 public:
@@ -273,7 +269,7 @@ public:
   }
 
 private:
-  arena_block_manager _arena;
+  linked_arena _arena;
   void* _user_ptr;
   malloc_fun _malloc;
   mfree_fun _free;
@@ -340,7 +336,7 @@ struct rp_fbo_frame_data {
 
 struct rp_draw_data {
   r_platform_fbo target;
-  weak_cref<rp_fbo_frame_data> fdata;
+  weak_cptr<rp_fbo_frame_data> fdata;
   cspan<rp_draw_cmd> cmds;
 };
 
@@ -358,7 +354,7 @@ struct rp_buff_desc {
   r_buffer_type type;
   r_buffer_flag flags;
   size_t size;
-  weak_cref<r_buffer_data> initial_data;
+  weak_cptr<r_buffer_data> initial_data;
 };
 
 struct rp_buff_data {
@@ -406,7 +402,7 @@ struct rp_shad_desc {
 
 struct rp_pip_desc {
   rp_alloc::uarray_t<r_attrib_binding> layout;
-  weak_ref<rp_uniform_query_vec> uniforms;
+  weak_ptr<rp_uniform_query_vec> uniforms;
 
   cspan<r_platform_shader> stages;
   r_stages_flag stages_flags;
@@ -414,19 +410,19 @@ struct rp_pip_desc {
   r_polygon_mode poly_mode;
   optional<float> poly_width;
 
-  weak_cref<r_stencil_test_opts> stencil_test;
-  weak_cref<r_depth_test_opts> depth_test;
-  weak_cref<r_scissor_test_opts> scissor_test;
-  weak_cref<r_face_cull_opts> face_culling;
-  weak_cref<r_blend_opts> blending;
+  weak_cptr<r_stencil_test_opts> stencil_test;
+  weak_cptr<r_depth_test_opts> depth_test;
+  weak_cptr<r_scissor_test_opts> scissor_test;
+  weak_cptr<r_face_cull_opts> face_culling;
+  weak_cptr<r_blend_opts> blending;
 };
 
 struct rp_pip_opts {
-  weak_cref<r_stencil_test_opts> stencil_test;
-  weak_cref<r_depth_test_opts> depth_test;
-  weak_cref<r_scissor_test_opts> scissor_test;
-  weak_cref<r_face_cull_opts> face_culling;
-  weak_cref<r_blend_opts> blending;
+  weak_cptr<r_stencil_test_opts> stencil_test;
+  weak_cptr<r_depth_test_opts> depth_test;
+  weak_cptr<r_scissor_test_opts> scissor_test;
+  weak_cptr<r_face_cull_opts> face_culling;
+  weak_cptr<r_blend_opts> blending;
 };
 
 struct rp_fbo_att {

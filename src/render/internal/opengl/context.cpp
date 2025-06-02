@@ -1,4 +1,5 @@
 #include "./context.hpp"
+#include <ntfstl/utility.hpp>
 
 namespace ntf {
 
@@ -345,7 +346,7 @@ void gl_context::submit(r_context ctx, cspan<rp_draw_data> draw_data) {
 
     for (const auto& cmd : data.cmds) {
       bool external_render = false;
-      cmd.on_render | overload {
+      std::visit(overload {
         [&](function_view<void(r_context)> on_render) {
           if (on_render) {
             std::invoke(on_render, ctx);
@@ -359,7 +360,7 @@ void gl_context::submit(r_context ctx, cspan<rp_draw_data> draw_data) {
           std::invoke(on_render, ctx, static_cast<r_platform_handle>(fbo_id));
           external_render = true;
         },
-      };
+      }, cmd.on_render);
       if (!external_render) {
         render_data(cmd);
       }

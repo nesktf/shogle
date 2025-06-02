@@ -36,22 +36,27 @@ static constexpr size_t INITIAL_ARENA_PAGE = mibs(16u);
 
 static r_allocator base_alloc {
   .user_ptr = nullptr,
-  .mem_alloc = +[](void*, size_t sz, size_t) -> void* { return std::malloc(sz); },
-  .mem_free  = +[](void*, void* mem, size_t) -> void { std::free(mem); }
+  .mem_alloc = malloc_pool::malloc_fn,
+  .mem_free = malloc_pool::free_fn,
 };
 
-auto rp_alloc::make_alloc(weak_cref<r_allocator> alloc_in, size_t arena_size) -> uptr_t<rp_alloc> {
+auto rp_alloc::make_alloc(weak_cptr<r_allocator> alloc_in, size_t arena_size) -> uptr_t<rp_alloc> {
   auto& alloc = alloc_in ? *alloc_in : base_alloc;
   auto* ptr = static_cast<rp_alloc*>(std::invoke(alloc.mem_alloc, alloc.user_ptr,
                                                  sizeof(rp_alloc), alignof(rp_alloc)));
   if (ptr) {
-    std::construct_at(ptr, alloc);
-    if (!ptr->arena_init(arena_size)) {
+    auto arena = linked_arena::from_extern({
+      .user_ptr = alloc.user_ptr,
+      .mem_alloc = alloc.mem_alloc,
+      .mem_free = alloc.mem_free
+    }, arena_size);
+    if (!arena){
       RENDER_ERROR_LOG("Failed to init allocator arena ({} bytes)", arena_size);
       std::destroy_at(ptr);
       std::invoke(alloc.mem_free, alloc.user_ptr, ptr, sizeof(rp_alloc));
       ptr = nullptr;
     } else {
+      std::construct_at(ptr, alloc, std::move(*arena));
       SHOGLE_LOG(verbose, "[ntf::r_context] Allocator inited with arena of {} bytes)",
                  arena_size);
     }
@@ -182,7 +187,6 @@ void r_destroy_context(r_context ctx) {
 
   auto alloc = ctx->on_destroy();
   alloc->destroy(ctx);
-  alloc->arena_destroy();
   SHOGLE_LOG(debug, "[ntf::r_context][DESTROY]");
 }
 

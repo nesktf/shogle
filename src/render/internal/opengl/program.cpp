@@ -147,11 +147,11 @@ GLenum gl_state::blend_eq_cast(r_blend_mode eq) noexcept {
 auto gl_state::create_program(cspan<shader_t*> shaders,
                               r_primitive primitive,
                               r_polygon_mode poly_mode, optional<float> poly_width,
-                              weak_cref<r_stencil_test_opts> stencil,
-                              weak_cref<r_depth_test_opts> depth,
-                              weak_cref<r_scissor_test_opts> scissor,
-                              weak_cref<r_blend_opts> blending,
-                              weak_cref<r_face_cull_opts> culling) -> program_t {
+                              weak_cptr<r_stencil_test_opts> stencil,
+                              weak_cptr<r_depth_test_opts> depth,
+                              weak_cptr<r_scissor_test_opts> scissor,
+                              weak_cptr<r_blend_opts> blending,
+                              weak_cptr<r_face_cull_opts> culling) -> program_t {
   GLuint id = GL_CALL_RET(glCreateProgram);
   for (const auto& shader : shaders) {
     // TODO: Ensure vertex and fragment exist
@@ -189,11 +189,11 @@ auto gl_state::create_program(cspan<shader_t*> shaders,
 }
 
 void gl_state::update_program(program_t& prog,
-                              weak_cref<r_stencil_test_opts> stencil,
-                              weak_cref<r_depth_test_opts> depth,
-                              weak_cref<r_scissor_test_opts> scissor,
-                              weak_cref<r_blend_opts> blending,
-                              weak_cref<r_face_cull_opts> culling) {
+                              weak_cptr<r_stencil_test_opts> stencil,
+                              weak_cptr<r_depth_test_opts> depth,
+                              weak_cptr<r_scissor_test_opts> scissor,
+                              weak_cptr<r_blend_opts> blending,
+                              weak_cptr<r_face_cull_opts> culling) {
   if (depth) {
     prog.flags |= PROG_ENABLE_DEPTH;
     auto& dp = prog.depth;

@@ -2,19 +2,15 @@
 
 #include "./matrix.hpp"
 
-#if SHOGLE_USE_GLM
 #include <glm/gtc/quaternion.hpp>
-#endif
 
 namespace ntf {
 
-#if SHOGLE_USE_GLM
 template<typename T>
 using qua = glm::qua<T>;
-#endif
 
-using quat = qua<float32>;
-using dquat = qua<float64>;
+using quat = qua<f32>;
+using dquat = qua<f64>;
 
 template<typename T>
 constexpr qua<T> axisquat(const T& ang, const vec<3, T>& axis) {

@@ -27,7 +27,7 @@ GLenum& gl_state::_buffer_pos(GLenum type) {
 }
 
 auto gl_state::create_buffer(r_buffer_type type, r_buffer_flag flags, size_t size,
-                             weak_cref<r_buffer_data> data) -> buffer_t {
+                             weak_cptr<r_buffer_data> data) -> buffer_t {
 
   const bool is_dynamic = +(flags & r_buffer_flag::dynamic_storage);
   const GLbitfield access_flags = 

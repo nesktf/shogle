@@ -5,6 +5,8 @@
 
 #include "../math/quaternion.hpp"
 
+#define SHOGLE_ASSIMP_WEIGHTS 4
+
 namespace ntf {
 
 template<typename Vertex>
@@ -196,7 +198,7 @@ template<typename T>
 concept model_loader_parse = requires(T loader,
                                       const std::string& path,
                                       model_load_flags flags) {
-  { loader.parse(path, flags) } -> same_as_any<void, asset_expected<void>>;
+  { loader.parse(path, flags) } -> meta::same_as_any<void, asset_expected<void>>;
 };
 
 template<typename T>

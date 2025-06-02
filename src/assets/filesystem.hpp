@@ -1,8 +1,10 @@
 #pragma once
 
 #include "./types.hpp"
-#include "../stl/ptr.hpp"
+#include <ntfstl/unique_array.hpp>
+#include <ntfstl/optional.hpp>
 
+#include <fstream>
 #include <filesystem>
 
 namespace ntf {
@@ -36,7 +38,7 @@ inline optional<std::string> file_dir(std::string_view path) {
 using file_close_t = std::unique_ptr<std::FILE, decltype([](std::FILE* f){ std::fclose(f); })>;
 
 template<typename Alloc = std::allocator<uint8>>
-requires(allocator_type<std::remove_cvref_t<Alloc>, uint8>)
+requires(meta::allocator_type<std::remove_cvref_t<Alloc>, uint8>)
 auto file_data(
   const std::string& path, Alloc&& alloc = {}
 ) noexcept -> asset_expected<
@@ -54,8 +56,8 @@ auto file_data(
     return unexpected{asset_error::format({"Failed to open '{}', empty file"},
                                           path)};
   }
-  auto buffer = unique_array<uint8>::from_allocator(::ntf::uninitialized,
-                                                    len, std::forward<Alloc>(alloc));
+  auto buffer = unique_array<uint8>::from_size(::ntf::uninitialized, len,
+                                               std::forward<Alloc>(alloc));
   if (!buffer) {
     return unexpected{asset_error::format({"Failed to open '{}', allocation failed"},
                                           path)};

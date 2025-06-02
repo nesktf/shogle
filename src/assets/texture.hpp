@@ -9,7 +9,7 @@ namespace ntf {
 
 struct image_data {
 public:
-  using texel_array = unique_array<uint8, virtual_array_deleter<uint8>>;
+  using texel_array = unique_array<uint8, allocator_delete<uint8, virtual_allocator<uint8>>>;
 
 public:
   image_data(texel_array&& texels_, extent3d extent_,
@@ -52,7 +52,7 @@ public:
 
 struct cubemap_data {
 public:
-  using texel_array = unique_array<uint8, virtual_array_deleter<uint8>>;
+  using texel_array = unique_array<uint8, allocator_delete<uint8, virtual_allocator<uint8>>>;
 
 public:
   cubemap_data(std::array<texel_array, 6u>&& texels_, extent1d extent_,
@@ -99,8 +99,14 @@ class stb_image_loader {
 private:
   friend struct stbi_deleter;
   struct stbi_deleter {
-    void operator()(uint8* data, size_t) noexcept {
-      stb_image_loader::_stbi_delete(data);
+    void* allocate(size_t size, size_t align) {
+      NTF_UNUSED(size);
+      NTF_UNUSED(align);
+      NTF_UNREACHABLE();
+    }
+    void deallocate(void* mem, size_t size) noexcept {
+      NTF_UNUSED(size);
+      stb_image_loader::_stbi_delete(mem);
     };
   };
 
@@ -122,7 +128,7 @@ public:
 
 public:
   template<typename DepthT>
-  requires(same_as_any<DepthT, uint8, uint16, float>)
+  requires(meta::same_as_any<DepthT, uint8, uint16, float>)
   asset_expected<image_data> load_image(
     cspan<uint8> file_data, image_load_flags flags, uint32 channels
   ) {
@@ -152,8 +158,12 @@ public:
                  tex_depth_traits<DepthT>::name, image.width, image.height, image.channels);
 
       const size_t arr_sz = image.channels*image.height*image.width*sizeof(DepthT);
+
+      virtual_allocator<uint8> stbi_alloc{std::in_place_type_t<stbi_deleter>{}};
       return image_data{
-        image_data::texel_array{arr_sz, image.data, virtual_array_deleter<uint8>{stbi_deleter{}}},
+        image_data::texel_array{arr_sz, image.data,
+          allocator_delete<uint8, virtual_allocator<uint8>>{std::move(stbi_alloc)}
+        },
         extent2d{image.width, image.height}, *format, r_image_alignment::bytes4
       };
     });

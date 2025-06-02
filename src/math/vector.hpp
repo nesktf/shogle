@@ -1,17 +1,16 @@
 #pragma once
 
 #include "./math.hpp"
+#include <ntfstl/concepts.hpp>
 
 namespace ntf {
 
-#if SHOGLE_USE_GLM
 template<uint32 N, typename T>
 using vec = glm::vec<N, T>;
-#endif
 
-using vec2 = vec<2, float32>;
-using vec3 = vec<3, float32>;
-using vec4 = vec<4, float32>;
+using vec2 = vec<2, f32>;
+using vec3 = vec<3, f32>;
+using vec4 = vec<4, f32>;
 
 using dvec2 = vec<2, float64>;
 using dvec3 = vec<3, float64>;
@@ -33,7 +32,7 @@ using extent2d = uvec2;
 using extent3d = uvec3;
 
 template<typename T>
-concept vertex_type = (ntf::same_as_any<T, vec2, vec3, vec4>);
+concept vertex_type = (ntf::meta::same_as_any<T, vec2, vec3, vec4>);
 
 constexpr inline vec3 carcoord(vec3 v) { return {v.z, v.x, v.y}; }
 
@@ -48,18 +47,14 @@ constexpr inline vec3 glcoord(float rho, float theta, float phi) {
 }
 
 constexpr inline vec2 expiv(float theta) {
-#if SHOGLE_USE_GLM
   return vec2{glm::cos(theta), glm::sin(theta)};
-#endif
 }
 
-constexpr inline float32 norm2(vec2 v) {
-#if SHOGLE_USE_GLM
+constexpr inline f32 norm2(vec2 v) {
   return v.x*v.x + v.y*v.y;
-#endif
 }
 
-constexpr inline float32 norm(vec2 v) {
+constexpr inline f32 norm(vec2 v) {
   return glm::sqrt(norm2(v));
 }
 

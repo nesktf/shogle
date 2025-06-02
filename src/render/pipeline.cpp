@@ -52,7 +52,7 @@ static r_stages_flag parse_stages(cspan<r_shader> shaders) {
 }
 
 static r_expected<rp_pip_desc> transform_desc(rp_alloc& alloc,
-                                              weak_ref<rp_uniform_query_vec> unifs,
+                                              weak_ptr<rp_uniform_query_vec> unifs,
                                               const r_pipeline_descriptor& desc) {
   auto stages = alloc.arena_span<r_platform_shader>(desc.stages.size());
   RET_ERROR_IF(!stages, "Failed to allocate stage handles");
@@ -87,13 +87,16 @@ static r_expected<rp_pip_desc> transform_desc(rp_alloc& alloc,
 static r_expected<r_pipeline_::uniform_map> copy_uniforms(rp_alloc& alloc, r_pipeline pip,
                                                           const rp_uniform_query_vec& unifs)
 {
-  return r_pipeline_::uniform_map::from_size(unifs.size(), alloc.make_adaptor<uint8>())
-  .transform([&](r_pipeline_::uniform_map&& map) -> r_pipeline_::uniform_map {
-    for (const auto& unif : unifs) {
-      map.try_emplace(unif.name, pip, unif.location, unif.name, unif.type, unif.size);
-    }
-    return map;
-  });
+  auto map = r_pipeline_::uniform_map::from_size(
+    unifs.size(), alloc.make_adaptor<std::pair<const std::string, r_uniform_>>()
+  );
+  if (!map) {
+    return unexpected{r_error{"Failed to allocate uniform map"}};
+  }
+  for (const auto& unif : unifs) {
+    map->try_emplace(unif.name, pip, unif.location, unif.name, unif.type, unif.size);
+  }
+  return std::move(*map);
 }
 
 r_expected<void> validate_desc(const r_pipeline_descriptor&) {

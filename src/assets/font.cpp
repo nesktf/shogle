@@ -172,12 +172,12 @@ auto ft2_font_loader::_parse_metrics(
 {
   auto&& [face, map, set] = std::move(tuple);
 
-  virtual_allocator<glyph_metrics> metrics_alloc = std::allocator<glyph_metrics>{};
-  virtual_allocator<uint8> map_alloc = std::allocator<uint8>{};
+  virtual_allocator<glyph_metrics> metrics_alloc{std::in_place_type_t<malloc_pool>{}};
+  virtual_allocator<std::pair<const char32_t, size_t>> map_alloc{std::in_place_type_t<malloc_pool>{}};
 
-  auto parsed_glyphs = font_glyphs::from_allocator(::ntf::uninitialized,
-                                                set.size(),
-                                                std::move(metrics_alloc));
+  auto parsed_glyphs = font_glyphs::from_size(::ntf::uninitialized,
+                                              set.size(),
+                                              std::move(metrics_alloc));
   auto parsed_map = glyph_map::from_size(map.size(), std::move(map_alloc)).value();
   auto idx_map = fixed_hashmap<uint32, size_t>::from_size(set.size()).value();
 
@@ -210,7 +210,7 @@ font_atlas_data ft2_font_loader::_load_bitmap(
                                            glyphs.get(), glyphs.size());
   extent2d bitmap_extent{atlas_extent, atlas_extent};
   const size_t bitmap_sz = tex_stride<uint8>(bitmap_extent);
-  virtual_allocator<uint8> bitmap_alloc = std::allocator<uint8>{};
+  virtual_allocator<uint8> bitmap_alloc{std::in_place_type_t<malloc_pool>{}};
   auto* bitmap = bitmap_alloc.allocate(bitmap_sz);
   std::memset(bitmap, 0, bitmap_sz);
 
@@ -251,7 +251,7 @@ font_atlas_data ft2_font_loader::_load_bitmap(
              "[ntf::ft2_font_loader] Loaded font atlas: {} glyphs, {} mappings, {}x{} bitmap",
              glyphs.size(), map.size(), bitmap_extent.x, bitmap_extent.y);
 
-  using del_t = virtual_alloc_del<uint8>;
+  using del_t = allocator_delete<uint8, virtual_allocator<uint8>>;
   return font_atlas_data {
     bitmap_t{bitmap_sz, bitmap, del_t{std::move(bitmap_alloc)}},
     bitmap_extent, r_texture_format::r8nu, r_image_alignment::bytes1,

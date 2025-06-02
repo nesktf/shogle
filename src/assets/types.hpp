@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../stl/expected.hpp"
-#include "../stl/optional.hpp"
-#include "../stl/allocator.hpp"
+#include "../core.hpp"
+#include <ntfstl/expected.hpp>
+#include <ntfstl/allocator.hpp>
 
 #if defined(SHOGLE_ASSETS_USE_EXCEPTIONS) && SHOGLE_ASSETS_USE_EXCEPTIONS
 #define SHOGLE_ASSET_THROW(msg, ...) \
@@ -26,5 +26,29 @@ enum class r_material_type {
   diffuse = 0,
   specular,
 };
+
+constexpr uint32 VSPAN_TOMBSTONE = std::numeric_limits<uint32>::max();
+struct vec_span {
+  uint32 index;
+  uint32 count;
+
+  template<typename Vec, typename Fun>
+  void for_each(Vec& vec, Fun&& f) const {
+    NTF_ASSERT(index != VSPAN_TOMBSTONE);
+    NTF_ASSERT(index+count <= vec.size());
+    for (uint32 i = index; i < index+count; ++i) {
+      f(vec[i]);
+    }
+  }
+
+  template<typename Vec, typename Fun>
+  void for_each(const Vec& vec, Fun&& f) const {
+    NTF_ASSERT(index != VSPAN_TOMBSTONE);
+    NTF_ASSERT(index+count <= vec.size());
+    for (uint32 i = index; i < index+count; ++i) {
+      f(vec[i]);
+    }
+  }
+}; 
 
 } // namespace ntf

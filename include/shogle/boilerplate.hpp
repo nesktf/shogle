@@ -248,8 +248,8 @@ template<typename Vert>
 requires(is_aos_vertex<Vert>)
 r_expected<renderer_pipeline> r_make_pipeline(
   r_shader_view vert, r_shader_view frag,
-  weak_cref<r_depth_test_opts> depth_test = r_def_depth_opts,
-  weak_cref<r_blend_opts> blending = r_def_blending_opts
+  weak_cptr<r_depth_test_opts> depth_test = r_def_depth_opts,
+  weak_cptr<r_blend_opts> blending = r_def_blending_opts
 ) {
   auto ctx = vert.context();
   const auto attribs = Vert::aos_binding();
@@ -273,8 +273,8 @@ requires(is_aos_vertex<Vert>)
 r_expected<renderer_pipeline> r_make_pipeline(
   r_context_view ctx,
   std::string_view vert_src, std::string_view frag_src,
-  weak_cref<r_depth_test_opts> depth_test = r_def_depth_opts,
-  weak_cref<r_blend_opts> blending = r_def_blending_opts
+  weak_cptr<r_depth_test_opts> depth_test = r_def_depth_opts,
+  weak_cptr<r_blend_opts> blending = r_def_blending_opts
 ) {
   auto vert = r_make_vertex_shader(ctx, vert_src);
   if (!vert) {

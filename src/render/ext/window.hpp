@@ -10,7 +10,7 @@ template<typename T>
 using win_expected = ::ntf::expected<T, win_error>;
 
 template<typename... Ts>
-using win_ctx_params = std::variant<weak_cref<Ts>...>;
+using win_ctx_params = std::variant<weak_cptr<Ts>...>;
 
 struct win_gl_params {
   uint32 ver_major;

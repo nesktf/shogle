@@ -3,7 +3,8 @@
 #include "../renderer.hpp"
 #include "./platform.hpp"
 
-#include "../../stl/hashmap.hpp"
+#include <ntfstl/hashmap.hpp>
+#include <atomic>
 
 #define RENDER_ERROR_LOG(_fmt, ...) \
   SHOGLE_LOG(error, "{} ({})" _fmt, NTF_FUNC, NTF_LINE __VA_OPT__(,) __VA_ARGS__)
@@ -112,9 +113,14 @@ public:
 
 struct r_pipeline_ : public rp_res_node<r_pipeline_> {
 public:
-  using uniform_map = fixed_hashmap<std::string, r_uniform_,
-                                    std::hash<std::string>, std::equal_to<std::string>,
-                                    allocator_delete<uint8, rp_alloc::adaptor_t<uint8>>>;
+  using uniform_map = fixed_hashmap<
+    std::string, r_uniform_,
+    std::hash<std::string>, std::equal_to<std::string>,
+    // rp_alloc::alloc_del_t<std::pair<const std::string, r_uniform_>>
+    allocator_delete<std::pair<const std::string, r_uniform_>,
+      rp_alloc::adaptor_t<std::pair<const std::string, r_uniform_>>
+    >
+  >;
 public:
   r_pipeline_(r_context ctx_, r_platform_pipeline handle_,
               r_stages_flag stages_, r_primitive primitive_, r_polygon_mode poly_mode_,

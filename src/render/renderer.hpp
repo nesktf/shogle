@@ -1,9 +1,13 @@
 #pragma once
 
-#include "../stl/ptr.hpp"
-#include "../stl/optional.hpp"
-#include "../stl/expected.hpp"
-#include "../stl/function.hpp"
+#include "../core.hpp"
+#include <ntfstl/ptr.hpp>
+#include <ntfstl/expected.hpp>
+#include <ntfstl/optional.hpp>
+#include <ntfstl/function.hpp>
+
+#include <variant>
+#include <optional>
 
 #include "../math/vector.hpp"
 
@@ -171,7 +175,7 @@ struct r_buffer_descriptor {
   r_buffer_flag flags;
   size_t size;
 
-  weak_cref<r_buffer_data> data;
+  weak_cptr<r_buffer_data> data;
 };
 
 r_expected<r_buffer> r_create_buffer(r_context ctx, const r_buffer_descriptor& desc);
@@ -367,11 +371,11 @@ struct r_pipeline_descriptor {
   r_polygon_mode poly_mode;
   optional<float> poly_width;
 
-  weak_cref<r_stencil_test_opts> stencil_test;
-  weak_cref<r_depth_test_opts> depth_test;
-  weak_cref<r_scissor_test_opts> scissor_test;
-  weak_cref<r_face_cull_opts> face_culling;
-  weak_cref<r_blend_opts> blending;
+  weak_cptr<r_stencil_test_opts> stencil_test;
+  weak_cptr<r_depth_test_opts> depth_test;
+  weak_cptr<r_scissor_test_opts> scissor_test;
+  weak_cptr<r_face_cull_opts> face_culling;
+  weak_cptr<r_blend_opts> blending;
 };
 
 NTF_DECLARE_OPAQUE_HANDLE(r_uniform);
@@ -488,16 +492,16 @@ struct r_external_state {
   r_primitive primitive;
   r_polygon_mode poly_mode;
   optional<float> poly_width;
-  weak_cref<r_stencil_test_opts> stencil_test;
-  weak_cref<r_depth_test_opts> depth_test;
-  weak_cref<r_scissor_test_opts> scissor_test;
-  weak_cref<r_face_cull_opts> face_culling;
-  weak_cref<r_blend_opts> blending;
+  weak_cptr<r_stencil_test_opts> stencil_test;
+  weak_cptr<r_depth_test_opts> depth_test;
+  weak_cptr<r_scissor_test_opts> scissor_test;
+  weak_cptr<r_face_cull_opts> face_culling;
+  weak_cptr<r_blend_opts> blending;
 };
 
 struct r_external_command {
   r_framebuffer target;
-  weak_cref<r_external_state> state;
+  weak_cptr<r_external_state> state;
   uint32 sort_group;
   function_view<void(r_context, r_platform_handle)> callback;
 };
@@ -511,7 +515,7 @@ struct r_context_params {
   r_clear_flag fb_clear;
   color4 fb_color;
 
-  weak_cref<r_allocator> alloc;
+  weak_cptr<r_allocator> alloc;
 };
 
 r_expected<r_context> r_create_context(const r_context_params& params);

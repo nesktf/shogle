@@ -9,7 +9,7 @@ constexpr inline uint32 r_cubemap_layer(r_cubemap_face face) {
 }
 
 template<typename T>
-concept tex_depth_type = same_as_any<T,
+concept tex_depth_type = meta::same_as_any<T,
   uint8, int8,
   uint16, int16,
   float32
@@ -156,12 +156,12 @@ struct tex_depth_traits<float32> {
 };
 
 template<typename T>
-concept tex_array_dim_type = same_as_any<std::remove_cvref_t<T>,
+concept tex_array_dim_type = meta::same_as_any<std::remove_cvref_t<T>,
   extent1d, extent2d
 >;
 
 template<typename T>
-concept tex_dim_type = same_as_any<std::remove_cvref_t<T>,
+concept tex_dim_type = meta::same_as_any<std::remove_cvref_t<T>,
   extent1d, extent2d, extent3d
 >;
 

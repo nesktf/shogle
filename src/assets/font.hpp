@@ -2,7 +2,7 @@
 
 #include "./types.hpp"
 #include "./texture.hpp"
-#include "../stl/hashmap.hpp"
+#include <ntfstl/hashmap.hpp>
 
 #include <set>
 #include <map>
@@ -10,13 +10,13 @@
 namespace ntf {
 
 template<typename CodeT>
-concept font_codepoint_type = same_as_any<CodeT,
+concept font_codepoint_type = meta::same_as_any<CodeT,
   char, wchar_t,
   char8_t, char16_t, char32_t
 >;
 
 // TODO: Use an actual set for the charset (lol)
-template<font_codepoint_type CodeT, allocator_type<CodeT> Alloc = std::allocator<CodeT>>
+template<font_codepoint_type CodeT, meta::allocator_type<CodeT> Alloc = std::allocator<CodeT>>
 using font_charset = std::basic_string<CodeT, std::char_traits<CodeT>, Alloc>;
 template<font_codepoint_type CodeT>
 using font_charset_view = std::basic_string_view<CodeT, std::char_traits<CodeT>>;
@@ -29,12 +29,20 @@ struct glyph_metrics {
   ivec2 advance;
 };
 
-using font_glyphs = unique_array<glyph_metrics, virtual_alloc_del<glyph_metrics>>;
-using glyph_map = virtual_fixed_hashmap<char32_t, size_t>;
+using font_glyphs =
+  unique_array<glyph_metrics, allocator_delete<glyph_metrics, virtual_allocator<glyph_metrics>>>;
+
+using glyph_map = fixed_hashmap<
+  char32_t, size_t,
+  std::hash<char32_t>, std::equal_to<char32_t>,
+  allocator_delete<std::pair<const char32_t, size_t>,
+    virtual_allocator<std::pair<const char32_t, size_t>>
+  >
+>;
 
 struct font_atlas_data {
 public:
-  using bitmap_t = unique_array<uint8, virtual_alloc_del<uint8>>;
+  using bitmap_t = unique_array<uint8, allocator_delete<uint8, virtual_allocator<uint8>>>;
 
 public:
   using iterator = font_glyphs::iterator;

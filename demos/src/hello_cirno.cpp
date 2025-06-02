@@ -1,9 +1,11 @@
-#include "shogle/render.hpp"
-#include "shogle/assets.hpp"
-#include "shogle/math.hpp"
-#include "shogle/version.hpp"
-#include "shogle/scene.hpp"
-#include "shogle/boilerplate.hpp"
+#include <shogle/render.hpp>
+#include <shogle/assets.hpp>
+#include <shogle/math.hpp>
+#include <shogle/version.hpp>
+#include <shogle/scene.hpp>
+#include <shogle/boilerplate.hpp>
+
+#include <ntfstl/utility.hpp>
 
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
@@ -53,7 +55,7 @@ int main() {
   const auto& fumo_verts = fumo->meshes.vertices;
   const auto& fumo_inds = fumo->meshes.indices;
 
-  const char win_title[] = "test - hello_cirno - " SHOGLE_VERSION_STRING;
+  const char win_title[] = "test - hello_cirno - " SHOGLE_VERSION;
   auto [window, ctx] = ntf::r_make_gl_ctx(1280, 720, win_title).value();
   auto imgui = ntf::imgui_ctx::create(ctx.handle());
 

@@ -1,15 +1,18 @@
 #include "../internal/platform.hpp"
 #include "./window.hpp"
 
+#include <ntfstl/utility.hpp>
+#include <atomic>
+
 namespace ntf {
 
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
 static GLFWwindow* win_cast(r_window win) { return reinterpret_cast<GLFWwindow*>(win); }
 static r_window win_cast(GLFWwindow* win) { return reinterpret_cast<r_window>(win); }
 #endif
 
 struct renderer_window::callback_handler_t {
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   static void fb_size_callback(GLFWwindow* handle, int w, int h) {
     auto* ptr = glfwGetWindowUserPointer(handle);
     NTF_ASSERT(ptr);
@@ -87,7 +90,7 @@ struct renderer_window::callback_handler_t {
 static std::atomic<uint32> win_count = 0;
 
 win_expected<renderer_window> renderer_window::create(const win_params& params) {
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   if (win_count.load() == 0) {
     if (!glfwInit()) {
       const char* err;
@@ -99,18 +102,18 @@ win_expected<renderer_window> renderer_window::create(const win_params& params) 
   }
 
   r_api ctx_api;
-  params.ctx_params | ::ntf::overload {
-    [&](weak_cref<win_gl_params> gl_params) {
+  std::visit(overload {
+    [&](weak_cptr<win_gl_params> gl_params) {
       glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, gl_params->ver_major);
       glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, gl_params->ver_minor);
       glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
       ctx_api = r_api::opengl;
     },
-    [&](weak_cref<win_vk_params>) {
+    [&](weak_cptr<win_vk_params>) {
       glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
       ctx_api = r_api::vulkan;
     }
-  };
+  }, params.ctx_params);
 
   if (params.x11_class_name) {
     glfwWindowHintString(GLFW_X11_CLASS_NAME, params.x11_class_name);
@@ -157,7 +160,7 @@ renderer_window::renderer_window(r_window handle, r_api ctx_api) noexcept :
 renderer_window::~renderer_window() noexcept { _destroy(); }
 
 void renderer_window::_destroy() {
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   if (!_handle) {
     return;
   }
@@ -196,40 +199,40 @@ renderer_window& renderer_window::operator=(renderer_window&& other) noexcept {
 }
 
 void renderer_window::close() {
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   glfwSetWindowShouldClose(win_cast(_handle), 1);
 #endif
 }
 
 void renderer_window::title(const std::string& title) {
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   glfwSetWindowTitle(win_cast(_handle), title.c_str());
 #endif
 }
 
 bool renderer_window::should_close() const {
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   NTF_ASSERT(_handle);
   return glfwWindowShouldClose(win_cast(_handle));
 #endif
 }
 
 win_action renderer_window::poll_key(win_key key) const {
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   NTF_ASSERT(_handle);
   return static_cast<win_action>(glfwGetKey(win_cast(_handle), static_cast<int>(key)));
 #endif
 }
 
 win_action renderer_window::poll_button(win_button button) const {
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   NTF_ASSERT(_handle);
   return static_cast<win_action>(glfwGetMouseButton(win_cast(_handle), static_cast<int>(button)));
 #endif
 }
 
 uvec2 renderer_window::win_size() const {
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   NTF_ASSERT(_handle);
   int w, h;
   glfwGetWindowSize(win_cast(_handle), &w, &h);
@@ -238,7 +241,7 @@ uvec2 renderer_window::win_size() const {
 }
 
 uvec2 renderer_window::fb_size() const {
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   NTF_ASSERT(_handle);
   int w, h;
   glfwGetFramebufferSize(win_cast(_handle), &w, &h);
@@ -247,7 +250,7 @@ uvec2 renderer_window::fb_size() const {
 }
 
 void renderer_window::poll_events() {
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   glfwPollEvents();
 #endif
 }

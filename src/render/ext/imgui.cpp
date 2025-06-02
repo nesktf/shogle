@@ -5,7 +5,7 @@
 #include <imgui_impl_opengl3.h> // Should work fine with OGL 4.x
 
 // TODO: Define inits for vulkan & software renderer
-#if defined(SHOGLE_USE_GLFW) && SHOGLE_USE_GLFW
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
 #include <imgui_impl_glfw.h>
 #define SHOGLE_INIT_IMGUI_OPENGL(win, cbks) \
   ImGui_ImplGlfw_InitForOpenGL(reinterpret_cast<GLFWwindow*>(win), cbks); \
@@ -147,7 +147,7 @@ void imgui_ctx::operator()(r_context, r_platform_handle) {
 
 void imgui_ctx::end_frame(r_framebuffer target,
                           uint32 sort_group,
-                          weak_cref<r_external_state> state,
+                          weak_cptr<r_external_state> state,
                           ImDrawData* draw_data) {
   _draw_data = draw_data;
   if (!_draw_data) {

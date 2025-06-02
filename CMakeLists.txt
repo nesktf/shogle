@@ -1,68 +1,80 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.11)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(SHOGLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-set(SRC_DIR "${SHOGLE_DIR}/src")
-set(INC_DIR "${SHOGLE_DIR}/include")
-set(EXTERN_DIR "${SHOGLE_DIR}/extern")
-set(DEMOS_DIR "${SHOGLE_DIR}/demos")
-set(TESTS_DIR "${SHOGLE_DIR}/tests")
+set(SHOGLE_SRC_DIR "${SHOGLE_DIR}/src")
+set(SHOGLE_INC_DIR "${SHOGLE_DIR}/include")
+set(SHOGLE_EXTERN_DIR "${SHOGLE_DIR}/extern")
+set(SHOGLE_DEMOS_DIR "${SHOGLE_DIR}/demos")
+set(SHOGLE_TESTS_DIR "${SHOGLE_DIR}/tests")
 
 set(SHOGLE_VER_MAJ 0)
-set(SHOGLE_VER_MIN 2)
-set(SHOGLE_VER_REV 1)
-set(SHOGLE_VERSION "${SHOGLE_VER_MAJ}.${SHOGLE_VER_MIN}.${SHOGLE_VER_REV}")
+set(SHOGLE_VER_MIN 3)
+set(SHOGLE_VER_REV 0)
+set(SHOGLE_VER "${SHOGLE_VER_MAJ}.${SHOGLE_VER_MIN}.${SHOGLE_VER_REV}")
 
-execute_process(COMMAND git rev-parse --short HEAD
-  WORKING_DIRECTORY "${SHOGLE_DIR}"
-  OUTPUT_VARIABLE SHOGLE_VER_GIT_TAG
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-execute_process(COMMAND git rev-list --count HEAD
-  WORKING_DIRECTORY "${SHOGLE_DIR}"
-  OUTPUT_VARIABLE SHOGLE_VER_BUILD
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-execute_process(COMMAND git rev-parse --abbrev-ref HEAD
-  WORKING_DIRECTORY "${SHOGLE_DIR}"
-  OUTPUT_VARIABLE SHOGLE_VER_GIT_BRANCH
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-set(SHOGLE_VERSION_STRING
-  "${SHOGLE_VERSION}-${SHOGLE_VER_BUILD}-${SHOGLE_VER_GIT_TAG} (${SHOGLE_VER_GIT_BRANCH})")
+project(shogle VERSION ${SHOGLE_VER} LANGUAGES CXX C)
 
+option(SHOGLE_BUILD_TESTS "Build tests" OFF)
+option(SHOGLE_BUILD_DEMOS "Build demos" OFF)
+option(SHOGLE_EMBED_GIT "Embed git info in version string" ON)
 
-message(STATUS "ShOGLE: Version ${SHOGLE_VERSION_STRING}")
-project(shogle VERSION ${SHOGLE_VERSION} LANGUAGES CXX C)
+option(SHOGLE_ENABLE_INTERNAL_LOGS "Enable internal logs" ON)
+option(SHOGLE_ENABLE_IMGUI "Enable imgui support" ON)
+option(SHOGLE_ENABLE_GLFW "Use glfw as the windowing system" ON)
 
-
-set(SHOGLE_DEFS)
-if (SHOGLE_ENABLE_IMGUI)
-  message(STATUS "ShOGLE: Including dear imgui support")
-  list(APPEND SHOGLE_DEFS SHOGLE_ENABLE_IMGUI=1)
+if (SHOGLE_EMBED_GIT)
+  execute_process(COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY "${SHOGLE_DIR}"
+    OUTPUT_VARIABLE SHOGLE_GIT_TAG
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  execute_process(COMMAND git rev-list --count HEAD
+    WORKING_DIRECTORY "${SHOGLE_DIR}"
+    OUTPUT_VARIABLE SHOGLE_BUILD_ID
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  execute_process(COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY "${SHOGLE_DIR}"
+    OUTPUT_VARIABLE SHOGLE_GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  set(SHOGLE_VERSION "${SHOGLE_VER}-${SHOGLE_BUILD_ID}-${SHOGLE_GIT_TAG} (${SHOGLE_GIT_BRANCH})")
+else()
+  set(SHOGLE_VERSION "${SHOGLE_VER}")
 endif()
 
+message(STATUS "ShOGLE: Setting up version ${SHOGLE_VERSION}...")
 
-message(STATUS "ShOGLE: Configuring dependencies")
-add_subdirectory(${EXTERN_DIR})
+file(GLOB_RECURSE SHOGLE_SOURCES "${SHOGLE_SRC_DIR}/**.cpp")
+file(GLOB_RECURSE SHOGLE_PRIV_HEADERS "${SHOGLE_SRC_DIR}/**.hpp")
+file(GLOB_RECURSE SHOGLE_PUB_HEADERS "${SHOGLE_INC_DIR}/**.hpp")
+configure_file("${SHOGLE_SRC_DIR}/version.hpp.in" "include/shogle/version.hpp" @ONLY)
+list(APPEND SHOGLE_INCLUDE "${SHOGLE_INC_DIR}")
+list(APPEND SHOGLE_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/include")
 
-message(STATUS "ShOGLE: Configuring source files")
-add_subdirectory(${SRC_DIR})
+set (CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(CommonDefs)
 
-add_library(${PROJECT_NAME} STATIC ${SHOGLE_SOURCE} ${EXTERN_SOURCE})
-set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
-target_include_directories(${PROJECT_NAME} PUBLIC
-  ${INC_DIR} ${EXTERN_INCLUDE} "${PROJECT_BINARY_DIR}/src")
-target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERN_LINK})
-target_compile_definitions(${PROJECT_NAME} PUBLIC ${SHOGLE_DEFS})
+message(STATUS "ShOGLE: Setting up dependencies...")
+add_subdirectory(${SHOGLE_EXTERN_DIR})
 
+add_library(${PROJECT_NAME} STATIC ${SHOGLE_SOURCES} ${SHOGLE_EXTERN_SOURCE} ${SHOGLE_PRIV_HEADERS} ${SHOGLE_PUB_HEADERS})
+set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 20)
+
+if (SHOGLE_ENABLE_INTERNAL_LOGS)
+  list(APPEND SHOGLE_DEFS SHOGLE_ENABLE_INTERNAL_LOGS=1)
+endif()
 
 if (SHOGLE_BUILD_TESTS)
-  message(STATUS "ShOGLE: Building tests")
-  add_subdirectory(${TESTS_DIR})
+  message(STATUS "ShOGLE: Tests enabled")
+  add_subdirectory(${SHOGLE_TESTS_DIR})
 endif()
 
 if (SHOGLE_BUILD_DEMOS)
-  message(STATUS "ShOGLE: Building demos")
-  add_subdirectory(${DEMOS_DIR})
+  message(STATUS "ShOGLE: Demos enabled")
+  add_subdirectory(${SHOGLE_DEMOS_DIR})
 endif()
+
+target_include_directories(${PROJECT_NAME} PUBLIC ${SHOGLE_INCLUDE} ${SHOGLE_EXTERN_INCLUDE})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${SHOGLE_EXTERN_LINK})
+target_compile_definitions(${PROJECT_NAME} PUBLIC ${SHOGLE_DEFS})
