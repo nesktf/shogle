@@ -166,6 +166,10 @@ public:
       _alloc->deallocate(ptr, n*sizeof(T));
     }
 
+    constexpr bool operator==(const adaptor_t&) { return true; }
+    constexpr bool operator!=(const adaptor_t&) { return false; }
+
+  private:
     ctx_alloc* _alloc;
   };
 
@@ -298,6 +302,19 @@ public:
     return str;
   }
 
+  template<typename T = char>
+  string_t<T> fmt_string(fmt::string_view fmt, fmt::format_args args) {
+    auto adaptor = make_adaptor<T>();
+    fmt::basic_memory_buffer<T, fmt::inline_buffer_size, adaptor_t<T>> buff{adaptor};
+    fmt::vformat_to(std::back_inserter(buff), fmt, args);
+    return string_t<T>{buff.data(), buff.size(), adaptor};
+  }
+
+  template<typename T = char, typename... Args>
+  string_t<T> fmt_string_args(fmt::string_view fmt, Args&&... args) {
+    return fmt_string(fmt, fmt::make_format_args(std::forward<Args>(args)...));
+  }
+
 public:
   void arena_clear() {
     _arena.clear();
@@ -413,6 +430,7 @@ struct ctx_buff_desc {
 
 enum ctx_buff_status {
   CTX_BUFF_STATUS_OK = 0,
+  CTX_BUFF_STATUS_INVALID_HANDLE,
 };
 
 struct ctx_tex_desc {
@@ -436,17 +454,22 @@ struct ctx_tex_opts {
 
 enum ctx_tex_status {
   CTX_TEX_STATUS_OK = 0,
+  CTX_TEX_STATUS_INVALID_HANDLE,
+  CTX_TEX_STATUS_INVALID_ADDRESING,
+  CTX_TEX_STATUS_INVALID_SAMPLER,
+  CTX_TEX_STATUS_INVALID_LEVELS,
 };
 
 struct ctx_shad_desc {
   shader_type type;
   std::string_view source;
-
-  weak_ptr<ctx_alloc::string_t<char>> err;
 };
+
+using shad_err_str = ctx_alloc::string_view_t<char>;
 
 enum ctx_shad_status {
   CTX_SHAD_STATUS_OK = 0,
+  CTX_SHAD_STATUS_INVALID_HANDLE,
   CTX_SHAD_STATUS_COMPILATION_FAILED,
 };
 
@@ -459,12 +482,13 @@ struct ctx_pip_desc {
   polygon_mode poly_mode;
   f32 poly_width;
   render_tests tests;
-
-  weak_ptr<ctx_alloc::string_t<char>> err;
 };
+
+using pip_err_str = ctx_alloc::string_view_t<char>;
 
 enum ctx_pip_status {
   CTX_PIP_STATUS_OK = 0,
+  CTX_PIP_STATUS_INVALID_HANDLE,
   CTX_PIP_STATUS_LINKING_FAILED,
 };
 
@@ -482,6 +506,7 @@ struct ctx_fbo_desc {
 
 enum ctx_fbo_status {
   CTX_FBO_STATUS_OK = 0,
+  CTX_FBO_STATUS_INVALID_HANDLE,
 };
 
 struct icontext {
@@ -499,14 +524,16 @@ struct icontext {
   virtual ctx_tex_status update_texture(ctx_tex tex, const ctx_tex_opts& opts) = 0;
   virtual ctx_tex_status destroy_texture(ctx_tex tex) noexcept = 0;
 
-  virtual ctx_shad_status create_shader(ctx_shad& shad, const ctx_shad_desc& desc) = 0;
-  virtual ctx_shad_status destroy_shader(ctx_shad shad) = 0;
+  virtual ctx_shad_status create_shader(ctx_shad& shad, shad_err_str& err,
+                                        const ctx_shad_desc& desc) = 0;
+  virtual ctx_shad_status destroy_shader(ctx_shad shad) noexcept = 0;
 
-  virtual ctx_pip_status create_pipeline(ctx_pip& pip, const ctx_pip_desc& desc) = 0;
-  virtual ctx_pip_status destroy_pipeline(ctx_pip pip) = 0;
+  virtual ctx_pip_status create_pipeline(ctx_pip& pip, pip_err_str& err,
+                                         const ctx_pip_desc& desc) = 0;
+  virtual ctx_pip_status destroy_pipeline(ctx_pip pip) noexcept = 0;
 
   virtual ctx_fbo_status create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) = 0;
-  virtual ctx_fbo_desc destroy_framebuffer(ctx_fbo fbo) noexcept = 0;
+  virtual ctx_fbo_status destroy_framebuffer(ctx_fbo fbo) noexcept = 0;
 
   virtual void submit_render_data(context_t ctx, cspan<ctx_render_data> render_data) = 0;
 

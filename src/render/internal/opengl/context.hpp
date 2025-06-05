@@ -9,13 +9,13 @@
 #define GL_CALL(fun, ...) \
 do { \
   fun(__VA_ARGS__); \
-  GLenum glerr = ::ntf::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
+  GLenum glerr = ::ntfr::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
   NTF_ASSERT(glerr == 0, "GL ERROR: {}", glerr); \
 } while(0) 
 #define GL_CALL_RET(fun, ...) \
 [&]() { \
   auto ret = fun(__VA_ARGS__); \
-  GLenum glerr = ::ntf::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
+  GLenum glerr = ::ntfr::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
   NTF_ASSERT(glerr == 0, "GL ERROR: {}", glerr); \
   return ret; \
 }()
@@ -24,7 +24,7 @@ do { \
 #define GL_CHECK(fun, ...) \
 [&]() { \
   fun(__VA_ARGS__); \
-  return ::ntf::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
+  return ::ntfr::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
 }()
 
 namespace ntf::render {
@@ -164,47 +164,48 @@ public:
   void init(const init_data_t& data) noexcept;
 
 public:
-  void create_buffer(buffer_t& buffer, buffer_type type, buffer_flag flags,
-                         size_t size, weak_cptr<buffer_data> data);
+  ctx_buff_status create_buffer(buffer_t& buffer, buffer_type type, buffer_flag flags,
+                                size_t size, weak_cptr<buffer_data> data);
   void destroy_buffer(buffer_t& buffer);
   bool buffer_bind(GLuint id, GLenum type);
-  void buffer_upload(buffer_t& buffer, size_t size, size_t offset, const void* data);
-  void buffer_map(buffer_t& buffer, void** ptr, size_t size, size_t offset);
+  ctx_buff_status buffer_upload(buffer_t& buffer, size_t size, size_t offset, const void* data);
+  ctx_buff_status buffer_map(buffer_t& buffer, void** ptr, size_t size, size_t offset);
   void buffer_unmap(buffer_t& buffer, void* ptr);
 
   void create_vao(vao_t& vao);
   void destroy_vao(vao_t& vao);
   bool bind_vao(GLuint id);
 
-  void create_shader(shader_t& shad, shader_type type, std::string_view src);
+  ctx_shad_status create_shader(shader_t& shad, shader_type type, std::string_view src,
+                                shad_err_str& err);
   void destroy_shader(shader_t& shad);
 
-  void create_program(program_t& prog,
-                      cspan<shader_t*> shaders, primitive_mode primitive,
-                      polygon_mode poly_mode, f32 poly_width,
-                      render_tests tests);
+  ctx_pip_status create_program(program_t& prog,
+                                cspan<shader_t*> shaders, primitive_mode primitive,
+                                polygon_mode poly_mode, f32 poly_width,
+                                render_tests tests, pip_err_str& err);
   void destroy_program(program_t& prog);
   bool program_bind(GLuint id);
   void program_query_uniforms(program_t& prog, unif_meta_vec& unifs);
   void program_prepare_state(program_t& prog);
   void push_uniform(GLuint location, attribute_type tye, const void* data);
 
-  void create_texture(texture_t& tex, texture_type type, image_format format,
-                      texture_sampler sampler, texture_addressing addressing,
-                      extent3d extent, uint32 layers, uint32 levels);
+  ctx_tex_status create_texture(texture_t& tex, texture_type type, image_format format,
+                                texture_sampler sampler, texture_addressing addressing,
+                                extent3d extent, uint32 layers, uint32 levels);
   void destroy_texture(texture_t& tex);
   bool texture_bind(GLuint tex, GLenum type, uint32 index);
-  void texture_upload(texture_t& tex, const uint8* texels,
-                      image_format image, image_alignment alignment,
-                      extent3d offset, uint32 layer, uint32 level);
-  void texture_set_sampler(texture_t& tex, texture_sampler sampler);
-  void texture_set_addressing(texture_t& tex, texture_addressing addressing);
+  ctx_tex_status texture_upload(texture_t& tex, const uint8* texels,
+                                image_format image, image_alignment alignment,
+                                extent3d offset, uint32 layer, uint32 level);
+  bool texture_set_sampler(texture_t& tex, texture_sampler sampler);
+  bool texture_set_addressing(texture_t& tex, texture_addressing addressing);
   void texture_gen_mipmaps(texture_t& tex);
 
   // void create_framebuffer(framebuffer_t& fbo, extent2d extent,
   //                         fbo_buffer test_buffers, image_format format);
-  void create_framebuffer(framebuffer_t& fbo, extent2d extent,
-                          fbo_buffer test_buffers, cspan<ctx_fbo_desc::tex_att_t> attachments);
+  ctx_fbo_status create_framebuffer(framebuffer_t& fbo, extent2d extent,
+                                    fbo_buffer test_buffers, cspan<fbo_attachment_t> attachments);
   void destroy_framebuffer(framebuffer_t& fbo);
   bool framebuffer_bind(GLuint id, fbo_binding binding); 
   void framebuffer_prepare_state(GLuint fbo, clear_flag flags,
@@ -214,7 +215,7 @@ public:
   void prepare_state(const external_state& stat);
 
 public:
-  const auto& tex_limits() const { return _tex_limits; }
+  void get_limits(ctx_meta::limits_t& limits) const;
 
 public:
   [[nodiscard]] static GLenum buffer_type_cast(buffer_type type) noexcept;
@@ -333,14 +334,16 @@ public:
   ctx_tex_status update_texture(ctx_tex tex, const ctx_tex_opts& opts) override;
   ctx_tex_status destroy_texture(ctx_tex tex) noexcept override;
 
-  ctx_shad_status create_shader(ctx_shad& shad, const ctx_shad_desc& desc) override;
-  ctx_shad_status destroy_shader(ctx_shad shad) override;
+  ctx_shad_status create_shader(ctx_shad& shad, shad_err_str& err,
+                                const ctx_shad_desc& desc) override;
+  ctx_shad_status destroy_shader(ctx_shad shad) noexcept override;
 
-  ctx_pip_status create_pipeline(ctx_pip& pip, const ctx_pip_desc& desc) override;
-  ctx_pip_status destroy_pipeline(ctx_pip pip) override;
+  ctx_pip_status create_pipeline(ctx_pip& pip, pip_err_str& err,
+                                 const ctx_pip_desc& desc) override;
+  ctx_pip_status destroy_pipeline(ctx_pip pip) noexcept override;
 
   ctx_fbo_status create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) override;
-  ctx_fbo_desc destroy_framebuffer(ctx_fbo fbo) noexcept override;
+  ctx_fbo_status destroy_framebuffer(ctx_fbo fbo) noexcept override;
 
   void submit_render_data(context_t ctx, cspan<ctx_render_data> render_data) override;
 
