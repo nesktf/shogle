@@ -350,7 +350,7 @@ private:
 
 struct ctx_unif_meta {
   ctx_unif handle;
-  ctx_alloc::string_t<char> sname;
+  ctx_alloc::string_t<char> name;
   attribute_type type;
   size_t size;
 };
@@ -431,6 +431,7 @@ struct ctx_buff_desc {
 enum ctx_buff_status {
   CTX_BUFF_STATUS_OK = 0,
   CTX_BUFF_STATUS_INVALID_HANDLE,
+  CTX_BUFF_STATUS_ALLOC_FAILED,
 };
 
 struct ctx_tex_desc {

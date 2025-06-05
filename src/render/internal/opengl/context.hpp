@@ -31,6 +31,118 @@ namespace ntf::render {
 
 class gl_context;
 
+struct glbuffer_t {
+  GLuint id;
+  GLenum type;
+  GLbitfield flags;
+  size_t size;
+  GLbitfield mapping;
+};
+
+enum glbuffer_bindings {
+  GLBUFFER_TYPE_VERTEX = 0,
+  GLBUFFER_TYPE_INDEX,
+  GLBUFFER_TYPE_TEXEL,
+  GLBUFFER_TYPE_UNIFORM,
+  GLBUFFER_TYPE_SHADER,
+
+  GLBUFFER_TYPE_COUNT,
+};
+
+struct glvao_t {
+  GLuint id;
+};
+
+struct glshader_t {
+  GLuint id;
+  GLenum type;
+};
+
+enum glprogram_flags : uint8 {
+  GLPROG_ENABLE_NOTHING = 0,
+  GLPROG_ENABLE_CULLING = 1<<0,
+  GLPROG_ENABLE_BLENDING = 1<<1,
+  GLPROG_ENABLE_STENCIL = 1<<2,
+  GLPROG_ENABLE_DEPTH = 1<<3,
+  GLPROG_ENABLE_SCISSOR = 1<<4,
+};
+
+struct glprog_t {
+  GLuint id;
+  GLenum primitive;
+  GLenum poly;
+  float poly_width;
+
+  uint8 flags;
+  struct {
+    GLenum mode;
+    GLenum face;
+  } culling;
+
+  struct {
+    GLenum mode;
+    GLenum src_fac;
+    GLenum dst_fac;
+    float r, g, b, a;
+  } blending;
+
+  struct {
+    GLenum func;
+    int32 func_ref;
+    uint32 func_mask;
+
+    GLenum sfail;
+    GLenum dpfail;
+    GLenum dppass;
+
+    uint32 mask;
+  } stencil;
+
+  struct {
+    GLenum func;
+    double near, far;
+  } depth;
+
+  struct {
+    uint32 x, y;
+    uint32 w, h;
+  } scissor;
+
+  cspan<attribute_binding> layout;
+};
+
+struct gltex_t {
+  GLuint id;
+  GLenum type;
+  GLenum format;
+  GLenum sampler[2]; // MIN, MAG
+  GLenum addressing;
+  uvec3 extent;
+  uint32 layers;
+  uint32 levels;
+};
+
+struct glfbo_t {
+  GLuint id;
+  extent2d extent;
+  GLuint sd_rbo;
+  GLuint color_rbo;
+};
+
+enum glfbo_binding {
+  GLFBO_BIND_READ = 0,
+  GLFBO_BIND_WRITE,
+
+  GLFBO_BIND_COUNT,
+  GLFBO_BIND_BOTH,
+};
+
+struct glfbo_att_t {
+  gltex_t* tex;
+  uint32 layer;
+  uint32 level;
+};
+
 class gl_state {
 public:
   static constexpr uint32 MAX_FBO_ATTACHMENTS = 8;
@@ -39,175 +151,56 @@ public:
   static constexpr GLuint DEFAULT_FBO = 0;
 
 public:
-  struct buffer_t {
-    GLuint id{0};
-    GLenum type;
-    GLbitfield flags;
-    size_t size;
-    void* mapping_ptr;
-    GLbitfield mapping;
-  };
-
-  enum buffer_bindings {
-    BUFFER_TYPE_VERTEX = 0,
-    BUFFER_TYPE_INDEX,
-    BUFFER_TYPE_TEXEL,
-    BUFFER_TYPE_UNIFORM,
-    BUFFER_TYPE_SHADER,
-
-    BUFFER_TYPE_COUNT,
-  };
-
-  struct vao_t {
-    GLuint id{0};
-  };
-
-  struct shader_t {
-    GLuint id{0};
-    GLenum type;
-  };
-
-  enum program_flags : uint8 {
-    PROG_ENABLE_NOTHING = 0,
-    PROG_ENABLE_CULLING = 1<<0,
-    PROG_ENABLE_BLENDING = 1<<1,
-    PROG_ENABLE_STENCIL = 1<<2,
-    PROG_ENABLE_DEPTH = 1<<3,
-    PROG_ENABLE_SCISSOR = 1<<4,
-  };
-
-  struct program_t {
-    GLuint id{0};
-    GLenum primitive;
-    GLenum poly;
-    float poly_width;
-
-    uint8 flags;
-    struct {
-      GLenum mode;
-      GLenum face;
-    } culling;
-
-    struct {
-      GLenum mode;
-      GLenum src_fac;
-      GLenum dst_fac;
-      float r, g, b, a;
-    } blending;
-
-    struct {
-      GLenum func;
-      int32 func_ref;
-      uint32 func_mask;
-
-      GLenum sfail;
-      GLenum dpfail;
-      GLenum dppass;
-
-      uint32 mask;
-    } stencil;
-
-    struct {
-      GLenum func;
-      double near, far;
-    } depth;
-
-    struct {
-      uint32 x, y;
-      uint32 w, h;
-    } scissor;
-
-    cspan<attribute_binding> layout;
-  };
-
-  struct texture_t {
-    GLuint id{0};
-    GLenum type;
-    GLenum format;
-    GLenum sampler[2]; // MIN, MAG
-    GLenum addressing;
-    uvec3 extent;
-    uint32 layers;
-    uint32 levels;
-  };
-
-  struct framebuffer_t {
-    GLuint id{0};
-    uvec2 extent;
-    GLuint sd_rbo;
-    GLuint color_rbo;
-  };
-
-  enum fbo_binding {
-    FBO_BIND_READ = 0,
-    FBO_BIND_WRITE,
-
-    FBO_BIND_COUNT,
-    FBO_BIND_BOTH,
-  };
-
-  struct init_data_t {
-    GLDEBUGPROC dbg;
-    gl_context* ctx;
-  };
-
-  struct fbo_attachment_t {
-    texture_t* tex;
-    uint32 layer;
-    uint32 level;
-  };
-
-public:
   gl_state(ctx_alloc& alloc) noexcept;
 
 public:
-  void init(const init_data_t& data) noexcept;
+  void init(GLDEBUGPROC debug_callback, gl_context* ctx);
 
 public:
-  ctx_buff_status create_buffer(buffer_t& buffer, buffer_type type, buffer_flag flags,
+  ctx_buff_status create_buffer(glbuffer_t& buffer, buffer_type type, buffer_flag flags,
                                 size_t size, weak_cptr<buffer_data> data);
-  void destroy_buffer(buffer_t& buffer);
+  void destroy_buffer(glbuffer_t& buffer);
   bool buffer_bind(GLuint id, GLenum type);
-  ctx_buff_status buffer_upload(buffer_t& buffer, size_t size, size_t offset, const void* data);
-  ctx_buff_status buffer_map(buffer_t& buffer, void** ptr, size_t size, size_t offset);
-  void buffer_unmap(buffer_t& buffer, void* ptr);
+  ctx_buff_status buffer_upload(glbuffer_t& buffer, size_t size, size_t offset, const void* data);
+  ctx_buff_status buffer_map(glbuffer_t& buffer, void** ptr, size_t size, size_t offset);
+  void buffer_unmap(glbuffer_t& buffer, void* ptr);
 
-  void create_vao(vao_t& vao);
-  void destroy_vao(vao_t& vao);
-  bool bind_vao(GLuint id);
+  void create_vao(glvao_t& vao);
+  void destroy_vao(glvao_t& vao);
+  bool vao_bind(GLuint id);
 
-  ctx_shad_status create_shader(shader_t& shad, shader_type type, std::string_view src,
+  ctx_shad_status create_shader(glshader_t& shad, shader_type type, std::string_view src,
                                 shad_err_str& err);
-  void destroy_shader(shader_t& shad);
+  void destroy_shader(glshader_t& shad);
 
-  ctx_pip_status create_program(program_t& prog,
-                                cspan<shader_t*> shaders, primitive_mode primitive,
+  ctx_pip_status create_program(glprog_t& prog,
+                                cspan<glshader_t*> shaders, primitive_mode primitive,
                                 polygon_mode poly_mode, f32 poly_width,
                                 render_tests tests, pip_err_str& err);
-  void destroy_program(program_t& prog);
+  void destroy_program(glprog_t& prog);
   bool program_bind(GLuint id);
-  void program_query_uniforms(program_t& prog, unif_meta_vec& unifs);
-  void program_prepare_state(program_t& prog);
+  void program_query_uniforms(glprog_t& prog, unif_meta_vec& unifs);
+  bool program_prepare_state(glprog_t& prog);
   void push_uniform(GLuint location, attribute_type tye, const void* data);
 
-  ctx_tex_status create_texture(texture_t& tex, texture_type type, image_format format,
+  ctx_tex_status create_texture(gltex_t& tex, texture_type type, image_format format,
                                 texture_sampler sampler, texture_addressing addressing,
                                 extent3d extent, uint32 layers, uint32 levels);
-  void destroy_texture(texture_t& tex);
+  void destroy_texture(gltex_t& tex);
   bool texture_bind(GLuint tex, GLenum type, uint32 index);
-  ctx_tex_status texture_upload(texture_t& tex, const uint8* texels,
+  ctx_tex_status texture_upload(gltex_t& tex, const void* texels,
                                 image_format image, image_alignment alignment,
                                 extent3d offset, uint32 layer, uint32 level);
-  bool texture_set_sampler(texture_t& tex, texture_sampler sampler);
-  bool texture_set_addressing(texture_t& tex, texture_addressing addressing);
-  void texture_gen_mipmaps(texture_t& tex);
+  bool texture_set_sampler(gltex_t& tex, texture_sampler sampler);
+  bool texture_set_addressing(gltex_t& tex, texture_addressing addressing);
+  bool texture_gen_mipmaps(gltex_t& tex);
 
   // void create_framebuffer(framebuffer_t& fbo, extent2d extent,
   //                         fbo_buffer test_buffers, image_format format);
-  ctx_fbo_status create_framebuffer(framebuffer_t& fbo, extent2d extent,
-                                    fbo_buffer test_buffers, cspan<fbo_attachment_t> attachments);
-  void destroy_framebuffer(framebuffer_t& fbo);
-  bool framebuffer_bind(GLuint id, fbo_binding binding); 
+  ctx_fbo_status create_framebuffer(glfbo_t& fbo, extent2d extent,
+                                    fbo_buffer test_buffers, cspan<glfbo_att_t> attachments);
+  void destroy_framebuffer(glfbo_t& fbo);
+  bool framebuffer_bind(GLuint id, glfbo_binding binding); 
   void framebuffer_prepare_state(GLuint fbo, clear_flag flags,
                                  const uvec4& vp, const color4& color);
   
@@ -251,16 +244,11 @@ private:
   GLenum& _buffer_pos(GLenum type);
 
 private:
-  GLuint _bound_buffers[BUFFER_TYPE_COUNT];
-  GLuint _bound_fbos[FBO_BIND_COUNT];
+  ctx_alloc& _alloc;
+  GLuint _bound_buffers[GLBUFFER_TYPE_COUNT];
+  GLuint _bound_fbos[GLFBO_BIND_COUNT];
   GLuint _bound_vao;
   GLuint _bound_program;
-
-  struct {
-    uint32 max_dim;
-    uint32 max_dim3d;
-    uint32 max_layers;
-  } _tex_limits;
   ctx_alloc::vec_t<std::pair<GLuint, GLenum>> _bound_texs; // id, type
   size_t _active_tex;
 };
@@ -360,13 +348,13 @@ private:
   uint32 _swap_interval;
 
   gl_state _state;
-  gl_state::vao_t _vao;
+  glvao_t _vao;
 
-  res_container<gl_state::buffer_t> _buffers;
-  res_container<gl_state::texture_t> _textures;
-  res_container<gl_state::shader_t> _shaders;
-  res_container<gl_state::program_t> _programs;
-  res_container<gl_state::framebuffer_t> _framebuffers;
+  res_container<glbuffer_t> _buffers;
+  res_container<gltex_t> _textures;
+  res_container<glshader_t> _shaders;
+  res_container<glprog_t> _programs;
+  res_container<glfbo_t> _framebuffers;
 
 public:
   NTF_DECLARE_NO_MOVE_NO_COPY(gl_context);
