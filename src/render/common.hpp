@@ -11,8 +11,14 @@
 
 namespace ntf::render {
 
-NTF_DECLARE_OPAQUE_HANDLE(context_ptr);
-NTF_DECLARE_OPAQUE_HANDLE(window_ptr);
+NTF_DECLARE_OPAQUE_HANDLE(context_t);
+NTF_DECLARE_OPAQUE_HANDLE(window_t);
+NTF_DECLARE_OPAQUE_HANDLE(texture_t);
+NTF_DECLARE_OPAQUE_HANDLE(buffer_t);
+NTF_DECLARE_OPAQUE_HANDLE(shader_t);
+NTF_DECLARE_OPAQUE_HANDLE(pipeline_t);
+NTF_DECLARE_OPAQUE_HANDLE(framebuffer_t);
+NTF_DECLARE_OPAQUE_HANDLE(uniform_t);
 
 enum class context_api {
   none = 0,
@@ -21,18 +27,13 @@ enum class context_api {
   software,
 };
 
-using internal_handle = uint64;
+using ctx_handle = uint64;
+constexpr ctx_handle CTX_HANDLE_TOMB = std::numeric_limits<ctx_handle>::max();
 
 using render_error = ::ntf::error<void>;
 
 template<typename T>
 using expect = ::ntf::expected<T, render_error>;
-
-struct user_alloc {
-  void* user_ptr;
-  malloc_fn_t mem_alloc;
-  free_fn_t mem_free;
-};
 
 enum class image_format : uint8 {
   r8nu=0,  r8n,     r8u,     r8i,
@@ -194,12 +195,12 @@ struct face_cull_opts {
   cull_face front_face;
 };
 
-struct pipeline_tests {
-  optional<stencil_test_opts> stencil_test;
-  optional<depth_test_opts> depth_test;
-  optional<scissor_test_opts> scissor_test;
-  optional<face_cull_opts> face_culling;
-  optional<blend_opts> blending;
+struct render_tests {
+  weak_cptr<stencil_test_opts> stencil_test;
+  weak_cptr<depth_test_opts> depth_test;
+  weak_cptr<scissor_test_opts> scissor_test;
+  weak_cptr<face_cull_opts> face_culling;
+  weak_cptr<blend_opts> blending;
 };
 
 enum class clear_flag : uint8 {
@@ -212,13 +213,6 @@ enum class clear_flag : uint8 {
   all           = (1<<0) | (1<<1) | (1<<2),
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(clear_flag);
-
-NTF_DECLARE_OPAQUE_HANDLE(texture_ptr);
-NTF_DECLARE_OPAQUE_HANDLE(buffer_ptr);
-NTF_DECLARE_OPAQUE_HANDLE(shader_ptr);
-NTF_DECLARE_OPAQUE_HANDLE(pipeline_ptr);
-NTF_DECLARE_OPAQUE_HANDLE(framebuffer_ptr);
-NTF_DECLARE_OPAQUE_HANDLE(uniform_ptr);
 
 } // namespace ntf::render
 

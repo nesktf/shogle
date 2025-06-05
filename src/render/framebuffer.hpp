@@ -1,12 +1,11 @@
 #pragma once
 
 #include "./context.hpp"
-#include <variant>
 
 namespace ntf::render {
 
-enum class test_buffer : uint8 {
-  no_buffer = 0,
+enum class fbo_buffer : uint8 {
+  none = 0,
   depth16u,
   depth24u,
   depth32f,
@@ -14,36 +13,44 @@ enum class test_buffer : uint8 {
   depth32f_stencil8u,
 };
 
-struct framebuffer_image {
-  texture_ptr texture;
+struct fbo_image {
+  texture_t texture;
   uint32 layer;
   uint32 level;
 };
 
-using framebuffer_attachment = cspan<framebuffer_image>;
-
-struct framebuffer_descriptor {
+struct fbo_image_desc {
   extent2d extent;
   uvec4 viewport;
   color4 clear_color;
   clear_flag clear_flags;
-  test_buffer buffer;
-  std::variant<framebuffer_attachment, image_format> attachments;
+  fbo_buffer test_buffer;
+  cspan<fbo_image> images;
 };
 
-expect<framebuffer_ptr> create_framebuffer(context_ptr ctx, const framebuffer_descriptor& desc);
-void destroy_framebuffer(framebuffer_ptr fb);
+// struct fbo_color_desc {
+//   extent2d extent;
+//   uvec4 viewport;
+//   color4 clear_color;
+//   clear_flag clear_flags;
+//   fbo_buffer test_buffer;
+//   image_format color_buffer;
+// };
 
-void framebuffer_set_clear_flags(framebuffer_ptr fb, clear_flag flags);
-void framebuffer_set_viewport(framebuffer_ptr fb, const uvec4& vp);
-void framebuffer_set_clear_color(framebuffer_ptr fb, const color4& color);
+expect<framebuffer_t> create_framebuffer(context_t ctx, const fbo_image_desc& desc);
+// expect<framebuffer_t> create_framebuffer(context_t ctx, const fbo_color_desc& desc);
+void destroy_framebuffer(framebuffer_t fb);
 
-clear_flag framebuffer_get_clear_flags(framebuffer_ptr fb);
-uvec4 framebuffer_get_viewport(framebuffer_ptr fb);
-color4 framebuffer_get_clear_color(framebuffer_ptr fb);
+void framebuffer_set_clear_flags(framebuffer_t fb, clear_flag flags);
+void framebuffer_set_viewport(framebuffer_t fb, const uvec4& vp);
+void framebuffer_set_clear_color(framebuffer_t fb, const color4& color);
 
-framebuffer_ptr get_default_framebuffer(context_ptr ctx);
-context_ptr frambuffer_get_ctx(framebuffer_ptr fb);
+clear_flag framebuffer_get_clear_flags(framebuffer_t fb);
+uvec4 framebuffer_get_viewport(framebuffer_t fb);
+color4 framebuffer_get_clear_color(framebuffer_t fb);
+
+framebuffer_t get_default_framebuffer(context_t ctx);
+context_t frambuffer_get_ctx(framebuffer_t fb);
 
 } // namespace ntf::render
 
@@ -51,14 +58,14 @@ namespace ntf::impl {
 
 template<typename Derived>
 class rframebuffer_ops {
-  ntfr::framebuffer_ptr _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::framebuffer_ptr ptr = static_cast<Derived&>(*this).get();
+  ntfr::framebuffer_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
+    ntfr::framebuffer_t ptr = static_cast<Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid frambuffer handle");
     return ptr;
   }
 
 public:
-  operator ntfr::framebuffer_ptr() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
+  operator ntfr::framebuffer_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
 
   void clear_flags(ntfr::clear_flag flags) const {
     ntfr::framebuffer_set_clear_flags(_ptr(), flags);
@@ -90,27 +97,27 @@ namespace ntf::render {
 
 class framebuffer_view : public impl::rframebuffer_ops<framebuffer_view> {
 public:
-  framebuffer_view(framebuffer_ptr pip) noexcept :
+  framebuffer_view(framebuffer_t pip) noexcept :
     _pip{pip} {}
 
 public:
-  framebuffer_ptr get() const noexcept { return _pip;}
+  framebuffer_t get() const noexcept { return _pip;}
 
   bool empty() const noexcept {return _pip == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
 
 private:
-  framebuffer_ptr _pip;
+  framebuffer_t _pip;
 };
 
 class framebuffer : public impl::rframebuffer_ops<framebuffer> {
 private:
   struct deleter_t {
-    void operator()(framebuffer_ptr pip) noexcept {
+    void operator()(framebuffer_t pip) noexcept {
       ntfr::destroy_framebuffer(pip);
     }
   };
-  using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::framebuffer_ptr>, deleter_t>;
+  using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::framebuffer_t>, deleter_t>;
 
 public:
   static framebuffer_view get_default(context_view ctx) {
@@ -118,20 +125,20 @@ public:
   }
 
 public:
-  explicit framebuffer(framebuffer_ptr pip) noexcept :
+  explicit framebuffer(framebuffer_t pip) noexcept :
     _pip{pip} {}
 
 public:
-  static expect<framebuffer> create(context_view ctx, const framebuffer_descriptor& desc){
+  static expect<framebuffer> create(context_view ctx, const fbo_image_desc& desc){
     return ntfr::create_framebuffer(ctx.get(), desc)
-    .transform([](framebuffer_ptr pip) -> framebuffer {
+    .transform([](framebuffer_t pip) -> framebuffer {
       return framebuffer{pip};
     });
   }
 
 public:
-  framebuffer_ptr get() const noexcept { return _pip.get(); }
-  [[nodiscard]] framebuffer_ptr release() noexcept { return _pip.release(); }
+  framebuffer_t get() const noexcept { return _pip.get(); }
+  [[nodiscard]] framebuffer_t release() noexcept { return _pip.release(); }
 
   bool empty() const noexcept { return _pip.get() == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }

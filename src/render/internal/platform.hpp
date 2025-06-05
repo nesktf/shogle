@@ -21,53 +21,69 @@
                           vk_alloc_ptr, vk_surface_ptr)
 #endif
 
+#define RENDER_ERROR_LOG(_fmt, ...) \
+  SHOGLE_LOG(error, "{} ({})" _fmt, NTF_FUNC, NTF_LINE __VA_OPT__(,) __VA_ARGS__)
+
+#define RENDER_WARN_LOG(_fmt, ...) \
+  SHOGLE_LOG(warning, "{} ({})" _fmt, NTF_FUNC, NTF_LINE __VA_OPT__(,) __VA_ARGS__)
+
+#define RET_ERROR(_fmt, ...) \
+  RENDER_ERROR_LOG(_fmt __VA_OPT__(,) __VA_ARGS__); \
+  return unexpected{r_error::format({_fmt} __VA_OPT__(,) __VA_ARGS__)}
+
+#define RET_ERROR_IF(_cond, _fmt, ...) \
+  if (_cond) { \
+    RET_ERROR(_fmt, __VA_ARGS__); \
+  }
+
+#define RET_ERROR_CATCH(_msg) \
+  catch (r_error& err) { \
+    RENDER_ERROR_LOG(_msg ": {}", err.what()); \
+    return unexpected{std::move(err)}; \
+  } catch (const std::exception& ex) { \
+    RENDER_ERROR_LOG(_msg ": {}", ex.what()); \
+    return unexpected{r_error::format({"{}"}, ex.what())}; \
+  } catch (...) { \
+    RENDER_ERROR_LOG(_msg ": Caught (...)"); \
+    return unexpected{r_error{"Unknown error"}}; \
+  }
+
+#define RENDER_ERROR_LOG_CATCH(_msg) \
+  catch (const std::exception& ex) { \
+    RENDER_ERROR_LOG(_msg ": {}", ex.what()); \
+  } catch (...) { \
+    RENDER_ERROR_LOG(_msg ": Caught (...)"); \
+  }
+
 #include "../context.hpp"
+#include "../buffer.hpp"
+#include "../framebuffer.hpp"
+#include "../texture.hpp"
+#include "../pipeline.hpp"
 
 #include <ntfstl/allocator.hpp>
 #include <ntfstl/unique_array.hpp>
+#include <ntfstl/hashmap.hpp>
 
+#include <variant>
 #include <deque>
 #include <queue>
+#include <atomic>
 
-#define SHOGLE_DECLARE_RENDER_HANDLE(_name) \
-class _name { \
-public: \
-  constexpr _name() : _handle{r_handle_tombstone} {} \
-  constexpr explicit _name(r_handle_value handle) : _handle{handle} {} \
-public: \
-  constexpr explicit operator r_handle_value() const noexcept { return _handle; } \
-  constexpr bool valid() const noexcept { return _handle != r_handle_tombstone; } \
-  constexpr explicit operator bool() const noexcept { return valid(); } \
-  constexpr bool operator==(const _name& rhs) const noexcept { \
-    return _handle == static_cast<r_handle_value>(rhs); \
-  } \
-private: \
-  r_handle_value _handle; \
-}
+namespace ntf::render {
 
-namespace ntf {
+constexpr bool check_handle(ctx_handle handle) noexcept { return handle != CTX_HANDLE_TOMB; }
 
-using r_handle_value = uint32;
-constexpr r_handle_value r_handle_tombstone = std::numeric_limits<r_handle_value>::max();
+using ctx_buff = ctx_handle;
+using ctx_tex = ctx_handle;
+using ctx_shad = ctx_handle;
+using ctx_pip = ctx_handle;
+using ctx_unif = ctx_handle;
 
-template<typename T>
-struct r_handle_hash {
-  r_handle_hash() noexcept = default;
-  size_t operator()(const T& handle) const noexcept {
-    return std::hash<r_handle_value>{}(static_cast<r_handle_value>(handle));
-  }
-};
+using ctx_fbo = ctx_handle;
+constexpr auto DEFAULT_FBO_HANDLE = CTX_HANDLE_TOMB;
 
-SHOGLE_DECLARE_RENDER_HANDLE(r_platform_buffer);
-SHOGLE_DECLARE_RENDER_HANDLE(r_platform_texture);
-SHOGLE_DECLARE_RENDER_HANDLE(r_platform_shader);
-SHOGLE_DECLARE_RENDER_HANDLE(r_platform_pipeline);
-SHOGLE_DECLARE_RENDER_HANDLE(r_platform_uniform);
-SHOGLE_DECLARE_RENDER_HANDLE(r_platform_fbo);
-
-constexpr r_platform_fbo DEFAULT_FBO_HANDLE{r_handle_tombstone};
-
-class rp_alloc {
+class ctx_alloc {
 public:
   using malloc_fun = void*(*)(void* user_ptr, size_t size, size_t alignment);
   using mfree_fun  = void (*)(void* user_ptr, void* mem, size_t size);
@@ -79,7 +95,8 @@ public:
 
     template<typename U = T>
     requires(std::is_convertible_v<U*, T*>)
-    void operator()(U* ptr) noexcept(std::is_nothrow_destructible_v<T>) {
+    void operator()(U* ptr) noexcept(std::is_nothrow_destructible_v<T>)
+    {
       if constexpr (!std::is_trivially_destructible_v<T>) {
         static_cast<T*>(ptr)->~T();
       }
@@ -88,13 +105,17 @@ public:
 
     template<typename U = T>
     requires(std::is_convertible_v<U*, T*>)
-    void operator()(uninitialized_t, U* ptr) noexcept(std::is_nothrow_destructible_v<T>) {
+    void operator()(uninitialized_t, U* ptr)
+    noexcept(std::is_nothrow_destructible_v<T>)
+    {
       std::invoke(_free, _uptr, ptr, sizeof(T));
     }
 
     template<typename U = T>
     requires(std::is_convertible_v<U*, T*>)
-    void operator()(uninitialized_t, U* ptr, size_t n) noexcept(std::is_nothrow_destructible_v<T>) {
+    void operator()(uninitialized_t, U* ptr, size_t n)
+    noexcept(std::is_nothrow_destructible_v<T>)
+    {
       std::invoke(_free, _uptr, ptr, n*sizeof(T));
     }
 
@@ -124,7 +145,7 @@ public:
     template<typename U>
     using rebind = adaptor_t<U>;
 
-    adaptor_t(rp_alloc& alloc) noexcept :
+    adaptor_t(ctx_alloc& alloc) noexcept :
       _alloc{&alloc} {}
 
     template<typename U>
@@ -145,7 +166,7 @@ public:
       _alloc->deallocate(ptr, n*sizeof(T));
     }
 
-    rp_alloc* _alloc;
+    ctx_alloc* _alloc;
   };
 
   // template<typename T>
@@ -166,14 +187,40 @@ public:
   template<typename T>
   using queue_t = std::queue<T, deque_t<T>>;
 
-public:
-  rp_alloc(const r_allocator& user_alloc, linked_arena&& arena) noexcept :
-    _arena{std::move(arena)},
-    _user_ptr{user_alloc.user_ptr},
-    _malloc{user_alloc.mem_alloc}, _free{user_alloc.mem_free} {}
+  template<typename T>
+  using string_t = std::basic_string<T, std::char_traits<T>, adaptor_t<T>>;
+
+  template<typename T>
+  using string_view_t = std::basic_string_view<T, std::char_traits<T>>;
+
+  template<typename T>
+  struct string_hash {
+    size_t operator()(const string_t<T>& str) const {
+      std::hash<string_view_t<T>> h{};
+      string_view_t<T> view{str};
+      return h(view);
+    }
+  };
+
+  template<typename T, typename U = char>
+  using string_fhashmap_t = fixed_hashmap<
+    string_t<U>, T,
+    string_hash<U>, std::equal_to<string_t<U>>,
+    // rp_alloc::alloc_del_t<std::pair<const std::string, r_uniform_>>
+    allocator_delete<
+      std::pair<const string_t<U>, T>,
+      adaptor_t<std::pair<const string_t<U>, T>>
+    >
+  >;
 
 public:
-  static uptr_t<rp_alloc> make_alloc(weak_cptr<r_allocator> alloc, size_t arena_size);
+  ctx_alloc(const malloc_funcs& funcs, linked_arena&& arena) noexcept :
+    _arena{std::move(arena)},
+    _user_ptr{funcs.user_ptr},
+    _malloc{funcs.mem_alloc}, _free{funcs.mem_free} {}
+
+public:
+  static uptr_t<ctx_alloc> make_alloc(weak_cptr<malloc_funcs> alloc, size_t arena_size);
   
 public: 
   void* allocate(size_t size, size_t alignment) {
@@ -242,6 +289,15 @@ public:
     return vec;
   }
 
+  template<typename T = char>
+  string_t<T> make_string(size_t reserve = 0u) {
+    string_t<T> str{make_adaptor<T>()};
+    if (reserve){
+      str.reserve(reserve);
+    }
+    return str;
+  }
+
 public:
   void arena_clear() {
     _arena.clear();
@@ -275,218 +331,375 @@ private:
   mfree_fun _free;
 };
 
-struct rp_uniform_query {
-  r_platform_uniform location;
-  std::string name;
-  r_attrib_type type;
+struct ctx_unif_meta {
+  ctx_unif handle;
+  ctx_alloc::string_t<char> sname;
+  attribute_type type;
   size_t size;
 };
-using rp_uniform_query_vec = rp_alloc::vec_t<rp_uniform_query>;
+using unif_meta_vec = ctx_alloc::vec_t<ctx_unif_meta>;
 
-template<typename K, typename T>
-using handle_map = std::unordered_map<K, T, r_handle_hash<K>>;
+template<typename T>
+using handle_map = std::unordered_map<ctx_handle, T>;
 
-struct rp_draw_cmd {
+struct ctx_meta {
+  struct limits_t {
+    uint32 tex_max_layers;
+    uint32 tex_max_extent;
+    uint32 tex_max_extent3d;
+  };
+
+  context_api api;
+  ctx_alloc::string_t<char> name_str;
+  limits_t limits;
+};
+
+class ctx_render_cmd {
 public:
-  struct uniform_const {
-    r_platform_uniform location;
-    r_attrib_type type;
+  struct unif_const_t {
+    ctx_unif handle;
     const void* data;
+    attribute_type type;
     size_t size;
   };
 
-  struct shader_buffer {
-    r_platform_buffer handle;
+  struct shad_bind_t {
+    ctx_buff handle;
     uint32 binding;
     size_t offset;
     size_t size;
   };
 
 public:
-  rp_draw_cmd(function_view<void(r_context)> on_render_) :
-    index_buffer{nullopt}, on_render{on_render_}, external{nullopt} {}
-
-  rp_draw_cmd(function_view<void(r_context, r_platform_handle)> on_render_) :
-    index_buffer{nullopt}, on_render{on_render_}, external{nullopt} {}
+  ctx_render_cmd(function_view<void(context_t)> on_render_) :
+    external{nullopt}, on_render{on_render_} {}
+  ctx_render_cmd(function_view<void(context_t, ctx_handle)> on_render_) :
+    external{nullopt}, on_render{on_render_} {}
 
 public:
-  r_platform_pipeline pipeline;
-  span<r_platform_texture> textures;
-
-  r_platform_buffer vertex_buffer;
-  optional<r_platform_buffer> index_buffer;
-  span<shader_buffer> shader_buffers;
-  span<uniform_const> uniforms;
-
-  r_draw_opts draw_opts;
+  ctx_pip pip;
+  ctx_buff vbo;
+  ctx_buff ebo;
+  span<shad_bind_t> shader_buffers;
+  span<ctx_tex> textures;
+  span<unif_const_t> uniforms;
+  render_opts opts;
   uint32 sort_group;
-
+  optional<external_state> external;
   std::variant<
-    function_view<void(r_context, r_platform_handle)>,
-    function_view<void(r_context)>
+    function_view<void(context_t, ctx_handle)>,
+    function_view<void(context_t)>
   > on_render;
-  optional<r_external_state> external;
 };
 
-struct rp_fbo_frame_data {
-  color4 clear_color;
-  uvec4 viewport;
-  r_clear_flag clear_flags;
+struct ctx_render_data {
+  struct fbo_data_t {
+    color4 clear_color;
+    uvec4 viewport;
+    clear_flag clear_flags;
+  };
+
+  ctx_fbo target;
+  weak_cptr<fbo_data_t> data;
+  cspan<ctx_render_cmd> commands;
 };
 
-struct rp_draw_data {
-  r_platform_fbo target;
-  weak_cptr<rp_fbo_frame_data> fdata;
-  cspan<rp_draw_cmd> cmds;
-};
-
-struct rp_platform_meta {
-  r_api api;
-  std::string name_str;
-  std::string vendor_str;
-  std::string version_str;
-  uint32 tex_max_layers;
-  uint32 tex_max_extent;
-  uint32 tex_max_extent3d;
-};
-
-struct rp_buff_desc {
-  r_buffer_type type;
-  r_buffer_flag flags;
+struct ctx_buff_desc {
+  buffer_type type;
+  buffer_flag flags;
   size_t size;
-  weak_cptr<r_buffer_data> initial_data;
+  weak_cptr<buffer_data> data;
 };
 
-struct rp_buff_data {
-  const void* data;
-  size_t len;
-  size_t offset;
+enum ctx_buff_status {
+  CTX_BUFF_STATUS_OK = 0,
 };
 
-struct rp_buff_mapping {
-  size_t len;
-  size_t offset;
-};
-
-struct rp_tex_desc {
-  r_texture_type type;
-  r_texture_format format;
+struct ctx_tex_desc {
+  texture_type type;
+  image_format format;
+  texture_sampler sampler;
+  texture_addressing addressing;
   extent3d extent;
   uint32 layers;
   uint32 levels;
-  cspan<r_image_data> initial_data;
+  cspan<image_data> images;
   bool gen_mipmaps;
-  r_texture_sampler sampler;
-  r_texture_address addressing;
 };
 
-struct rp_tex_image_data {
-  const void* texels;
-  r_texture_format format;
-  r_image_alignment alignment;
-  extent3d extent;
-  extent3d offset;
-  uint32 layer;
-  uint32 level;
+using ctx_tex_data = texture_data;
+
+struct ctx_tex_opts {
+  texture_sampler sampler;
+  texture_addressing addresing;
 };
 
-struct rp_tex_opts {
-  r_texture_sampler sampler;
-  r_texture_address addressing;
+enum ctx_tex_status {
+  CTX_TEX_STATUS_OK = 0,
 };
 
-struct rp_shad_desc {
-  r_shader_type type;
+struct ctx_shad_desc {
+  shader_type type;
   std::string_view source;
+
+  weak_ptr<ctx_alloc::string_t<char>> err;
 };
 
-struct rp_pip_desc {
-  rp_alloc::uarray_t<r_attrib_binding> layout;
-  weak_ptr<rp_uniform_query_vec> uniforms;
-
-  cspan<r_platform_shader> stages;
-  r_stages_flag stages_flags;
-  r_primitive primitive;
-  r_polygon_mode poly_mode;
-  optional<float> poly_width;
-
-  weak_cptr<r_stencil_test_opts> stencil_test;
-  weak_cptr<r_depth_test_opts> depth_test;
-  weak_cptr<r_scissor_test_opts> scissor_test;
-  weak_cptr<r_face_cull_opts> face_culling;
-  weak_cptr<r_blend_opts> blending;
+enum ctx_shad_status {
+  CTX_SHAD_STATUS_OK = 0,
+  CTX_SHAD_STATUS_COMPILATION_FAILED,
 };
 
-struct rp_pip_opts {
-  weak_cptr<r_stencil_test_opts> stencil_test;
-  weak_cptr<r_depth_test_opts> depth_test;
-  weak_cptr<r_scissor_test_opts> scissor_test;
-  weak_cptr<r_face_cull_opts> face_culling;
-  weak_cptr<r_blend_opts> blending;
+struct ctx_pip_desc {
+  ctx_alloc::uarray_t<attribute_binding> layout;
+  weak_ptr<unif_meta_vec> uniforms;
+  cspan<ctx_shad> stages;
+  stages_flag stages_flags;
+  primitive_mode primitive;
+  polygon_mode poly_mode;
+  f32 poly_width;
+  render_tests tests;
+
+  weak_ptr<ctx_alloc::string_t<char>> err;
 };
 
-struct rp_fbo_att {
-  r_platform_texture texture;
-  uint32 layer;
-  uint32 level;
+enum ctx_pip_status {
+  CTX_PIP_STATUS_OK = 0,
+  CTX_PIP_STATUS_LINKING_FAILED,
 };
 
-struct rp_fbo_desc {
+struct ctx_fbo_desc {
+  struct tex_att_t {
+    ctx_tex texture;
+    uint32 layer;
+    uint32 level;
+  };
+
   extent2d extent;
-  r_test_buffer test_buffer;
-  cspan<rp_fbo_att> attachments;
-  optional<r_texture_format> color_buffer;
+  fbo_buffer test_buffer;
+  cspan<tex_att_t> attachments;
 };
 
-// enum class rp_res_type {
-//   buffer,
-//   texture,
-//   framebuffer,
-//   shader,
-//   pipeline,
-// };
+enum ctx_fbo_status {
+  CTX_FBO_STATUS_OK = 0,
+};
 
-struct rp_context {
-  virtual ~rp_context() = default;
-  virtual void get_meta(rp_platform_meta& meta) = 0;
+struct icontext {
+  virtual ~icontext() = default;
+  virtual void get_meta(ctx_meta& meta) = 0;
 
-  virtual r_platform_buffer create_buffer(const rp_buff_desc& desc) = 0;
-  virtual void update_buffer(r_platform_buffer buf, const rp_buff_data& data) = 0;
-  virtual void* map_buffer(r_platform_buffer buf, const rp_buff_mapping& mapping) = 0;
-  virtual void unmap_buffer(r_platform_buffer buf, void* ptr) noexcept = 0;
-  virtual void destroy_buffer(r_platform_buffer buf) noexcept = 0;
+  virtual ctx_buff_status create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) = 0;
+  virtual ctx_buff_status update_buffer(ctx_buff buff, const buffer_data& data) = 0;
+  virtual ctx_buff_status map_buffer(ctx_buff buff, void** ptr, size_t size, size_t offset) = 0;
+  virtual ctx_buff_status unmap_buffer(ctx_buff buff, void* ptr) noexcept = 0;
+  virtual ctx_buff_status destroy_buffer(ctx_buff buff) noexcept = 0;
 
-  virtual r_platform_texture create_texture(const rp_tex_desc& desc) = 0;
-  virtual void upload_texture_images(r_platform_texture tex,
-                                     cspan<rp_tex_image_data> images, bool regen_mips) = 0;
-  virtual void update_texture_options(r_platform_texture tex, const rp_tex_opts& opts) = 0;
-  virtual void destroy_texture(r_platform_texture tex) noexcept = 0;
+  virtual ctx_tex_status create_texture(ctx_tex& tex, const ctx_tex_desc& desc) = 0;
+  virtual ctx_tex_status update_texture(ctx_tex tex, const ctx_tex_data& data) = 0;
+  virtual ctx_tex_status update_texture(ctx_tex tex, const ctx_tex_opts& opts) = 0;
+  virtual ctx_tex_status destroy_texture(ctx_tex tex) noexcept = 0;
 
-  virtual r_platform_shader create_shader(const rp_shad_desc& desc) = 0;
-  virtual void destroy_shader(r_platform_shader shader) noexcept = 0;
+  virtual ctx_shad_status create_shader(ctx_shad& shad, const ctx_shad_desc& desc) = 0;
+  virtual ctx_shad_status destroy_shader(ctx_shad shad) = 0;
 
-  virtual r_platform_pipeline create_pipeline(const rp_pip_desc& desc) = 0;
-  virtual void update_pipeline_options(r_platform_pipeline pip, const rp_pip_opts& opts) = 0;
-  virtual void destroy_pipeline(r_platform_pipeline pipeline) noexcept = 0;
+  virtual ctx_pip_status create_pipeline(ctx_pip& pip, const ctx_pip_desc& desc) = 0;
+  virtual ctx_pip_status destroy_pipeline(ctx_pip pip) = 0;
 
-  virtual r_platform_fbo create_framebuffer(const rp_fbo_desc& desc) = 0;
-  virtual void destroy_framebuffer(r_platform_fbo fb) noexcept = 0;
+  virtual ctx_fbo_status create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) = 0;
+  virtual ctx_fbo_desc destroy_framebuffer(ctx_fbo fbo) noexcept = 0;
 
-  virtual void submit(r_context ctx, cspan<rp_draw_data> draw_data) = 0;
-  // virtual void immediate_bind(r_handle_value handle, rp_res_type type, int32 binding) = 0;
+  virtual void submit_render_data(context_t ctx, cspan<ctx_render_data> render_data) = 0;
 
-  virtual void device_wait() noexcept {}
+  virtual void device_wait() = 0;
   virtual void swap_buffers() = 0;
 };
 
-r_platform_buffer r_buffer_get_handle(r_buffer buff);
-r_platform_texture r_texture_get_handle(r_texture tex);
-r_platform_fbo r_framebuffer_get_handle(r_framebuffer fbo);
-r_platform_shader r_shader_get_handle(r_shader shader);
-r_platform_pipeline r_pipeline_get_handle(r_pipeline pip);
+template<typename T>
+class ctx_res_node {
+public:
+  ctx_res_node(context_t ctx_) noexcept :
+    ctx{ctx_}, prev{nullptr}, next{nullptr} {}
 
-// void r_assert_binded_fbo(r_framebuffer fbo);
+public:
+  context_t ctx;
+  T *prev, *next;
+};
 
-} // namespace ntf
+struct texture_t_ : public ctx_res_node<texture_t_> {
+public:
+  texture_t_(context_t ctx, ctx_tex handle_, const ctx_tex_desc& desc) noexcept;
 
-#undef SHOGLE_DECLARE_RENDER_HANDLE
+public:
+  ctx_tex handle;
+  std::atomic<uint32> refcount;
+  texture_type type;
+  image_format format;
+  texture_sampler sampler;
+  texture_addressing addressing;
+  extent3d extent;
+  uint32 levels;
+  uint32 layers;
+
+public:
+  NTF_DECLARE_NO_MOVE_NO_COPY(texture_t_);
+};
+
+struct buffer_t_ : public ctx_res_node<buffer_t_> {
+public:
+  buffer_t_(context_t ctx_, ctx_buff handle_, const ctx_buff_desc& desc) noexcept;
+
+public:
+  ctx_buff handle;
+  buffer_type type;
+  buffer_flag flags;
+  size_t sie;
+
+public:
+  NTF_DECLARE_NO_MOVE_NO_COPY(buffer_t_);
+};
+
+struct shader_t_ : public ctx_res_node<shader_t_> {
+public:
+  shader_t_(context_t ctx_, ctx_shad handle_, const ctx_shad_desc& desc) noexcept;
+
+public:
+  ctx_shad handle;
+  shader_type type;
+
+public:
+  NTF_DECLARE_NO_MOVE_NO_COPY(shader_t_);
+};
+
+struct uniform_t_ {
+public:
+  uniform_t_(pipeline_t pip_, ctx_unif handle_,
+             ctx_alloc::string_t<char> name_, attribute_type type_, size_t size_) noexcept;
+
+public:
+  pipeline_t pip;
+  ctx_unif handle;
+  ctx_alloc::string_t<char> name;
+  attribute_type type;
+  size_t size;
+};
+
+struct pipeline_t_ : public ctx_res_node<pipeline_t_> {
+public:
+  using unif_map = ctx_alloc::string_fhashmap_t<uniform_t_>;
+
+public:
+  pipeline_t_(context_t ctx_, ctx_pip handle_,
+              stages_flag stages_, primitive_mode primitive_, polygon_mode poly_mode_,
+              ctx_alloc::uarray_t<attribute_binding>&& layout, unif_map&& unifs_) noexcept;
+
+public:
+  ctx_pip handle;
+  stages_flag stages;
+  primitive_mode primitive;
+  polygon_mode poly_mode;
+  ctx_alloc::uarray_t<attribute_binding> layout;
+  unif_map unifs;
+
+public:
+  NTF_DECLARE_NO_MOVE_NO_COPY(pipeline_t_);
+};
+
+struct framebuffer_t_ : public ctx_res_node<framebuffer_t_> {
+// public:
+  // enum attachment_state {
+  //   ATT_NONE = 0,
+  //   ATT_TEX,
+  //   ATT_BUFF,
+  // };
+
+public:
+  framebuffer_t_(context_t ctx_,
+                 extent2d extent_, fbo_buffer test_buffer_,
+                 const ctx_render_data::fbo_data_t& fdata_) noexcept;
+
+  framebuffer_t_(context_t ctx_, ctx_fbo handle_,
+                 extent2d extent_, fbo_buffer test_buffer_,
+                 ctx_alloc::uarray_t<fbo_image>&& attachments,
+                 const ctx_render_data::fbo_data_t& fdata_) noexcept;
+
+  // framebuffer_t_(context_t ctx_, ctx_fbo handle_,
+  //                extent2d extent_, fbo_buffer test_buffer_,
+  //                image_format color_buffer_,
+  //                const ctx_render_data::fbo_data_t& fdata_) noexcept;
+
+public:
+  ctx_fbo handle;
+  extent2d extent;
+  fbo_buffer test_buffer;
+  optional<ctx_alloc::uarray_t<fbo_image>> attachments;
+  ctx_alloc::vec_t<ctx_render_cmd> cmds;
+  ctx_render_data::fbo_data_t fdata;
+
+public:
+  NTF_DECLARE_NO_MOVE_NO_COPY(framebuffer_t_);
+};
+
+struct context_t_ {
+public:
+  context_t_(ctx_alloc::uptr_t<ctx_alloc>&& alloc,
+             ctx_alloc::uptr_t<icontext>&& renderer,
+             window_t win, context_api api,
+             extent2d fbo_ext, fbo_buffer fbo_tbuff,
+             const ctx_render_data::fbo_data_t& fdata) noexcept;
+
+public:
+  void insert_node(buffer_t buff);
+  void insert_node(texture_t tex);
+  void insert_node(shader_t shad);
+  void insert_node(pipeline_t pip);
+  void insert_node(framebuffer_t fbo);
+
+  void remove_node(buffer_t buff);
+  void remove_node(texture_t tex);
+  void remove_node(shader_t shad);
+  void remove_node(pipeline_t pip);
+  void remove_node(framebuffer_t fbo);
+
+public:
+  template<typename F>
+  void for_each_fbo(F&& fun) {
+    framebuffer_t curr = _fbo_list;
+    while (curr) {
+      fun(curr);
+      curr = curr->next;
+    }
+    fun(&_default_fbo);
+  }
+
+public:
+  icontext& renderer() { return *_renderer; }
+  ctx_alloc& alloc() { return *_alloc; }
+  context_api api() const { return _api; }
+  framebuffer_t default_fbo() { return &_default_fbo;}
+  window_t window() const { return _win; }
+  size_t fbo_count() const { return _fbo_list_sz; }
+
+public:
+  ctx_alloc::uptr_t<ctx_alloc> on_destroy();
+
+private:
+  ctx_alloc::uptr_t<ctx_alloc> _alloc;
+  ctx_alloc::uptr_t<icontext> _renderer;
+
+  context_api _api;
+  window_t _win;
+
+  framebuffer_t_ _default_fbo;
+
+  size_t _fbo_list_sz;
+  buffer_t _buff_list;
+  texture_t _tex_list;
+  shader_t _shad_list;
+  framebuffer_t _fbo_list;
+  pipeline_t _pip_list;
+
+public:
+  NTF_DECLARE_NO_MOVE_NO_COPY(context_t_);
+};
+
+} // namespace ntf::render

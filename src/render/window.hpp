@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../context.hpp"
+#include "./context.hpp"
 
 namespace ntf::render {
 
@@ -9,17 +9,7 @@ using win_error = ::ntf::error<void>;
 template<typename T>
 using win_expect = ::ntf::expected<T, win_error>;
 
-template<typename... Ts>
-using win_ctx_params = std::variant<weak_cptr<Ts>...>;
-
 struct win_gl_params {
-  uint32 ver_major;
-  uint32 ver_minor;
-};
-
-struct win_vk_params {};
-
-struct win_params {
   uint32 width;
   uint32 height;
 
@@ -27,7 +17,8 @@ struct win_params {
   const char* x11_class_name;
   const char* x11_instance_name;
 
-  win_ctx_params<win_gl_params, win_vk_params> ctx_params;
+  uint32 ver_major;
+  uint32 ver_minor;
 };
 
 enum class win_key : int16 { // Follows GLFW key values
@@ -120,10 +111,10 @@ public:
   using char_fun     = fun_t<void(window&, uint32)>;
 
 private:
-  window(window_ptr handle, context_api ctx_api) noexcept;
+  window(window_t handle, context_api ctx_api) noexcept;
 
 public:
-  [[nodiscard]] static win_expect<window> create(const win_params& params);
+  [[nodiscard]] static win_expect<window> create(const win_gl_params& params);
 
 public:
   template<typename F>
@@ -181,7 +172,7 @@ public:
   void set_mouse_state(win_mouse_state state);
 
 public:
-  window_ptr get() const { return _handle; }
+  window_t get() const { return _handle; }
   context_api renderer() const { return _ctx_api; }
 
   bool should_close() const;
@@ -194,7 +185,7 @@ private:
   void _destroy();
 
 private:
-  window_ptr _handle;
+  window_t _handle;
   context_api _ctx_api;
   struct {
     viewport_fun viewport;

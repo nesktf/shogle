@@ -1,7 +1,7 @@
 #pragma once
 
-#include "./vertex.hpp"
-#include "./buffer.hpp"
+#include "../render/vertex.hpp"
+#include "../render/buffer.hpp"
 
 namespace ntf::render {
 
@@ -10,7 +10,7 @@ public:
   using attribute_type = pnt_vertex;
 
 private:
-  quad_mesh(vertex_buffer&& vbo, index_buffer&& ebo, bool inv) noexcept :
+  explicit quad_mesh(vertex_buffer&& vbo, index_buffer&& ebo, bool inv) noexcept :
     _vbo{std::move(vbo)}, _ebo{std::move(ebo)}, _inv{inv} {}
 
 public:
@@ -21,8 +21,8 @@ public:
   static constexpr auto attribute_binding() { return pnt_vertex::aos_binding(); }
 
 public:
-  buffer_binding bindings(cspan<shader_buffer> shader_buffers = {}) const {
-    return { .vertex = _vbo.get(), .index = _ebo.get(), .shader = shader_buffers };
+  buffer_binding bindings(cspan<shader_binding> shader_binds = {}) const {
+    return { .vertex = _vbo.get(), .index = _ebo.get(), .shader = shader_binds };
   }
   vertex_buffer_view vertex() const { return _vbo; }
   index_buffer_view index() const { return _ebo; }
@@ -49,8 +49,8 @@ public:
   static constexpr auto attribute_binding() { return pnt_vertex::aos_binding(); }
 
 public:
-  buffer_binding bindings(cspan<shader_buffer> shader_buffers = {}) const {
-    return { .vertex = _vbo.get(), .index = nullptr, .shader = shader_buffers };
+  buffer_binding bindings(cspan<shader_binding> shader_binds = {}) const {
+    return { .vertex = _vbo.get(), .index = nullptr, .shader = shader_binds };
   }
   vertex_buffer_view vertex() const { return _vbo; }
 

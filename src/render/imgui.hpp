@@ -2,7 +2,7 @@
 
 #include <imgui.h>
 
-#include "../framebuffer.hpp"
+#include "./framebuffer.hpp"
 
 namespace ntf::render {
 
@@ -26,7 +26,7 @@ public:
   imgui_ctx& operator=(const imgui_ctx&) = delete;
 
 public:
-  void operator()(context_ptr, internal_handle);
+  void operator()(context_t, ctx_handle);
 
 public:
   void start_frame();

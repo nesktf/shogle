@@ -18,30 +18,30 @@ NTF_DEFINE_ENUM_CLASS_FLAG_OPS(stages_flag);
 constexpr stages_flag MIN_RENDER_STAGES = stages_flag::vertex | stages_flag::fragment;
 constexpr stages_flag MIN_COMPUTE_STAGES = stages_flag::compute;
 
-struct pipeline_desriptor {
+struct pipeline_desc {
   cspan<attribute_binding> attributes;
-  cspan<shader_ptr> stages;
+  cspan<shader_t> stages;
   primitive_mode primitive;
   polygon_mode poly_mode;
-  optional<f32> poly_width;
-  pipeline_tests tests;
+  f32 poly_width;
+  render_tests tests;
 };
 
-expect<pipeline_ptr> create_pipeline(context_ptr ctx, const pipeline_desriptor& desc);
-void destroy_pipeline(pipeline_ptr pipeline) noexcept;
+expect<pipeline_t> create_pipeline(context_t ctx, const pipeline_desc& desc);
+void destroy_pipeline(pipeline_t pipeline) noexcept;
 
-span<uniform_ptr> pipeline_get_uniforms(pipeline_ptr pipeline);
-uniform_ptr pipeline_get_uniform(pipeline_ptr pip, std::string_view name);
-size_t pipeline_get_uniform_count(pipeline_ptr pip);
-attribute_type uniform_get_type(uniform_ptr uniform);
-std::string_view uniform_get_name(uniform_ptr uniform);
+span<uniform_t> pipeline_get_uniforms(pipeline_t pipeline);
+uniform_t pipeline_get_uniform(pipeline_t pip, std::string_view name);
+size_t pipeline_get_uniform_count(pipeline_t pip);
+attribute_type uniform_get_type(uniform_t uniform);
+std::string_view uniform_get_name(uniform_t uniform);
 
-stages_flag pipeline_get_stages(pipeline_ptr pipeline);
-context_ptr pipeline_get_ctx(pipeline_ptr pipeline);
+stages_flag pipeline_get_stages(pipeline_t pipeline);
+context_t pipeline_get_ctx(pipeline_t pipeline);
 
 class uniform_view {
 public:
-  constexpr uniform_view(uniform_ptr unif) noexcept :
+  constexpr uniform_view(uniform_t unif) noexcept :
     _unif{unif} {}
 
 public:
@@ -54,21 +54,21 @@ public:
   }
 
 private:
-  ntfr::uniform_ptr _assert_get() const noexcept(NTF_ASSERT_NOEXCEPT) {
+  ntfr::uniform_t _assert_get() const noexcept(NTF_ASSERT_NOEXCEPT) {
     NTF_ASSERT(_unif, "Invalid uniform handle");
     return _unif;
   }
 
 public:
-  operator ntfr::uniform_ptr() const { return _assert_get(); }
+  operator ntfr::uniform_t() const { return _assert_get(); }
 
-  ntfr::uniform_ptr get() const noexcept { return _unif; }
+  ntfr::uniform_t get() const noexcept { return _unif; }
 
   bool empty() const noexcept {return _unif == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
 
 private:
-  uniform_ptr _unif;
+  uniform_t _unif;
 };
 
 template<meta::attribute_type T>
@@ -88,14 +88,14 @@ namespace ntf::impl {
 
 template<typename Derived>
 class rpipeline_ops {
-  ntfr::pipeline_ptr _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::pipeline_ptr ptr = static_cast<Derived&>(*this).get();
+  ntfr::pipeline_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
+    ntfr::pipeline_t ptr = static_cast<Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid pipeline handle");
     return ptr;
   }
 
 public:
-  operator ntfr::pipeline_ptr() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
+  operator ntfr::pipeline_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
 
   ntfr::context_view context() const {
     return {ntfr::pipeline_get_ctx(_ptr())};
@@ -109,7 +109,7 @@ public:
   size_t uniform_count() const {
     return ntfr::pipeline_get_uniform_count(_ptr());
   }
-  cspan<ntfr::uniform_ptr> uniforms() const {
+  cspan<ntfr::uniform_t> uniforms() const {
     return ntfr::pipeline_get_uniforms(_ptr());
   }
 };
@@ -120,43 +120,43 @@ namespace ntf::render {
 
 class pipeline_view : public impl::rpipeline_ops<pipeline_view> {
 public:
-  pipeline_view(pipeline_ptr pip) noexcept :
+  pipeline_view(pipeline_t pip) noexcept :
     _pip{pip} {}
 
 public:
-  pipeline_ptr get() const noexcept { return _pip;}
+  pipeline_t get() const noexcept { return _pip;}
 
   bool empty() const noexcept {return _pip == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
 
 private:
-  pipeline_ptr _pip;
+  pipeline_t _pip;
 };
 
 class pipeline : public impl::rpipeline_ops<pipeline> {
 private:
   struct deleter_t {
-    void operator()(pipeline_ptr pip) noexcept {
+    void operator()(pipeline_t pip) noexcept {
       ntfr::destroy_pipeline(pip);
     }
   };
-  using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::pipeline_ptr>, deleter_t>;
+  using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::pipeline_t>, deleter_t>;
 
 public:
-  explicit pipeline(pipeline_ptr pip) noexcept :
+  explicit pipeline(pipeline_t pip) noexcept :
     _pip{pip} {}
 
 public:
-  static expect<pipeline> create(context_view ctx, const pipeline_desriptor& desc){
+  static expect<pipeline> create(context_view ctx, const pipeline_desc& desc){
     return ntfr::create_pipeline(ctx.get(), desc)
-    .transform([](pipeline_ptr pip) -> pipeline {
+    .transform([](pipeline_t pip) -> pipeline {
       return pipeline{pip};
     });
   }
 
 public:
-  pipeline_ptr get() const noexcept { return _pip.get(); }
-  [[nodiscard]] pipeline_ptr release() noexcept { return _pip.release(); }
+  pipeline_t get() const noexcept { return _pip.get(); }
+  [[nodiscard]] pipeline_t release() noexcept { return _pip.release(); }
 
   bool empty() const noexcept { return _pip.get() == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }

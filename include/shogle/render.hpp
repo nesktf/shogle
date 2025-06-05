@@ -15,12 +15,12 @@
 #include "../../src/render/framebuffer.hpp"
 #include "../../src/render/vertex.hpp"
 
-#include "../../src/render/ext/window.hpp"
+#include "../../src/render/window.hpp"
 
 #if defined(SHOGLE_ENABLE_IMGUI) && SHOGLE_ENABLE_IMGUI
 #if defined(SHOGLE_EXPOSE_GLFW) && SHOGLE_EXPOSE_GLFW
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_glfw.h>
 #endif
-#include "../../src/render/ext/imgui.hpp"
+#include "../../src/render/imgui.hpp"
 #endif

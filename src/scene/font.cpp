@@ -2,44 +2,45 @@
 #include "../assets/shaders/instanced_font.hpp"
 #include "../render/shader.hpp"
 
-namespace ntf {
+namespace ntf::render {
 
 namespace {
 
-auto make_pipeline(r_shader_view vert, r_shader_view frag) {
+auto make_pipeline(vertex_shader_view vert, fragment_shader_view frag) {
   auto ctx = vert.context();
   const auto attribs = quad_mesh::attribute_binding();
-  const r_shader stages[] = {vert.handle(), frag.handle()};
-  const r_blend_opts blending_opts {
-    .mode = r_blend_mode::add,
-    .src_factor = ntf::r_blend_factor::src_alpha,
-    .dst_factor = ntf::r_blend_factor::inv_src_alpha,
+  const shader_t stages[] = {vert.get(), frag.get()};
+  const blend_opts blending_opts {
+    .mode = blend_mode::add,
+    .src_factor = blend_factor::src_alpha,
+    .dst_factor = blend_factor::inv_src_alpha,
     .color = {0.f, 0.f, 0.f, 0.f},
   };
-  const r_depth_test_opts depth_opts {
-    .test_func = ntf::r_test_func::lequal,
+  const depth_test_opts depth_opts {
+    .func = test_func::lequal,
     .near_bound = 0.f,
     .far_bound = 1.f,
   };
 
-  return renderer_pipeline::create(ctx, {
+  return pipeline::create(ctx, {
     .attributes = {attribs.data(), attribs.size()},
     .stages = stages,
-    .primitive = ntf::r_primitive::triangles,
-    .poly_mode = ntf::r_polygon_mode::fill,
-    .poly_width = ntf::nullopt,
-    .stencil_test = nullptr,
-    .depth_test = depth_opts,
-    .scissor_test = nullptr,
-    .face_culling = nullptr,
-    .blending = blending_opts,
+    .primitive = primitive_mode::triangles,
+    .poly_mode = polygon_mode::fill,
+    .poly_width = 1.f,
+    .tests = {
+      .stencil_test = nullptr,
+      .depth_test = depth_opts,
+      .scissor_test = nullptr,
+      .face_culling = nullptr,
+      .blending = blending_opts,
+    },
   });
 }
 
-auto make_uniform_buffer(r_context_view ctx, size_t size) {
-  return renderer_buffer::create(ctx, {
-    .type = r_buffer_type::uniform,
-    .flags = r_buffer_flag::dynamic_storage,
+auto make_ubo(context_view ctx, size_t size) {
+  return uniform_buffer::create(ctx, {
+    .flags = buffer_flag::dynamic_storage,
     .size = size,
     .data = nullptr,
   });
@@ -79,29 +80,22 @@ void text_buffer::_append_glyph(const glyph_metrics& glyph,
 }
 
 
-sdf_text_rule::sdf_text_rule(renderer_pipeline&& pipeline, renderer_buffer&& uniform_buffer,
-                             const glyph_props& props) :
-  _pipeline{std::move(pipeline)}, _uniform_buffer{std::move(uniform_buffer)},
+sdf_text_rule::sdf_text_rule(pipeline&& pip, uniform_buffer&& ubo, const glyph_props& props) :
+  _pipeline{std::move(pip)}, _uniform_buffer{std::move(ubo)},
   _props{props} {}
 
-r_expected<sdf_text_rule> sdf_text_rule::create(r_context_view ctx,
+expect<sdf_text_rule> sdf_text_rule::create(context_view ctx,
                                                 const color3& color, float width, float edge,
                                                 const color3& outline_color,
                                                 const vec2& outline_offset,
                                                 float outline_width, float outline_edge)
 {
-  auto frag = renderer_shader::create(ctx, {
-    .type = r_shader_type::fragment,
-    .source = {shad_frag_font_sdf},
-  });
+  auto frag = fragment_shader::create(ctx, {shad_frag_font_sdf});
   if (!frag) {
     return unexpected{std::move(frag.error())};
   }
 
-  auto vert = renderer_shader::create(ctx, {
-    .type = r_shader_type::vertex,
-    .source = {shad_vert_instanced_font},
-  });
+  auto vert = vertex_shader::create(ctx, {shad_vert_instanced_font});
   if (!vert) {
     return unexpected{std::move(vert.error())};
   }
@@ -111,7 +105,7 @@ r_expected<sdf_text_rule> sdf_text_rule::create(r_context_view ctx,
     return unexpected{std::move(pipeline.error())};
   }
 
-  auto buffer = make_uniform_buffer(ctx, sizeof(glyph_props));
+  auto buffer = make_ubo(ctx, sizeof(glyph_props));
   if (!buffer){
     return unexpected{std::move(buffer.error())};
   }
@@ -128,35 +122,28 @@ r_expected<sdf_text_rule> sdf_text_rule::create(r_context_view ctx,
   return sdf_text_rule{std::move(*pipeline), std::move(*buffer), props};
 }
 
-std::pair<r_pipeline, r_shader_buffer> sdf_text_rule::write_uniforms() {
-  _uniform_buffer.upload(0u, sizeof(glyph_props), &_props);
-  return std::make_pair(_pipeline.handle(), r_shader_buffer{
-    .buffer = _uniform_buffer.handle(),
+std::pair<pipeline_t, shader_binding> sdf_text_rule::write_uniforms() {
+  _uniform_buffer.upload(_props);
+  return std::make_pair(_pipeline.get(), shader_binding{
+    .buffer = _uniform_buffer.get(),
     .binding = 2,
-    .offset = 0u,
     .size = sizeof(glyph_props),
+    .offset = 0u,
   });
 }
 
 
-bitmap_text_rule::bitmap_text_rule(renderer_pipeline&& pipeline, renderer_buffer&& uniform_buffer,
-                                   const color3& color) :
-  _pipeline{std::move(pipeline)}, _uniform_buffer{std::move(uniform_buffer)},
+bitmap_text_rule::bitmap_text_rule(pipeline&& pip, uniform_buffer&& ubo, const color3& color) :
+  _pipeline{std::move(pip)}, _uniform_buffer{std::move(ubo)},
   _text_color{color} {}
 
-r_expected<bitmap_text_rule> bitmap_text_rule::create(r_context_view ctx, const color3& color) {
-  auto frag = renderer_shader::create(ctx, {
-    .type = r_shader_type::fragment,
-    .source = {shad_frag_font_normal},
-  });
+expect<bitmap_text_rule> bitmap_text_rule::create(context_view ctx, const color3& color) {
+  auto frag = fragment_shader::create(ctx, {shad_frag_font_normal});
   if (!frag) {
     return unexpected{std::move(frag.error())};
   }
 
-  auto vert = renderer_shader::create(ctx, {
-    .type = r_shader_type::vertex,
-    .source = {shad_vert_instanced_font},
-  });
+  auto vert = vertex_shader::create(ctx, {shad_vert_instanced_font});
   if (!vert) {
     return unexpected{std::move(vert.error())};
   }
@@ -166,7 +153,7 @@ r_expected<bitmap_text_rule> bitmap_text_rule::create(r_context_view ctx, const 
     return unexpected{std::move(pipeline.error())};
   }
 
-  auto buffer = make_uniform_buffer(ctx, sizeof(color3));
+  auto buffer = make_ubo(ctx, sizeof(color3));
   if (!buffer){
     return unexpected{std::move(buffer.error())};
   }
@@ -174,33 +161,32 @@ r_expected<bitmap_text_rule> bitmap_text_rule::create(r_context_view ctx, const 
   return bitmap_text_rule{std::move(*pipeline), std::move(*buffer), color};
 }
 
-std::pair<r_pipeline, r_shader_buffer> bitmap_text_rule::write_uniforms() {
-  _uniform_buffer.upload(0u, sizeof(color3), &_text_color);
-  return std::make_pair(_pipeline.handle(), r_shader_buffer{
-    .buffer = _uniform_buffer.handle(),
+std::pair<pipeline_t, shader_binding> bitmap_text_rule::write_uniforms() {
+  _uniform_buffer.upload(_text_color);
+  return std::make_pair(_pipeline.get(), shader_binding{
+    .buffer = _uniform_buffer.get(),
     .binding = 2,
-    .offset = 0u,
     .size = sizeof(color3),
+    .offset = 0u,
   });
 }
 
-font_renderer::font_renderer(renderer_buffer&& ssbo, renderer_texture&& atlas,
+font_renderer::font_renderer(shader_storage_buffer&& ssbo, texture2d&& atlas,
                              font_glyphs&& glyphs, glyph_map&& map,
                              const mat4& transform, vec2 bitmap_extent, size_t batch) noexcept :
   _ssbo{std::move(ssbo)}, _atlas_tex{std::move(atlas)},
   _glyphs{std::move(glyphs)}, _glyph_map{std::move(map)},
   _transform{transform}, _bitmap_extent{bitmap_extent}, _batch_sz{batch} {}
 
-r_expected<font_renderer> font_renderer::create(r_context_view ctx,
-                                                const mat4& transform,
-                                                font_atlas_data&& font,
-                                                r_texture_sampler sampler, size_t batch_size)
+expect<font_renderer> font_renderer::create(context_view ctx,
+                                            const mat4& transform,
+                                            font_atlas_data&& font,
+                                            texture_sampler sampler, size_t batch_size)
 {
   const size_t ssbo_sz = batch_size * sizeof(text_buffer::glyph_entry);
 
-  auto ssbo = renderer_buffer::create(ctx, {
-    .type = r_buffer_type::shader_storage,
-    .flags = r_buffer_flag::dynamic_storage,
+  auto ssbo = shader_storage_buffer::create(ctx, {
+    .flags = buffer_flag::dynamic_storage,
     .size = ssbo_sz,
     .data = nullptr,
   });
@@ -209,16 +195,18 @@ r_expected<font_renderer> font_renderer::create(r_context_view ctx,
   }
 
   auto font_desc = font.make_bitmap_descriptor();
-  auto tex = renderer_texture::create(ctx, {
-    .type = r_texture_type::texture2d,
+  const texture_data data {
+    .images = {font_desc},
+    .generate_mipmaps = false,
+  };
+  auto tex = texture2d::create(ctx, {
     .format = font.bitmap_format,
-    .extent = tex_extent_cast(font.bitmap_extent),
+    .sampler = sampler,
+    .addressing = texture_addressing::repeat,
+    .extent = image_extent_cast(font.bitmap_extent),
     .layers = 1,
     .levels = 1,
-    .images = {font_desc},
-    .gen_mipmaps = false,
-    .sampler = sampler,
-    .addressing = r_texture_address::repeat,
+    .data = data,
   });
   if (!tex) {
     return unexpected{std::move(tex.error())};
@@ -231,7 +219,7 @@ r_expected<font_renderer> font_renderer::create(r_context_view ctx,
   };
 }
 
-void font_renderer::ssbo_callback_t::operator()(r_context) const {
+void font_renderer::ssbo_callback_t::operator()(context_t) const {
   // TODO: Investigate how to abstract GPU synchronization when writting to
   //       mapped buffers, to avoid rebinding for uploads each frame
   ssbo.upload(0u, glyph_count*sizeof(text_buffer::glyph_entry), buffer_data.data()+offset);
@@ -256,45 +244,52 @@ void font_renderer::append_text(const text_buffer& buffer) {
   }
 }
 
-void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
+void font_renderer::render(const quad_mesh& quad, framebuffer_view fbo,
                            font_render_rule& render_rule, uint32 sort_group)
 {
   auto ctx = fbo.context();
   auto [pipeline, unif_buffer] = render_rule.write_uniforms();
 
-  const r_shader_buffer uniform_binds[] = {
-    { .buffer = _ssbo.handle(), .binding = 1, .offset = 0u, .size = _ssbo.size() },
+  const shader_binding uniform_binds[] = {
+    {
+      .buffer = _ssbo.get(),
+      .binding = 1,
+      .size = _ssbo.size(),
+      .offset = 0u,
+    },
     unif_buffer,
   };
-  auto atlas_tex_handle = _atlas_tex.handle();
+  auto atlas_tex_handle = _atlas_tex.get();
 
-  const r_push_constant unif_consts[] = {
-    r_format_pushconst(r_pipeline_get_uniform(pipeline, "u_atlas_sampler").value(), 0),
-    r_format_pushconst(r_pipeline_get_uniform(pipeline, "u_text_transform").value(), _transform),
+  const uniform_const unif_consts[] = {
+    format_uniform_const(pipeline_get_uniform(pipeline, "u_atlas_sampler"), 0),
+    format_uniform_const(pipeline_get_uniform(pipeline, "u_text_transform"), _transform)
   };
   for (auto& cb : _write_callbacks) {
-    ctx.submit_command({
-      .target = fbo.handle(),
+    ctx.submit_render_command({
+      .target = fbo.get(),
       .pipeline = pipeline,
       .buffers = quad.bindings(uniform_binds),
       .textures = {atlas_tex_handle},
-      .uniforms = unif_consts,
-      .draw_opts = {
-        .count = 6,
-        .offset = 0,
+      .consts = unif_consts,
+      .opts = {
+        .vertex_count = 6,
+        .vertex_offset = 0,
         .instances = static_cast<uint32>(cb.glyph_count),
       },
       .sort_group = sort_group,
-      .on_render = cb,
+      .render_callback = cb,
     });
   }
 }
-void font_renderer::render(const quad_mesh& quad, r_framebuffer_view fbo,
+
+void font_renderer::render(const quad_mesh& quad, framebuffer_view fbo,
                            font_render_rule& render_rule, const text_buffer& buffer,
-                           uint32 sort_group) {
+                           uint32 sort_group)
+{
   clear_state();
   append_text(buffer);
   render(quad, fbo, render_rule, sort_group);
 }
 
-} // namespace ntf
+} // namespace ntf::render

@@ -4,6 +4,8 @@
 #include "./assets.hpp"
 #include "./scene.hpp"
 
+#include <ntfstl/utility.hpp>
+
 namespace ntf::render {
 
 template<typename F>
@@ -170,13 +172,13 @@ void render_loop(window& win, context_view ctx, const uint32& ups,
 const inline external_state r_def_ext_state {
   .primitive = primitive_mode::triangles,
   .poly_mode = polygon_mode::fill,
-  .poly_width = ntf::nullopt,
+  .poly_width = 1.f,
   .test = {
-    .stencil_test = nullopt,
-    .depth_test = nullopt,
-    .scissor_test = nullopt,
-    .face_culling = nullopt,
-    .blending = nullopt,
+    .stencil_test = nullptr,
+    .depth_test = nullptr,
+    .scissor_test = nullptr,
+    .face_culling = nullptr,
+    .blending = nullptr,
   },
 };
 
@@ -198,6 +200,10 @@ inline expect<texture2d> make_texture2d(context_view ctx, const ntf::bitmap_data
                                         texture_addressing addressing,
                                         uint32 levels = 7u, bool mips = true) {
   const auto desc = image.make_descriptor();
+  const texture_data data {
+    .images = {desc},
+    .generate_mipmaps = mips && levels > 1,
+  };
   return texture2d::create(ctx, {
     .format = image.format,
     .sampler = sampler,
@@ -205,9 +211,7 @@ inline expect<texture2d> make_texture2d(context_view ctx, const ntf::bitmap_data
     .extent = image.extent,
     .layers = 1,
     .levels = levels,
-    .initial_data = optional<texture_upload_data>{
-      in_place, cspan<image_data>{desc}, mips && levels > 1
-    }
+    .data = &data,
   });
 }
 
@@ -222,7 +226,7 @@ inline expect<texture2d> make_texture2d(context_view ctx, image_format format, e
     .extent = meta::image_dim_traits<extent2d>::extent_cast(extent),
     .layers = 1,
     .levels = levels,
-    .initial_data = nullopt,
+    .data = nullptr,
   });
 }
 
@@ -246,7 +250,7 @@ expect<pipeline> make_pipeline(
 ) {
   auto ctx = vert.context();
   const auto attribs = Vert::aos_binding();
-  const shader_ptr stages[] = {vert.get(), frag.get()};
+  const shader_t stages[] = {vert.get(), frag.get()};
   return pipeline::create(ctx, {
     .attributes = {attribs.data(), attribs.size()},
     .stages = stages,
@@ -254,10 +258,10 @@ expect<pipeline> make_pipeline(
     .poly_mode = polygon_mode::fill,
     .poly_width = nullopt,
     .tests = {
-      .stencil_test = nullopt,
+      .stencil_test = nullptr,
       .depth_test = depth_test,
-      .scissor_test = nullopt,
-      .face_culling = nullopt,
+      .scissor_test = nullptr,
+      .face_culling = nullptr,
       .blending = blending,
     }
   });
@@ -280,7 +284,7 @@ expect<pipeline> make_pipeline(
     return unexpected{std::move(frag.error())};
   }
   const auto attribs = Vert::aos_binding();
-  const shader_ptr stages[] = {vert->get(), frag->get()};
+  const shader_t stages[] = {vert->get(), frag->get()};
   return pipeline::create(ctx, {
     .attributes = {attribs.data(), attribs.size()},
     .stages = stages,
@@ -288,10 +292,10 @@ expect<pipeline> make_pipeline(
     .poly_mode = polygon_mode::fill,
     .poly_width = nullopt,
     .tests = {
-      .stencil_test = nullopt,
+      .stencil_test = nullptr,
       .depth_test = depth_test,
-      .scissor_test = nullopt,
-      .face_culling = nullopt,
+      .scissor_test = nullptr,
+      .face_culling = nullptr,
       .blending = blending,
     }
   });
@@ -303,7 +307,7 @@ inline expect<std::pair<framebuffer, texture2d>> make_fbo(
   texture_sampler sampler = texture_sampler::nearest,
   texture_addressing addressing = texture_addressing::clamp_edge,
   image_format format = image_format::rgb8nu,
-  test_buffer test_buffer = test_buffer::depth24u_stencil8u
+  fbo_buffer test_buffer = fbo_buffer::depth24u_stencil8u
 ) {
   return texture2d::create(ctx, {
     .format = format,
@@ -312,10 +316,10 @@ inline expect<std::pair<framebuffer, texture2d>> make_fbo(
     .extent = meta::image_dim_traits<extent2d>::extent_cast(extent),
     .layers = 1,
     .levels = 1,
-    .initial_data = nullopt,
+    .data = nullptr,
   })
   .and_then([&](auto&& tex) -> expect<std::pair<framebuffer, texture2d>> {
-    const framebuffer_image fb_img {
+    const fbo_image fb_img {
       .texture = tex.get(),
       .layer = 0u,
       .level = 0u,
@@ -325,8 +329,8 @@ inline expect<std::pair<framebuffer, texture2d>> make_fbo(
       .viewport = {0u, 0u, extent.x, extent.y},
       .clear_color = clear_color,
       .clear_flags = clear_flags,
-      .buffer = test_buffer,
-      .attachments = framebuffer_attachment{fb_img},
+      .test_buffer = test_buffer,
+      .images = {fb_img},
     });
     if (!fbo) {
       return unexpected{std::move(fbo.error())};
@@ -341,17 +345,14 @@ inline expect<std::pair<window, context>> make_gl_ctx(
   clear_flag fb_clear = clear_flag::color_depth,
   const color4& fb_color = {.3f, .3f, .3f, 1.f}
 ) {
-  const win_gl_params gl_params {
-    .ver_major = 4,
-    .ver_minor = 6,
-  };
   return window::create({
     .width = win_width,
     .height = win_height,
     .title = win_title,
     .x11_class_name = win_title,
     .x11_instance_name = nullptr,
-    .ctx_params = gl_params,
+    .ver_major = 4,
+    .ver_minor = 6,
   })
   .and_then([&](auto&& win) -> expect<std::pair<window, context>> {
     const auto vp = uvec4{0, 0, win.fb_size()};
@@ -362,7 +363,7 @@ inline expect<std::pair<window, context>> make_gl_ctx(
       .fb_viewport = vp,
       .fb_clear_flags = fb_clear,
       .fb_clear_color = fb_color,
-      .alloc = nullopt,
+      .alloc = nullptr,
     });
     if (!ctx) {
       return unexpected{std::move(ctx.error())};
@@ -372,7 +373,7 @@ inline expect<std::pair<window, context>> make_gl_ctx(
 }
 
 template<font_codepoint_type CodeT = char>
-expect<ntf::font_renderer> r_load_font(
+expect<ntfr::font_renderer> r_load_font(
   context_view ctx,
   const std::string& path,
   font_charset_view<CodeT> charset = ascii_charset<CodeT>,
@@ -383,7 +384,7 @@ expect<ntf::font_renderer> r_load_font(
   uint64 batch_size = 64u
 ) {
   return load_font_atlas(path, flags, glyph_size, padding, charset)
-  .and_then([&](auto&& atlas) -> expect<ntf::font_renderer> {
+  .and_then([&](auto&& atlas) -> expect<ntfr::font_renderer> {
     return font_renderer::create(ctx, std::move(atlas), sampler, batch_size);
   });
 }

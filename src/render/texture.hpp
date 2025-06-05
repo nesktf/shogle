@@ -221,6 +221,26 @@ concept image_array_dim_type = image_dim_type<T> && image_dim_traits<T>::allows_
 
 namespace ntf::render {
 
+template<meta::image_dim_type T>
+extent3d image_extent_cast(T extent) noexcept {
+  return meta::image_dim_traits<T>::extent_cast(extent);
+}
+
+template<meta::image_dim_type T>
+size_t image_stride(T extent) noexcept {
+  return meta::image_dim_traits<T>::image_stride(extent);
+}
+
+template<meta::image_dim_type T>
+extent3d image_offset_cast(T offset) noexcept {
+  return meta::image_dim_traits<T>::offset_cast(offset);
+}
+
+template<meta::image_array_dim_type T>
+extent3d image_offset_cast(T offset, uint32 layer) noexcept {
+  return meta::image_dim_traits<T>::offset_cast(offset, layer);
+}
+
 enum class texture_type : uint8 {
   texture1d = 0,
   texture2d,
@@ -250,23 +270,22 @@ enum class cubemap_face : uint8 {
   negative_z,
 };
 
-
-struct texture_upload_data {
+struct texture_data {
   cspan<image_data> images;
   bool generate_mipmaps;
 };
 
-struct typed_texture_descriptor {
+struct typed_texture_desc {
   image_format format;
   texture_sampler sampler;
   texture_addressing addressing;
   extent3d extent;
   uint32 layers;
   uint32 levels;
-  optional<texture_upload_data> initial_data;
+  weak_cptr<texture_data> data;
 };
 
-struct texture_descriptor {
+struct texture_desc {
   texture_type type;
   image_format format;
   texture_sampler sampler;
@@ -274,24 +293,24 @@ struct texture_descriptor {
   extent3d extent;
   uint32 layers;
   uint32 levels;
-  optional<texture_upload_data> initial_data;
+  weak_cptr<texture_data> data;
 };
 
-expect<texture_ptr> create_texture(context_ptr ctx, const texture_descriptor& desc);
-void destroy_texture(texture_ptr tex) noexcept;
+expect<texture_t> create_texture(context_t ctx, const texture_desc& desc);
+void destroy_texture(texture_t tex) noexcept;
 
-expect<void> texture_upload(texture_ptr tex, const texture_upload_data& data);
-void texture_set_sampler(texture_ptr tex, texture_sampler sampler);
-void texture_set_addressing(texture_ptr tex, texture_addressing adressing);
+expect<void> texture_upload(texture_t tex, const texture_data& data);
+void texture_set_sampler(texture_t tex, texture_sampler sampler);
+void texture_set_addressing(texture_t tex, texture_addressing adressing);
 
-texture_type texture_get_type(texture_ptr tex);
-image_format texture_get_format(texture_ptr tex);
-texture_sampler texture_get_sampler(texture_ptr tex);
-texture_addressing texture_get_addressing(texture_ptr tex);
-extent3d texture_get_extent(texture_ptr tex);
-uint32 texture_get_layers(texture_ptr tex);
-uint32 texture_get_levels(texture_ptr tex);
-context_ptr texture_get_ctx(texture_ptr tex);
+texture_type texture_get_type(texture_t tex);
+image_format texture_get_format(texture_t tex);
+texture_sampler texture_get_sampler(texture_t tex);
+texture_addressing texture_get_addressing(texture_t tex);
+extent3d texture_get_extent(texture_t tex);
+uint32 texture_get_layers(texture_t tex);
+uint32 texture_get_levels(texture_t tex);
+context_t texture_get_ctx(texture_t tex);
 
 constexpr inline uint32 to_cubemap_layer(cubemap_face face) {
   return static_cast<uint32>(face);
@@ -303,16 +322,16 @@ namespace ntf::impl {
 
 template<typename Derived>
 class rtexture_ops {
-  ntfr::texture_ptr _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::texture_ptr ptr =  static_cast<Derived&>(*this).get();
+  ntfr::texture_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
+    ntfr::texture_t ptr =  static_cast<Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid texture handle");
     return ptr;
   }
 
 public:
-  operator ntfr::texture_ptr() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
+  operator ntfr::texture_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
 
-  ntfr::expect<void> upload(const ntfr::texture_upload_data& data) const {
+  ntfr::expect<void> upload(const ntfr::texture_data& data) const {
     return ntfr::texture_upload(_ptr(), data);
   }
   void sampler(ntfr::texture_sampler sampler) const {
@@ -360,36 +379,36 @@ public:
 template<typename Derived>
 class rtexture_view : public rtexture_ops<Derived> {
 protected:
-  rtexture_view(ntfr::texture_ptr tex) noexcept :
+  rtexture_view(ntfr::texture_t tex) noexcept :
     _tex{tex} {}
 
 public:
-  ntfr::texture_ptr get() const noexcept { return _tex; }
+  ntfr::texture_t get() const noexcept { return _tex; }
 
   bool empty() const noexcept { return _tex == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
 
 private:
-  ntfr::texture_ptr _tex;
+  ntfr::texture_t _tex;
 };
 
 template<typename Derived>
 class rtexture_owning : public rtexture_ops<Derived> {
 private:
   struct deleter_t {
-    void operator()(ntfr::texture_ptr tex) noexcept {
+    void operator()(ntfr::texture_t tex) noexcept {
       ntfr::destroy_texture(tex);
     }
   };
-  using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::texture_ptr>, deleter_t>;
+  using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::texture_t>, deleter_t>;
 
 protected:
-  rtexture_owning(ntfr::texture_ptr tex) noexcept :
+  rtexture_owning(ntfr::texture_t tex) noexcept :
     _tex{tex} {}
 
 public:
-  ntfr::texture_ptr get() const noexcept { return _tex.get(); }
-  [[nodiscard]] ntfr::texture_ptr release() noexcept { return _tex.release(); }
+  ntfr::texture_t get() const noexcept { return _tex.get(); }
+  [[nodiscard]] ntfr::texture_t release() noexcept { return _tex.release(); }
 
   bool empty() const noexcept { return _tex.get() == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
@@ -404,19 +423,19 @@ namespace ntf::render {
 
 class texture_view : public ntf::impl::rtexture_view<texture_view> {
 public:
-  texture_view(texture_ptr tex) noexcept :
+  texture_view(texture_t tex) noexcept :
     ntf::impl::rtexture_view<texture_view>{tex} {}
 };
 
 class texture : public ntf::impl::rtexture_owning<texture> {
 public:
-  explicit texture(texture_ptr tex) noexcept :
+  explicit texture(texture_t tex) noexcept :
     ntf::impl::rtexture_owning<texture>{tex} {}
 
 public:
-  static expect<texture> create(context_view ctx, const texture_descriptor& desc) {
+  static expect<texture> create(context_view ctx, const texture_desc& desc) {
     return ntfr::create_texture(ctx.get(), desc)
-    .transform([](texture_ptr tex) -> texture {
+    .transform([](texture_t tex) -> texture {
       return texture{tex};
     });
   }
@@ -438,7 +457,7 @@ public:
   friend typed_texture_view<_tex_enum> to_typed(texture_view tex) noexcept;
 
 private:
-  typed_texture_view(texture_ptr tex) noexcept :
+  typed_texture_view(texture_t tex) noexcept :
     ntf::impl::rtexture_view<typed_texture_view<tex_enum>>{tex} {}
 
 public:
@@ -447,7 +466,7 @@ public:
 
 template<texture_type tex_enum>
 typed_texture_view<tex_enum> to_typed(texture_view tex) noexcept {
-  texture_ptr ptr = nullptr;
+  texture_t ptr = nullptr;
   if (tex.type() == tex_enum) {
     ptr = tex.get();
   }
@@ -461,11 +480,11 @@ public:
   friend typed_texture<_tex_enum> to_typed(texture&& tex) noexcept;
 
 private:
-  typed_texture(texture_ptr tex) noexcept :
+  typed_texture(texture_t tex) noexcept :
     ntf::impl::rtexture_owning<typed_texture<tex_enum>>{tex} {}
 
 public:
-  static expect<typed_texture> create(context_view ctx, const typed_texture_descriptor& desc) {
+  static expect<typed_texture> create(context_view ctx, const typed_texture_desc& desc) {
     return ntfr::create_texture(ctx.get(), {
       .type = tex_enum,
       .format = desc.format,
@@ -474,9 +493,9 @@ public:
       .extent = desc.extent,
       .layers = desc.layers,
       .levels = desc.levels,
-      .initial_data = desc.initial_data,
+      .data = desc.data,
     })
-    .transform([](texture_ptr tex) -> typed_texture {
+    .transform([](texture_t tex) -> typed_texture {
       return typed_texture{tex};
     });
   }
@@ -488,7 +507,7 @@ public:
 
 template<texture_type tex_enum>
 typed_texture<tex_enum> to_typed(texture&& tex) noexcept {
-  texture_ptr ptr = nullptr;
+  texture_t ptr = nullptr;
   if (tex.type() == tex_enum) {
     ptr = tex.release();
   }

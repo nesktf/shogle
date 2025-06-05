@@ -1,11 +1,6 @@
-#include <shogle/render.hpp>
-#include <shogle/assets.hpp>
 #include <shogle/math.hpp>
 #include <shogle/version.hpp>
-#include <shogle/scene.hpp>
 #include <shogle/boilerplate.hpp>
-
-#include <ntfstl/utility.hpp>
 
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
@@ -62,9 +57,9 @@ int main() {
   auto quad = ntfr::quad_mesh::create(ctx).value();
   auto cube = ntfr::cube_mesh::create(ctx).value();
 
-  ntf::text_buffer text_buffer;
+  ntfr::text_buffer text_buffer;
   ntf::mat4 cam_proj_fnt = glm::ortho(0.f, 1280.f, 0.f, 720.f);
-  auto sdf_rule = ntf::sdf_text_rule::create(ctx,
+  auto sdf_rule = ntfr::sdf_text_rule::create(ctx,
                                              ntf::color3{1.f, 0.f, 0.f}, 0.5f, 0.05f,
                                              ntf::color3{0.f, 0.f, 0.f},
                                              ntf::vec2{-0.005f, -0.005f},
@@ -74,7 +69,7 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  auto frenderer = ntf::font_renderer::create(ctx, cam_proj_fnt, std::move(*cousine));
+  auto frenderer = ntfr::font_renderer::create(ctx, cam_proj_fnt, std::move(*cousine));
   if (!frenderer) {
     ntf::logger::error("[main] Failed to create font renderer: {}", frenderer.error().what());
     return EXIT_FAILURE;
@@ -90,19 +85,26 @@ int main() {
                                        ntfr::texture_sampler::linear,
                                        ntfr::texture_addressing::repeat).value();
 
+  const ntfr::buffer_data fumo_vbo_data {
+    .data = fumo_mesh.vertex_data(fumo_verts),
+    .size = fumo_mesh.vertices_size(),
+    .offset = 0u,
+  };
   auto fumo_vbo = ntfr::vertex_buffer::create(ctx, {
     .flags = ntfr::buffer_flag::dynamic_storage,
     .size = fumo_mesh.vertices_size(),
-    .initial_data = ntf::optional<ntfr::buffer_upload_data>{
-      ntf::in_place, fumo_mesh.vertex_data(fumo_verts), fumo_mesh.vertices_size(), 0u
-    },
+    .data = fumo_vbo_data,
   }).value();
+
+  const ntfr::buffer_data fumo_ebo_data {
+    .data = fumo_mesh.index_data(fumo_inds),
+    .size = fumo_mesh.indices_size(),
+    .offset = 0u,
+  };
   auto fumo_ebo = ntfr::index_buffer::create(ctx, {
     .flags = ntfr::buffer_flag::dynamic_storage,
     .size = fumo_mesh.indices_size(),
-    .initial_data = ntf::optional<ntfr::buffer_upload_data>{
-      ntf::in_place, fumo_mesh.index_data(fumo_inds), fumo_mesh.indices_size(), 0u,
-    },
+    .data = fumo_ebo_data,
   }).value();
 
 
