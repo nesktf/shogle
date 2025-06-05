@@ -1,8 +1,8 @@
-#include "./internal/common.hpp"
+#include "./internal/platform.hpp"
 #include "./internal/opengl/context.hpp"
 
 #define DEF_NODE_OPS(_type, _list, ...) \
-void r_context_::insert_node(_type res) { \
+void context_t_::insert_node(_type res) { \
   NTF_ASSERT(res && res->ctx == this); \
   res->next = _list; \
   if (_list) { \
@@ -11,7 +11,7 @@ void r_context_::insert_node(_type res) { \
   _list = res; \
   __VA_OPT__(++) __VA_ARGS__ \
 } \
-void r_context_::remove_node(_type res) { \
+void context_t_::remove_node(_type res) { \
   NTF_ASSERT(res && res->ctx == this); \
   if (!res->prev) { \
     NTF_ASSERT(res == _list); \
@@ -30,20 +30,22 @@ void r_context_::remove_node(_type res) { \
   __VA_OPT__(--) __VA_ARGS__ \
 }
 
-namespace ntf {
+namespace ntf::render {
 
 static constexpr size_t INITIAL_ARENA_PAGE = mibs(16u);
 
-static r_allocator base_alloc {
+static malloc_funcs base_alloc {
   .user_ptr = nullptr,
   .mem_alloc = malloc_pool::malloc_fn,
   .mem_free = malloc_pool::free_fn,
 };
 
-auto rp_alloc::make_alloc(weak_cptr<r_allocator> alloc_in, size_t arena_size) -> uptr_t<rp_alloc> {
+auto ctx_alloc::make_alloc(weak_cptr<malloc_funcs> alloc_in,
+                           size_t arena_size) -> uptr_t<ctx_alloc>
+{
   auto& alloc = alloc_in ? *alloc_in : base_alloc;
-  auto* ptr = static_cast<rp_alloc*>(std::invoke(alloc.mem_alloc, alloc.user_ptr,
-                                                 sizeof(rp_alloc), alignof(rp_alloc)));
+  auto* ptr = static_cast<ctx_alloc*>(std::invoke(alloc.mem_alloc, alloc.user_ptr,
+                                                  sizeof(ctx_alloc), alignof(ctx_alloc)));
   if (ptr) {
     auto arena = linked_arena::from_extern({
       .user_ptr = alloc.user_ptr,
@@ -53,38 +55,40 @@ auto rp_alloc::make_alloc(weak_cptr<r_allocator> alloc_in, size_t arena_size) ->
     if (!arena){
       RENDER_ERROR_LOG("Failed to init allocator arena ({} bytes)", arena_size);
       std::destroy_at(ptr);
-      std::invoke(alloc.mem_free, alloc.user_ptr, ptr, sizeof(rp_alloc));
+      std::invoke(alloc.mem_free, alloc.user_ptr, ptr, sizeof(ctx_alloc));
       ptr = nullptr;
     } else {
       std::construct_at(ptr, alloc, std::move(*arena));
-      SHOGLE_LOG(verbose, "[ntf::r_context] Allocator inited with arena of {} bytes)",
+      SHOGLE_LOG(verbose, "[ntf::context_t] Allocator inited with arena of {} bytes)",
                  arena_size);
     }
   }
-  return uptr_t<rp_alloc>{ptr, alloc_del_t<rp_alloc>{alloc.user_ptr, alloc.mem_free}};
+  return uptr_t<ctx_alloc>{ptr, alloc_del_t<ctx_alloc>{alloc.user_ptr, alloc.mem_free}};
 }
 
-r_context_::r_context_(rp_alloc::uptr_t<rp_alloc>&& alloc,
-                       rp_alloc::uptr_t<rp_context>&& renderer,
-                       r_window win, r_api api_,
-                       extent2d fbo_ext, r_test_buffer fbo_tbuff,
-                       const rp_fbo_frame_data& fdata) noexcept :
-  _alloc{std::move(alloc)}, _renderer{std::move(renderer)},
+context_t_::context_t_(ctx_alloc::uptr_t<ctx_alloc>&& alloc,
+                       ctx_alloc::uptr_t<icontext>&& renderer,
+                       ctx_meta&& renderer_meta,
+                       window_t win, context_api api_,
+                       extent2d fbo_ext, fbo_buffer fbo_tbuff,
+                       const ctx_render_data::fbo_data_t& fdata) noexcept :
+  _alloc{std::move(alloc)},
+  _renderer{std::move(renderer)}, _renderer_meta{std::move(renderer_meta)},
   _api{api_}, _win{win},
   _default_fbo{this, fbo_ext, fbo_tbuff, fdata},
   _fbo_list_sz{1u},
   _buff_list{nullptr}, _tex_list{nullptr}, _shad_list{nullptr},
   _fbo_list{nullptr}, _pip_list{nullptr} {}
 
-r_context_::~r_context_() noexcept {}
+context_t_::~context_t_() noexcept {}
 
-DEF_NODE_OPS(r_buffer, _buff_list);
-DEF_NODE_OPS(r_texture, _tex_list);
-DEF_NODE_OPS(r_framebuffer, _fbo_list, _fbo_list_sz;);
-DEF_NODE_OPS(r_shader, _shad_list);
-DEF_NODE_OPS(r_pipeline, _pip_list);
+DEF_NODE_OPS(buffer_t, _buff_list);
+DEF_NODE_OPS(texture_t, _tex_list);
+DEF_NODE_OPS(framebuffer_t, _fbo_list, _fbo_list_sz;);
+DEF_NODE_OPS(shader_t, _shad_list);
+DEF_NODE_OPS(pipeline_t, _pip_list);
 
-auto r_context_::on_destroy() -> rp_alloc::uptr_t<rp_alloc> {
+auto context_t_::on_destroy() -> ctx_alloc::uptr_t<ctx_alloc> {
   auto* pip = _pip_list;
   while (pip) {
     pip = pip->next;
@@ -124,14 +128,14 @@ auto r_context_::on_destroy() -> rp_alloc::uptr_t<rp_alloc> {
 }
 
 
-static r_expected<rp_alloc::uptr_t<rp_context>> load_platform_ctx(
-  rp_alloc& alloc, r_api api, r_window win, uint32 swap_interval
+static expect<ctx_alloc::uptr_t<icontext>> load_platform_ctx(
+  ctx_alloc& alloc, context_api api, window_t win, uint32 swap_interval
 ) {
   RET_ERROR_IF(!win, "Invalid window handle");
-  rp_context* ctx = nullptr;
+  icontext* ctx = nullptr;
   try {
     switch (api) {
-      case r_api::opengl: {
+      case context_api::opengl: {
         SHOGLE_GL_MAKE_CTX_CURRENT(win);
         SHOGLE_GL_SET_SWAP_INTERVAL(win, static_cast<int>(swap_interval));
         RET_ERROR_IF(!gladLoadGLLoader(SHOGLE_GL_LOAD_PROC),
@@ -150,135 +154,136 @@ static r_expected<rp_alloc::uptr_t<rp_context>> load_platform_ctx(
   return alloc.wrap_unique(ctx);
 }
 
-r_expected<r_context> r_create_context(const r_context_params& params) {
-  auto alloc = rp_alloc::make_alloc(params.alloc, INITIAL_ARENA_PAGE);
+expect<context_t> create_context(const context_params& params) {
+  auto alloc = ctx_alloc::make_alloc(params.alloc, INITIAL_ARENA_PAGE);
   RET_ERROR_IF(!alloc, "Failed to create allocator");
 
-  return load_platform_ctx(*alloc, params.renderer_api, params.window, params.swap_interval)
-  .and_then([&](rp_alloc::uptr_t<rp_context>&& renderer) -> r_expected<r_context> {
-    r_context ctx = alloc->allocate_uninited<r_context_>();
+  return load_platform_ctx(*alloc, params.ctx_api, params.window, params.swap_interval)
+  .and_then([&](ctx_alloc::uptr_t<icontext>&& renderer) -> expect<context_t> {
+    context_t ctx = alloc->allocate_uninited<context_t_>();
     RET_ERROR_IF(!ctx, "Failed to allocate context");
 
-    const rp_fbo_frame_data fdata {
-      .clear_color = params.fb_color,
+    const ctx_render_data::fbo_data_t fdata {
+      .clear_color = params.fb_clear_color,
       .viewport = params.fb_viewport,
-      .clear_flags = params.fb_clear,
+      .clear_flags = params.fb_clear_flags,
     };
-    extent2d fext{0, 0}; // TODO: Get this things from the platform context
-    r_test_buffer ftbuff{r_test_buffer::depth24u_stencil8u};
+
+    // TODO: Get these from the platform context
+    extent2d fext{0, 0};
+    fbo_buffer ftbuff = fbo_buffer::depth24u_stencil8u;
+
+    ctx_meta meta;
+    renderer->get_meta(meta);
+    SHOGLE_LOG(debug, "[ntf::context_t][CONSTRUCT] {} ",
+               meta.api == context_api::opengl ? "OpenGL" : "Vulkan",
+               meta.name_str);
 
     std::construct_at(ctx,
-                      std::move(alloc), std::move(renderer),
-                      params.window, params.renderer_api, fext, ftbuff, fdata);
-
-    rp_platform_meta meta;
-    ctx->renderer().get_meta(meta);
-    SHOGLE_LOG(debug, "[ntf::r_context][CONSTRUCT] {} ver {} [{} - {}]",
-               meta.api == r_api::opengl ? "OpenGL" : "Vulkan",
-               meta.version_str, meta.vendor_str, meta.name_str);
+                      std::move(alloc), std::move(renderer), std::move(meta),
+                      params.window, params.ctx_api, fext, ftbuff, fdata);
     return ctx;
   });
 }
 
-void r_destroy_context(r_context ctx) {
+void destroy_context(context_t ctx) noexcept {
   if (!ctx) {
     return;
   }
 
   auto alloc = ctx->on_destroy();
   alloc->destroy(ctx);
-  SHOGLE_LOG(debug, "[ntf::r_context][DESTROY]");
+  SHOGLE_LOG(debug, "[ntf::context_t][DESTROY]");
 }
 
-void r_start_frame(r_context ctx) {
+void start_frame(context_t ctx) {
   if (!ctx) {
     return;
   }
 
-  ctx->for_each_fbo([](r_framebuffer_& fbo) {
-    fbo.cmds.clear();
+  ctx->for_each_fbo([](framebuffer_t fbo) {
+    fbo->cmds.clear();
   }); 
   ctx->alloc().arena_clear();
 }
 
-void r_end_frame(r_context ctx) {
+void end_frame(context_t ctx) {
   if (!ctx) {
     return;
   }
   auto& alloc = ctx->alloc();
 
   const size_t fbo_count = ctx->fbo_count();
-  auto* draw_data = alloc.arena_allocate_uninited<rp_draw_data>(fbo_count);
+  auto* draw_data = alloc.arena_allocate_uninited<ctx_render_data>(fbo_count);
   size_t fbos_to_blit = 0u;
-  auto cmd_sort = [](const rp_draw_cmd& a, const rp_draw_cmd& b) -> bool {
+  auto cmd_sort = [](const ctx_render_cmd& a, const ctx_render_cmd& b) -> bool {
     // Sort by group, then by pipeline index
-    const uint32 pip_a = static_cast<uint32>(a.pipeline);
-    const uint32 pip_b = static_cast<uint32>(b.pipeline);
+    const uint32 pip_a = static_cast<uint32>(a.pip);
+    const uint32 pip_b = static_cast<uint32>(b.pip);
     return (a.sort_group < b.sort_group || (a.sort_group == b.sort_group && (pip_a < pip_b)));
   };
-  ctx->for_each_fbo([&](r_framebuffer_& fbo) {
-    std::sort(fbo.cmds.begin(), fbo.cmds.end(), cmd_sort);
+  ctx->for_each_fbo([&](framebuffer_t fbo) {
+    std::sort(fbo->cmds.begin(), fbo->cmds.end(), cmd_sort);
     std::construct_at(draw_data+fbos_to_blit,
-                      fbo.handle, fbo.fdata,
-                      cspan<rp_draw_cmd>{fbo.cmds.data(), fbo.cmds.size()});
+                      fbo->handle, fbo->fdata,
+                      cspan<ctx_render_cmd>{fbo->cmds.data(), fbo->cmds.size()});
     ++fbos_to_blit;
   });
   if (fbos_to_blit) {
-    ctx->renderer().submit(ctx, cspan<rp_draw_data>{draw_data, fbos_to_blit});
+    ctx->renderer().submit_render_data(ctx, cspan<ctx_render_data>{draw_data, fbos_to_blit});
   }
 
   ctx->renderer().swap_buffers();
 }
 
-void r_device_wait(r_context ctx) {
+void device_wait(context_t ctx) {
   if (!ctx) {
     return;
   }
   ctx->renderer().device_wait();
 }
 
-
-void r_submit_external_command(r_context ctx, const r_external_command& cmd) {
+void submit_external_command(context_t ctx, const external_cmd& cmd) {
   if (!ctx) {
     return;
   }
 
   auto target = cmd.target;
-  NTF_ASSERT(cmd.callback);
-  target->cmds.emplace_back(cmd.callback);
+  NTF_ASSERT(cmd.render_callback);
+  target->cmds.emplace_back(cmd.render_callback);
   auto& tcmd = target->cmds.back();
 
   if (cmd.state) {
     tcmd.external = *cmd.state;
   }
   tcmd.sort_group = cmd.sort_group;
-  tcmd.pipeline = static_cast<r_platform_pipeline>(r_handle_tombstone); // for sorting, draw last
+  tcmd.pip = CTX_HANDLE_TOMB; // for sorting, draw last
 }
 
-void r_submit_command(r_context ctx, const r_draw_command& cmd) {
+void submit_command(context_t ctx, const render_cmd& cmd) {
   if (!ctx) {
     return;
   }
 
   auto& alloc = ctx->alloc();
 
-  cmd.target->cmds.emplace_back(cmd.on_render);
+  cmd.target->cmds.emplace_back(cmd.render_callback);
   auto& tcmd = cmd.target->cmds.back();
 
   NTF_ASSERT(cmd.pipeline);
-  tcmd.pipeline = cmd.pipeline->handle;
-  tcmd.draw_opts = cmd.draw_opts;
+  tcmd.pip = cmd.pipeline->handle;
+  tcmd.opts = cmd.opts;
   tcmd.sort_group = cmd.sort_group;
 
   NTF_ASSERT(cmd.buffers.vertex);
-  tcmd.vertex_buffer = cmd.buffers.vertex->handle;
+  tcmd.vbo = cmd.buffers.vertex->handle;
   if (cmd.buffers.index) {
-    tcmd.index_buffer = cmd.buffers.index->handle;
+    tcmd.ebo = cmd.buffers.index->handle;
   }
 
   if (!cmd.buffers.shader.empty()) {
     const size_t buff_count = cmd.buffers.shader.size();
-    auto* buffers = alloc.arena_allocate_uninited<rp_draw_cmd::shader_buffer>(buff_count);
+    auto* buffers = alloc.arena_allocate_uninited<ctx_render_cmd::shad_bind_t>(buff_count);
     for (size_t i = 0u; const auto& buff : cmd.buffers.shader) {
       NTF_ASSERT(buff.buffer);
       std::construct_at(buffers+i,
@@ -290,8 +295,8 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
 
   if (!cmd.textures.empty()) {
     const size_t tex_count = cmd.textures.size();
-    auto* textures = alloc.arena_allocate_uninited<r_platform_texture>(tex_count);
-    for (size_t i = 0u; r_texture tex : cmd.textures) {
+    auto* textures = alloc.arena_allocate_uninited<ctx_tex>(tex_count);
+    for (size_t i = 0u; texture_t tex : cmd.textures) {
       NTF_ASSERT(tex);
       std::construct_at(textures+i, tex->handle);
       ++i;
@@ -299,36 +304,35 @@ void r_submit_command(r_context ctx, const r_draw_command& cmd) {
     tcmd.textures = {textures, tex_count};
   }
 
-  if (!cmd.uniforms.empty()) {
-    const size_t uniform_count = cmd.uniforms.size();
-    auto* unifs = alloc.arena_allocate_uninited<rp_draw_cmd::uniform_const>(uniform_count);
-    for (size_t i = 0u; const auto& unif : cmd.uniforms) {
+  if (!cmd.consts.empty()) {
+    const size_t uniform_count = cmd.consts.size();
+    auto* unifs = alloc.arena_allocate_uninited<ctx_render_cmd::unif_const_t>(uniform_count);
+    for (size_t i = 0u; const auto& unif : cmd.consts) {
       NTF_ASSERT(unif.uniform);
-      const size_t data_sz = unif.data.size;
-      const size_t data_align = unif.data.alignment;
+      const size_t data_sz = unif.size;
+      const size_t data_align = unif.alignment;
       auto* data = alloc.arena_allocate(data_sz, data_align);
-      std::memcpy(data, unif.data.data, data_sz);
+      std::memcpy(data, unif.data, data_sz);
       std::construct_at(unifs+i,
-                        unif.uniform->location, unif.uniform->type,
-                        data, data_sz);
+                        unif.uniform->handle, data, unif.uniform->type, data_sz);
       ++i;
     }
     tcmd.uniforms = {unifs, uniform_count};
   }
 }
 
-r_window r_get_window(r_context ctx) {
+window_t get_window(context_t ctx) {
   if (!ctx) {
     return nullptr;
   }
   return ctx->window();
 }
 
-r_api r_get_api(r_context ctx) {
+context_api get_api(context_t ctx) {
   if (!ctx) {
-    return r_api::none;
+    return context_api::none;
   }
   return ctx->api();
 }
 
-} // namespace
+} // namespace ntf::render

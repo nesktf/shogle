@@ -29,7 +29,7 @@
 
 #define RET_ERROR(_fmt, ...) \
   RENDER_ERROR_LOG(_fmt __VA_OPT__(,) __VA_ARGS__); \
-  return unexpected{r_error::format({_fmt} __VA_OPT__(,) __VA_ARGS__)}
+  return unexpected{render_error::format({_fmt} __VA_OPT__(,) __VA_ARGS__)}
 
 #define RET_ERROR_IF(_cond, _fmt, ...) \
   if (_cond) { \
@@ -37,15 +37,15 @@
   }
 
 #define RET_ERROR_CATCH(_msg) \
-  catch (r_error& err) { \
+  catch (render_error& err) { \
     RENDER_ERROR_LOG(_msg ": {}", err.what()); \
     return unexpected{std::move(err)}; \
   } catch (const std::exception& ex) { \
     RENDER_ERROR_LOG(_msg ": {}", ex.what()); \
-    return unexpected{r_error::format({"{}"}, ex.what())}; \
+    return unexpected{render_error::format({"{}"}, ex.what())}; \
   } catch (...) { \
     RENDER_ERROR_LOG(_msg ": Caught (...)"); \
-    return unexpected{r_error{"Unknown error"}}; \
+    return unexpected{render_error{"Unknown error"}}; \
   }
 
 #define RENDER_ERROR_LOG_CATCH(_msg) \
@@ -580,7 +580,7 @@ public:
   ctx_buff handle;
   buffer_type type;
   buffer_flag flags;
-  size_t sie;
+  size_t size;
 
 public:
   NTF_DECLARE_NO_MOVE_NO_COPY(buffer_t_);
@@ -671,6 +671,7 @@ struct context_t_ {
 public:
   context_t_(ctx_alloc::uptr_t<ctx_alloc>&& alloc,
              ctx_alloc::uptr_t<icontext>&& renderer,
+             ctx_meta&& renderer_meta,
              window_t win, context_api api,
              extent2d fbo_ext, fbo_buffer fbo_tbuff,
              const ctx_render_data::fbo_data_t& fdata) noexcept;
@@ -713,6 +714,7 @@ public:
 private:
   ctx_alloc::uptr_t<ctx_alloc> _alloc;
   ctx_alloc::uptr_t<icontext> _renderer;
+  ctx_meta _renderer_meta;
 
   context_api _api;
   window_t _win;

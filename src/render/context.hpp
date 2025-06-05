@@ -52,7 +52,7 @@ struct external_state {
 struct external_cmd {
   framebuffer_t target;
   weak_cptr<external_state> state;
-  uint32 sort_grou;
+  uint32 sort_group;
   function_view<void(context_t, ctx_handle)> render_callback;
 };
 
