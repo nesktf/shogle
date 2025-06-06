@@ -11,13 +11,19 @@
 #include <queue>
 
 #define RENDER_ERROR_LOG(_fmt, ...) \
-  SHOGLE_LOG(error, "[{}@{}:{}] " _fmt, NTF_FUNC, NTF_FILE, NTF_LINE __VA_OPT__(,) __VA_ARGS__)
+  SHOGLE_LOG(error, "[{}:{}] " \
+             _fmt, ::ntf::meta::parse_src_str(NTF_FILE), \
+             NTF_LINE __VA_OPT__(,) __VA_ARGS__)
 
 #define RENDER_WARN_LOG(_fmt, ...) \
-  SHOGLE_LOG(warning, "[{}@{}:{}] " _fmt, NTF_FUNC, NTF_FILE, NTF_LINE __VA_OPT__(,) __VA_ARGS__)
+  SHOGLE_LOG(warning, "[{}:{}] " \
+             _fmt, ::ntf::meta::parse_src_str(NTF_FILE), \
+             NTF_LINE __VA_OPT__(,) __VA_ARGS__)
 
 #define RENDER_DBG_LOG(_fmt, ...) \
-  SHOGLE_LOG(debug, "[{}@{}:{}] " _fmt, NTF_FUNC, NTF_FILE, NTF_LINE __VA_OPT__(,) __VA_ARGS__)
+  SHOGLE_LOG(debug, "[{}:{}] " \
+             _fmt, ::ntf::meta::parse_src_str(NTF_FILE), \
+             NTF_LINE __VA_OPT__(,) __VA_ARGS__)
 
 #define RET_ERROR(_str) \
   RENDER_ERROR_LOG(_str); \
