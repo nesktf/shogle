@@ -41,7 +41,7 @@ GLbitfield gl_state::clear_bit_cast(clear_flag flags) noexcept {
   return clear_bits;
 }
 
-GLenum gl_state::check_error(const char* file, const char* func, int line) noexcept {
+GLenum gl_state::check_error(std::string_view file, int line) noexcept {
   GLenum out = GL_NO_ERROR;
   GLenum err{};
   while ((err = glGetError()) != GL_NO_ERROR) {
@@ -57,8 +57,7 @@ GLenum gl_state::check_error(const char* file, const char* func, int line) noexc
       case GL_INVALID_FRAMEBUFFER_OPERATION: { err_str = "INVALID_FRAMEBUFFER_OPERATION"; break; }
       default: { err_str = "UNKNOWN_ERROR"; break; }
     }
-    SHOGLE_LOG(error, "[{}:{}][{}] GL ERROR ({}) -> {}",
-               file, line, func, err, err_str);
+    SHOGLE_LOG(error, "[{}:{}] GL ERROR ({}): {}", file, line, err, err_str);
   }
   return out;
 }

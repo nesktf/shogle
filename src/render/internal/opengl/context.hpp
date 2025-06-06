@@ -9,13 +9,13 @@
 #define GL_CALL(fun, ...) \
 do { \
   fun(__VA_ARGS__); \
-  GLenum glerr = ::ntfr::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
+  GLenum glerr = ::ntfr::gl_state::check_error(::ntf::meta::parse_src_str(NTF_FILE), NTF_LINE); \
   NTF_ASSERT(glerr == 0, "GL ERROR: {}", glerr); \
 } while(0) 
 #define GL_CALL_RET(fun, ...) \
 [&]() { \
   auto ret = fun(__VA_ARGS__); \
-  GLenum glerr = ::ntfr::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
+  GLenum glerr = ::ntfr::gl_state::check_error(::ntf::meta::parse_src_str(NTF_FILE), NTF_LINE); \
   NTF_ASSERT(glerr == 0, "GL ERROR: {}", glerr); \
   return ret; \
 }()
@@ -24,7 +24,7 @@ do { \
 #define GL_CHECK(fun, ...) \
 [&]() { \
   fun(__VA_ARGS__); \
-  return ::ntfr::gl_state::check_error(NTF_FILE, NTF_FUNC, NTF_LINE); \
+  return ::ntfr::gl_state::check_error(::ntf::meta::parse_src_str(NTF_FILE), NTF_LINE); \
 }()
 
 namespace ntf::render {
@@ -236,7 +236,7 @@ public:
   [[nodiscard]] static GLenum blend_eq_cast(blend_mode eq) noexcept;
 
 public:
-  static GLenum check_error(const char* file, const char* func, int line) noexcept;
+  static GLenum check_error(std::string_view file, int line) noexcept;
 
 private:
   GLenum& _buffer_pos(GLenum type);

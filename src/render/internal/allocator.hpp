@@ -25,6 +25,11 @@
              _fmt, ::ntf::meta::parse_src_str(NTF_FILE), \
              NTF_LINE __VA_OPT__(,) __VA_ARGS__)
 
+#define RENDER_VRB_LOG(_fmt, ...) \
+  SHOGLE_LOG(verbose, "[{}:{}] " \
+             _fmt, ::ntf::meta::parse_src_str(NTF_FILE), \
+             NTF_LINE __VA_OPT__(,) __VA_ARGS__)
+
 #define RET_ERROR(_str) \
   RENDER_ERROR_LOG(_str); \
   return unexpected{render_error{_str}}
