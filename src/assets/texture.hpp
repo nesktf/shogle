@@ -37,7 +37,7 @@ public:
       .format = format,
       .alignment = alignment,
       .extent = extent,
-      .offset = tex_extent_cast(offset),
+      .offset = ntfr::image_offset_cast(offset),
       .layer = layer,
       .level = level,
     };
@@ -70,8 +70,8 @@ public:
       image.bitmap = texels[i].get();
       image.format = format;
       image.alignment = alignment;
-      image.extent = meta::image_dim_traits<extent2d>::extent_cast(extent);
-      image.offset = meta::image_dim_traits<extent2d>::offset_cast(offset, i);
+      image.extent = ntfr::image_extent_cast(extent);
+      image.offset = ntfr::image_offset_cast(offset, i);
       image.layer = static_cast<uint32>(i);
       image.level = level;
       ++i;

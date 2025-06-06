@@ -518,6 +518,15 @@ ctx_pip_status gl_context::create_pipeline(ctx_pip& pip, pip_err_str& err,
     _programs.push(handle);
     return status;
   }
+  NTF_ASSERT(desc.uniforms);
+  program.layout = {desc.layout.data(), desc.layout.size()};
+  try {
+    _state.program_query_uniforms(program, *desc.uniforms);
+  } catch(...) {
+    _state.destroy_program(program);
+    _programs.push(handle);
+    return CTX_PIP_STATUS_LINKING_FAILED;
+  }
   NTF_ASSERT(program.id);
   pip = handle;
   return status;

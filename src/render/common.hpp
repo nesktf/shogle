@@ -30,7 +30,20 @@ enum class context_api {
 using ctx_handle = uint64;
 constexpr ctx_handle CTX_HANDLE_TOMB = std::numeric_limits<ctx_handle>::max();
 
-using render_error = ::ntf::error<void>;
+template<typename T>
+using cstring_view = std::basic_string_view<T, std::char_traits<T>>;
+
+class render_error : public std::exception {
+public:
+  render_error(cstring_view<char> str) noexcept :
+    _str{str} {}
+
+public:
+  const char* what() const noexcept override { return _str.data(); }
+
+private:
+  cstring_view<char> _str;
+};
 
 template<typename T>
 using expect = ::ntf::expected<T, render_error>;
@@ -58,7 +71,7 @@ enum class image_format : uint8 {
 using image_alignment = size_t; // usually 1, 2, 4, or 8
 
 struct image_data {
-  const uint8* bitmap;
+  const void* bitmap;
   image_format format;
   image_alignment alignment;
   extent3d extent;

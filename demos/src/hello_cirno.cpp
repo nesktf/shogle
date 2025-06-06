@@ -397,7 +397,7 @@ int main() {
 
       text_buffer.clear();
       text_buffer.append_fmt(frenderer->glyphs(), 40.f, 400.f, font_scale,
-                            "Hello World! ~ze\n{:.2f}fps - {:.2f}ms", avg_fps, 1000/avg_fps);
+                             "Hello World! ~ze\n{:.2f}fps - {:.2f}ms", avg_fps, 1000/avg_fps);
       frenderer->render(quad, default_fbo, *sdf_rule, text_buffer, 1u);
     }
   });

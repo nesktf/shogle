@@ -209,7 +209,7 @@ font_atlas_data ft2_font_loader::_load_bitmap(
   uint32 atlas_extent = _find_atlas_extent(padding, atlas_size,
                                            glyphs.get(), glyphs.size());
   extent2d bitmap_extent{atlas_extent, atlas_extent};
-  const size_t bitmap_sz = tex_stride<uint8>(bitmap_extent);
+  const size_t bitmap_sz = ntfr::image_stride<uint8>(bitmap_extent);
   virtual_allocator<uint8> bitmap_alloc{std::in_place_type_t<malloc_pool>{}};
   auto* bitmap = bitmap_alloc.allocate(bitmap_sz);
   std::memset(bitmap, 0, bitmap_sz);
@@ -254,7 +254,7 @@ font_atlas_data ft2_font_loader::_load_bitmap(
   using del_t = allocator_delete<uint8, virtual_allocator<uint8>>;
   return font_atlas_data {
     bitmap_t{bitmap_sz, bitmap, del_t{std::move(bitmap_alloc)}},
-    bitmap_extent, r_texture_format::r8nu, r_image_alignment::bytes1,
+    bitmap_extent, ntfr::image_format::r8nu, 1u,
     std::move(glyphs), std::move(map)
   };
 }

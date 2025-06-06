@@ -1,238 +1,200 @@
-#include "./internal/common.hpp"
+#include "./internal/platform.hpp"
 
-namespace ntf {
+namespace ntf::render {
 
-r_framebuffer_::r_framebuffer_(r_context ctx_, r_platform_fbo handle_,
-                               extent2d extent_, r_test_buffer test_buffer_,
-                               rp_alloc::uarray_t<r_framebuffer_attachment>&& attachments_,
-                               const rp_fbo_frame_data& fdata_) noexcept :
-  rp_res_node<r_framebuffer_>{ctx_},
-  handle{handle_},
-  extent{extent_},
-  test_buffer{test_buffer_},
-  attachments{std::move(attachments_)}, att_state{ATT_TEX},
-  cmds{ctx_->alloc().make_adaptor<rp_draw_cmd>()},
-  fdata{fdata_} {}
-
-r_framebuffer_::r_framebuffer_(r_context ctx_, r_platform_fbo handle_,
-                               extent2d extent_, r_test_buffer test_buffer_,
-                               r_texture_format color_buffer_,
-                               const rp_fbo_frame_data& fdata_) noexcept :
-  rp_res_node<r_framebuffer_>{ctx_},
-  handle{handle_},
-  extent{extent_},
-  test_buffer{test_buffer_},
-  color_buffer{color_buffer_}, att_state{ATT_BUFF},
-  cmds{ctx_->alloc().make_adaptor<rp_draw_cmd>()},
-  fdata{fdata_} {}
-
-r_framebuffer_::r_framebuffer_(r_context ctx_,
-                               extent2d extent_, r_test_buffer test_buffer_,
-                               const rp_fbo_frame_data& fdata_) noexcept :
-  rp_res_node<r_framebuffer_>{ctx_},
+framebuffer_t_::framebuffer_t_(context_t ctx_,
+                               extent2d extent_, fbo_buffer test_buffer_,
+                               const ctx_render_data::fbo_data_t& fdata_) noexcept :
+  ctx_res_node<framebuffer_t_>{ctx_},
   handle{DEFAULT_FBO_HANDLE},
   extent{extent_},
   test_buffer{test_buffer_},
-  _dummy{}, att_state{ATT_NONE},
-  cmds{ctx_->alloc().make_adaptor<rp_draw_cmd>()},
+  attachments{ctx_->alloc().make_deleter<fbo_image>()},
+  cmds{ctx_->alloc().make_adaptor<ctx_render_cmd>()},
   fdata{fdata_} {}
 
-r_framebuffer_::~r_framebuffer_() noexcept {
-  if (att_state == ATT_TEX) {
-    for (const auto& att : attachments) {
-      r_destroy_texture(att.texture); // decreases refcount and maybe destroys
-    }
-    std::destroy_at(&attachments);
+framebuffer_t_::framebuffer_t_(context_t ctx_, ctx_fbo handle_,
+                               extent2d extent_, fbo_buffer test_buffer_,
+                               ctx_alloc::uarray_t<fbo_image>&& attachments,
+                               const ctx_render_data::fbo_data_t& fdata_) noexcept :
+  ctx_res_node<framebuffer_t_>{ctx_},
+  handle{handle_},
+  extent{extent_},
+  test_buffer{test_buffer_},
+  attachments{std::move(attachments)},
+  cmds{ctx_->alloc().make_adaptor<ctx_render_cmd>()},
+  fdata{fdata_} {}
+
+framebuffer_t_::~framebuffer_t_() noexcept {
+  for (const auto& att : attachments) {
+    destroy_texture(att.texture); // decreases refcount and maybe destroys
   }
 }
 
-const char* test_buff_str(r_test_buffer test) {
-  switch (test) {
-    case r_test_buffer::depth16u: return "DEPTH16U";
-    case r_test_buffer::depth24u: return "DEPTH24U";
-    case r_test_buffer::depth32f: return "DEPTH32F";
-    case r_test_buffer::depth24u_stencil8u: return "DEPTH24U_STENCIL8U";
-    case r_test_buffer::depth32f_stencil8u: return "DEPTH32F_STENCIL8U";
-    case r_test_buffer::no_buffer: return "NONE";
-  }
-  NTF_UNREACHABLE();
-}
-
-static auto copy_attachments(rp_alloc& alloc, cspan<r_framebuffer_attachment> atts_in) {
-  auto atts = alloc.make_uninited_array<r_framebuffer_attachment>(atts_in.size());
-  if (!atts) {
-    return atts;
-  }
-  for (size_t i = 0; const auto& att : atts_in) {
+static ctx_fbo_desc transform_desc(ctx_alloc& alloc, const fbo_image_desc& desc) {
+  auto ctx_atts = alloc.arena_span<ctx_fbo_desc::tex_att_t>(desc.images.size());
+  NTF_ASSERT(!ctx_atts.empty());
+  auto atts = alloc.make_uninited_array<fbo_image>(desc.images.size());
+  NTF_ASSERT(!atts.empty());
+  for (size_t i = 0u; const auto& att : desc.images) {
+    ctx_atts[i].layer = att.layer;
+    ctx_atts[i].level = att.level;
+    ctx_atts[i].texture = att.texture->handle;
     std::construct_at(atts.get()+i, att);
+    ++i;
   }
-  return atts;
+
+  return {
+    .extent = desc.extent,
+    .test_buffer = desc.test_buffer,
+    .ctx_attachments = ctx_atts,
+    .attachments = std::move(atts),
+  };
 }
 
-static r_expected<rp_fbo_desc> transform_desc(rp_alloc& alloc,
-                                              const r_framebuffer_descriptor& desc) {
-  if (std::holds_alternative<cspan<r_framebuffer_attachment>>(desc.attachments)) {
-    const auto& atts_in = std::get<cspan<r_framebuffer_attachment>>(desc.attachments);
-    auto atts = alloc.arena_span<rp_fbo_att>(atts_in.size());
-    RET_ERROR_IF(!atts, "Failed to allocate attachment descriptors");
-    for (size_t i = 0u; const auto& att : atts_in) {
-      atts[i].layer = att.layer;
-      atts[i].level = att.level;
-      atts[i].texture = att.texture->handle;
-      ++i;
-    }
-    return rp_fbo_desc {
-      .extent = desc.extent,
-      .test_buffer = desc.test_buffer,
-      .attachments = atts,
-      .color_buffer = nullopt,
-    };
-
-  } else {
-    return rp_fbo_desc {
-      .extent = desc.extent,
-      .test_buffer = desc.test_buffer,
-      .attachments = {},
-      .color_buffer = std::get<r_texture_format>(desc.attachments),
-    };
-  }
-}
-
-static r_expected<void> validate_desc(r_context ctx, const r_framebuffer_descriptor& desc) {
+static expect<void> validate_desc(context_t ctx, const fbo_image_desc& desc) {
   NTF_ASSERT(ctx);
   if (desc.viewport.x+desc.viewport.z != desc.extent.x ||
       desc.viewport.y+desc.viewport.w != desc.extent.y) {
     RENDER_WARN_LOG("Mismatching viewport size");
   }
+  auto& alloc = ctx->alloc();
 
-  if (std::holds_alternative<cspan<r_framebuffer_attachment>>(desc.attachments)) {
-    auto attachments_in = std::get<cspan<r_framebuffer_attachment>>(desc.attachments);
-    RET_ERROR_IF(attachments_in.empty(), "Invalid attachment span");
-    for (uint32 i = 0; i < attachments_in.size(); ++i) {
-      const auto& att = attachments_in[i];
-      r_texture tex = att.texture;
-      RET_ERROR_IF(!tex || tex->ctx != ctx, "Invalid texture handle at index {}", i);
+  RET_ERROR_IF(desc.images.empty(), "No images attached");
+  for (uint32 i = 0; const auto& att : desc.images) {
+    auto tex = att.texture;
+    RET_ERROR_FMT_IF(!tex || tex->ctx != ctx, alloc, "Invalid texture handle at index {}", i);
 
-      RET_ERROR_IF(att.layer > tex->layers, "Invalid texture layer at index {}", i);
+    RET_ERROR_FMT_IF(att.layer > tex->layers, alloc, "Invalid texture layer at index {}", i);
 
-      RET_ERROR_IF(att.level > tex->levels, "Invalid texture level at index {}", i);
+    RET_ERROR_FMT_IF(att.level > tex->levels, alloc, "Invalid texture level at index {}", i);
 
-      RET_ERROR_IF(tex->extent.x != desc.extent.x || tex->extent.y != desc.extent.y,
-                   "Invalid texture extent at index {}", i);
-    }
+    RET_ERROR_FMT_IF(tex->extent.x != desc.extent.x || tex->extent.y != desc.extent.y,
+                     alloc, "Invalid texture extent at index {}", i);
+    ++i;
   }
 
   return {};
 }
 
-r_expected<r_framebuffer> r_create_framebuffer(r_context ctx,
-                                               const r_framebuffer_descriptor& desc) {
+static const char* fbo_buffer_str(fbo_buffer buff) {
+  switch (buff) {
+    case fbo_buffer::depth16u: return "DEPTH16U";
+    case fbo_buffer::depth24u: return "DEPTH24U";
+    case fbo_buffer::depth32f: return "DEPTH32F";
+    case fbo_buffer::depth24u_stencil8u: return "DEPTH24U_STENCIL8U";
+    case fbo_buffer::depth32f_stencil8u: return "DEPTH32F_STENCIL8U";
+    case fbo_buffer::none: return "NONE";
+  }
+  NTF_UNREACHABLE();
+}
+
+static unexpected<render_error> handle_error(ctx_fbo_status status) {
+  switch (status) {
+    case CTX_FBO_STATUS_INVALID_HANDLE: {
+      RET_ERROR("Invalid framebuffer handle");
+    }
+    case CTX_FBO_STATUS_OK: NTF_UNREACHABLE();
+  }
+  NTF_UNREACHABLE();
+}
+
+expect<framebuffer_t> create_framebuffer(context_t ctx, const fbo_image_desc& desc) {
   RET_ERROR_IF(!ctx, "Invalid context handle");
-  auto& alloc = ctx->alloc();
 
   try {
+    auto& alloc = ctx->alloc();
     return validate_desc(ctx, desc)
-    .and_then([&]() -> r_expected<rp_fbo_desc> { return transform_desc(alloc, desc); })
-    .and_then([&](rp_fbo_desc&& fbo_desc) -> r_expected<r_framebuffer> {
-      r_platform_fbo handle = ctx->renderer().create_framebuffer(fbo_desc);
-      RET_ERROR_IF(!handle, "Failed to create framebuffer");
+    .and_then([&]() -> expect<ctx_fbo_desc> { return transform_desc(alloc, desc); })
+    .and_then([&](ctx_fbo_desc&& fbo_desc) -> expect<framebuffer_t> {
+      auto* fbo = alloc.allocate_uninited<framebuffer_t_>();
+      NTF_ASSERT(fbo);
 
-      auto* fbo = alloc.allocate_uninited<r_framebuffer_>(1u);
-      if (!fbo) {
-        ctx->renderer().destroy_framebuffer(handle);
-        RET_ERROR("Failed to allocate framebuffer");
+      ctx_fbo handle = CTX_HANDLE_TOMB;
+      const auto ret = ctx->renderer().create_framebuffer(handle, fbo_desc);
+      if (ret != CTX_FBO_STATUS_OK){
+        alloc.deallocate(fbo, sizeof(framebuffer_t_));
+        return handle_error(ret);
       }
-      const rp_fbo_frame_data fdata {
+
+      NTF_ASSERT(check_handle(handle));
+      const ctx_render_data::fbo_data_t fdata {
         .clear_color = desc.clear_color,
         .viewport = desc.viewport,
         .clear_flags = desc.clear_flags,
       };
-      if (!fbo_desc.attachments.empty()) {
-        auto atts = copy_attachments(alloc,
-                                     std::get<cspan<r_framebuffer_attachment>>(desc.attachments));
-        if (!atts) {
-          alloc.deallocate(fbo, sizeof(r_framebuffer_));
-          ctx->renderer().destroy_framebuffer(handle);
-          RET_ERROR("Failed to allocate framebuffer attachments");
-        }
-
-        std::construct_at(fbo,
-                          ctx, handle, fbo_desc.extent, fbo_desc.test_buffer,
-                          std::move(atts), fdata);
-      } else {
-        std::construct_at(fbo,
-                          ctx, handle, fbo_desc.extent, fbo_desc.test_buffer,
-                          *fbo_desc.color_buffer, fdata);
-      }
+      std::construct_at(fbo,
+                        ctx, handle, fbo_desc.extent, fbo_desc.test_buffer,
+                        std::move(fbo_desc.attachments), fdata);
       ctx->insert_node(fbo);
       NTF_ASSERT(fbo->prev == nullptr);
-      SHOGLE_LOG(debug, "[ntf::r_create_framebuffer] FBO {}x{} (tbuff: {}, att: {})",
-                 fbo->extent.x, fbo->extent.y, test_buff_str(fbo->test_buffer),
-                 fbo->att_state == r_framebuffer_::ATT_TEX ? "TEX" : "COLOR");
-
+      RENDER_DBG_LOG("Framebuffer created ({}) [ext: {}x{}, buf: {}, atts: {}]",
+                     fbo->handle, fbo->extent.x, fbo->extent.y,
+                     fbo_buffer_str(fbo->test_buffer), fbo->attachments.size());
       return fbo;
     });
   } RET_ERROR_CATCH("Failed to create framebuffer");
 }
 
-void r_destroy_framebuffer(r_framebuffer fbo) noexcept {
+void destroy_framebuffer(framebuffer_t fbo) noexcept {
   if (!fbo) {
     return;
   }
   const auto handle = fbo->handle;
   auto* ctx = fbo->ctx;
 
-  SHOGLE_LOG(debug, "[ntf::r_destroy_framebuffer] FBO {}x{} (tbuff: {}, att: {})",
-             fbo->extent.x, fbo->extent.y, test_buff_str(fbo->test_buffer),
-             fbo->att_state == r_framebuffer_::ATT_TEX ? "TEX" : "COLOR");
+  RENDER_DBG_LOG("Framebuffer destroyed ({}) [ext: {}x{}, buf: {}, atts: {}]",
+                 fbo->handle, fbo->extent.x, fbo->extent.y,
+                 fbo_buffer_str(fbo->test_buffer), fbo->attachments.size());
 
   ctx->remove_node(fbo);
   ctx->renderer().destroy_framebuffer(handle);
   ctx->alloc().destroy(fbo);
 }
 
-void r_framebuffer_set_clear(r_framebuffer fbo, r_clear_flag flags) {
+void framebuffer_set_clear(framebuffer_t fbo, clear_flag flags) {
   NTF_ASSERT(fbo);
   fbo->fdata.clear_flags = flags;
 }
 
-void r_framebuffer_set_viewport(r_framebuffer fbo, const uvec4& vp) {
+void framebuffer_set_viewport(framebuffer_t fbo, const uvec4& vp) {
   NTF_ASSERT(fbo);
   fbo->fdata.viewport = vp;
 }
 
-void r_framebuffer_set_color(r_framebuffer fbo, const color4& color) {
+void framebuffer_set_color(framebuffer_t fbo, const color4& color) {
   NTF_ASSERT(fbo);
   fbo->fdata.clear_color = color;
 }
 
-r_clear_flag r_framebuffer_get_clear(r_framebuffer fbo) {
+clear_flag framebuffer_get_clear_flags(framebuffer_t fbo) {
   NTF_ASSERT(fbo);
   return fbo->fdata.clear_flags;
 }
 
-uvec4 r_framebuffer_get_viewport(r_framebuffer fbo) {
+uvec4 framebuffer_get_viewport(framebuffer_t fbo) {
   NTF_ASSERT(fbo);
   return fbo->fdata.viewport;
 }
 
-color4 r_framebuffer_get_color(r_framebuffer fbo) {
+color4 framebuffer_get_clear_color(framebuffer_t fbo) {
   NTF_ASSERT(fbo);
   return fbo->fdata.clear_color;
 }
 
-r_context r_framebuffer_get_ctx(r_framebuffer fbo) {
+context_t framebuffer_get_ctx(framebuffer_t fbo) {
   NTF_ASSERT(fbo);
   return fbo->ctx;
 }
 
-r_platform_fbo r_framebuffer_get_handle(r_framebuffer fbo) {
+ctx_handle framebuffer_get_id(framebuffer_t fbo) {
   NTF_ASSERT(fbo);
   return fbo->handle;
 }
 
-r_framebuffer r_get_default_framebuffer(r_context ctx) {
-  return &ctx->default_fbo();
+framebuffer_t get_default_framebuffer(context_t ctx) {
+  NTF_ASSERT(ctx);
+  return ctx->default_fbo();
 }
 
-} // namespace ntf
+} // namespace ntf::render

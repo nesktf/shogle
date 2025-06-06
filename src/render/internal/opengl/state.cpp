@@ -67,7 +67,9 @@ gl_state::gl_state(ctx_alloc& alloc) noexcept :
   _alloc{alloc},
   _bound_vao{0},
   _bound_program{0},
-  _active_tex{0} {
+  _bound_texs{alloc.make_adaptor<std::pair<GLuint, GLenum>>()},
+  _active_tex{0}
+{
   std::memset(_bound_buffers, NULL_BINDING, GLBUFFER_TYPE_COUNT*sizeof(GLuint));
   std::memset(_bound_fbos, DEFAULT_FBO, GLFBO_BIND_COUNT*sizeof(GLuint));
 }
@@ -97,27 +99,6 @@ void gl_state::init(GLDEBUGPROC debug_callback, gl_context* ctx) {
     GL_CALL(glEnable, GL_DEBUG_OUTPUT);
     GL_CALL(glDebugMessageCallback, debug_callback, ctx);
   }
-}
-
-void gl_state::get_limits(ctx_meta::limits_t& limits) const {
-  GLint max_tex;
-  GL_CALL(glGetIntegerv, GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &max_tex);
-
-  GLint max_tex_lay;
-  GL_CALL(glGetIntegerv, GL_MAX_ARRAY_TEXTURE_LAYERS, &max_tex_lay);
-  limits.tex_max_layers = max_tex_lay;
-
-  GLint max_tex_dim;
-  GL_CALL(glGetIntegerv, GL_MAX_TEXTURE_SIZE, &max_tex_dim);
-  limits.tex_max_extent = max_tex_dim;
-
-  GLint max_tex_dim3d;
-  GL_CALL(glGetIntegerv, GL_MAX_3D_TEXTURE_SIZE, &max_tex_dim3d);
-  limits.tex_max_extent3d = max_tex_dim3d;
-
-  // GLint max_fbo_attach;
-  // glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &max_fbo_attach);
-  // _fbo_max_attachments = max_fbo_attach;
 }
 
 void gl_state::create_vao(glvao_t& vao) {

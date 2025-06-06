@@ -237,7 +237,7 @@ inline expect<texture2d> load_texture2d(context_view ctx, const std::string& pat
                                         uint32 levels = 7u, bool mips = true) {
   return load_image<DepthT>(path)
   .and_then([&](auto&& image) -> expect<texture2d> {
-    return r_make_texture2d(ctx, image, sampler, addressing, levels, mips);
+    return make_texture2d(ctx, image, sampler, addressing, levels, mips);
   });
 }
 
@@ -256,7 +256,7 @@ expect<pipeline> make_pipeline(
     .stages = stages,
     .primitive = primitive_mode::triangles,
     .poly_mode = polygon_mode::fill,
-    .poly_width = nullopt,
+    .poly_width = 1.f,
     .tests = {
       .stencil_test = nullptr,
       .depth_test = depth_test,
@@ -290,7 +290,7 @@ expect<pipeline> make_pipeline(
     .stages = stages,
     .primitive = primitive_mode::triangles,
     .poly_mode = polygon_mode::fill,
-    .poly_width = nullopt,
+    .poly_width = 1.f,
     .tests = {
       .stencil_test = nullptr,
       .depth_test = depth_test,

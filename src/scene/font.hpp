@@ -11,9 +11,16 @@
 
 namespace ntf::render {
 
+struct font_render_data {
+  pipeline_t pip;
+  shader_binding binds;
+  uniform_view u_sampler;
+  uniform_view u_transf;
+};
+
 struct font_render_rule {
   virtual ~font_render_rule() = default;
-  virtual std::pair<pipeline_t, shader_binding> write_uniforms() = 0;
+  virtual font_render_data write_uniforms() = 0;
 };
 
 template<font_codepoint_type CodeT>
@@ -100,7 +107,9 @@ private:
   static_assert(std::is_trivial_v<glyph_props>);
 
 private:
-  sdf_text_rule(pipeline&& pip, uniform_buffer&& ubo, const glyph_props& props);
+  sdf_text_rule(pipeline&& pip, uniform_buffer&& ubo,
+                uniform_view u_sampler, uniform_view u_transf,
+                const glyph_props& props);
 
 public:
   static expect<sdf_text_rule> create(context_view ctx,
@@ -110,7 +119,7 @@ public:
                                       float outline_width = 0.f, float outline_edge = 0.f);
 
 public:
-  std::pair<pipeline_t, shader_binding> write_uniforms() override;
+  font_render_data write_uniforms() override;
 
 public:
   sdf_text_rule& text_color(const color3& color) & {
@@ -174,18 +183,22 @@ public:
 private:
   pipeline _pipeline;
   uniform_buffer _uniform_buffer;
+  uniform_view _u_sampler;
+  uniform_view _u_transf;
   glyph_props _props;
 };
 
 class bitmap_text_rule final : public font_render_rule {
 private:
-  bitmap_text_rule(pipeline&& pip, uniform_buffer&& ubo, const color3& color);
+  bitmap_text_rule(pipeline&& pip, uniform_buffer&& ubo,
+                   uniform_view u_sampler, uniform_view u_transf,
+                   const color3& color);
 
 public:
   static expect<bitmap_text_rule> create(context_view ctx, const color3& color);
 
 public:
-  std::pair<pipeline_t, shader_binding> write_uniforms() override;
+  font_render_data write_uniforms() override;
 
 public:
   bitmap_text_rule& color(const color3& col) & {
@@ -206,6 +219,8 @@ public:
 private:
   pipeline _pipeline;
   uniform_buffer _uniform_buffer;
+  uniform_view _u_sampler;
+  uniform_view _u_transf;
   color3 _text_color;
 };
 

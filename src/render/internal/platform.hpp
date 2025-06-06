@@ -21,53 +21,15 @@
                           vk_alloc_ptr, vk_surface_ptr)
 #endif
 
-#define RENDER_ERROR_LOG(_fmt, ...) \
-  SHOGLE_LOG(error, "{} ({})" _fmt, NTF_FUNC, NTF_LINE __VA_OPT__(,) __VA_ARGS__)
-
-#define RENDER_WARN_LOG(_fmt, ...) \
-  SHOGLE_LOG(warning, "{} ({})" _fmt, NTF_FUNC, NTF_LINE __VA_OPT__(,) __VA_ARGS__)
-
-#define RET_ERROR(_fmt, ...) \
-  RENDER_ERROR_LOG(_fmt __VA_OPT__(,) __VA_ARGS__); \
-  return unexpected{render_error::format({_fmt} __VA_OPT__(,) __VA_ARGS__)}
-
-#define RET_ERROR_IF(_cond, _fmt, ...) \
-  if (_cond) { \
-    RET_ERROR(_fmt, __VA_ARGS__); \
-  }
-
-#define RET_ERROR_CATCH(_msg) \
-  catch (render_error& err) { \
-    RENDER_ERROR_LOG(_msg ": {}", err.what()); \
-    return unexpected{std::move(err)}; \
-  } catch (const std::exception& ex) { \
-    RENDER_ERROR_LOG(_msg ": {}", ex.what()); \
-    return unexpected{render_error::format({"{}"}, ex.what())}; \
-  } catch (...) { \
-    RENDER_ERROR_LOG(_msg ": Caught (...)"); \
-    return unexpected{render_error{"Unknown error"}}; \
-  }
-
-#define RENDER_ERROR_LOG_CATCH(_msg) \
-  catch (const std::exception& ex) { \
-    RENDER_ERROR_LOG(_msg ": {}", ex.what()); \
-  } catch (...) { \
-    RENDER_ERROR_LOG(_msg ": Caught (...)"); \
-  }
-
 #include "../context.hpp"
 #include "../buffer.hpp"
 #include "../framebuffer.hpp"
 #include "../texture.hpp"
 #include "../pipeline.hpp"
 
-#include <ntfstl/allocator.hpp>
-#include <ntfstl/unique_array.hpp>
-#include <ntfstl/hashmap.hpp>
+#include "./allocator.hpp"
 
 #include <variant>
-#include <deque>
-#include <queue>
 #include <atomic>
 
 namespace ntf::render {
@@ -83,271 +45,6 @@ using ctx_unif = ctx_handle;
 using ctx_fbo = ctx_handle;
 constexpr auto DEFAULT_FBO_HANDLE = CTX_HANDLE_TOMB;
 
-class ctx_alloc {
-public:
-  using malloc_fun = void*(*)(void* user_ptr, size_t size, size_t alignment);
-  using mfree_fun  = void (*)(void* user_ptr, void* mem, size_t size);
-
-  template<typename T> 
-  struct alloc_del_t {
-    alloc_del_t(void* user_ptr, mfree_fun mfree) noexcept :
-      _uptr{user_ptr}, _free{mfree} {}
-
-    template<typename U = T>
-    requires(std::is_convertible_v<U*, T*>)
-    void operator()(U* ptr) noexcept(std::is_nothrow_destructible_v<T>)
-    {
-      if constexpr (!std::is_trivially_destructible_v<T>) {
-        static_cast<T*>(ptr)->~T();
-      }
-      std::invoke(_free, _uptr, ptr, sizeof(T));
-    }
-
-    template<typename U = T>
-    requires(std::is_convertible_v<U*, T*>)
-    void operator()(uninitialized_t, U* ptr)
-    noexcept(std::is_nothrow_destructible_v<T>)
-    {
-      std::invoke(_free, _uptr, ptr, sizeof(T));
-    }
-
-    template<typename U = T>
-    requires(std::is_convertible_v<U*, T*>)
-    void operator()(uninitialized_t, U* ptr, size_t n)
-    noexcept(std::is_nothrow_destructible_v<T>)
-    {
-      std::invoke(_free, _uptr, ptr, n*sizeof(T));
-    }
-
-    template<typename U = T>
-    requires(std::is_convertible_v<U*, T*>)
-    void operator()(U* ptr, size_t n) noexcept(std::is_nothrow_destructible_v<T>) {
-      if constexpr (!std::is_trivially_destructible_v<T>) {
-        for (U* it = ptr; it < ptr+n; ++it) {
-          static_cast<T*>(it)->~T();
-        }
-      }
-      std::invoke(_free, _uptr, ptr, n*sizeof(T));
-    }
-
-  private:
-    void* _uptr;
-    mfree_fun _free;
-  };
-
-  template<typename T>
-  struct adaptor_t {
-    using value_type = T;
-    using pointer = T*;
-    using size_type = size_t;
-    using difference_type = ptrdiff_t;
-
-    template<typename U>
-    using rebind = adaptor_t<U>;
-
-    adaptor_t(ctx_alloc& alloc) noexcept :
-      _alloc{&alloc} {}
-
-    template<typename U>
-    adaptor_t(const adaptor_t<U>& other) noexcept :
-      _alloc{other._alloc} {}
-
-    adaptor_t(const adaptor_t&) noexcept = default;
-    
-    pointer allocate(size_t n) {
-      T* ptr = _alloc->allocate_uninited<T>(n);
-      if (!ptr) {
-        throw std::bad_alloc{};
-      }
-      return ptr;
-    }
-
-    void deallocate(pointer ptr, size_t n) noexcept {
-      _alloc->deallocate(ptr, n*sizeof(T));
-    }
-
-    constexpr bool operator==(const adaptor_t&) { return true; }
-    constexpr bool operator!=(const adaptor_t&) { return false; }
-
-  private:
-    ctx_alloc* _alloc;
-  };
-
-  // template<typename T>
-  // using adaptor_t = allocator_adaptor<T, rp_alloc>;
-
-  template<typename T>
-  using uptr_t = std::unique_ptr<T, alloc_del_t<T>>;
-
-  template<typename T>
-  using uarray_t = unique_array<T, alloc_del_t<T>>;
-
-  template<typename T>
-  using vec_t = std::vector<T, adaptor_t<T>>;
-
-  template<typename T>
-  using deque_t = std::deque<T, adaptor_t<T>>;
-
-  template<typename T>
-  using queue_t = std::queue<T, deque_t<T>>;
-
-  template<typename T>
-  using string_t = std::basic_string<T, std::char_traits<T>, adaptor_t<T>>;
-
-  template<typename T>
-  using string_view_t = std::basic_string_view<T, std::char_traits<T>>;
-
-  template<typename T>
-  struct string_hash {
-    size_t operator()(const string_t<T>& str) const {
-      std::hash<string_view_t<T>> h{};
-      string_view_t<T> view{str};
-      return h(view);
-    }
-  };
-
-  template<typename T, typename U = char>
-  using string_fhashmap_t = fixed_hashmap<
-    string_t<U>, T,
-    string_hash<U>, std::equal_to<string_t<U>>,
-    // rp_alloc::alloc_del_t<std::pair<const std::string, r_uniform_>>
-    allocator_delete<
-      std::pair<const string_t<U>, T>,
-      adaptor_t<std::pair<const string_t<U>, T>>
-    >
-  >;
-
-public:
-  ctx_alloc(const malloc_funcs& funcs, linked_arena&& arena) noexcept :
-    _arena{std::move(arena)},
-    _user_ptr{funcs.user_ptr},
-    _malloc{funcs.mem_alloc}, _free{funcs.mem_free} {}
-
-public:
-  static uptr_t<ctx_alloc> make_alloc(weak_cptr<malloc_funcs> alloc, size_t arena_size);
-  
-public: 
-  void* allocate(size_t size, size_t alignment) {
-    return std::invoke(_malloc, _user_ptr, size, alignment);
-  }
-
-  void deallocate(void* mem, size_t sz) {
-    std::invoke(_free, _user_ptr, mem, sz);
-  }
-
-  template<typename T>
-  T* allocate_uninited(size_t n = 1u) {
-    return static_cast<T*>(allocate(n*sizeof(T), alignof(T)));
-  }
-
-  template<typename T, typename... Args>
-  T* construct(Args&&... args) {
-    T* obj = static_cast<T*>(allocate(sizeof(T), alignof(T)));
-    if (!obj) {
-      return nullptr;
-    }
-    std::construct_at(obj, std::forward<Args>(args)...);
-    return obj;
-  }
-
-  template<typename T>
-  void destroy(T* obj) {
-    obj->~T();
-    deallocate(obj, sizeof(T));
-  }
-
-public:
-  template<typename T>
-  adaptor_t<T> make_adaptor() noexcept { return adaptor_t<T>{*this}; }
-
-  template<typename T>
-  alloc_del_t<T> make_deleter() noexcept { return alloc_del_t<T>{_user_ptr, _free}; }
-
-  template<typename T>
-  uptr_t<T> wrap_unique(T* ptr) noexcept {
-    return uptr_t<T>{ptr, alloc_del_t<T>{_user_ptr, _free}};
-  }
-
-  template<typename T, typename... Args>
-  uptr_t<T> make_unique(Args&&... args) {
-    return uptr_t<T>{construct<T>(std::forward<Args>(args)...), alloc_del_t<T>{_user_ptr, _free}};
-  }
-
-  template<typename T>
-  uarray_t<T> wrap_array(T* ptr, size_t count) {
-    return uarray_t<T>{ptr, count, alloc_del_t<T>{_user_ptr, _free}};
-  }
-
-  template<typename T>
-  uarray_t<T> make_uninited_array(size_t count) {
-    T* ptr = allocate_uninited<T>(count);
-    return uarray_t<T>{ptr ? count : 0u, ptr, alloc_del_t<T>{_user_ptr, _free}};
-  }
-
-  template<typename T>
-  vec_t<T> make_vector(size_t reserve = 0u) {
-    vec_t<T> vec{make_adaptor<T>()};
-    if (reserve) {
-      vec.reserve(reserve);
-    }
-    return vec;
-  }
-
-  template<typename T = char>
-  string_t<T> make_string(size_t reserve = 0u) {
-    string_t<T> str{make_adaptor<T>()};
-    if (reserve){
-      str.reserve(reserve);
-    }
-    return str;
-  }
-
-  template<typename T = char>
-  string_t<T> fmt_string(fmt::string_view fmt, fmt::format_args args) {
-    auto adaptor = make_adaptor<T>();
-    fmt::basic_memory_buffer<T, fmt::inline_buffer_size, adaptor_t<T>> buff{adaptor};
-    fmt::vformat_to(std::back_inserter(buff), fmt, args);
-    return string_t<T>{buff.data(), buff.size(), adaptor};
-  }
-
-  template<typename T = char, typename... Args>
-  string_t<T> fmt_string_args(fmt::string_view fmt, Args&&... args) {
-    return fmt_string(fmt, fmt::make_format_args(std::forward<Args>(args)...));
-  }
-
-public:
-  void arena_clear() {
-    _arena.clear();
-  }
-
-  void* arena_allocate(size_t size, size_t alignment) {
-    return _arena.allocate(size, alignment);
-  }
-
-  template<typename T, typename... Args>
-  T* arena_construct(Args&&... args) {
-    return _arena.construct<T>(std::forward<Args>(args)...);
-  }
-
-  template<typename T>
-  T* arena_allocate_uninited(size_t n = 1u) {
-    return _arena.allocate_uninited<T>(n);
-  }
-
-public:
-  template<typename T>
-  span<T> arena_span(size_t count) {
-    auto* ptr = arena_allocate_uninited<T>(count);
-    return span<T>{ptr, ptr ? count : 0u};
-  }
-
-private:
-  linked_arena _arena;
-  void* _user_ptr;
-  malloc_fun _malloc;
-  mfree_fun _free;
-};
-
 struct ctx_unif_meta {
   ctx_unif handle;
   ctx_alloc::string_t<char> name;
@@ -359,16 +56,10 @@ using unif_meta_vec = ctx_alloc::vec_t<ctx_unif_meta>;
 template<typename T>
 using handle_map = std::unordered_map<ctx_handle, T>;
 
-struct ctx_meta {
-  struct limits_t {
-    uint32 tex_max_layers;
-    uint32 tex_max_extent;
-    uint32 tex_max_extent3d;
-  };
-
-  context_api api;
-  ctx_alloc::string_t<char> name_str;
-  limits_t limits;
+struct ctx_limits {
+  uint32 tex_max_layers;
+  uint32 tex_max_extent;
+  uint32 tex_max_extent3d;
 };
 
 class ctx_render_cmd {
@@ -463,10 +154,10 @@ enum ctx_tex_status {
 
 struct ctx_shad_desc {
   shader_type type;
-  std::string_view source;
+  cstring_view<char> source;
 };
 
-using shad_err_str = ctx_alloc::string_view_t<char>;
+using shad_err_str = cstring_view<char>;
 
 enum ctx_shad_status {
   CTX_SHAD_STATUS_OK = 0,
@@ -485,7 +176,7 @@ struct ctx_pip_desc {
   render_tests tests;
 };
 
-using pip_err_str = ctx_alloc::string_view_t<char>;
+using pip_err_str = cstring_view<char>;
 
 enum ctx_pip_status {
   CTX_PIP_STATUS_OK = 0,
@@ -502,7 +193,8 @@ struct ctx_fbo_desc {
 
   extent2d extent;
   fbo_buffer test_buffer;
-  cspan<tex_att_t> attachments;
+  cspan<tex_att_t> ctx_attachments;
+  ctx_alloc::uarray_t<fbo_image> attachments;
 };
 
 enum ctx_fbo_status {
@@ -512,7 +204,8 @@ enum ctx_fbo_status {
 
 struct icontext {
   virtual ~icontext() = default;
-  virtual void get_meta(ctx_meta& meta) = 0;
+  virtual void get_limits(ctx_limits& limits) = 0;
+  virtual ctx_alloc::string_t<char> get_name(ctx_alloc& alloc) = 0;
 
   virtual ctx_buff_status create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) = 0;
   virtual ctx_buff_status update_buffer(ctx_buff buff, const buffer_data& data) = 0;
@@ -659,7 +352,7 @@ public:
   ctx_fbo handle;
   extent2d extent;
   fbo_buffer test_buffer;
-  optional<ctx_alloc::uarray_t<fbo_image>> attachments;
+  ctx_alloc::uarray_t<fbo_image> attachments;
   ctx_alloc::vec_t<ctx_render_cmd> cmds;
   ctx_render_data::fbo_data_t fdata;
 
@@ -671,7 +364,7 @@ struct context_t_ {
 public:
   context_t_(ctx_alloc::uptr_t<ctx_alloc>&& alloc,
              ctx_alloc::uptr_t<icontext>&& renderer,
-             ctx_meta&& renderer_meta,
+             ctx_alloc::string_t<char>&& renderer_name,
              window_t win, context_api api,
              extent2d fbo_ext, fbo_buffer fbo_tbuff,
              const ctx_render_data::fbo_data_t& fdata) noexcept;
@@ -707,6 +400,7 @@ public:
   framebuffer_t default_fbo() { return &_default_fbo;}
   window_t window() const { return _win; }
   size_t fbo_count() const { return _fbo_list_sz; }
+  cstring_view<char> name() const { return _renderer_name; }
 
 public:
   ctx_alloc::uptr_t<ctx_alloc> on_destroy();
@@ -714,7 +408,7 @@ public:
 private:
   ctx_alloc::uptr_t<ctx_alloc> _alloc;
   ctx_alloc::uptr_t<icontext> _renderer;
-  ctx_meta _renderer_meta;
+  ctx_alloc::string_t<char> _renderer_name;
 
   context_api _api;
   window_t _win;

@@ -30,6 +30,30 @@ static expect<void> validate_desc(const buffer_desc& desc) {
   return {};
 }
 
+static const char* buffer_type_str(buffer_type type) {
+  switch (type) {
+    case buffer_type::vertex: return "VERTEX";
+    case buffer_type::index: return "INDEX";
+    case buffer_type::shader_storage: return "SHADER_STORAGE";
+    case buffer_type::texel: return "TEXEL";
+    case buffer_type::uniform: return "UNIFORM";
+  }
+  NTF_UNREACHABLE();
+}
+
+static unexpected<render_error> handle_error(ctx_buff_status status){
+  switch (status){
+    case CTX_BUFF_STATUS_ALLOC_FAILED: {
+      RET_ERROR("Buffer allocation failed");
+    }
+    case CTX_BUFF_STATUS_INVALID_HANDLE: {
+      RET_ERROR("Invalid buffer handle");
+    }
+    case CTX_BUFF_STATUS_OK: NTF_UNREACHABLE();
+  }
+  NTF_UNREACHABLE();
+}
+
 expect<buffer_t> create_buffer(context_t ctx, const buffer_desc& desc) {
   RET_ERROR_IF(!ctx, "Invalid context handle");
   auto& alloc = ctx->alloc();
@@ -37,20 +61,23 @@ expect<buffer_t> create_buffer(context_t ctx, const buffer_desc& desc) {
     return validate_desc(desc)
     .transform([&]() -> ctx_buff_desc { return transform_desc(desc); })
     .and_then([&](ctx_buff_desc&& buff_desc) -> expect<buffer_t> {
+      auto* buff = alloc.allocate_uninited<buffer_t_>();
+      NTF_ASSERT(buff);
+
       ctx_buff handle = CTX_HANDLE_TOMB;
       const auto ret = ctx->renderer().create_buffer(handle, buff_desc);
-      RET_ERROR_IF(ret != CTX_BUFF_STATUS_OK, "Failed to create buffer");
-
-      auto* buff = alloc.allocate_uninited<buffer_t_>(1u);
-      if (!buff) {
-        ctx->renderer().destroy_buffer(handle);
-        RET_ERROR("Failed to allocate buffer");
+      if (ret != CTX_BUFF_STATUS_OK) {
+        alloc.deallocate(buff, sizeof(buffer_t_));
+        return handle_error(ret);
       }
+
+      NTF_ASSERT(check_handle(handle));
       std::construct_at(buff,
                         ctx, handle, buff_desc);
       ctx->insert_node(buff);
       NTF_ASSERT(buff->prev == nullptr);
-      SHOGLE_LOG(debug, "[ntf::r_create_buffer] Buffer created");
+      RENDER_DBG_LOG("Buffer created {} [type: {}]",
+                     buff->handle, buffer_type_str(desc.type));
 
       return buff;
     });
@@ -63,11 +90,12 @@ void destroy_buffer(buffer_t buffer) noexcept {
   }
   const auto handle = buffer->handle;
   auto* ctx = buffer->ctx;
+  RENDER_DBG_LOG("Buffer destroyed ({}) [type: {}]",
+                 buffer->handle, buffer_type_str(buffer->type));
 
   ctx->remove_node(buffer);
   ctx->renderer().destroy_buffer(handle);
   ctx->alloc().destroy(buffer);
-  SHOGLE_LOG(debug, "[ntf::r_destroy_buffer] Buffer destroyed");
 }
 
 expect<void> buffer_upload(buffer_t buffer, size_t size, size_t offset, const void* data) {
@@ -93,30 +121,19 @@ expect<void> buffer_upload(buffer_t buffer, size_t size, size_t offset, const vo
   return {};
 }
 
-void* buffer_map(buffer_t buffer, size_t size, size_t offset) {
-  if (!buffer) {
-    RENDER_ERROR_LOG("Invalid buffer handle");
-    return nullptr;
-  }
-
-  if (!+(buffer->flags & buffer_flag::read_mappable) ||
-      !+(buffer->flags & buffer_flag::write_mappable)) {
-    RENDER_ERROR_LOG("Non mappable buffer");
-    return nullptr;
-  }
-
-  if (offset+size > buffer->size) {
-    RENDER_ERROR_LOG("Invalid mapping size");
-    return nullptr;
-  }
+expect<void*> buffer_map(buffer_t buffer, size_t size, size_t offset) {
+  RET_ERROR_IF(!buffer, "Invalid buffer handle");
+  RET_ERROR_IF(!+(buffer->flags & buffer_flag::read_mappable) ||
+              !+(buffer->flags & buffer_flag::write_mappable),
+               "Non mappable buffer");
+  RET_ERROR_IF(offset+size > buffer->size, "Invalid mapping size");
 
   void* ptr = nullptr;
-  const auto ret = !buffer->ctx->renderer().map_buffer(buffer->handle, &ptr, size, offset);
+  const auto ret = buffer->ctx->renderer().map_buffer(buffer->handle, &ptr, size, offset);
   if (ret != CTX_BUFF_STATUS_OK){
-    RENDER_ERROR_LOG("Failed to map buffer");
-    return nullptr;
+    return handle_error(ret);
   }
-
+  NTF_ASSERT(ptr);
   return ptr;
 }
 
@@ -140,6 +157,11 @@ size_t buffer_get_size(buffer_t buffer) {
 context_t buffer_get_ctx(buffer_t buffer) {
   NTF_ASSERT(buffer);
   return buffer->ctx;
+}
+
+ctx_handle buffer_get_id(buffer_t buffer) {
+  NTF_ASSERT(buffer);
+  return buffer->handle;
 }
 
 } // namespace ntf::render

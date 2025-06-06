@@ -185,7 +185,8 @@ public:
 
   ctx_tex_status create_texture(gltex_t& tex, texture_type type, image_format format,
                                 texture_sampler sampler, texture_addressing addressing,
-                                extent3d extent, uint32 layers, uint32 levels);
+                                extent3d extent, uint32 layers, uint32 levels,
+                                const ctx_limits& limits);
   void destroy_texture(gltex_t& tex);
   bool texture_bind(GLuint tex, GLenum type, uint32 index);
   ctx_tex_status texture_upload(gltex_t& tex, const void* texels,
@@ -206,9 +207,6 @@ public:
   
   void attribute_bind(cspan<attribute_binding> attrs);
   void prepare_state(const external_state& stat);
-
-public:
-  void get_limits(ctx_meta::limits_t& limits) const;
 
 public:
   [[nodiscard]] static GLenum buffer_type_cast(buffer_type type) noexcept;
@@ -309,7 +307,8 @@ public:
   gl_context(ctx_alloc& alloc, window_t win, uint32 swap_interval) noexcept;
 
 public:
-  void get_meta(ctx_meta& meta) override;
+  void get_limits(ctx_limits& limits) override;
+  ctx_alloc::string_t<char> get_name(ctx_alloc& alloc) override;
 
   ctx_buff_status create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) override;
   ctx_buff_status update_buffer(ctx_buff buff, const buffer_data& data) override;

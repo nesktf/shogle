@@ -80,15 +80,18 @@ void text_buffer::_append_glyph(const glyph_metrics& glyph,
 }
 
 
-sdf_text_rule::sdf_text_rule(pipeline&& pip, uniform_buffer&& ubo, const glyph_props& props) :
+sdf_text_rule::sdf_text_rule(pipeline&& pip, uniform_buffer&& ubo,
+                             uniform_view u_sampler, uniform_view u_transf,
+                             const glyph_props& props) :
   _pipeline{std::move(pip)}, _uniform_buffer{std::move(ubo)},
+  _u_sampler{u_sampler}, _u_transf{u_transf},
   _props{props} {}
 
 expect<sdf_text_rule> sdf_text_rule::create(context_view ctx,
-                                                const color3& color, float width, float edge,
-                                                const color3& outline_color,
-                                                const vec2& outline_offset,
-                                                float outline_width, float outline_edge)
+                                            const color3& color, float width, float edge,
+                                            const color3& outline_color,
+                                            const vec2& outline_offset,
+                                            float outline_width, float outline_edge)
 {
   auto frag = fragment_shader::create(ctx, {shad_frag_font_sdf});
   if (!frag) {
@@ -103,7 +106,12 @@ expect<sdf_text_rule> sdf_text_rule::create(context_view ctx,
   auto pipeline = make_pipeline(*vert, *frag);
   if (!pipeline) {
     return unexpected{std::move(pipeline.error())};
-  }
+  } 
+
+  auto u_transf = pipeline->uniform("u_text_transform");
+  auto u_sampler = pipeline->uniform("u_atlas_sampler");
+  NTF_ASSERT(!u_transf.empty());
+  NTF_ASSERT(!u_sampler.empty());
 
   auto buffer = make_ubo(ctx, sizeof(glyph_props));
   if (!buffer){
@@ -119,22 +127,30 @@ expect<sdf_text_rule> sdf_text_rule::create(context_view ctx,
   props.out_width = outline_width;
   props.out_edge = outline_edge;
 
-  return sdf_text_rule{std::move(*pipeline), std::move(*buffer), props};
+  return sdf_text_rule{std::move(*pipeline), std::move(*buffer), u_sampler, u_transf, props};
 }
 
-std::pair<pipeline_t, shader_binding> sdf_text_rule::write_uniforms() {
+font_render_data sdf_text_rule::write_uniforms() {
   _uniform_buffer.upload(_props);
-  return std::make_pair(_pipeline.get(), shader_binding{
-    .buffer = _uniform_buffer.get(),
-    .binding = 2,
-    .size = sizeof(glyph_props),
-    .offset = 0u,
-  });
+  return {
+    .pip = _pipeline,
+    .binds = {
+      .buffer = _uniform_buffer.get(),
+      .binding = 2,
+      .size = sizeof(glyph_props),
+      .offset = 0u,
+    },
+    .u_sampler = _u_sampler,
+    .u_transf = _u_transf,
+  };
 }
 
 
-bitmap_text_rule::bitmap_text_rule(pipeline&& pip, uniform_buffer&& ubo, const color3& color) :
+bitmap_text_rule::bitmap_text_rule(pipeline&& pip, uniform_buffer&& ubo,
+                                   uniform_view u_sampler, uniform_view u_transf,
+                                   const color3& color) :
   _pipeline{std::move(pip)}, _uniform_buffer{std::move(ubo)},
+  _u_sampler{u_sampler}, _u_transf{u_transf},
   _text_color{color} {}
 
 expect<bitmap_text_rule> bitmap_text_rule::create(context_view ctx, const color3& color) {
@@ -152,23 +168,32 @@ expect<bitmap_text_rule> bitmap_text_rule::create(context_view ctx, const color3
   if (!pipeline) {
     return unexpected{std::move(pipeline.error())};
   }
+  auto u_transf = pipeline->uniform("u_text_transform");
+  auto u_sampler = pipeline->uniform("u_atlas_sampler");
+  NTF_ASSERT(!u_transf.empty());
+  NTF_ASSERT(!u_sampler.empty());
 
   auto buffer = make_ubo(ctx, sizeof(color3));
   if (!buffer){
     return unexpected{std::move(buffer.error())};
   }
 
-  return bitmap_text_rule{std::move(*pipeline), std::move(*buffer), color};
+  return bitmap_text_rule{std::move(*pipeline), std::move(*buffer), u_sampler, u_transf, color};
 }
 
-std::pair<pipeline_t, shader_binding> bitmap_text_rule::write_uniforms() {
+font_render_data bitmap_text_rule::write_uniforms() {
   _uniform_buffer.upload(_text_color);
-  return std::make_pair(_pipeline.get(), shader_binding{
-    .buffer = _uniform_buffer.get(),
-    .binding = 2,
-    .size = sizeof(color3),
-    .offset = 0u,
-  });
+  return {
+    .pip = _pipeline,
+    .binds = {
+      .buffer = _uniform_buffer.get(),
+      .binding = 2,
+      .size = sizeof(color3),
+      .offset = 0u,
+    },
+    .u_sampler = _u_sampler,
+    .u_transf = _u_transf,
+  };
 }
 
 font_renderer::font_renderer(shader_storage_buffer&& ssbo, texture2d&& atlas,
@@ -222,7 +247,7 @@ expect<font_renderer> font_renderer::create(context_view ctx,
 void font_renderer::ssbo_callback_t::operator()(context_t) const {
   // TODO: Investigate how to abstract GPU synchronization when writting to
   //       mapped buffers, to avoid rebinding for uploads each frame
-  ssbo.upload(0u, glyph_count*sizeof(text_buffer::glyph_entry), buffer_data.data()+offset);
+  ssbo.upload(glyph_count*sizeof(text_buffer::glyph_entry), 0u, buffer_data.data()+offset);
 }
 
 void font_renderer::clear_state() {
@@ -248,7 +273,7 @@ void font_renderer::render(const quad_mesh& quad, framebuffer_view fbo,
                            font_render_rule& render_rule, uint32 sort_group)
 {
   auto ctx = fbo.context();
-  auto [pipeline, unif_buffer] = render_rule.write_uniforms();
+  auto data = render_rule.write_uniforms();
 
   const shader_binding uniform_binds[] = {
     {
@@ -257,18 +282,19 @@ void font_renderer::render(const quad_mesh& quad, framebuffer_view fbo,
       .size = _ssbo.size(),
       .offset = 0u,
     },
-    unif_buffer,
+    data.binds,
   };
   auto atlas_tex_handle = _atlas_tex.get();
 
+  const int32 sampler = 0;
   const uniform_const unif_consts[] = {
-    format_uniform_const(pipeline_get_uniform(pipeline, "u_atlas_sampler"), 0),
-    format_uniform_const(pipeline_get_uniform(pipeline, "u_text_transform"), _transform)
+    format_uniform_const(data.u_sampler, sampler),
+    format_uniform_const(data.u_transf, _transform),
   };
   for (auto& cb : _write_callbacks) {
     ctx.submit_render_command({
       .target = fbo.get(),
-      .pipeline = pipeline,
+      .pipeline = data.pip,
       .buffers = quad.bindings(uniform_binds),
       .textures = {atlas_tex_handle},
       .consts = unif_consts,

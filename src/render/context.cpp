@@ -34,46 +34,15 @@ namespace ntf::render {
 
 static constexpr size_t INITIAL_ARENA_PAGE = mibs(16u);
 
-static malloc_funcs base_alloc {
-  .user_ptr = nullptr,
-  .mem_alloc = malloc_pool::malloc_fn,
-  .mem_free = malloc_pool::free_fn,
-};
-
-auto ctx_alloc::make_alloc(weak_cptr<malloc_funcs> alloc_in,
-                           size_t arena_size) -> uptr_t<ctx_alloc>
-{
-  auto& alloc = alloc_in ? *alloc_in : base_alloc;
-  auto* ptr = static_cast<ctx_alloc*>(std::invoke(alloc.mem_alloc, alloc.user_ptr,
-                                                  sizeof(ctx_alloc), alignof(ctx_alloc)));
-  if (ptr) {
-    auto arena = linked_arena::from_extern({
-      .user_ptr = alloc.user_ptr,
-      .mem_alloc = alloc.mem_alloc,
-      .mem_free = alloc.mem_free
-    }, arena_size);
-    if (!arena){
-      RENDER_ERROR_LOG("Failed to init allocator arena ({} bytes)", arena_size);
-      std::destroy_at(ptr);
-      std::invoke(alloc.mem_free, alloc.user_ptr, ptr, sizeof(ctx_alloc));
-      ptr = nullptr;
-    } else {
-      std::construct_at(ptr, alloc, std::move(*arena));
-      SHOGLE_LOG(verbose, "[ntf::context_t] Allocator inited with arena of {} bytes)",
-                 arena_size);
-    }
-  }
-  return uptr_t<ctx_alloc>{ptr, alloc_del_t<ctx_alloc>{alloc.user_ptr, alloc.mem_free}};
-}
-
 context_t_::context_t_(ctx_alloc::uptr_t<ctx_alloc>&& alloc,
                        ctx_alloc::uptr_t<icontext>&& renderer,
-                       ctx_meta&& renderer_meta,
+                       ctx_alloc::string_t<char>&& renderer_name,
                        window_t win, context_api api_,
                        extent2d fbo_ext, fbo_buffer fbo_tbuff,
                        const ctx_render_data::fbo_data_t& fdata) noexcept :
   _alloc{std::move(alloc)},
-  _renderer{std::move(renderer)}, _renderer_meta{std::move(renderer_meta)},
+  _renderer{std::move(renderer)},
+  _renderer_name{std::move(renderer_name)},
   _api{api_}, _win{win},
   _default_fbo{this, fbo_ext, fbo_tbuff, fdata},
   _fbo_list_sz{1u},
@@ -138,8 +107,7 @@ static expect<ctx_alloc::uptr_t<icontext>> load_platform_ctx(
       case context_api::opengl: {
         SHOGLE_GL_MAKE_CTX_CURRENT(win);
         SHOGLE_GL_SET_SWAP_INTERVAL(win, static_cast<int>(swap_interval));
-        RET_ERROR_IF(!gladLoadGLLoader(SHOGLE_GL_LOAD_PROC),
-                     "Failed to load GLAD");
+        RET_ERROR_IF(!gladLoadGLLoader(SHOGLE_GL_LOAD_PROC), "Failed to load GLAD");
         ctx = alloc.construct<gl_context>(alloc, win, swap_interval);
         break;
       }
@@ -158,32 +126,33 @@ expect<context_t> create_context(const context_params& params) {
   auto alloc = ctx_alloc::make_alloc(params.alloc, INITIAL_ARENA_PAGE);
   RET_ERROR_IF(!alloc, "Failed to create allocator");
 
-  return load_platform_ctx(*alloc, params.ctx_api, params.window, params.swap_interval)
-  .and_then([&](ctx_alloc::uptr_t<icontext>&& renderer) -> expect<context_t> {
-    context_t ctx = alloc->allocate_uninited<context_t_>();
-    RET_ERROR_IF(!ctx, "Failed to allocate context");
+  try {
+    return load_platform_ctx(*alloc, params.ctx_api, params.window, params.swap_interval)
+    .and_then([&](ctx_alloc::uptr_t<icontext>&& renderer) -> expect<context_t> {
+      auto ctx_name = renderer->get_name(*alloc);
+      context_t ctx = alloc->allocate_uninited<context_t_>();
+      RET_ERROR_IF(!ctx, "Failed to allocate context");
 
-    const ctx_render_data::fbo_data_t fdata {
-      .clear_color = params.fb_clear_color,
-      .viewport = params.fb_viewport,
-      .clear_flags = params.fb_clear_flags,
-    };
+      const ctx_render_data::fbo_data_t fdata {
+        .clear_color = params.fb_clear_color,
+        .viewport = params.fb_viewport,
+        .clear_flags = params.fb_clear_flags,
+      };
 
-    // TODO: Get these from the platform context
-    extent2d fext{0, 0};
-    fbo_buffer ftbuff = fbo_buffer::depth24u_stencil8u;
+      // TODO: Get these from the platform context
+      extent2d fext{0, 0};
+      fbo_buffer ftbuff = fbo_buffer::depth24u_stencil8u;
 
-    ctx_meta meta;
-    renderer->get_meta(meta);
-    SHOGLE_LOG(debug, "[ntf::context_t][CONSTRUCT] {} ",
-               meta.api == context_api::opengl ? "OpenGL" : "Vulkan",
-               meta.name_str);
-
-    std::construct_at(ctx,
-                      std::move(alloc), std::move(renderer), std::move(meta),
-                      params.window, params.ctx_api, fext, ftbuff, fdata);
-    return ctx;
-  });
+      std::construct_at(ctx,
+                        std::move(alloc), std::move(renderer), std::move(ctx_name),
+                        params.window, params.ctx_api, fext, ftbuff, fdata);
+      RENDER_DBG_LOG("Context constructed: {}, {}",
+                     params.ctx_api == context_api::opengl ? "OpenGL" : "Vulkan",
+                     ctx->name());
+      return ctx;
+    });
+  }
+  RET_ERROR_CATCH("Failed to create context");
 }
 
 void destroy_context(context_t ctx) noexcept {
@@ -193,7 +162,7 @@ void destroy_context(context_t ctx) noexcept {
 
   auto alloc = ctx->on_destroy();
   alloc->destroy(ctx);
-  SHOGLE_LOG(debug, "[ntf::context_t][DESTROY]");
+  RENDER_DBG_LOG("Context destroyed");
 }
 
 void start_frame(context_t ctx) {
@@ -260,7 +229,7 @@ void submit_external_command(context_t ctx, const external_cmd& cmd) {
   tcmd.pip = CTX_HANDLE_TOMB; // for sorting, draw last
 }
 
-void submit_command(context_t ctx, const render_cmd& cmd) {
+void submit_render_command(context_t ctx, const render_cmd& cmd) {
   if (!ctx) {
     return;
   }
@@ -279,6 +248,8 @@ void submit_command(context_t ctx, const render_cmd& cmd) {
   tcmd.vbo = cmd.buffers.vertex->handle;
   if (cmd.buffers.index) {
     tcmd.ebo = cmd.buffers.index->handle;
+  } else {
+    tcmd.ebo = CTX_HANDLE_TOMB;
   }
 
   if (!cmd.buffers.shader.empty()) {
@@ -291,6 +262,8 @@ void submit_command(context_t ctx, const render_cmd& cmd) {
       ++i;
     }
     tcmd.shader_buffers = {buffers, buff_count};
+  } else {
+    tcmd.shader_buffers = {};
   }
 
   if (!cmd.textures.empty()) {
@@ -302,6 +275,8 @@ void submit_command(context_t ctx, const render_cmd& cmd) {
       ++i;
     }
     tcmd.textures = {textures, tex_count};
+  } else {
+    tcmd.textures = {};
   }
 
   if (!cmd.consts.empty()) {
@@ -318,6 +293,8 @@ void submit_command(context_t ctx, const render_cmd& cmd) {
       ++i;
     }
     tcmd.uniforms = {unifs, uniform_count};
+  } else {
+    tcmd.uniforms = {};
   }
 }
 
@@ -333,6 +310,13 @@ context_api get_api(context_t ctx) {
     return context_api::none;
   }
   return ctx->api();
+}
+
+cstring_view<char> get_name(context_t ctx) {
+  if (!ctx) {
+    return {};
+  }
+  return ctx->name();
 }
 
 } // namespace ntf::render

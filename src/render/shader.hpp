@@ -15,7 +15,7 @@ enum class shader_type : uint8 {
 
 struct shader_desc {
   shader_type type;
-  cspan<std::string_view> source;
+  cspan<cstring_view<char>> source;
 };
 
 expect<shader_t> create_shader(context_t ctx, const shader_desc& desc);
@@ -23,6 +23,7 @@ void destroy_shader(shader_t shader) noexcept;
 
 shader_type shader_get_type(shader_t shader);
 context_t shader_get_ctx(shader_t shader);
+ctx_handle shader_get_id(shader_t shader);
 
 } // namespace ntf::renderer
 
@@ -31,7 +32,7 @@ namespace ntf::impl {
 template<typename Derived>
 class rshader_ops {
   ntfr::shader_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::shader_t ptr = static_cast<Derived&>(*this).get();
+    ntfr::shader_t ptr = static_cast<const Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid shader handle");
     return ptr;
   }
@@ -44,6 +45,9 @@ public:
   }
   ntfr::shader_type type() const {
     return ntfr::shader_get_type(_ptr());
+  }
+  ntfr::ctx_handle id() const {
+    return ntfr::shader_get_id(_ptr());
   }
 };
 
@@ -155,7 +159,7 @@ public:
     impl::rshader_owning<typed_shader<shad_enum>>{shad} {}
 
 public:
-  static expect<typed_shader> create(context_view ctx, cspan<std::string_view> src) {
+  static expect<typed_shader> create(context_view ctx, cspan<cstring_view<char>> src) {
     return ntfr::create_shader(ctx, {
       .type = shad_enum,
       .source = src,

@@ -76,6 +76,7 @@ void submit_render_command(context_t ctx, const render_cmd& cmd);
 void submit_external_command(context_t ctx, const external_cmd& cmd);
 window_t get_window(context_t ctx);
 context_api get_api(context_t ctx);
+cstring_view<char> get_name(context_t ctx);
 
 } // namespace ntf::render
 
@@ -83,8 +84,10 @@ namespace ntf::impl {
 
 template<typename Derived>
 class rcontext_ops {
-  ntfr::context_t _ptr() const noexcept {
-    return static_cast<Derived&>(*this).get();
+  ntfr::context_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
+    ntfr::context_t ptr = static_cast<const Derived&>(*this).get();
+    NTF_ASSERT(ptr, "Invalid context handle");
+    return ptr;
   }
 
 public:

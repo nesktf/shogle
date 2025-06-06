@@ -1,4 +1,4 @@
-#include "../internal/platform.hpp"
+#include "./internal/platform.hpp"
 #include "../../../include/shogle/boilerplate.hpp"
 #include "./imgui.hpp"
 
@@ -37,9 +37,9 @@
   NTF_UNREACHABLE()
 #endif
 
-namespace ntf {
+namespace ntf::render {
 
-imgui_ctx::imgui_ctx(r_context ctx, r_api shogle_api) noexcept :
+imgui_ctx::imgui_ctx(context_view ctx, context_api shogle_api) noexcept :
   _ctx{ctx}, _shogle_api{shogle_api}, _draw_data{nullptr} {}
 
 imgui_ctx::~imgui_ctx() noexcept { _destroy(); }
@@ -60,22 +60,22 @@ imgui_ctx& imgui_ctx::operator=(imgui_ctx&& other) noexcept {
   return *this;
 }
 
-imgui_ctx imgui_ctx::create(r_context ctx, ImGuiConfigFlags flags, bool bind_callbacks) {
+imgui_ctx imgui_ctx::create(context_view ctx, ImGuiConfigFlags flags, bool bind_callbacks) {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   io.ConfigFlags |= flags;
   ImGui::StyleColorsDark();
 
-  const auto win = r_get_window(ctx);
-  const auto api = r_get_api(ctx);
+  const auto win = ctx.window();
+  const auto api = ctx.api();
   NTF_ASSERT(win);
   switch (api) {
-    case r_api::opengl: {
+    case context_api::opengl: {
       SHOGLE_INIT_IMGUI_OPENGL(win, bind_callbacks);
       break;
     }
-    case r_api::vulkan: {
+    case context_api::vulkan: {
       SHOGLE_INIT_IMGUI_VULKAN(win, bind_callbacks);
       break;
     }
@@ -93,11 +93,11 @@ void imgui_ctx::_destroy() noexcept {
   }
 
   switch (_shogle_api) {
-    case r_api::opengl: {
+    case context_api::opengl: {
       SHOGLE_DESTROY_IMGUI_OPENGL();
       break;
     }
-    case r_api::vulkan: {
+    case context_api::vulkan: {
       SHOGLE_DESTROY_IMGUI_VULKAN();
       break;
     }
@@ -112,11 +112,11 @@ void imgui_ctx::_destroy() noexcept {
 void imgui_ctx::start_frame() {
   _draw_data = nullptr;
   switch (_shogle_api) {
-    case r_api::opengl: {
+    case context_api::opengl: {
       SHOGLE_IMGUI_OPENGL_NEW_FRAME();
       break;
     }
-    case r_api::vulkan: {
+    case context_api::vulkan: {
       SHOGLE_IMGUI_VULKAN_NEW_FRAME();
       break;
     }
@@ -128,14 +128,14 @@ void imgui_ctx::start_frame() {
   ImGui::NewFrame();
 }
 
-void imgui_ctx::operator()(r_context, r_platform_handle) {
+void imgui_ctx::operator()(context_t, ctx_handle) {
   NTF_ASSERT(_draw_data);
   switch (_shogle_api) {
-    case r_api::opengl: {
+    case context_api::opengl: {
       SHOGLE_IMGUI_OPENGL_END_FRAME(_draw_data);
       break;
     }
-    case r_api::vulkan: {
+    case context_api::vulkan: {
       SHOGLE_IMGUI_VULKAN_END_FRAME(_draw_data);
       break;
     }
@@ -145,28 +145,30 @@ void imgui_ctx::operator()(r_context, r_platform_handle) {
   }
 }
 
-void imgui_ctx::end_frame(r_framebuffer target,
+void imgui_ctx::end_frame(framebuffer_view target,
                           uint32 sort_group,
-                          weak_cptr<r_external_state> state,
+                          weak_cptr<external_state> state,
                           ImDrawData* draw_data) {
   _draw_data = draw_data;
   if (!_draw_data) {
     ImGui::Render();
     _draw_data = ImGui::GetDrawData();
   }
-  target = target ? target : r_get_default_framebuffer(_ctx);
+  if (target.empty()) {
+    target = framebuffer::get_default(_ctx);
+  }
 
   // hack
-  const auto fb = r_framebuffer_get_viewport(target);
+  const auto fb = target.viewport();
   _draw_data->DisplaySize.x = fb.z;
   _draw_data->DisplaySize.y = fb.w;
 
-  r_submit_external_command(_ctx, {
+  _ctx.submit_external_command({
     .target = target,
     .state = state,
     .sort_group = sort_group,
-    .callback = {*this},
+    .render_callback = {*this},
   });
 }
 
-} // namespace ntf
+} // namespace ntf::render

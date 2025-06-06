@@ -202,7 +202,8 @@ GLenum gl_state::texture_addressing_cast(texture_addressing address) noexcept {
 
 ctx_tex_status gl_state::create_texture(gltex_t& tex, texture_type type, image_format format,
                                         texture_sampler sampler, texture_addressing addressing,
-                                        extent3d extent, uint32 layers, uint32 levels)
+                                        extent3d extent, uint32 layers, uint32 levels,
+                                        const ctx_limits& limits)
 {
   NTF_ASSERT(levels <= MAX_TEXTURE_LEVEL && levels > 0);
 
@@ -219,21 +220,21 @@ ctx_tex_status gl_state::create_texture(gltex_t& tex, texture_type type, image_f
 
   switch (gltype) {
     case GL_TEXTURE_1D_ARRAY: {
-      NTF_ASSERT(extent.x > 0 && extent.x <= _tex_limits.max_dim);
+      NTF_ASSERT(extent.x > 0 && extent.x <= limits.tex_max_extent);
       NTF_ASSERT(layers > 0);
       GL_CALL(glTexStorage2D, gltype, levels, glformat, extent.x, layers);
       break;
     }
 
     case GL_TEXTURE_1D: {
-      NTF_ASSERT(extent.x > 0 && extent.x <= _tex_limits.max_dim);
+      NTF_ASSERT(extent.x > 0 && extent.x <= limits.tex_max_extent);
       GL_CALL(glTexStorage1D, gltype, levels, glformat, extent.x);
       break;
     }
 
     case GL_TEXTURE_2D_ARRAY: {
-      NTF_ASSERT(extent.x > 0 && extent.x <= _tex_limits.max_dim);
-      NTF_ASSERT(extent.y > 0 && extent.y <= _tex_limits.max_dim);
+      NTF_ASSERT(extent.x > 0 && extent.x <= limits.tex_max_extent);
+      NTF_ASSERT(extent.y > 0 && extent.y <= limits.tex_max_extent);
       NTF_ASSERT(layers > 0);
       GL_CALL(glTexStorage3D, gltype, levels, glformat, extent.x, extent.y, layers);
       break;
@@ -243,16 +244,16 @@ ctx_tex_status gl_state::create_texture(gltex_t& tex, texture_type type, image_f
       NTF_ASSERT(extent.x == extent.y);
       [[fallthrough]];
     case GL_TEXTURE_2D: {
-      NTF_ASSERT(extent.x > 0 && extent.x <= _tex_limits.max_dim);
-      NTF_ASSERT(extent.y > 0 && extent.y <= _tex_limits.max_dim);
+      NTF_ASSERT(extent.x > 0 && extent.x <= limits.tex_max_extent);
+      NTF_ASSERT(extent.y > 0 && extent.y <= limits.tex_max_extent);
       GL_CALL(glTexStorage2D, gltype, levels, glformat, extent.x, extent.y);
       break;
     }
 
     case GL_TEXTURE_3D: {
-      NTF_ASSERT(extent.x > 0 && extent.x <= _tex_limits.max_dim3d);
-      NTF_ASSERT(extent.y > 0 && extent.y <= _tex_limits.max_dim3d);
-      NTF_ASSERT(extent.z > 0 && extent.z <= _tex_limits.max_dim3d);
+      NTF_ASSERT(extent.x > 0 && extent.x <= limits.tex_max_extent3d);
+      NTF_ASSERT(extent.y > 0 && extent.y <= limits.tex_max_extent3d);
+      NTF_ASSERT(extent.z > 0 && extent.z <= limits.tex_max_extent3d);
       GL_CALL(glTexStorage3D, gltype, levels, glformat, extent.x, extent.y, extent.z);
       break;
     };
@@ -322,7 +323,7 @@ ctx_tex_status gl_state::texture_upload(gltex_t& tex, const void* texels, image_
   NTF_ASSERT(tex.id);
   NTF_ASSERT(texels);
   NTF_ASSERT(level < tex.levels);
-  NTF_ASSERT(alignment % 2 == 0 && alignment <= 8);
+  NTF_ASSERT(!(alignment & (alignment-1)) && alignment <= 8); // Check for powers of 2 until 8
   // const GLenum data_format = texture_format_cast(format);
   const GLenum data_format = texture_format_symbolic_cast(format);
   const GLenum data_format_type = texture_format_underlying_cast(format);
@@ -448,16 +449,18 @@ ctx_tex_status gl_context::create_texture(ctx_tex& tex, const ctx_tex_desc& desc
   ctx_tex handle = _textures.acquire();
   NTF_ASSERT(check_handle(handle));
   auto& texture = _textures.get(handle);
+  ctx_limits limits{};
+  get_limits(limits);
   auto status = _state.create_texture(texture, desc.type, desc.format, 
                                       desc.sampler, desc.addressing,
-                                      desc.extent, desc.layers, desc.levels);
+                                      desc.extent, desc.layers, desc.levels, limits);
   if (status != CTX_TEX_STATUS_OK) {
     _textures.push(handle);
     return status;
   }
   NTF_ASSERT(texture.id);
   if (!desc.images.empty()) {
-    status = update_texture(tex, {
+    status = update_texture(handle, {
       .images = desc.images,
       .generate_mipmaps = desc.gen_mipmaps,
     });

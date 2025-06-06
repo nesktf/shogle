@@ -31,13 +31,14 @@ expect<pipeline_t> create_pipeline(context_t ctx, const pipeline_desc& desc);
 void destroy_pipeline(pipeline_t pipeline) noexcept;
 
 span<uniform_t> pipeline_get_uniforms(pipeline_t pipeline);
-uniform_t pipeline_get_uniform(pipeline_t pip, std::string_view name);
+uniform_t pipeline_get_uniform(pipeline_t pip, cstring_view<char> name);
 size_t pipeline_get_uniform_count(pipeline_t pip);
 attribute_type uniform_get_type(uniform_t uniform);
-std::string_view uniform_get_name(uniform_t uniform);
+cstring_view<char> uniform_get_name(uniform_t uniform);
 
 stages_flag pipeline_get_stages(pipeline_t pipeline);
 context_t pipeline_get_ctx(pipeline_t pipeline);
+ctx_handle pipeline_get_id(pipeline_t pipeline);
 
 class uniform_view {
 public:
@@ -89,7 +90,7 @@ namespace ntf::impl {
 template<typename Derived>
 class rpipeline_ops {
   ntfr::pipeline_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::pipeline_t ptr = static_cast<Derived&>(*this).get();
+    ntfr::pipeline_t ptr = static_cast<const Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid pipeline handle");
     return ptr;
   }
@@ -103,7 +104,7 @@ public:
   ntfr::stages_flag stages() const {
     return ntfr::pipeline_get_stages(_ptr());
   }
-  ntfr::uniform_view uniform(std::string_view name) const {
+  ntfr::uniform_view uniform(ntfr::cstring_view<char> name) const {
     return {ntfr::pipeline_get_uniform(_ptr(), name)};
   }
   size_t uniform_count() const {
@@ -111,6 +112,9 @@ public:
   }
   cspan<ntfr::uniform_t> uniforms() const {
     return ntfr::pipeline_get_uniforms(_ptr());
+  }
+  ntfr::ctx_handle id() const {
+    return ntfr::pipeline_get_id(_ptr());
   }
 };
 

@@ -4,7 +4,7 @@
 
 namespace ntf::render {
 
-using win_error = ::ntf::error<void>;
+using win_error = render_error;
 
 template<typename T>
 using win_expect = ::ntf::expected<T, win_error>;
@@ -110,7 +110,7 @@ public:
   using mouse_fun    = fun_t<void(window&, win_button_data)>;
   using char_fun     = fun_t<void(window&, uint32)>;
 
-private:
+public:
   window(window_t handle, context_api ctx_api) noexcept;
 
 public:

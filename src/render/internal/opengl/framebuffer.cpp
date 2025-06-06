@@ -148,7 +148,7 @@ void gl_state::framebuffer_prepare_state(GLuint fb, clear_flag flags,
 ctx_fbo_status gl_context::create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) {
   NTF_ASSERT(!desc.attachments.empty());
   auto atts = _alloc.arena_span<glfbo_att_t>(desc.attachments.size());
-  for (size_t i = 0u; const auto& att : desc.attachments) {
+  for (size_t i = 0u; const auto& att : desc.ctx_attachments) {
     auto& tex = _textures.get(att.texture);
     atts[i].tex = &tex;
     atts[i].layer = att.layer;

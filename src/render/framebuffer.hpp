@@ -39,7 +39,7 @@ struct fbo_image_desc {
 
 expect<framebuffer_t> create_framebuffer(context_t ctx, const fbo_image_desc& desc);
 // expect<framebuffer_t> create_framebuffer(context_t ctx, const fbo_color_desc& desc);
-void destroy_framebuffer(framebuffer_t fb);
+void destroy_framebuffer(framebuffer_t fb) noexcept;
 
 void framebuffer_set_clear_flags(framebuffer_t fb, clear_flag flags);
 void framebuffer_set_viewport(framebuffer_t fb, const uvec4& vp);
@@ -50,7 +50,8 @@ uvec4 framebuffer_get_viewport(framebuffer_t fb);
 color4 framebuffer_get_clear_color(framebuffer_t fb);
 
 framebuffer_t get_default_framebuffer(context_t ctx);
-context_t frambuffer_get_ctx(framebuffer_t fb);
+context_t framebuffer_get_ctx(framebuffer_t fb);
+ctx_handle framebuffer_get_id(framebuffer_t fb);
 
 } // namespace ntf::render
 
@@ -59,7 +60,7 @@ namespace ntf::impl {
 template<typename Derived>
 class rframebuffer_ops {
   ntfr::framebuffer_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::framebuffer_t ptr = static_cast<Derived&>(*this).get();
+    ntfr::framebuffer_t ptr = static_cast<const Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid frambuffer handle");
     return ptr;
   }
@@ -78,10 +79,13 @@ public:
   }
 
   ntfr::context_view context() const {
-    return {ntfr::frambuffer_get_ctx(_ptr())};
+    return {ntfr::framebuffer_get_ctx(_ptr())};
   }
   ntfr::clear_flag clear_flags() const {
     return ntfr::framebuffer_get_clear_flags(_ptr());
+  }
+  ntfr::ctx_handle id() const {
+    return ntfr::framebuffer_get_id(_ptr());
   }
   uvec4 viewport() const {
     return ntfr::framebuffer_get_viewport(_ptr());

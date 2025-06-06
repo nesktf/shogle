@@ -51,12 +51,13 @@ void destroy_buffer(buffer_t buffer) noexcept;
 
 expect<void> buffer_upload(buffer_t buffer, const buffer_data& data);
 expect<void> buffer_upload(buffer_t buffer, size_t size, size_t offset, const void* data);
-void* buffer_map(buffer_t buffer, size_t size, size_t offset);
+expect<void*> buffer_map(buffer_t buffer, size_t size, size_t offset);
 void buffer_unmap(buffer_t buffer, void* mapped);
 
 buffer_type buffer_get_type(buffer_t buffer);
 size_t buffer_get_size(buffer_t buffer);
 context_t buffer_get_ctx(buffer_t buffer);
+ctx_handle buffer_get_id(buffer_t buffer);
 
 } // namespace ntf::render
 
@@ -65,7 +66,7 @@ namespace ntf::impl {
 template<typename Derived>
 class rbuffer_ops {
   ntfr::buffer_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::buffer_t ptr = static_cast<Derived&>(*this).get();
+    ntfr::buffer_t ptr = static_cast<const Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid buffer handle");
     return ptr;
   }
@@ -85,7 +86,7 @@ public:
   ntfr::expect<void> upload(size_t size, size_t offset, const void* data) const {
     return ntfr::buffer_upload(_ptr(), size, offset, data);
   }
-  void* map(size_t size, size_t offset) const {
+  ntfr::expect<void*> map(size_t size, size_t offset) const {
     return ntfr::buffer_map(_ptr(), size, offset);
   }
   void unmap(void* mapped) const {
@@ -100,6 +101,9 @@ public:
   }
   size_t size() const {
     return ntfr::buffer_get_size(_ptr());
+  }
+  ntfr::ctx_handle id() const {
+    return ntfr::buffer_get_id(_ptr());
   }
 };
 
@@ -171,15 +175,16 @@ public:
   template<typename U, size_t N>
   static expect<buffer> create(context_view ctx, U (&arr)[N],
                                buffer_flag flags, buffer_type type, size_t offset = 0u) {
+    const buffer_data data {
+      .data = std::addressof(arr),
+      .size = sizeof(arr),
+      .offset = offset,
+    };
     return create(ctx, {
       .type = type,
       .flags = flags,
-      .size = sizeof(arr) - offset,
-      .initial_data = {
-        .data = std::addressof(arr),
-        .size = sizeof(arr) - offset,
-        .offset = offset,
-      },
+      .size = sizeof(arr),
+      .data = data,
     });
   }
 
@@ -242,14 +247,15 @@ public:
   template<typename U, size_t N>
   static expect<typed_buffer> create(context_view ctx, U (&arr)[N], buffer_flag flags,
                                      size_t offset = 0u) {
+    const buffer_data data {
+      .data = std::addressof(arr),
+      .size = sizeof(arr),
+      .offset = offset,
+    };
     return create(ctx, {
       .flags = flags,
-      .size = sizeof(arr) - offset,
-      .initial_data = {
-        .data = std::addressof(arr),
-        .size = sizeof(arr) - offset,
-        .offset = offset,
-      },
+      .size = sizeof(arr),
+      .data = data,
     });
   }
 

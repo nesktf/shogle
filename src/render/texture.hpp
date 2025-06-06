@@ -221,24 +221,24 @@ concept image_array_dim_type = image_dim_type<T> && image_dim_traits<T>::allows_
 
 namespace ntf::render {
 
-template<meta::image_dim_type T>
-extent3d image_extent_cast(T extent) noexcept {
-  return meta::image_dim_traits<T>::extent_cast(extent);
+template<meta::image_dim_type DimT>
+extent3d image_extent_cast(const DimT& extent) noexcept {
+  return meta::image_dim_traits<DimT>::extent_cast(extent);
 }
 
-template<meta::image_dim_type T>
-size_t image_stride(T extent) noexcept {
-  return meta::image_dim_traits<T>::image_stride(extent);
+template<meta::image_depth_type T, meta::image_dim_type DimT>
+size_t image_stride(const DimT& extent) noexcept {
+  return meta::image_dim_traits<DimT>::template image_stride<T>(extent);
 }
 
-template<meta::image_dim_type T>
-extent3d image_offset_cast(T offset) noexcept {
-  return meta::image_dim_traits<T>::offset_cast(offset);
+template<meta::image_dim_type DimT>
+extent3d image_offset_cast(const DimT& offset) noexcept {
+  return meta::image_dim_traits<DimT>::offset_cast(offset);
 }
 
-template<meta::image_array_dim_type T>
-extent3d image_offset_cast(T offset, uint32 layer) noexcept {
-  return meta::image_dim_traits<T>::offset_cast(offset, layer);
+template<meta::image_array_dim_type DimT>
+extent3d image_offset_cast(const DimT& offset, uint32 layer) noexcept {
+  return meta::image_dim_traits<DimT>::offset_cast(offset, layer);
 }
 
 enum class texture_type : uint8 {
@@ -300,8 +300,8 @@ expect<texture_t> create_texture(context_t ctx, const texture_desc& desc);
 void destroy_texture(texture_t tex) noexcept;
 
 expect<void> texture_upload(texture_t tex, const texture_data& data);
-void texture_set_sampler(texture_t tex, texture_sampler sampler);
-void texture_set_addressing(texture_t tex, texture_addressing adressing);
+expect<void> texture_set_sampler(texture_t tex, texture_sampler sampler);
+expect<void> texture_set_addressing(texture_t tex, texture_addressing adressing);
 
 texture_type texture_get_type(texture_t tex);
 image_format texture_get_format(texture_t tex);
@@ -311,6 +311,7 @@ extent3d texture_get_extent(texture_t tex);
 uint32 texture_get_layers(texture_t tex);
 uint32 texture_get_levels(texture_t tex);
 context_t texture_get_ctx(texture_t tex);
+ctx_handle texture_get_id(texture_t tex);
 
 constexpr inline uint32 to_cubemap_layer(cubemap_face face) {
   return static_cast<uint32>(face);
@@ -323,7 +324,7 @@ namespace ntf::impl {
 template<typename Derived>
 class rtexture_ops {
   ntfr::texture_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::texture_t ptr =  static_cast<Derived&>(*this).get();
+    ntfr::texture_t ptr =  static_cast<const Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid texture handle");
     return ptr;
   }
@@ -334,11 +335,11 @@ public:
   ntfr::expect<void> upload(const ntfr::texture_data& data) const {
     return ntfr::texture_upload(_ptr(), data);
   }
-  void sampler(ntfr::texture_sampler sampler) const {
-    ntfr::texture_set_sampler(_ptr(), sampler);
+  ntfr::expect<void> sampler(ntfr::texture_sampler sampler) const {
+    return ntfr::texture_set_sampler(_ptr(), sampler);
   }
-  void addressing(ntfr::texture_addressing addressing) const {
-    ntfr::texture_set_addressing(_ptr(), addressing);
+  ntfr::expect<void> addressing(ntfr::texture_addressing addressing) const {
+    return ntfr::texture_set_addressing(_ptr(), addressing);
   }
 
   ntfr::context_view context() const {
@@ -355,6 +356,9 @@ public:
   }
   ntfr::texture_addressing addressing() const {
     return ntfr::texture_get_addressing(_ptr());
+  }
+  ntfr::ctx_handle id() const {
+    return ntfr::texture_get_id(_ptr());
   }
   extent3d extent() const {
     return ntfr::texture_get_extent(_ptr());
@@ -502,7 +506,7 @@ public:
 
 public:
   operator texture_view() const noexcept { return {this->get()}; }
-  operator typed_texture<tex_enum>() const noexcept { return {this->get()}; }
+  operator typed_texture_view<tex_enum>() const noexcept { return {this->get()}; }
 };
 
 template<texture_type tex_enum>

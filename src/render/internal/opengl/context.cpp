@@ -69,7 +69,7 @@ gl_context::gl_context(ctx_alloc& alloc, window_t win, uint32 swap_interval) noe
 {
   _state.init(gl_context::debug_callback, this);
   _state.create_vao(_vao);
-  _state.bind_vao(_vao.id);
+  _state.vao_bind(_vao.id);
   SHOGLE_LOG(verbose, "[ntf::gl_context] OpenGL context created");
 }
 
@@ -77,18 +77,37 @@ gl_context::~gl_context() noexcept {
   SHOGLE_LOG(verbose, "[ntf::gl_context] OpenGL context destroyed");
 }
 
-void gl_context::get_meta(ctx_meta& meta) {
-  meta.api = context_api::opengl;
-  _state.get_limits(meta.limits);
+void gl_context::get_limits(ctx_limits& limits) {
+  GLint max_tex;
+  GL_CALL(glGetIntegerv, GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &max_tex);
+
+  GLint max_tex_lay;
+  GL_CALL(glGetIntegerv, GL_MAX_ARRAY_TEXTURE_LAYERS, &max_tex_lay);
+  limits.tex_max_layers = max_tex_lay;
+
+  GLint max_tex_dim;
+  GL_CALL(glGetIntegerv, GL_MAX_TEXTURE_SIZE, &max_tex_dim);
+  limits.tex_max_extent = max_tex_dim;
+
+  GLint max_tex_dim3d;
+  GL_CALL(glGetIntegerv, GL_MAX_3D_TEXTURE_SIZE, &max_tex_dim3d);
+  limits.tex_max_extent3d = max_tex_dim3d;
+
+  // GLint max_fbo_attach;
+  // glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &max_fbo_attach);
+  // _fbo_max_attachments = max_fbo_attach;
+}
+
+ctx_alloc::string_t<char> gl_context::get_name(ctx_alloc& alloc) {
   const char* name_str = reinterpret_cast<const char*>(GL_CALL_RET(glGetString, GL_RENDERER));
   const char* vendor_str = reinterpret_cast<const char*>(GL_CALL_RET(glGetString, GL_VENDOR));
   const char* ver_str = reinterpret_cast<const char*>(GL_CALL_RET(glGetString, GL_VERSION));
-  meta.name_str = _alloc.fmt_string_args("{} [{} - {}]", name_str, vendor_str, ver_str);
+  return alloc.fmt_string("{} [{} - {}]", name_str, vendor_str, ver_str);
 }
 
 void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render_data) {
   SHOGLE_GL_MAKE_CTX_CURRENT(_win);
-  _state.bind_vao(_vao.id);
+  _state.vao_bind(_vao.id);
 
   auto render_command = [this](const ctx_render_cmd& cmd) {
     // Bind vertex buffer
@@ -97,7 +116,7 @@ void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render
     _state.buffer_bind(vbo.id, vbo.type);
 
     // Bind program
-    NTF_ASSERT(cmd.pip);
+    NTF_ASSERT(_programs.validate(cmd.pip));
     auto& prog = _programs.get(cmd.pip);
     NTF_ASSERT(prog.id);
     _state.program_prepare_state(prog);
@@ -107,7 +126,7 @@ void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render
     _state.attribute_bind(prog.layout);
 
     // Bind index buffer (if any)
-    if (check_handle(cmd.ebo)) {
+    if (_buffers.validate(cmd.ebo)) {
       auto& ebo = _buffers.get(cmd.ebo);
       NTF_ASSERT(ebo.type == GL_ELEMENT_ARRAY_BUFFER);
       _state.buffer_bind(ebo.id, ebo.type);
@@ -137,7 +156,7 @@ void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render
     // Draw things
     const auto& draw_opts = cmd.opts;
     NTF_ASSERT(draw_opts.vertex_count);
-    if (check_handle(cmd.ebo)) {
+    if (_buffers.validate(cmd.ebo)) {
       const void* offset = reinterpret_cast<const void*>(draw_opts.vertex_offset*sizeof(uint32));
       const GLenum format = GL_UNSIGNED_INT;
       if (draw_opts.instances) {
@@ -165,7 +184,8 @@ void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render
   for (const auto& data : render_data) {
     auto target = data.target;
     auto fdata = data.data;
-    const auto fbo_id = target ? _framebuffers.get(target).id : gl_state::DEFAULT_FBO;
+    const auto fbo_id =
+      _framebuffers.validate(target) ? _framebuffers.get(target).id : gl_state::DEFAULT_FBO;
     _state.framebuffer_prepare_state(fbo_id, fdata->clear_flags,
                                      fdata->viewport, fdata->clear_color);
 

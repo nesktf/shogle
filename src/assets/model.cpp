@@ -76,7 +76,7 @@ void parse_bone_nodes(uint32 parent, uint32& bone_counter, const aiNode* node,
 
 void parse_weights(std::unordered_map<std::string, std::pair<uint32,mat4>>& bone_map,
                    const aiMesh* mesh,
-                   std::vector<vertex_weights<SHOGLE_ASSIMP_WEIGHTS>>& weights) {
+                   std::vector<ntfr::vertex_weights<SHOGLE_ASSIMP_WEIGHTS>>& weights) {
   NTF_ASSERT(!bone_map.empty());
   const size_t mesh_pos = weights.size();
   weights.resize(weights.size()+mesh->mNumVertices);
@@ -89,7 +89,7 @@ void parse_weights(std::unordered_map<std::string, std::pair<uint32,mat4>>& bone
         return;
       }
       auto& bone = weights[pos];
-      if (bone.indices[i] == BONE_TOMBSTONE) {
+      if (bone.indices[i] == ntfr::BONE_TOMBSTONE) {
         bone.indices[i] = idx;
         bone.weights[i] = weight.mWeight;
         return;
@@ -218,7 +218,7 @@ asset_expected<void> assimp_loader::parse(const std::string& path, model_load_fl
       // Also store the inverse model matrix for later use
       _bone_map.emplace(
         std::make_pair(bone->mName.C_Str(),
-                       std::make_pair(BONE_TOMBSTONE, asscast(bone->mOffsetMatrix)))
+                       std::make_pair(ntfr::BONE_TOMBSTONE, asscast(bone->mOffsetMatrix)))
       );
     }
   }
@@ -262,7 +262,7 @@ void assimp_loader::get_armatures(armature_data& arms) {
     NTF_ASSERT(it != _bone_map.end());
 
     const auto bone_index = it->second.first;
-    if (bone_index != BONE_TOMBSTONE) {
+    if (bone_index != ntfr::BONE_TOMBSTONE) {
       SHOGLE_LOG(warning,
                  "[ntf::assimp_loader] Bone root \"{}\" already parsed, possible node duplicate",
                  root->mName.C_Str());
@@ -271,7 +271,7 @@ void assimp_loader::get_armatures(armature_data& arms) {
 
     uint32 root_idx = bone_counter;
     // Will set BONE_TOMBSTONE as the parent index for the root bone
-    parse_bone_nodes(BONE_TOMBSTONE, bone_counter, root, _bone_map, bones);
+    parse_bone_nodes(ntfr::BONE_TOMBSTONE, bone_counter, root, _bone_map, bones);
 
     if (!is_identity(bones[root_idx].local*bones[root_idx].inv_model)) {
       SHOGLE_LOG(warning,

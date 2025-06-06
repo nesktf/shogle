@@ -35,7 +35,6 @@ ctx_shad_status gl_state::create_shader(glshader_t& shader, shader_type type,
     GL_CALL(glGetShaderInfoLog, id, 1024, &err_len, span.data());
     GL_CALL(glDeleteShader, id);
     err = {span.data(), span.size()};
-    RENDER_ERROR_LOG("Failed to compile shader: {}", err);
     return CTX_SHAD_STATUS_COMPILATION_FAILED;
   }
 
@@ -54,6 +53,7 @@ ctx_shad_status gl_context::create_shader(ctx_shad& shad, shad_err_str& err,
   ctx_shad handle = _shaders.acquire();
   NTF_ASSERT(check_handle(handle));
   auto& shader = _shaders.get(handle);
+  shader.id = 0;
   const auto status = _state.create_shader(shader, desc.type, desc.source, err);
   if (status != CTX_SHAD_STATUS_OK) {
     _shaders.push(handle);
