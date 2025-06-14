@@ -78,6 +78,8 @@ public:
     size_t size;
   };
 
+  static constexpr u32 MAX_LAYOUT_NUMBER = 32u; // hack
+
 public:
   ctx_render_cmd(function_view<void(context_t)> on_render_) :
     external{nullopt}, on_render{on_render_} {}
@@ -86,7 +88,7 @@ public:
 
 public:
   ctx_pip pip;
-  ctx_buff vbo;
+  std::array<ctx_buff, MAX_LAYOUT_NUMBER> vbo;
   ctx_buff ebo;
   span<shad_bind_t> shader_buffers;
   span<ctx_tex> textures;

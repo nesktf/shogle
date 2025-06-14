@@ -205,7 +205,7 @@ public:
   void framebuffer_prepare_state(GLuint fbo, clear_flag flags,
                                  const uvec4& vp, const color4& color);
   
-  void attribute_bind(cspan<attribute_binding> attrs);
+  void attribute_bind(const attribute_binding& attr, const glbuffer_t& buff);
   void prepare_state(const external_state& stat);
 
 public:

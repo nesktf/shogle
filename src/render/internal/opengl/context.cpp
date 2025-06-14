@@ -110,20 +110,21 @@ void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render
   _state.vao_bind(_vao.id);
 
   auto render_command = [this](const ctx_render_cmd& cmd) {
-    // Bind vertex buffer
-    auto& vbo = _buffers.get(cmd.vbo);
-    NTF_ASSERT(vbo.type == GL_ARRAY_BUFFER);
-    _state.buffer_bind(vbo.id, vbo.type);
-
     // Bind program
     NTF_ASSERT(_programs.validate(cmd.pip));
     auto& prog = _programs.get(cmd.pip);
     NTF_ASSERT(prog.id);
     _state.program_prepare_state(prog);
 
-    // Bind vertex attributes
+    // Bind vertex attributes and buffers
     NTF_ASSERT(!prog.layout.empty());
-    _state.attribute_bind(prog.layout);
+    for (const auto& attr : prog.layout) {
+      NTF_ASSERT(attr.location < ctx_render_cmd::MAX_LAYOUT_NUMBER);
+      const ctx_buff buff = cmd.vbo[attr.location];
+      NTF_ASSERT(buff != CTX_HANDLE_TOMB);
+      const auto& vbo = _buffers.get(buff);
+      _state.attribute_bind(attr, vbo);
+    }
 
     // Bind index buffer (if any)
     if (_buffers.validate(cmd.ebo)) {
@@ -157,26 +158,27 @@ void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render
     const auto& draw_opts = cmd.opts;
     NTF_ASSERT(draw_opts.vertex_count);
     if (_buffers.validate(cmd.ebo)) {
-      const void* offset = reinterpret_cast<const void*>(draw_opts.vertex_offset*sizeof(uint32));
+      const void* idx_offset =
+        reinterpret_cast<const void*>(draw_opts.index_offset*sizeof(uint32));
+
       const GLenum format = GL_UNSIGNED_INT;
       if (draw_opts.instances) {
-        GL_CALL(glDrawElementsInstanced,
-          prog.primitive, draw_opts.vertex_count, format, offset, draw_opts.instances
-        );
+        GL_CALL(glDrawElementsInstancedBaseVertex,
+                prog.primitive, draw_opts.vertex_count, format,
+                idx_offset, draw_opts.vertex_offset, draw_opts.instances);
       } else {
-        GL_CALL(glDrawElements,
-          prog.primitive, draw_opts.vertex_count, format, offset
-        );
+        GL_CALL(glDrawElementsBaseVertex,
+                prog.primitive, draw_opts.vertex_count, format,
+                idx_offset, draw_opts.vertex_offset);
       }
     } else {
       if (draw_opts.instances) {
         GL_CALL(glDrawArraysInstanced,
-          prog.primitive, draw_opts.vertex_offset, draw_opts.vertex_count, draw_opts.instances
-        );
+                prog.primitive, draw_opts.vertex_offset, draw_opts.vertex_count,
+                draw_opts.instances);
       } else {
         GL_CALL(glDrawArrays,
-          prog.primitive, draw_opts.vertex_offset, draw_opts.vertex_count
-        );
+                prog.primitive, draw_opts.vertex_offset, draw_opts.vertex_count);
       }
     }
   };

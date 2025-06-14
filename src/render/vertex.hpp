@@ -179,21 +179,21 @@ struct pnt_vertex {
     constexpr size_t pos_stride = 3*meta::attribute_size(attribute_type::vec3);
     desc[0].type = attribute_type::vec3;
     desc[0].offset = pos_stride*vertex_count;
-    desc[0].stride = pos_stride;
+    desc[0].stride = 0;
     desc[0].location = 0;
 
     // layout (location = 1) in vec3 att_normal;
     constexpr size_t norm_stride = 3*meta::attribute_size(attribute_type::vec3);
     desc[1].type = attribute_type::vec3;
     desc[1].offset = norm_stride*vertex_count;
-    desc[1].stride = norm_stride;
+    desc[1].stride = 0;
     desc[1].location = 1;
 
     // layout (location = 2) in vec2 att_uv;
     constexpr size_t uv_stride = 2*meta::attribute_size(attribute_type::vec2);
     desc[2].type = attribute_type::vec2;
     desc[2].offset = uv_stride*vertex_count;
-    desc[2].stride = uv_stride;
+    desc[2].stride = 0;
     desc[2].location = 2;
 
     return desc;

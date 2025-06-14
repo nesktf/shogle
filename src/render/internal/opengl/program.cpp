@@ -419,20 +419,18 @@ void gl_state::program_query_uniforms(glprog_t& prog, unif_meta_vec& unif) {
   }
 }
 
-void gl_state::attribute_bind(cspan<attribute_binding> attribs) { 
-  NTF_ASSERT(!attribs.empty());
-  for (const auto& attr : attribs) {
-    // TODO: Don't re-enable already enabled attribs (and disable others)
-    GL_CALL(glEnableVertexAttribArray, attr.location);
-
-    const uint32 type_dim = meta::attribute_dim(attr.type);
-    NTF_ASSERT(type_dim);
-    const GLenum gl_underlying_type = gl_state::attrib_underlying_type_cast(attr.type);
-    NTF_ASSERT(gl_underlying_type);
-    GL_CALL(glVertexAttribPointer,
-      attr.location, type_dim, gl_underlying_type, GL_FALSE,
-      attr.stride, reinterpret_cast<void*>(attr.offset));
-  }
+void gl_state::attribute_bind(const attribute_binding& attr, const glbuffer_t& buff) {
+  // TODO: Don't re-enable already enabled attribs (and disable others)
+  NTF_ASSERT(buff.type == GL_ARRAY_BUFFER);
+  buffer_bind(buff.id, buff.type);
+  GL_CALL(glEnableVertexAttribArray, attr.location);
+  const uint32 type_dim = meta::attribute_dim(attr.type);
+  NTF_ASSERT(type_dim);
+  const GLenum gl_underlying_type = gl_state::attrib_underlying_type_cast(attr.type);
+  NTF_ASSERT(gl_underlying_type);
+  GL_CALL(glVertexAttribPointer,
+    attr.location, type_dim, gl_underlying_type, GL_FALSE,
+    attr.stride, reinterpret_cast<void*>(attr.offset));
 }
 
 void gl_state::prepare_state(const external_state& state) {

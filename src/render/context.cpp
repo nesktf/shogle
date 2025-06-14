@@ -244,8 +244,15 @@ void submit_render_command(context_t ctx, const render_cmd& cmd) {
   tcmd.opts = cmd.opts;
   tcmd.sort_group = cmd.sort_group;
 
-  NTF_ASSERT(cmd.buffers.vertex);
-  tcmd.vbo = cmd.buffers.vertex->handle;
+  NTF_ASSERT(!cmd.buffers.vertex.empty());
+  for (auto& buff : tcmd.vbo) {
+    buff = CTX_HANDLE_TOMB;
+  }
+  for (const auto& buff : cmd.buffers.vertex) {
+    NTF_ASSERT(buff.layout < ctx_render_cmd::MAX_LAYOUT_NUMBER);
+    tcmd.vbo[buff.layout] = buff.buffer->handle;
+  }
+
   if (cmd.buffers.index) {
     tcmd.ebo = cmd.buffers.index->handle;
   } else {

@@ -11,8 +11,13 @@ struct shader_binding {
   size_t offset;
 };
 
+struct vertex_binding {
+  buffer_t buffer;
+  uint32 layout;
+};
+
 struct buffer_binding {
-  buffer_t vertex;
+  cspan<vertex_binding> vertex;
   buffer_t index;
   cspan<shader_binding> shader;
 };
@@ -28,6 +33,7 @@ struct uniform_const {
 struct render_opts {
   uint32 vertex_count;
   uint32 vertex_offset;
+  uint32 index_offset;
   uint32 instances;
 };
 
