@@ -1,6 +1,7 @@
 #pragma once
 
 #include "./context.hpp"
+#include "./framebuffer.hpp"
 
 namespace ntf::render {
 
@@ -9,16 +10,22 @@ using win_error = render_error;
 template<typename T>
 using win_expect = ::ntf::expected<T, win_error>;
 
+struct win_x11_params {
+  const char* class_name;
+  const char* instance_name;
+};
+
 struct win_gl_params {
   uint32 width;
   uint32 height;
 
   const char* title;
-  const char* x11_class_name;
-  const char* x11_instance_name;
+  weak_ptr<win_x11_params> x11;
 
   uint32 ver_major;
   uint32 ver_minor;
+  uint32 fb_msaa_level;
+  ntfr::fbo_buffer fb_buffer;
 };
 
 enum class win_key : int16 { // Follows GLFW key values

@@ -6,6 +6,17 @@
 
 namespace ntf::render {
 
+static constexpr u32 round_pow2(u32 x) {
+  x--;
+  x |= x >> (1<<0);
+  x |= x >> (1<<1);
+  x |= x >> (1<<2);
+  x |= x >> (1<<3);
+  x |= x >> (1<<4);
+  x++;
+  return x;
+}
+
 #if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
 static GLFWwindow* win_cast(window_t win) { return reinterpret_cast<GLFWwindow*>(win); }
 static window_t win_cast(GLFWwindow* win) { return reinterpret_cast<window_t>(win); }
@@ -105,16 +116,50 @@ win_expect<window> window::create(const win_gl_params& params) {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, params.ver_minor);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  // glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  if (params.x11_class_name) {
-    glfwWindowHintString(GLFW_X11_CLASS_NAME, params.x11_class_name);
+  u32 msaa = params.fb_msaa_level;
+  if (msaa > 0) {
+    msaa = msaa > 64 ? 64 : round_pow2(msaa);
+    glfwWindowHint(GLFW_SAMPLES, msaa);
   }
 
-  if (params.x11_instance_name) {
-    glfwWindowHintString(GLFW_X11_INSTANCE_NAME, params.x11_instance_name);
+  i32 depth_bits = 0, stencil_bits = 0;
+  switch (params.fb_buffer) {
+    case ntfr::fbo_buffer::depth24u_stencil8u:
+      stencil_bits = 8;
+      [[fallthrough]];
+    case ntfr::fbo_buffer::depth24u:
+      depth_bits = 24;
+      break;
+    case ntfr::fbo_buffer::depth32f_stencil8u:
+      stencil_bits = 8;
+      [[fallthrough]];
+    case ntfr::fbo_buffer::depth32f:
+      depth_bits = 32;
+      break;
+    case ntfr::fbo_buffer::depth16u:
+      depth_bits = 16;
+      break;
+    case ntfr::fbo_buffer::none:
+      break;
   }
+  glfwWindowHint(GLFW_DEPTH_BITS, depth_bits);
+  glfwWindowHint(GLFW_STENCIL_BITS, stencil_bits);
 
   const char* title = params.title ? params.title : "window - ShOGLE";
+
+  if (params.x11) {
+    if (params.x11->class_name) {
+      glfwWindowHintString(GLFW_X11_CLASS_NAME, params.x11->class_name);
+    } else {
+      glfwWindowHintString(GLFW_X11_CLASS_NAME, title);
+    }
+
+    if (params.x11->instance_name) {
+      glfwWindowHintString(GLFW_X11_INSTANCE_NAME, params.x11->instance_name);
+    } else {
+      glfwWindowHintString(GLFW_X11_INSTANCE_NAME, title);
+    }
+  }
 
   GLFWwindow* handle = glfwCreateWindow(params.width, params.height, title, nullptr, nullptr);
   if (!handle) {

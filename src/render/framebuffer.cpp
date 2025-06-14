@@ -152,7 +152,7 @@ void destroy_framebuffer(framebuffer_t fbo) noexcept {
   ctx->alloc().destroy(fbo);
 }
 
-void framebuffer_set_clear(framebuffer_t fbo, clear_flag flags) {
+void framebuffer_set_clear_flags(framebuffer_t fbo, clear_flag flags) {
   NTF_ASSERT(fbo);
   fbo->fdata.clear_flags = flags;
 }
@@ -162,7 +162,7 @@ void framebuffer_set_viewport(framebuffer_t fbo, const uvec4& vp) {
   fbo->fdata.viewport = vp;
 }
 
-void framebuffer_set_color(framebuffer_t fbo, const color4& color) {
+void framebuffer_set_clear_color(framebuffer_t fbo, const color4& color) {
   NTF_ASSERT(fbo);
   fbo->fdata.clear_color = color;
 }

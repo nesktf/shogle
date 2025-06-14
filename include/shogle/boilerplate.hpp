@@ -349,10 +349,11 @@ inline expect<std::pair<window, context>> make_gl_ctx(
     .width = win_width,
     .height = win_height,
     .title = win_title,
-    .x11_class_name = win_title,
-    .x11_instance_name = nullptr,
+    .x11 = nullptr,
     .ver_major = 4,
     .ver_minor = 6,
+    .fb_msaa_level = 8,
+    .fb_buffer = ntfr::fbo_buffer::depth24u_stencil8u,
   })
   .and_then([&](auto&& win) -> expect<std::pair<window, context>> {
     const auto vp = uvec4{0, 0, win.fb_size()};
