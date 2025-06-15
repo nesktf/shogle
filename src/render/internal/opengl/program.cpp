@@ -428,9 +428,21 @@ void gl_state::attribute_bind(const attribute_binding& attr, const glbuffer_t& b
   NTF_ASSERT(type_dim);
   const GLenum gl_underlying_type = gl_state::attrib_underlying_type_cast(attr.type);
   NTF_ASSERT(gl_underlying_type);
-  GL_CALL(glVertexAttribPointer,
-    attr.location, type_dim, gl_underlying_type, GL_FALSE,
-    attr.stride, reinterpret_cast<void*>(attr.offset));
+  void* offset = reinterpret_cast<void*>(attr.offset);
+  
+  if (gl_underlying_type == GL_FLOAT) {
+    GL_CALL(glVertexAttribPointer,
+      attr.location, type_dim, gl_underlying_type, GL_FALSE,
+      attr.stride, offset);
+  } else if (gl_underlying_type == GL_DOUBLE) {
+    GL_CALL(glVertexAttribLPointer,
+      attr.location, type_dim, gl_underlying_type,
+      attr.stride, offset);
+  } else {
+    GL_CALL(glVertexAttribIPointer,
+      attr.location, type_dim, gl_underlying_type,
+      attr.stride, offset);
+  }
 }
 
 void gl_state::prepare_state(const external_state& state) {

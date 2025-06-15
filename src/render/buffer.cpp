@@ -98,6 +98,10 @@ void destroy_buffer(buffer_t buffer) noexcept {
   ctx->alloc().destroy(buffer);
 }
 
+expect<void> buffer_upload(buffer_t buffer, const buffer_data& data) {
+  return buffer_upload(buffer, data.size, data.offset, data.data);
+}
+
 expect<void> buffer_upload(buffer_t buffer, size_t size, size_t offset, const void* data) {
   RET_ERROR_IF(!buffer, "Invalid buffer handle");
 
