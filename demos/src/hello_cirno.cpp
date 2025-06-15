@@ -314,17 +314,26 @@ int main() {
       const ntfr::render_opts fumo_opts {
         .vertex_count = static_cast<ntf::uint32>(fumo_mesh.indices.count),
         .vertex_offset = 0,
+        .index_offset = 0,
         .instances = 0,
       };
       const ntfr::render_opts quad_opts {
         .vertex_count = 6,
         .vertex_offset = 0,
+        .index_offset = 0,
         .instances = 0,
       };
       const ntfr::render_opts cube_opts {
         .vertex_count = 36,
         .vertex_offset = 0,
+        .index_offset = 0,
         .instances = 0,
+      };
+
+      const ntfr::vertex_binding fumo_vertex_bind[] {
+        {.buffer = fumo_vbo, .layout = 0u},
+        {.buffer = fumo_vbo, .layout = 1u},
+        {.buffer = fumo_vbo, .layout = 2u},
       };
 
       // Fumo
@@ -333,7 +342,7 @@ int main() {
         .target = default_fbo,
         .pipeline = pipe_tex,
         .buffers = {
-          .vertex = fumo_vbo,
+          .vertex = fumo_vertex_bind,
           .index = fumo_ebo,
           .shader = {},
         },

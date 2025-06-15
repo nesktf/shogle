@@ -165,7 +165,7 @@ void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render
       if (draw_opts.instances) {
         GL_CALL(glDrawElementsInstancedBaseVertex,
                 prog.primitive, draw_opts.vertex_count, format,
-                idx_offset, draw_opts.vertex_offset, draw_opts.instances);
+                idx_offset, draw_opts.instances, draw_opts.vertex_offset);
       } else {
         GL_CALL(glDrawElementsBaseVertex,
                 prog.primitive, draw_opts.vertex_count, format,

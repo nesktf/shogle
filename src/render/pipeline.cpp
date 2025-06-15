@@ -95,7 +95,7 @@ static expect<pipeline_t_::unif_map> make_uniform_map(ctx_alloc& alloc, pipeline
         map.try_emplace(unif.name, pip, unif.handle, unif.name, unif.type, unif.size);
       NTF_ASSERT(emp);
     }
-    return std::move(map);
+    return map;
   } catch (const std::bad_alloc&) {
     RET_ERROR("Failed to allocate uniform map");
   }

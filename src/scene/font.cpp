@@ -301,6 +301,7 @@ void font_renderer::render(const quad_mesh& quad, framebuffer_view fbo,
       .opts = {
         .vertex_count = 6,
         .vertex_offset = 0,
+        .index_offset = 0,
         .instances = static_cast<uint32>(cb.glyph_count),
       },
       .sort_group = sort_group,

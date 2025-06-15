@@ -105,25 +105,23 @@ struct pn_vertex {
     return desc;
   }
 
-  [[nodiscard]] static constexpr std::array<attribute_binding, 2u> soa_binding(
-    size_t vertex_count
-  ) {
+  [[nodiscard]] static constexpr std::array<attribute_binding, 2u> soa_binding() {
     // [ pos_0, pos_1, ..., pos_n-1 | norm_0, norm_1, ..., norm_n-1 ]
     // vertex_count == n
     std::array<attribute_binding, 2> desc;
 
     // layout (location = 0) in vec3 att_position;
-    constexpr size_t pos_stride = 3*meta::attribute_size(attribute_type::vec3);
+    // constexpr size_t pos_stride = 3*meta::attribute_size(attribute_type::vec3);
     desc[0].type = attribute_type::vec3;
-    desc[0].offset = pos_stride*vertex_count;
-    desc[0].stride = pos_stride;
+    desc[0].offset = 0u;
+    desc[0].stride = 0u;
     desc[0].location = 0;
 
     // layout (location = 1) in vec3 att_normal;
-    constexpr size_t norm_stride = 3*meta::attribute_size(attribute_type::vec3);
+    // constexpr size_t norm_stride = 3*meta::attribute_size(attribute_type::vec3);
     desc[1].type = attribute_type::vec3;
-    desc[1].offset = norm_stride*vertex_count;
-    desc[1].stride = norm_stride;
+    desc[1].offset = 0u;
+    desc[1].stride = 0u;
     desc[1].location = 1;
 
     return desc;
@@ -168,31 +166,29 @@ struct pnt_vertex {
     return desc;
   }
 
-  [[nodiscard]] static constexpr std::array<attribute_binding, 3u> soa_binding(
-    size_t vertex_count
-  ) {
+  [[nodiscard]] static constexpr std::array<attribute_binding, 3u> soa_binding() {
     // [ pos_0, pos_1, ..., pos_n-1 | norm_0, norm_1, ..., norm_n-1 | uv_0, uv_1, ..., uv_n-1 ]
     // vertex_count == n
     std::array<attribute_binding, 3u> desc;
 
     // layout (location = 0) in vec3 att_position;
-    constexpr size_t pos_stride = 3*meta::attribute_size(attribute_type::vec3);
+    // constexpr size_t pos_stride = 3*meta::attribute_size(attribute_type::vec3);
     desc[0].type = attribute_type::vec3;
-    desc[0].offset = pos_stride*vertex_count;
+    desc[0].offset = 0;
     desc[0].stride = 0;
     desc[0].location = 0;
 
     // layout (location = 1) in vec3 att_normal;
-    constexpr size_t norm_stride = 3*meta::attribute_size(attribute_type::vec3);
+    // constexpr size_t norm_stride = 3*meta::attribute_size(attribute_type::vec3);
     desc[1].type = attribute_type::vec3;
-    desc[1].offset = norm_stride*vertex_count;
+    desc[1].offset = 0;
     desc[1].stride = 0;
     desc[1].location = 1;
 
     // layout (location = 2) in vec2 att_uv;
-    constexpr size_t uv_stride = 2*meta::attribute_size(attribute_type::vec2);
+    // constexpr size_t uv_stride = 2*meta::attribute_size(attribute_type::vec2);
     desc[2].type = attribute_type::vec2;
-    desc[2].offset = uv_stride*vertex_count;
+    desc[2].offset = 0;
     desc[2].stride = 0;
     desc[2].location = 2;
 
