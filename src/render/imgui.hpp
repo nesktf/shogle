@@ -17,7 +17,7 @@ public:
   ~imgui_ctx() noexcept;
 
 public:
-  static imgui_ctx create(context_view ctx,
+  static imgui_ctx create(context_view ctx, window_t win,
                           ImGuiConfigFlags flags = ImGuiConfigFlags_NavEnableKeyboard,
                           bool bind_callbacks = true);
 

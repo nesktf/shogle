@@ -342,27 +342,32 @@ inline expect<std::pair<framebuffer, texture2d>> make_fbo(
 inline expect<std::pair<window, context>> make_gl_ctx(
   uint32 win_width, uint32 win_height, const char* win_title,
   uint32 swap_interval = 0,
-  clear_flag fb_clear = clear_flag::color_depth,
-  const color4& fb_color = {.3f, .3f, .3f, 1.f}
+  const color4& fb_color = {.3f, .3f, .3f, 1.f},
+  clear_flag fb_clear = clear_flag::color_depth
 ) {
+  const win_gl_params win_gl {
+    .ver_major = 4,
+    .ver_minor = 6,
+    .swap_interval = swap_interval,
+    .fb_msaa_level = 0,
+    .fb_buffer = fbo_buffer::depth24u_stencil8u,
+    .fb_use_alpha = false,
+  };
   return window::create({
     .width = win_width,
     .height = win_height,
     .title = win_title,
     .attrib = win_attrib::decorate | win_attrib::resizable,
-    .x11 = nullptr,
-    .ver_major = 4,
-    .ver_minor = 6,
-    .fb_msaa_level = 8,
-    .fb_buffer = ntfr::fbo_buffer::depth24u_stencil8u,
-    .fb_use_alpha = false,
+    .renderer_api = context_api::opengl,
+    .platform_params = nullptr,
+    .renderer_params = &win_gl,
   })
   .and_then([&](auto&& win) -> expect<std::pair<window, context>> {
     const auto vp = uvec4{0, 0, win.fb_size()};
+    const auto gl_params = window::make_gl_params(win);
     auto ctx = context::create({
-      .window = win.get(),
+      .ctx_params = &gl_params,
       .ctx_api = win.renderer(),
-      .swap_interval = swap_interval,
       .fb_viewport = vp,
       .fb_clear_flags = fb_clear,
       .fb_clear_color = fb_color,
@@ -373,6 +378,30 @@ inline expect<std::pair<window, context>> make_gl_ctx(
     }
     return std::make_pair(std::move(win), std::move(*ctx));
   });
+}
+
+inline expect<context> make_gl_ctx(
+  const window& win,
+  const color4& fb_color = {.3f, .3f, .3f, 1.f},
+  clear_flag fb_clear = clear_flag::color_depth
+) {
+  if (win.renderer() != context_api::opengl) {
+    return unexpected{render_error{"Invalid window context"}};
+  }
+  const auto vp = uvec4{0, 0, win.fb_size()};
+  const auto gl_params = window::make_gl_params(win);
+  auto ctx = context::create({
+    .ctx_params = &gl_params,
+    .ctx_api = context_api::opengl,
+    .fb_viewport = vp,
+    .fb_clear_flags = fb_clear,
+    .fb_clear_color = fb_color,
+    .alloc = nullptr,
+  });
+  if (!ctx) {
+    return unexpected{std::move(ctx.error())};
+  }
+  return std::move(*ctx);
 }
 
 template<font_codepoint_type CodeT = char>

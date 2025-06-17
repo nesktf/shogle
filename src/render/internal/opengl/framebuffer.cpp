@@ -180,6 +180,64 @@ ctx_fbo_status gl_context::destroy_framebuffer(ctx_fbo fbo) noexcept {
   return CTX_FBO_STATUS_OK;
 }
 
+void gl_context::get_dfbo_params(extent2d& ext, fbo_buffer& buff, u32& msaa) {
+  GLint prev_fbo = 0;
+  GL_CALL(glGetIntegerv, GL_DRAW_FRAMEBUFFER_BINDING, &prev_fbo);
+  GL_CALL(glBindFramebuffer, GL_DRAW_FRAMEBUFFER, gl_state::DEFAULT_FBO);
+
+  u32 w = 0, h = 0;
+  std::invoke(_funcs.get_fb_size, _funcs.gl_ctx, &w, &h);
+
+  GLint depth_bits, stencil_bits, msaa_samples;
+  GL_CALL(glGetFramebufferParameteriv,
+          GL_DRAW_FRAMEBUFFER, GL_SAMPLES, &msaa_samples);
+  GL_CALL(glGetFramebufferAttachmentParameteriv,
+          GL_DRAW_FRAMEBUFFER, GL_DEPTH, GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE,
+          &depth_bits);
+  GL_CALL(glGetFramebufferAttachmentParameteriv,
+          GL_DRAW_FRAMEBUFFER, GL_STENCIL, GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE,
+          &stencil_bits);
+
+  GL_CALL(glBindFramebuffer, GL_DRAW_FRAMEBUFFER, prev_fbo);
+  // RENDER_DBG_LOG("{}, {}, {}", depth_bits, stencil_bits, msaa_samples);
+
+  ext.x = w;
+  ext.y = h;
+  msaa = static_cast<u32>(msaa_samples);
+
+  switch (depth_bits) {
+    case 16: {
+      NTF_ASSERT(stencil_bits == 0);
+      buff = fbo_buffer::depth16u;
+      break;
+    }
+    case 24: {
+      if (stencil_bits == 8) {
+        buff = fbo_buffer::depth24u_stencil8u;
+      } else {
+        NTF_ASSERT(stencil_bits == 0);
+        buff = fbo_buffer::depth24u;
+      }
+      break;
+    }
+    case 32: {
+      if (stencil_bits == 8) {
+        buff = fbo_buffer::depth32f_stencil8u;
+      } else {
+        NTF_ASSERT(stencil_bits == 0);
+        buff = fbo_buffer::depth32f;
+      }
+      break;
+    }
+    default: {
+      NTF_ASSERT(stencil_bits == 0);
+      NTF_ASSERT(depth_bits == 0);
+      buff = fbo_buffer::none;
+      break;
+    }
+  }
+}
+
 // auto gl_state::create_framebuffer(uint32 w, uint32 h, fbo_buffer buffers,
 //                                   image_format format) -> framebuffer_t {
 //   NTF_ASSERT(w > 0 && h > 0);

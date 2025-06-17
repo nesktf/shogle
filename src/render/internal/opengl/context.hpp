@@ -304,11 +304,16 @@ private:
   };
 
 public:
-  gl_context(ctx_alloc& alloc, window_t win, uint32 swap_interval) noexcept;
+  gl_context(ctx_alloc& alloc, const context_gl_params& params) noexcept;
+
+public:
+  static expect<ctx_alloc::uptr_t<icontext>> load_context(ctx_alloc& alloc,
+                                                          const context_gl_params& params);
 
 public:
   void get_limits(ctx_limits& limits) override;
   ctx_alloc::string_t<char> get_name(ctx_alloc& alloc) override;
+  void get_dfbo_params(extent2d& ext, fbo_buffer& buff, u32& msaa) override;
 
   ctx_buff_status create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) override;
   ctx_buff_status update_buffer(ctx_buff buff, const buffer_data& data) override;
@@ -343,8 +348,7 @@ private:
 
 private:
   ctx_alloc& _alloc;
-  window_t _win;
-  uint32 _swap_interval;
+  context_gl_params _funcs;
 
   gl_state _state;
   glvao_t _vao;

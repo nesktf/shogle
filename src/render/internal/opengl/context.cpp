@@ -62,8 +62,33 @@ void gl_context::debug_callback(GLenum src, GLenum type, GLuint id, GLenum sever
   }
 }
 
-gl_context::gl_context(ctx_alloc& alloc, window_t win, uint32 swap_interval) noexcept :
-  _alloc{alloc}, _win{win}, _swap_interval{swap_interval},
+expect<ctx_alloc::uptr_t<icontext>> gl_context::load_context(ctx_alloc& alloc,
+                                                             const context_gl_params& params) {
+  NTF_ASSERT(params.get_proc_address);
+  NTF_ASSERT(params.make_current);
+  NTF_ASSERT(params.swap_buffers);
+
+  // hack
+  // doesn't matter anyways, glad uses global state
+  // (TODO: Store the gl functions in the context or state object)
+  static void* glad_gl_ctx;
+  static void* (*glad_gl_proc)(void*, const char*);
+  glad_gl_ctx = params.gl_ctx;
+  glad_gl_proc = params.get_proc_address;
+  bool glad_succ = gladLoadGLLoader(+[](const char* name) -> void* {
+    // RENDER_DBG_LOG("{}", name);
+    return std::invoke(glad_gl_proc, glad_gl_ctx, name);
+  });
+  glad_gl_ctx = nullptr;
+  glad_gl_proc = nullptr;
+  RET_ERROR_IF(!glad_succ, "Failed to load GLAD");
+  icontext* ctx = alloc.construct<gl_context>(alloc, params);
+  NTF_ASSERT(ctx);
+  return alloc.wrap_unique(ctx);
+}
+
+gl_context::gl_context(ctx_alloc& alloc, const context_gl_params& params) noexcept :
+  _alloc{alloc}, _funcs{params},
   _state{alloc}, _vao{},
   _buffers{alloc}, _textures{alloc}, _shaders{alloc}, _programs{alloc}, _framebuffers{alloc}
 {
@@ -106,7 +131,7 @@ ctx_alloc::string_t<char> gl_context::get_name(ctx_alloc& alloc) {
 }
 
 void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render_data) {
-  SHOGLE_GL_MAKE_CTX_CURRENT(_win);
+  std::invoke(_funcs.make_current, _funcs.gl_ctx);
   _state.vao_bind(_vao.id);
 
   auto render_command = [this](const ctx_render_cmd& cmd) {
@@ -218,7 +243,7 @@ void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render
 void gl_context::device_wait() {}
 
 void gl_context::swap_buffers() {
-  SHOGLE_GL_SWAP_BUFFERS(_win);
+  std::invoke(_funcs.swap_buffers, _funcs.gl_ctx);
 }
 
 } // namespace ntf::render

@@ -25,17 +25,22 @@ struct win_x11_params {
 };
 
 struct win_gl_params {
+  uint32 ver_major;
+  uint32 ver_minor;
+  u32 swap_interval;
+  uint32 fb_msaa_level;
+  ntfr::fbo_buffer fb_buffer;
+  bool fb_use_alpha;
+};
+
+struct win_params {
   uint32 width;
   uint32 height;
   const char* title;
   win_attrib attrib;
-  weak_cptr<win_x11_params> x11;
-
-  uint32 ver_major;
-  uint32 ver_minor;
-  uint32 fb_msaa_level;
-  ntfr::fbo_buffer fb_buffer;
-  bool fb_use_alpha;
+  context_api renderer_api;
+  const void* platform_params;
+  const void* renderer_params;
 };
 
 enum class win_key : int16 { // Follows GLFW key values
@@ -131,7 +136,10 @@ public:
   window(window_t handle, context_api ctx_api, win_attrib attrib) noexcept;
 
 public:
-  [[nodiscard]] static win_expect<window> create(const win_gl_params& params);
+  [[nodiscard]] static win_expect<window> create(const win_params& params);
+
+  static context_gl_params make_gl_params(window_t handle) noexcept;
+  static context_gl_params make_gl_params(const window& win) noexcept;
 
 public:
   template<typename F>

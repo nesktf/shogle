@@ -62,10 +62,22 @@ struct external_cmd {
   function_view<void(context_t, ctx_handle)> render_callback;
 };
 
+struct context_gl_params {
+  void* gl_ctx;
+  void* (*get_proc_address)(void*, const char*);
+  void  (*swap_buffers)(void*);
+  void  (*make_current)(void*);
+  void  (*get_fb_size)(void*, u32*, u32*);
+};
+
+// Placeholders
+struct context_vk_params {};
+struct context_sw_params {};
+struct context_no_params {};
+
 struct context_params {
-  window_t window;
+  const void* ctx_params;
   context_api ctx_api;
-  uint32 swap_interval;
   uvec4 fb_viewport;
   clear_flag fb_clear_flags;
   color4 fb_clear_color;
@@ -80,7 +92,6 @@ void end_frame(context_t ctx);
 void device_wait(context_t ctx);
 void submit_render_command(context_t ctx, const render_cmd& cmd);
 void submit_external_command(context_t ctx, const external_cmd& cmd);
-window_t get_window(context_t ctx);
 context_api get_api(context_t ctx);
 cstring_view<char> get_name(context_t ctx);
 
@@ -115,9 +126,6 @@ public:
     ntfr::submit_external_command(_ptr(), cmd);
   }
 
-  ntfr::window_t window() const {
-    return ntfr::get_window(_ptr());
-  }
   ntfr::context_api api() const {
     return ntfr::get_api(_ptr());
   }

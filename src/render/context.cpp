@@ -37,13 +37,13 @@ static constexpr size_t INITIAL_ARENA_PAGE = mibs(16u);
 context_t_::context_t_(ctx_alloc::uptr_t<ctx_alloc>&& alloc,
                        ctx_alloc::uptr_t<icontext>&& renderer,
                        ctx_alloc::string_t<char>&& renderer_name,
-                       window_t win, context_api api_,
+                       context_api api_,
                        extent2d fbo_ext, fbo_buffer fbo_tbuff,
                        const ctx_render_data::fbo_data_t& fdata) noexcept :
   _alloc{std::move(alloc)},
   _renderer{std::move(renderer)},
   _renderer_name{std::move(renderer_name)},
-  _api{api_}, _win{win},
+  _api{api_},
   _default_fbo{this, fbo_ext, fbo_tbuff, fdata},
   _fbo_list_sz{1u},
   _buff_list{nullptr}, _tex_list{nullptr}, _shad_list{nullptr},
@@ -96,63 +96,64 @@ auto context_t_::on_destroy() -> ctx_alloc::uptr_t<ctx_alloc> {
   return std::move(_alloc);
 }
 
-
-static expect<ctx_alloc::uptr_t<icontext>> load_platform_ctx(
-  ctx_alloc& alloc, context_api api, window_t win, uint32 swap_interval
-) {
-  RET_ERROR_IF(!win, "Invalid window handle");
-  icontext* ctx = nullptr;
-  try {
-    switch (api) {
-      case context_api::opengl: {
-        SHOGLE_GL_MAKE_CTX_CURRENT(win);
-        SHOGLE_GL_SET_SWAP_INTERVAL(win, static_cast<int>(swap_interval));
-        RET_ERROR_IF(!gladLoadGLLoader(SHOGLE_GL_LOAD_PROC), "Failed to load GLAD");
-        ctx = alloc.construct<gl_context>(alloc, win, swap_interval);
-        break;
-      }
-      default: {
-        RET_ERROR("Renderer not implemented");
-        break;
-      }
-    }
+static const char* ctx_str(context_api api) {
+  switch (api) {
+    case context_api::opengl: return "OpenGL";
+    case context_api::vulkan: return "Vulkan";
+    case context_api::software: return "Software";
+    case context_api::none: return "None";
   }
-  RET_ERROR_CATCH("Failed to load platform context");
-  RET_ERROR_IF(!ctx, "Failed to allocate platform context");
-  return alloc.wrap_unique(ctx);
+  NTF_UNREACHABLE();
 }
 
 expect<context_t> create_context(const context_params& params) {
   auto alloc = ctx_alloc::make_alloc(params.alloc, INITIAL_ARENA_PAGE);
   RET_ERROR_IF(!alloc, "Failed to create allocator");
 
+  auto construct_local_context = [&](ctx_alloc::uptr_t<icontext>&& renderer) -> expect<context_t> {
+    auto ctx_name = renderer->get_name(*alloc);
+    context_t ctx = alloc->allocate_uninited<context_t_>();
+    RET_ERROR_IF(!ctx, "Failed to allocate context");
+
+    const ctx_render_data::fbo_data_t fdata {
+      .clear_color = params.fb_clear_color,
+      .viewport = params.fb_viewport,
+      .clear_flags = params.fb_clear_flags,
+    };
+
+    extent2d fext{0, 0};
+    fbo_buffer ftbuff = fbo_buffer::depth24u_stencil8u;
+    u32 fmsaa = 0;
+    renderer->get_dfbo_params(fext, ftbuff, fmsaa);
+    NTF_UNUSED(fmsaa); // TODO: come back when we implement multisampled framebuffers
+
+    std::construct_at(ctx,
+                      std::move(alloc), std::move(renderer), std::move(ctx_name),
+                      params.ctx_api, fext, ftbuff, fdata);
+    RENDER_DBG_LOG("Context constructed: {}, {}",
+                   ctx_str(params.ctx_api),
+                   ctx->name());
+    return ctx;
+  };
+
   try {
-    return load_platform_ctx(*alloc, params.ctx_api, params.window, params.swap_interval)
-    .and_then([&](ctx_alloc::uptr_t<icontext>&& renderer) -> expect<context_t> {
-      auto ctx_name = renderer->get_name(*alloc);
-      context_t ctx = alloc->allocate_uninited<context_t_>();
-      RET_ERROR_IF(!ctx, "Failed to allocate context");
-
-      const ctx_render_data::fbo_data_t fdata {
-        .clear_color = params.fb_clear_color,
-        .viewport = params.fb_viewport,
-        .clear_flags = params.fb_clear_flags,
-      };
-
-      // TODO: Get these from the platform context
-      extent2d fext{0, 0};
-      fbo_buffer ftbuff = fbo_buffer::depth24u_stencil8u;
-
-      std::construct_at(ctx,
-                        std::move(alloc), std::move(renderer), std::move(ctx_name),
-                        params.window, params.ctx_api, fext, ftbuff, fdata);
-      RENDER_DBG_LOG("Context constructed: {}, {}",
-                     params.ctx_api == context_api::opengl ? "OpenGL" : "Vulkan",
-                     ctx->name());
-      return ctx;
-    });
+    switch (params.ctx_api) {
+      case context_api::opengl: {
+        NTF_ASSERT(params.ctx_params);
+        const auto& gl_param = *static_cast<const context_gl_params*>(params.ctx_params);
+        return gl_context::load_context(*alloc, gl_param).and_then(construct_local_context);
+        break;
+      }
+      case context_api::software: [[fallthrough]];
+      case context_api::vulkan:   [[fallthrough]];
+      case context_api::none: {
+        NTF_ASSERT(false, "Renderer not implemented");
+        break;
+      }
+    };
   }
   RET_ERROR_CATCH("Failed to create context");
+  NTF_UNREACHABLE();
 }
 
 void destroy_context(context_t ctx) noexcept {
@@ -303,13 +304,6 @@ void submit_render_command(context_t ctx, const render_cmd& cmd) {
   } else {
     tcmd.uniforms = {};
   }
-}
-
-window_t get_window(context_t ctx) {
-  if (!ctx) {
-    return nullptr;
-  }
-  return ctx->window();
 }
 
 context_api get_api(context_t ctx) {

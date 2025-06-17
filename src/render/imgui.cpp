@@ -60,14 +60,14 @@ imgui_ctx& imgui_ctx::operator=(imgui_ctx&& other) noexcept {
   return *this;
 }
 
-imgui_ctx imgui_ctx::create(context_view ctx, ImGuiConfigFlags flags, bool bind_callbacks) {
+imgui_ctx imgui_ctx::create(context_view ctx, window_t win,
+                            ImGuiConfigFlags flags, bool bind_callbacks) {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   io.ConfigFlags |= flags;
   ImGui::StyleColorsDark();
 
-  const auto win = ctx.window();
   const auto api = ctx.api();
   NTF_ASSERT(win);
   switch (api) {

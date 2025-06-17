@@ -100,7 +100,38 @@ struct window::callback_handler_t {
 
 static std::atomic<uint32> win_count = 0;
 
-win_expect<window> window::create(const win_gl_params& params) {
+context_gl_params window::make_gl_params(window_t handle) noexcept {
+  return {
+    .gl_ctx = handle,
+    .get_proc_address = +[](void* win, const char* name) -> void* {
+      GLFWwindow* w = static_cast<GLFWwindow*>(win);
+      NTF_UNUSED(w);
+      glfwMakeContextCurrent(w);
+      return reinterpret_cast<void*>(glfwGetProcAddress(name));
+    },
+    .swap_buffers = +[](void* win) -> void {
+      GLFWwindow* w = static_cast<GLFWwindow*>(win);
+      glfwSwapBuffers(w);
+    },
+    .make_current = +[](void* win)-> void {
+      GLFWwindow* w = static_cast<GLFWwindow*>(win);
+      glfwMakeContextCurrent(w);
+    },
+    .get_fb_size = +[](void* win, u32* width, u32* height) -> void {
+      GLFWwindow* w = static_cast<GLFWwindow*>(win);
+      int _w, _h;
+      glfwGetFramebufferSize(w, &_w, &_h);
+      *width = static_cast<u32>(_w);
+      *height = static_cast<u32>(_h);
+    },
+  };
+}
+
+context_gl_params window::make_gl_params(const window& win) noexcept {
+  return make_gl_params(win._handle);
+}
+
+win_expect<window> window::create(const win_params& params) {
 #if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   if (win_count.load() == 0) {
     if (!glfwInit()) {
@@ -112,60 +143,85 @@ win_expect<window> window::create(const win_gl_params& params) {
     RENDER_DBG_LOG("GLFW initialized");
   }
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, params.ver_major);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, params.ver_minor);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-  const bool transparent_fbo = params.fb_use_alpha;
-  u32 msaa = params.fb_msaa_level;
-  if (msaa > 0) {
-    if (transparent_fbo) {
-      RENDER_WARN_LOG("Framebuffer alpha set, ignoring MSAA");
-    } else {
-      msaa = msaa > 64 ? 64 : round_pow2(msaa);
-      glfwWindowHint(GLFW_SAMPLES, msaa);
-    }
-  }
-
-  glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, transparent_fbo);
-
-  i32 depth_bits = 0, stencil_bits = 0;
-  switch (params.fb_buffer) {
-    case ntfr::fbo_buffer::depth24u_stencil8u:
-      stencil_bits = 8;
-      [[fallthrough]];
-    case ntfr::fbo_buffer::depth24u:
-      depth_bits = 24;
-      break;
-    case ntfr::fbo_buffer::depth32f_stencil8u:
-      stencil_bits = 8;
-      [[fallthrough]];
-    case ntfr::fbo_buffer::depth32f:
-      depth_bits = 32;
-      break;
-    case ntfr::fbo_buffer::depth16u:
-      depth_bits = 16;
-      break;
-    case ntfr::fbo_buffer::none:
-      break;
-  }
-  glfwWindowHint(GLFW_DEPTH_BITS, depth_bits);
-  glfwWindowHint(GLFW_STENCIL_BITS, stencil_bits);
-
   const char* title = params.title ? params.title : "window - ShOGLE";
+  u32 swap_interval = 0;
 
-  if (params.x11) {
-    if (params.x11->class_name) {
-      glfwWindowHintString(GLFW_X11_CLASS_NAME, params.x11->class_name);
+  auto setup_gl_hints = [&](const win_gl_params& gl_params) {
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, gl_params.ver_major);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, gl_params.ver_minor);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    const bool transparent_fbo = gl_params.fb_use_alpha;
+    u32 msaa = gl_params.fb_msaa_level;
+    if (msaa > 0) {
+      if (transparent_fbo) {
+        RENDER_WARN_LOG("Framebuffer alpha set, ignoring MSAA");
+      } else {
+        msaa = msaa > 64 ? 64 : round_pow2(msaa);
+        glfwWindowHint(GLFW_SAMPLES, msaa);
+      }
+    }
+
+    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, transparent_fbo);
+
+    i32 depth_bits = 0, stencil_bits = 0;
+    switch (gl_params.fb_buffer) {
+      case ntfr::fbo_buffer::depth24u_stencil8u:
+        stencil_bits = 8;
+        [[fallthrough]];
+      case ntfr::fbo_buffer::depth24u:
+        depth_bits = 24;
+        break;
+      case ntfr::fbo_buffer::depth32f_stencil8u:
+        stencil_bits = 8;
+        [[fallthrough]];
+      case ntfr::fbo_buffer::depth32f:
+        depth_bits = 32;
+        break;
+      case ntfr::fbo_buffer::depth16u:
+        depth_bits = 16;
+        break;
+      case ntfr::fbo_buffer::none:
+        break;
+    }
+    glfwWindowHint(GLFW_DEPTH_BITS, depth_bits);
+    glfwWindowHint(GLFW_STENCIL_BITS, stencil_bits);
+    swap_interval = gl_params.swap_interval;
+  };
+
+  auto setup_x11_hints = [&](const win_x11_params& x11_params) {
+    if (x11_params.class_name) {
+      glfwWindowHintString(GLFW_X11_CLASS_NAME, x11_params.class_name);
     } else {
       glfwWindowHintString(GLFW_X11_CLASS_NAME, title);
     }
 
-    if (params.x11->instance_name) {
-      glfwWindowHintString(GLFW_X11_INSTANCE_NAME, params.x11->instance_name);
+    if (x11_params.instance_name) {
+      glfwWindowHintString(GLFW_X11_INSTANCE_NAME, x11_params.instance_name);
     } else {
       glfwWindowHintString(GLFW_X11_INSTANCE_NAME, title);
     }
+  };
+
+  NTF_ASSERT(params.renderer_params);
+  switch (params.renderer_api) {
+    case context_api::opengl: {
+      const win_gl_params& gl_params = *static_cast<const win_gl_params*>(params.renderer_params);
+      setup_gl_hints(gl_params);
+      break;
+    }
+    case context_api::vulkan:   [[fallthrough]];
+    case context_api::software: [[fallthrough]];
+    case context_api::none: {
+      glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+      break;
+    }
+  }
+
+  // We only handle X11 for now
+  if (params.platform_params) {
+    const win_x11_params& x11_params = *static_cast<const win_x11_params*>(params.platform_params);
+    setup_x11_hints(x11_params);
   }
 
   GLFWwindow* handle = glfwCreateWindow(params.width, params.height, title, nullptr, nullptr);
@@ -181,6 +237,8 @@ win_expect<window> window::create(const win_gl_params& params) {
     return unexpected{win_error{err}};
   }
   ++win_count;
+  glfwMakeContextCurrent(handle);
+  glfwSwapInterval(swap_interval);
 
   return win_expect<window>{in_place, win_cast(handle), context_api::opengl, params.attrib};
 #endif

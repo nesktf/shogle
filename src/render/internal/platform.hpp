@@ -208,6 +208,7 @@ struct icontext {
   virtual ~icontext() = default;
   virtual void get_limits(ctx_limits& limits) = 0;
   virtual ctx_alloc::string_t<char> get_name(ctx_alloc& alloc) = 0;
+  virtual void get_dfbo_params(extent2d& ext, fbo_buffer& buff, u32& msaa) = 0;
 
   virtual ctx_buff_status create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) = 0;
   virtual ctx_buff_status update_buffer(ctx_buff buff, const buffer_data& data) = 0;
@@ -367,7 +368,8 @@ public:
   context_t_(ctx_alloc::uptr_t<ctx_alloc>&& alloc,
              ctx_alloc::uptr_t<icontext>&& renderer,
              ctx_alloc::string_t<char>&& renderer_name,
-             window_t win, context_api api,
+             // window_t win,
+             context_api api,
              extent2d fbo_ext, fbo_buffer fbo_tbuff,
              const ctx_render_data::fbo_data_t& fdata) noexcept;
 
@@ -400,7 +402,7 @@ public:
   ctx_alloc& alloc() { return *_alloc; }
   context_api api() const { return _api; }
   framebuffer_t default_fbo() { return &_default_fbo;}
-  window_t window() const { return _win; }
+  // window_t window() const { return _win; }
   size_t fbo_count() const { return _fbo_list_sz; }
   cstring_view<char> name() const { return _renderer_name; }
 
@@ -413,7 +415,7 @@ private:
   ctx_alloc::string_t<char> _renderer_name;
 
   context_api _api;
-  window_t _win;
+  // window_t _win;
 
   framebuffer_t_ _default_fbo;
 
