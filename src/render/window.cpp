@@ -116,11 +116,18 @@ win_expect<window> window::create(const win_gl_params& params) {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, params.ver_minor);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+  const bool transparent_fbo = params.fb_use_alpha;
   u32 msaa = params.fb_msaa_level;
   if (msaa > 0) {
-    msaa = msaa > 64 ? 64 : round_pow2(msaa);
-    glfwWindowHint(GLFW_SAMPLES, msaa);
+    if (transparent_fbo) {
+      RENDER_WARN_LOG("Framebuffer alpha set, ignoring MSAA");
+    } else {
+      msaa = msaa > 64 ? 64 : round_pow2(msaa);
+      glfwWindowHint(GLFW_SAMPLES, msaa);
+    }
   }
+
+  glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, transparent_fbo);
 
   i32 depth_bits = 0, stencil_bits = 0;
   switch (params.fb_buffer) {
@@ -175,12 +182,12 @@ win_expect<window> window::create(const win_gl_params& params) {
   }
   ++win_count;
 
-  return win_expect<window>{in_place, win_cast(handle), context_api::opengl};
+  return win_expect<window>{in_place, win_cast(handle), context_api::opengl, params.attrib};
 #endif
 }
 
-window::window(window_t handle, context_api ctx_api) noexcept :
-  _handle{handle}, _ctx_api{ctx_api}
+window::window(window_t handle, context_api ctx_api, win_attrib attrib) noexcept :
+  _handle{handle}, _ctx_api{ctx_api}, _attrib{}
 { 
   GLFWwindow* win = win_cast(_handle);
   glfwSetFramebufferSizeCallback(win, callback_handler_t::fb_size_callback);
@@ -191,6 +198,7 @@ window::window(window_t handle, context_api ctx_api) noexcept :
   glfwSetCharCallback(win, callback_handler_t::char_callback);
   glfwSetMouseButtonCallback(win, callback_handler_t::button_callback);
   glfwSetWindowUserPointer(win, this);
+  attribs(attrib); // Setup attributes here
 }
 
 window::~window() noexcept { _destroy(); }
@@ -211,6 +219,7 @@ void window::_destroy() {
 
 window::window(window&& other) noexcept :
   _handle{std::move(other._handle)}, _ctx_api{std::move(other._ctx_api)},
+  _attrib{std::move(other._attrib)},
   _callbacks{std::move(other._callbacks)}
 {
   other._handle = nullptr;
@@ -226,6 +235,7 @@ window& window::operator=(window&& other) noexcept {
 
   _handle = std::move(other._handle);
   _ctx_api = std::move(other._ctx_api);
+  _attrib = std::move(other._attrib);
   _callbacks = std::move(other._callbacks);
 
   other._handle = nullptr;
@@ -288,6 +298,16 @@ uvec2 window::fb_size() const {
 void window::poll_events() {
 #if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
   glfwPollEvents();
+#endif
+}
+
+void window::attribs(win_attrib attrib) {
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
+  glfwSetWindowAttrib(win_cast(_handle), GLFW_DECORATED, +(attrib & win_attrib::decorate));
+  glfwSetWindowAttrib(win_cast(_handle), GLFW_RESIZABLE, +(attrib & win_attrib::resizable));
+  glfwSetWindowAttrib(win_cast(_handle), GLFW_FLOATING, +(attrib & win_attrib::floating));
+  glfwSetWindowAttrib(win_cast(_handle), GLFW_FOCUS_ON_SHOW, +(attrib & win_attrib::show_focus));
+  _attrib = attrib;
 #endif
 }
 

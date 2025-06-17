@@ -10,6 +10,15 @@ using win_error = render_error;
 template<typename T>
 using win_expect = ::ntf::expected<T, win_error>;
 
+enum class win_attrib {
+  none = 0,
+  decorate   = 1 << 1,
+  resizable  = 1 << 2,
+  floating   = 1 << 3,
+  show_focus = 1 << 4,
+};
+NTF_DEFINE_ENUM_CLASS_FLAG_OPS(win_attrib);
+
 struct win_x11_params {
   const char* class_name;
   const char* instance_name;
@@ -18,14 +27,15 @@ struct win_x11_params {
 struct win_gl_params {
   uint32 width;
   uint32 height;
-
   const char* title;
-  weak_ptr<win_x11_params> x11;
+  win_attrib attrib;
+  weak_cptr<win_x11_params> x11;
 
   uint32 ver_major;
   uint32 ver_minor;
   uint32 fb_msaa_level;
   ntfr::fbo_buffer fb_buffer;
+  bool fb_use_alpha;
 };
 
 enum class win_key : int16 { // Follows GLFW key values
@@ -118,7 +128,7 @@ public:
   using char_fun     = fun_t<void(window&, uint32)>;
 
 public:
-  window(window_t handle, context_api ctx_api) noexcept;
+  window(window_t handle, context_api ctx_api, win_attrib attrib) noexcept;
 
 public:
   [[nodiscard]] static win_expect<window> create(const win_gl_params& params);
@@ -177,10 +187,12 @@ public:
   void close();
   void poll_events();
   void set_mouse_state(win_mouse_state state);
+  void attribs(win_attrib attrib);
 
 public:
   window_t get() const { return _handle; }
   context_api renderer() const { return _ctx_api; }
+  win_attrib attribs() const { return _attrib; }
 
   bool should_close() const;
   win_action poll_key(win_key key) const;
@@ -194,6 +206,7 @@ private:
 private:
   window_t _handle;
   context_api _ctx_api;
+  win_attrib _attrib;
   struct {
     viewport_fun viewport;
     key_fun keypress;
