@@ -52,7 +52,7 @@ int main() {
 
   const char win_title[] = "test - hello_cirno - " SHOGLE_VERSION;
   auto [window, ctx] = ntfr::make_gl_ctx(1280, 720, win_title).value();
-  auto imgui = ntfr::imgui_ctx::create(ctx.get());
+  auto imgui = ntfr::imgui_ctx::create(ctx.get(), window.get());
 
   auto quad = ntfr::quad_mesh::create(ctx).value();
   auto cube = ntfr::cube_mesh::create(ctx).value();
