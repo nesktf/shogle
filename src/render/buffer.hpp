@@ -154,12 +154,18 @@ namespace ntf::render {
 
 class buffer_view : public ntf::impl::rbuffer_view<buffer_view> {
 public:
+  buffer_view() noexcept :
+    ntf::impl::rbuffer_view<buffer_view>{nullptr} {}
+
   buffer_view(buffer_t buff) noexcept :
     ntf::impl::rbuffer_view<buffer_view>{buff} {}
 };
 
 class buffer : public ntf::impl::rbuffer_owning<buffer> {
 public:
+  buffer() noexcept :
+    ntf::impl::rbuffer_owning<buffer>{nullptr} {}
+
   explicit buffer(buffer_t buff) noexcept :
     ntf::impl::rbuffer_owning<buffer>{buff} {}
 
@@ -204,6 +210,10 @@ public:
   template<buffer_type _buff_enum>
   friend typed_buffer_view<_buff_enum> to_typed(buffer_view buff) noexcept;
 
+public:
+  typed_buffer_view() noexcept :
+    ntf::impl::rbuffer_view<typed_buffer_view<buff_enum>>{nullptr} {}
+
 private:
   typed_buffer_view(buffer_t buff) noexcept :
     ntf::impl::rbuffer_view<typed_buffer_view<buff_enum>>{buff} {}
@@ -226,6 +236,10 @@ class typed_buffer : public ntf::impl::rbuffer_owning<typed_buffer<buff_enum>> {
 public:
   template<buffer_type _buff_enum>
   friend typed_buffer<_buff_enum> to_typed(buffer&& buff) noexcept;
+
+public:
+  typed_buffer() noexcept :
+    ntf::impl::rbuffer_owning<typed_buffer<buff_enum>>{nullptr} {}
 
 private:
   typed_buffer(buffer_t buff) noexcept :

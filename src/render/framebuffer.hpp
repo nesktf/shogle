@@ -101,6 +101,9 @@ namespace ntf::render {
 
 class framebuffer_view : public impl::rframebuffer_ops<framebuffer_view> {
 public:
+  framebuffer_view() noexcept :
+    _pip{nullptr} {}
+
   framebuffer_view(framebuffer_t pip) noexcept :
     _pip{pip} {}
 
@@ -129,6 +132,9 @@ public:
   }
 
 public:
+  framebuffer() noexcept :
+    _pip{nullptr} {}
+
   explicit framebuffer(framebuffer_t pip) noexcept :
     _pip{pip} {}
 

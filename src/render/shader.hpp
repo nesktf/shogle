@@ -98,12 +98,18 @@ namespace ntf::render {
 
 class shader_view : public impl::rshader_view<shader_view> {
 public:
+  shader_view() noexcept :
+    impl::rshader_view<shader_view>{nullptr} {}
+
   shader_view(ntfr::shader_t shad) noexcept :
     impl::rshader_view<shader_view>{shad} {}
 };
 
 class shader : public impl::rshader_owning<shader> {
 public:
+  shader() noexcept :
+    impl::rshader_owning<shader>{nullptr} {}
+
   explicit shader(ntfr::shader_t shad) noexcept :
     impl::rshader_owning<shader>{shad} {}
   
@@ -131,6 +137,10 @@ public:
   template<shader_type _shad_enum>
   friend typed_shader_view<_shad_enum> to_typed(shader_view shad) noexcept;
 
+public:
+  typed_shader_view() noexcept :
+    impl::rshader_view<typed_shader_view<shad_enum>>{nullptr} {}
+
 private:
   typed_shader_view(shader_t shad) noexcept :
     impl::rshader_view<typed_shader_view<shad_enum>>{shad} {}
@@ -155,6 +165,10 @@ public:
   friend typed_shader<_shad_enum> to_typed(shader&& shad) noexcept;
 
 public:
+  typed_shader() noexcept :
+    impl::rshader_owning<typed_shader<shad_enum>>{nullptr} {}
+
+private:
   typed_shader(shader_t shad) noexcept :
     impl::rshader_owning<typed_shader<shad_enum>>{shad} {}
 

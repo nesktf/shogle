@@ -65,7 +65,7 @@ struct ctx_limits {
 class ctx_render_cmd {
 public:
   struct unif_const_t {
-    ctx_unif handle;
+    u32 location;
     const void* data;
     attribute_type type;
     size_t size;

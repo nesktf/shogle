@@ -427,12 +427,18 @@ namespace ntf::render {
 
 class texture_view : public ntf::impl::rtexture_view<texture_view> {
 public:
+  texture_view() noexcept :
+    ntf::impl::rtexture_view<texture_view>{nullptr} {}
+
   texture_view(texture_t tex) noexcept :
     ntf::impl::rtexture_view<texture_view>{tex} {}
 };
 
 class texture : public ntf::impl::rtexture_owning<texture> {
 public:
+  texture() noexcept :
+    ntf::impl::rtexture_owning<texture>{nullptr} {}
+
   explicit texture(texture_t tex) noexcept :
     ntf::impl::rtexture_owning<texture>{tex} {}
 
@@ -460,6 +466,10 @@ public:
   template<texture_type _tex_enum>
   friend typed_texture_view<_tex_enum> to_typed(texture_view tex) noexcept;
 
+public:
+  typed_texture_view() noexcept :
+    ntf::impl::rtexture_view<typed_texture_view<tex_enum>>{nullptr} {}
+
 private:
   typed_texture_view(texture_t tex) noexcept :
     ntf::impl::rtexture_view<typed_texture_view<tex_enum>>{tex} {}
@@ -482,6 +492,10 @@ class typed_texture : public ntf::impl::rtexture_owning<typed_texture<tex_enum>>
 public:
   template<texture_type _tex_enum>
   friend typed_texture<_tex_enum> to_typed(texture&& tex) noexcept;
+
+public:
+  typed_texture() noexcept :
+    ntf::impl::rtexture_owning<typed_texture<tex_enum>>{nullptr} {}
 
 private:
   typed_texture(texture_t tex) noexcept :

@@ -219,9 +219,14 @@ attribute_type uniform_get_type(uniform_t unif) {
   return unif->type;
 }
 
-cstring_view<char> r_uniform_get_name(uniform_t unif) {
+cstring_view<char> uniform_get_name(uniform_t unif) {
   NTF_ASSERT(unif);
   return unif->name;
+}
+
+u32 uniform_get_location(uniform_t unif) {
+  NTF_ASSERT(unif);
+  return static_cast<u32>(unif->handle);
 }
 
 context_t r_pipeline_get_ctx(pipeline_t pip) {

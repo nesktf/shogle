@@ -23,11 +23,11 @@ struct buffer_binding {
 };
 
 struct uniform_const {
-  uniform_t uniform;
   const void* data;
   attribute_type type;
   size_t alignment;
   size_t size;
+  u32 location;
 };
 
 struct render_opts {

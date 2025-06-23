@@ -35,6 +35,7 @@ uniform_t pipeline_get_uniform(pipeline_t pip, cstring_view<char> name);
 size_t pipeline_get_uniform_count(pipeline_t pip);
 attribute_type uniform_get_type(uniform_t uniform);
 cstring_view<char> uniform_get_name(uniform_t uniform);
+u32 uniform_get_location(uniform_t uniform);
 
 stages_flag pipeline_get_stages(pipeline_t pipeline);
 context_t pipeline_get_ctx(pipeline_t pipeline);
@@ -42,6 +43,9 @@ ctx_handle pipeline_get_id(pipeline_t pipeline);
 
 class uniform_view {
 public:
+  constexpr uniform_view() noexcept :
+    _unif{nullptr} {}
+
   constexpr uniform_view(uniform_t unif) noexcept :
     _unif{unif} {}
 
@@ -52,6 +56,10 @@ public:
 
   std::string_view name() const {
     return ntfr::uniform_get_name(_assert_get());
+  }
+
+  u32 location() const {
+    return ntfr::uniform_get_location(_assert_get());
   }
 
 private:
@@ -75,11 +83,22 @@ private:
 template<meta::attribute_type T>
 constexpr uniform_const format_uniform_const(uniform_view uniform, const T& data) {
   return {
-    .uniform = uniform.get(),
     .data = meta::attribute_traits<T>::value_ptr(data),
     .type = meta::attribute_traits<T>::tag,
     .alignment = alignof(T),
     .size = sizeof(T),
+    .location = uniform.location(),
+  };
+}
+
+template<meta::attribute_type T>
+constexpr uniform_const format_uniform_const(u32 location, const T& data){
+  return {
+    .data = meta::attribute_traits<T>::value_ptr(data),
+    .type = meta::attribute_traits<T>::tag,
+    .alignment = alignof(T),
+    .size = sizeof(T),
+    .location = location,
   };
 }
 
@@ -124,6 +143,9 @@ namespace ntf::render {
 
 class pipeline_view : public impl::rpipeline_ops<pipeline_view> {
 public:
+  pipeline_view() noexcept :
+    _pip{nullptr} {}
+
   pipeline_view(pipeline_t pip) noexcept :
     _pip{pip} {}
 
@@ -147,6 +169,9 @@ private:
   using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::pipeline_t>, deleter_t>;
 
 public:
+  pipeline() noexcept :
+    _pip{nullptr} {}
+
   explicit pipeline(pipeline_t pip) noexcept :
     _pip{pip} {}
 

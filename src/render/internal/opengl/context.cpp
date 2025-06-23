@@ -176,7 +176,7 @@ void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render
 
     // Upload uniforms, if any
     for (const auto& unif : cmd.uniforms) {
-      _state.push_uniform(static_cast<GLuint>(unif.handle), unif.type, unif.data);
+      _state.push_uniform(static_cast<GLuint>(unif.location), unif.type, unif.data);
     }
 
     // Draw things
