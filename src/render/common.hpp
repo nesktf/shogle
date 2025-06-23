@@ -40,6 +40,7 @@ public:
 
 public:
   const char* what() const noexcept override { return _str.data(); }
+  cstring_view<char> msg() const { return _str; }
 
 private:
   cstring_view<char> _str;
