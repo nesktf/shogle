@@ -291,12 +291,8 @@ void submit_render_command(context_t ctx, const render_cmd& cmd) {
     const size_t uniform_count = cmd.consts.size();
     auto* unifs = alloc.arena_allocate_uninited<ctx_render_cmd::unif_const_t>(uniform_count);
     for (size_t i = 0u; const auto& unif : cmd.consts) {
-      const size_t data_sz = unif.size;
-      const size_t data_align = unif.alignment;
-      auto* data = alloc.arena_allocate(data_sz, data_align);
-      std::memcpy(data, unif.data, data_sz);
       std::construct_at(unifs+i,
-                        unif.location, data, unif.type, data_sz);
+                        unif.location, unif.data, unif.type);
       ++i;
     }
     tcmd.uniforms = {unifs, uniform_count};

@@ -323,73 +323,87 @@ bool gl_state::program_prepare_state(glprog_t& prog) {
   return rebind;
 }
 
-void gl_state::push_uniform(GLuint loc, attribute_type type, const void* data) {
-  NTF_ASSERT(data);
+void gl_state::push_uniform(GLuint loc, attribute_type type, const attribute_data& data) {
+  NTF_ASSERT(!data.empty());
   switch (type) {
     case attribute_type::f32: {
-      GL_CALL(glUniform1f, loc, *static_cast<const float*>(data));
+      const f32& val = data.get<f32>();
+      GL_CALL(glUniform1f, loc, val);
       break;
     }
     case attribute_type::vec2: {
-      GL_CALL(glUniform2fv, loc, 1, static_cast<const float*>(data));
+      const f32* ptr = meta::attribute_traits<vec2>::value_ptr(data.get<vec2>());
+      GL_CALL(glUniform2fv, loc, 1, ptr);
       break;
     }
     case attribute_type::vec3: {
-      GL_CALL(glUniform3fv, loc, 1, static_cast<const float*>(data));
+      const f32* ptr = meta::attribute_traits<vec3>::value_ptr(data.get<vec3>());
+      GL_CALL(glUniform3fv, loc, 1, ptr);
       break;
     }
     case attribute_type::vec4: {
-      GL_CALL(glUniform4fv, loc, 1, static_cast<const float*>(data));
+      const f32* ptr = meta::attribute_traits<vec4>::value_ptr(data.get<vec4>());
+      GL_CALL(glUniform4fv, loc, 1, ptr);
       break;
     }
     case attribute_type::mat3: {
-      GL_CALL(glUniformMatrix3fv, loc, 1, GL_FALSE, static_cast<const float*>(data));
+      const f32* ptr = meta::attribute_traits<mat3>::value_ptr(data.get<mat3>());
+      GL_CALL(glUniformMatrix3fv, loc, 1, GL_FALSE, ptr);
       break;
     } 
     case attribute_type::mat4: {
-      GL_CALL(glUniformMatrix4fv, loc, 1, GL_FALSE, static_cast<const float*>(data));
+      const f32* ptr = meta::attribute_traits<mat4>::value_ptr(data.get<mat4>());
+      GL_CALL(glUniformMatrix4fv, loc, 1, GL_FALSE, ptr);
       break;
     }
 
     case attribute_type::f64: {
-      GL_CALL(glUniform1d, loc, *static_cast<const double*>(data));
+      const f64 val = data.get<f64>();
+      GL_CALL(glUniform1d, loc, val);
       break;
     }
     case attribute_type::dvec2: {
-      GL_CALL(glUniform2dv, loc, 1, static_cast<const double*>(data));
+      const f64* ptr = meta::attribute_traits<dvec2>::value_ptr(data.get<dvec2>());
+      GL_CALL(glUniform2dv, loc, 1, ptr);
       break;
     }
     case attribute_type::dvec3: {
-      GL_CALL(glUniform3dv, loc, 1, static_cast<const double*>(data));
+      const f64* ptr = meta::attribute_traits<dvec3>::value_ptr(data.get<dvec3>());
+      GL_CALL(glUniform3dv, loc, 1, ptr);
       break;
     }
     case attribute_type::dvec4: {
-      GL_CALL(glUniform4dv, loc, 1, static_cast<const double*>(data));
+      const f64* ptr = meta::attribute_traits<dvec4>::value_ptr(data.get<dvec4>());
+      GL_CALL(glUniform4dv, loc, 1, ptr);
       break;
     }
-    case attribute_type::dmat3: {
-      GL_CALL(glUniformMatrix3dv, loc, 1, GL_FALSE, static_cast<const double*>(data));
-      break;
-    } 
-    case attribute_type::dmat4: {
-      GL_CALL(glUniformMatrix4dv, loc, 1, GL_FALSE, static_cast<const double*>(data));
-      break;
-    }
+    // case attribute_type::dmat3: {
+    //   GL_CALL(glUniformMatrix3dv, loc, 1, GL_FALSE, static_cast<const double*>(data));
+    //   break;
+    // } 
+    // case attribute_type::dmat4: {
+    //   GL_CALL(glUniformMatrix4dv, loc, 1, GL_FALSE, static_cast<const double*>(data));
+    //   break;
+    // }
 
     case attribute_type::i32: {
-      GL_CALL(glUniform1i, loc, *static_cast<const int32*>(data));
+      const i32& val = data.get<i32>();
+      GL_CALL(glUniform1i, loc, val);
       break;
     }
     case attribute_type::ivec2: {
-      GL_CALL(glUniform2iv, loc, 1, static_cast<const int32*>(data));
+      const i32* ptr = meta::attribute_traits<ivec2>::value_ptr(data.get<ivec2>());
+      GL_CALL(glUniform2iv, loc, 1, ptr);
       break;
     }
     case attribute_type::ivec3: {
-      GL_CALL(glUniform3iv, loc, 1, static_cast<const int32*>(data));
+      const i32* ptr = meta::attribute_traits<ivec3>::value_ptr(data.get<ivec3>());
+      GL_CALL(glUniform3iv, loc, 1, ptr);
       break;
     }
     case attribute_type::ivec4: {
-      GL_CALL(glUniform4iv, loc, 1, static_cast<const int32*>(data));
+      const i32* ptr = meta::attribute_traits<ivec4>::value_ptr(data.get<ivec4>());
+      GL_CALL(glUniform4iv, loc, 1, ptr);
       break;
     }
 

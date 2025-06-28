@@ -66,9 +66,8 @@ class ctx_render_cmd {
 public:
   struct unif_const_t {
     u32 location;
-    const void* data;
+    attribute_data data;
     attribute_type type;
-    size_t size;
   };
 
   struct shad_bind_t {

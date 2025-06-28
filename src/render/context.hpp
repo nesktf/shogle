@@ -23,10 +23,8 @@ struct buffer_binding {
 };
 
 struct uniform_const {
-  const void* data;
+  attribute_data data;
   attribute_type type;
-  size_t alignment;
-  size_t size;
   u32 location;
 };
 

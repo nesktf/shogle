@@ -5,6 +5,7 @@
 #include "../math/matrix.hpp"
 
 #define SHOGLE_DECLARE_ATTRIB_TRAIT(_type, _tag, _underlying, _get_ptr) \
+static_assert(std::is_trivial_v<_type>, NTF_STRINGIFY(_type) " is not trivial!!!"); \
 template<> \
 struct attribute_traits<_type> { \
   static constexpr bool is_specialized = true; \
@@ -31,6 +32,9 @@ struct attribute_binding {
   size_t offset;
   size_t stride;
 };
+
+// For uniforms (who cares about double precision matrices??? Use an uniform buffer!!!!!)
+using attribute_data = ntf::inplace_trivial<sizeof(mat4), alignof(mat4)>;
 
 } // namespace ntf::render
 

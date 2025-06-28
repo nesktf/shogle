@@ -181,7 +181,7 @@ public:
   bool program_bind(GLuint id);
   void program_query_uniforms(glprog_t& prog, unif_meta_vec& unifs);
   bool program_prepare_state(glprog_t& prog);
-  void push_uniform(GLuint location, attribute_type tye, const void* data);
+  void push_uniform(GLuint location, attribute_type tye, const attribute_data& data);
 
   ctx_tex_status create_texture(gltex_t& tex, texture_type type, image_format format,
                                 texture_sampler sampler, texture_addressing addressing,

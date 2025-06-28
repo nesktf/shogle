@@ -81,23 +81,19 @@ private:
 };
 
 template<meta::attribute_type T>
-constexpr uniform_const format_uniform_const(uniform_view uniform, const T& data) {
+uniform_const format_uniform_const(uniform_view uniform, const T& data) {
   return {
-    .data = meta::attribute_traits<T>::value_ptr(data),
+    .data = {std::in_place_type_t<T>{}, data},
     .type = meta::attribute_traits<T>::tag,
-    .alignment = alignof(T),
-    .size = sizeof(T),
     .location = uniform.location(),
   };
 }
 
 template<meta::attribute_type T>
-constexpr uniform_const format_uniform_const(u32 location, const T& data){
+uniform_const format_uniform_const(u32 location, const T& data){
   return {
-    .data = meta::attribute_traits<T>::value_ptr(data),
+    .data = {std::in_place_type_t<T>{}, data},
     .type = meta::attribute_traits<T>::tag,
-    .alignment = alignof(T),
-    .size = sizeof(T),
     .location = location,
   };
 }
