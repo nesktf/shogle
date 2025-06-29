@@ -276,10 +276,10 @@ void submit_render_command(context_t ctx, const render_cmd& cmd) {
 
   if (!cmd.textures.empty()) {
     const size_t tex_count = cmd.textures.size();
-    auto* textures = alloc.arena_allocate_uninited<ctx_tex>(tex_count);
-    for (size_t i = 0u; texture_t tex : cmd.textures) {
-      NTF_ASSERT(tex);
-      std::construct_at(textures+i, tex->handle);
+    auto* textures = alloc.arena_allocate_uninited<ctx_render_cmd::tex_bind_t>(tex_count);
+    for (size_t i = 0u; const auto& tex : cmd.textures) {
+      NTF_ASSERT(tex.texture);
+      std::construct_at(textures+i, tex.texture->handle, tex.sampler);
       ++i;
     }
     tcmd.textures = {textures, tex_count};

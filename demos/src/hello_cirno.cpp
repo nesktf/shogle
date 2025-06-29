@@ -337,7 +337,7 @@ int main() {
       };
 
       // Fumo
-      auto fumo_tex_handle = fumo_tex.get();
+      const ntfr::texture_binding fumo_tex_bind{.texture = fumo_tex, .sampler = 0};
       ctx.submit_render_command({
         .target = default_fbo,
         .pipeline = pipe_tex,
@@ -346,7 +346,7 @@ int main() {
           .index = fumo_ebo,
           .shader = {},
         },
-        .textures = {fumo_tex_handle},
+        .textures = {fumo_tex_bind},
         .consts = fumo_unifs,
         .opts = fumo_opts,
         .sort_group = 0u,
@@ -354,12 +354,12 @@ int main() {
       });
 
       // Rin sprite
-      auto rin_tex_handle = atlas_tex.get();
+      const ntfr::texture_binding rin_tex_bind{.texture = atlas_tex, .sampler = 0};
       ctx.submit_render_command({
         .target = default_fbo,
         .pipeline = pipe_atl,
         .buffers = quad_bbind,
-        .textures = {rin_tex_handle},
+        .textures = {rin_tex_bind},
         .consts = rin_unifs,
         .opts = quad_opts,
         .sort_group = 0u,
@@ -367,12 +367,12 @@ int main() {
       });
 
       // Framebuffer viewport
-      auto fbo_tex_handle = fbo_tex.get();
+      const ntfr::texture_binding fbo_tex_bind{.texture = fbo_tex, .sampler = 0};
       ctx.submit_render_command({
         .target = default_fbo,
         .pipeline = pipe_tex,
         .buffers = quad_bbind,
-        .textures = {fbo_tex_handle},
+        .textures = {fbo_tex_bind},
         .consts = fb_unifs,
         .opts = quad_opts,
         .sort_group = 0u,
@@ -392,12 +392,12 @@ int main() {
       });
 
       // Cirno quad
-      auto cino_tex_handle = tex.get();
+      const ntfr::texture_binding cino_tex_bind{.texture = tex, .sampler = 0};
       ctx.submit_render_command({
         .target = fbo,
         .pipeline = pipe_tex,
         .buffers = quad_bbind,
-        .textures = {cino_tex_handle},
+        .textures = {cino_tex_bind},
         .consts = cino_unifs,
         .opts = quad_opts,
         .sort_group = 0u,

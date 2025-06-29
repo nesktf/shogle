@@ -77,6 +77,11 @@ public:
     size_t size;
   };
 
+  struct tex_bind_t {
+    ctx_tex handle;
+    u32 sampler;
+  };
+
   static constexpr u32 MAX_LAYOUT_NUMBER = 32u; // hack
 
 public:
@@ -90,7 +95,7 @@ public:
   std::array<ctx_buff, MAX_LAYOUT_NUMBER> vbo;
   ctx_buff ebo;
   span<shad_bind_t> shader_buffers;
-  span<ctx_tex> textures;
+  span<tex_bind_t> textures;
   span<unif_const_t> uniforms;
   render_opts opts;
   uint32 sort_group;

@@ -284,9 +284,9 @@ void font_renderer::render(const quad_mesh& quad, framebuffer_view fbo,
     },
     data.binds,
   };
-  auto atlas_tex_handle = _atlas_tex.get();
-
   const int32 sampler = 0;
+  const texture_binding tbind {.texture = _atlas_tex, .sampler = sampler};
+
   const uniform_const unif_consts[] = {
     format_uniform_const(data.u_sampler, sampler),
     format_uniform_const(data.u_transf, _transform),
@@ -296,7 +296,7 @@ void font_renderer::render(const quad_mesh& quad, framebuffer_view fbo,
       .target = fbo.get(),
       .pipeline = data.pip,
       .buffers = quad.bindings(uniform_binds),
-      .textures = {atlas_tex_handle},
+      .textures = {tbind},
       .consts = unif_consts,
       .opts = {
         .vertex_count = 6,

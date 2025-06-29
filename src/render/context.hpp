@@ -22,6 +22,11 @@ struct buffer_binding {
   cspan<shader_binding> shader;
 };
 
+struct texture_binding {
+  texture_t texture;
+  u32 sampler;
+};
+
 struct uniform_const {
   attribute_data data;
   attribute_type type;
@@ -39,7 +44,7 @@ struct render_cmd {
   framebuffer_t target;
   pipeline_t pipeline;
   buffer_binding buffers;
-  cspan<texture_t> textures;
+  cspan<texture_binding> textures;
   cspan<uniform_const> consts;
   render_opts opts;
   uint32 sort_group;

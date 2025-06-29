@@ -167,11 +167,10 @@ void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render
               gl_buff.type, buffer.binding, gl_buff.id, buffer.offset, buffer.size);
     }
 
-    // Bind textures, set the sampler index in order
-    for (uint32 index = 0u; const ctx_tex tex_handle : cmd.textures) {
-      auto& tex = _textures.get(tex_handle);
-      _state.texture_bind(tex.id, tex.type, index);
-      ++index;
+    // Bind textures
+    for (const auto& tex_bind : cmd.textures) {
+      auto& tex = _textures.get(tex_bind.handle);
+      _state.texture_bind(tex.id, tex.type, tex_bind.sampler);
     }
 
     // Upload uniforms, if any
