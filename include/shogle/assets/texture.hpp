@@ -3,7 +3,7 @@
 #include "./types.hpp"
 #include "./filesystem.hpp"
 
-#include <shogle/wrappers.hpp>
+#include <shogle/render/texture.hpp>
 
 namespace ntf {
 

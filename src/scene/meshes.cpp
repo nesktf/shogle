@@ -1,6 +1,6 @@
-#include "./meshes.hpp"
+#include <shogle/scene/meshes.hpp>
 
-#include "../assets/meshes.hpp"
+#include <shogle/assets/meshes.hpp>
 
 namespace ntf::render {
 

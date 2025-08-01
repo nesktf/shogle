@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/math.hpp>
+#include <shogle/math/vector.hpp>
 
 #define SHOGLE_TRANSF_DEF_SETTER(_signature, ...) \
 Derived& _signature & \

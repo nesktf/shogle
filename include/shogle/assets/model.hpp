@@ -1,8 +1,7 @@
 #pragma once
 
-#include <shogle/wrappers.hpp>
-#include "./types.hpp"
-#include <shogle/math.hpp>
+#include <shogle/assets/types.hpp>
+#include <shogle/render/vertex.hpp>
 
 #define SHOGLE_ASSIMP_WEIGHTS 4
 

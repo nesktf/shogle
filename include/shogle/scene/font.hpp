@@ -1,8 +1,10 @@
 #pragma once
 
-#include "./meshes.hpp"
+#include <shogle/render/pipeline.hpp>
+#include <shogle/render/framebuffer.hpp>
 
-#include "../assets/font.hpp"
+#include <shogle/scene/meshes.hpp>
+#include <shogle/assets/font.hpp>
 
 namespace ntf::render {
 

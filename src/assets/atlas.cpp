@@ -1,5 +1,5 @@
-#include "./atlas.hpp"
-#include "./filesystem.hpp"
+#include <shogle/assets/atlas.hpp>
+#include <shogle/assets/filesystem.hpp>
 
 #include <nlohmann/json.hpp>
 

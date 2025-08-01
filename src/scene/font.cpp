@@ -1,6 +1,6 @@
-#include "./font.hpp"
+#include <shogle/scene/font.hpp>
 #include "../assets/shaders/instanced_font.hpp"
-#include <shogle/wrappers.hpp>
+#include <shogle/render/context.hpp>
 
 namespace ntf::render {
 

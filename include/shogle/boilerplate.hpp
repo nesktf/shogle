@@ -1,8 +1,14 @@
 #pragma once
 
-#include "./render.hpp"
-#include "./assets.hpp"
-#include "./scene.hpp"
+#include <shogle/render/texture.hpp>
+#include <shogle/render/window.hpp>
+#include <shogle/render/vertex.hpp>
+#include <shogle/render/pipeline.hpp>
+#include <shogle/render/framebuffer.hpp>
+
+#include <shogle/assets/texture.hpp>
+
+#include <shogle/scene/font.hpp>
 
 #include <ntfstl/utility.hpp>
 

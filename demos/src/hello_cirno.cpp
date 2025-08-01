@@ -1,5 +1,4 @@
-#include <shogle/math.hpp>
-#include <shogle/version.hpp>
+#include <shogle/shogle.hpp>
 #include <shogle/boilerplate.hpp>
 
 int main() {

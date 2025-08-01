@@ -1,6 +1,10 @@
 #pragma once
 
-#include <shogle/wrappers.hpp>
+#include <shogle/render/context.hpp>
+#include <shogle/render/texture.hpp>
+#include <shogle/render/buffer.hpp>
+#include <shogle/render/framebuffer.hpp>
+#include <shogle/render/pipeline.hpp>
 
 #include <ntfstl/ptr.hpp>
 #include <ntfstl/allocator.hpp>

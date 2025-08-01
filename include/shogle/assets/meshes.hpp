@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/wrappers.hpp>
+#include <shogle/render/vertex.hpp>
 
 namespace ntf {
 

@@ -1,5 +1,5 @@
-#include "./model.hpp"
-#include "./filesystem.hpp"
+#include <shogle/assets/model.hpp>
+#include <shogle/assets/filesystem.hpp>
 
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
