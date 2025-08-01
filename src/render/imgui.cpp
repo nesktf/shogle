@@ -36,7 +36,7 @@
   NTF_UNREACHABLE()
 #endif
 
-namespace ntf::render {
+namespace shogle {
 
 imgui_ctx::imgui_ctx(context_view ctx, context_api shogle_api) noexcept :
   _ctx{ctx}, _shogle_api{shogle_api}, _draw_data{nullptr} {}
@@ -146,7 +146,7 @@ void imgui_ctx::operator()(context_t, ctx_handle) {
 
 void imgui_ctx::end_frame(framebuffer_view target,
                           uint32 sort_group,
-                          weak_cptr<external_state> state,
+                          weak_ptr<const external_state> state,
                           ImDrawData* draw_data) {
   _draw_data = draw_data;
   if (!_draw_data) {
@@ -170,4 +170,4 @@ void imgui_ctx::end_frame(framebuffer_view target,
   });
 }
 
-} // namespace ntf::render
+} // namespace shogle

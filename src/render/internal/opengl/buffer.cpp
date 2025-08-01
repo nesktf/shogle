@@ -1,6 +1,6 @@
 #include "./context.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
 GLenum gl_state::buffer_type_cast(buffer_type type) noexcept {
   switch(type) {
@@ -27,7 +27,7 @@ GLenum& gl_state::_buffer_pos(GLenum type) {
 }
 
 ctx_buff_status gl_state::create_buffer(glbuffer_t& buffer, buffer_type type, buffer_flag flags,
-                                        size_t size, weak_cptr<buffer_data> data)
+                                        size_t size, weak_ptr<const buffer_data> data)
 {
   const bool is_dynamic = +(flags & buffer_flag::dynamic_storage);
   const GLbitfield access_flags = 
@@ -167,4 +167,4 @@ ctx_buff_status gl_context::unmap_buffer(ctx_buff buff, void* ptr) noexcept {
   return CTX_BUFF_STATUS_OK;
 }
 
-} // namespace ntf::render
+} // namespace shogle

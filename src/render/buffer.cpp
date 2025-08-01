@@ -1,6 +1,6 @@
 #include "./internal/platform.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
 buffer_t_::buffer_t_(context_t ctx_, ctx_buff handle_, const ctx_buff_desc& desc) noexcept:
   ctx_res_node<buffer_t_>{ctx_},
@@ -41,7 +41,7 @@ static const char* buffer_type_str(buffer_type type) {
   NTF_UNREACHABLE();
 }
 
-static unexpected<render_error> handle_error(ctx_buff_status status){
+static ntf::unexpected<render_error> handle_error(ctx_buff_status status){
   switch (status){
     case CTX_BUFF_STATUS_ALLOC_FAILED: {
       RET_ERROR("Buffer allocation failed");
@@ -168,4 +168,4 @@ ctx_handle buffer_get_id(buffer_t buffer) {
   return buffer->handle;
 }
 
-} // namespace ntf::render
+} // namespace shogle

@@ -1,6 +1,6 @@
 #include "./context.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
 static constexpr int32 DEFAULT_IMAGE_ALIGNMENT = 4;
 
@@ -525,4 +525,4 @@ ctx_tex_status gl_context::update_texture(ctx_tex tex, const ctx_tex_opts& opts)
   return CTX_TEX_STATUS_OK;
 }
 
-} // namespace ntf::render
+} // namespace shogle

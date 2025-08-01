@@ -2,7 +2,7 @@
 
 #include <shogle/render/context.hpp>
 
-namespace ntf::render {
+namespace shogle {
 
 struct fbo_image {
   texture_t texture;
@@ -16,7 +16,7 @@ struct fbo_image_desc {
   color4 clear_color;
   clear_flag clear_flags;
   fbo_buffer test_buffer;
-  cspan<fbo_image> images;
+  span<const fbo_image> images;
 };
 
 // struct fbo_color_desc {
@@ -44,51 +44,47 @@ framebuffer_t get_default_framebuffer(context_t ctx);
 context_t framebuffer_get_ctx(framebuffer_t fb);
 ctx_handle framebuffer_get_id(framebuffer_t fb);
 
-} // namespace ntf::render
-
-namespace ntf::impl {
+namespace impl {
 
 template<typename Derived>
 class rframebuffer_ops {
-  ntfr::framebuffer_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::framebuffer_t ptr = static_cast<const Derived&>(*this).get();
+  framebuffer_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
+    framebuffer_t ptr = static_cast<const Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid frambuffer handle");
     return ptr;
   }
 
 public:
-  operator ntfr::framebuffer_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
+  operator framebuffer_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
 
-  void clear_flags(ntfr::clear_flag flags) const {
-    ntfr::framebuffer_set_clear_flags(_ptr(), flags);
+  void clear_flags(clear_flag flags) const {
+    ::shogle::framebuffer_set_clear_flags(_ptr(), flags);
   }
   void viewport(const uvec4& vp) const {
-    ntfr::framebuffer_set_viewport(_ptr(), vp);
+    ::shogle::framebuffer_set_viewport(_ptr(), vp);
   }
-  void clear_color(const ntfr::color4& color) const {
-    ntfr::framebuffer_set_clear_color(_ptr(), color);
+  void clear_color(const color4& color) const {
+    ::shogle::framebuffer_set_clear_color(_ptr(), color);
   }
 
-  ntfr::context_view context() const {
-    return {ntfr::framebuffer_get_ctx(_ptr())};
+  context_view context() const {
+    return {::shogle::framebuffer_get_ctx(_ptr())};
   }
-  ntfr::clear_flag clear_flags() const {
-    return ntfr::framebuffer_get_clear_flags(_ptr());
+  clear_flag clear_flags() const {
+    return ::shogle::framebuffer_get_clear_flags(_ptr());
   }
-  ntfr::ctx_handle id() const {
-    return ntfr::framebuffer_get_id(_ptr());
+  ctx_handle id() const {
+    return ::shogle::framebuffer_get_id(_ptr());
   }
   uvec4 viewport() const {
-    return ntfr::framebuffer_get_viewport(_ptr());
+    return ::shogle::framebuffer_get_viewport(_ptr());
   }
-  ntfr::color4 clear_color() const {
-    return ntfr::framebuffer_get_clear_color(_ptr());
+  color4 clear_color() const {
+    return ::shogle::framebuffer_get_clear_color(_ptr());
   }
 };
 
-} // namespace ntf::impl
-
-namespace ntf::render {
+} // namespace impl
 
 class framebuffer_view : public impl::rframebuffer_ops<framebuffer_view> {
 public:
@@ -112,14 +108,14 @@ class framebuffer : public impl::rframebuffer_ops<framebuffer> {
 private:
   struct deleter_t {
     void operator()(framebuffer_t pip) noexcept {
-      ntfr::destroy_framebuffer(pip);
+      ::shogle::destroy_framebuffer(pip);
     }
   };
-  using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::framebuffer_t>, deleter_t>;
+  using uptr_type = std::unique_ptr<std::remove_pointer_t<framebuffer_t>, deleter_t>;
 
 public:
   static framebuffer_view get_default(context_view ctx) {
-    return {ntfr::get_default_framebuffer(ctx.get())};
+    return {::shogle::get_default_framebuffer(ctx.get())};
   }
 
 public:
@@ -131,7 +127,7 @@ public:
 
 public:
   static expect<framebuffer> create(context_view ctx, const fbo_image_desc& desc){
-    return ntfr::create_framebuffer(ctx.get(), desc)
+    return ::shogle::create_framebuffer(ctx.get(), desc)
     .transform([](framebuffer_t pip) -> framebuffer {
       return framebuffer{pip};
     });
@@ -148,4 +144,4 @@ private:
   uptr_type _pip;
 };
 
-} // namespace ntf
+} // namespace shogle

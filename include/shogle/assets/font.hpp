@@ -7,65 +7,65 @@
 #include <set>
 #include <map>
 
-namespace ntf {
+namespace shogle {
 
 template<typename CodeT>
-concept font_codepoint_type = meta::same_as_any<CodeT,
+concept font_codepoint_type = ntf::meta::same_as_any<CodeT,
   char, wchar_t,
   char8_t, char16_t, char32_t
 >;
 
 // TODO: Use an actual set for the charset (lol)
-template<font_codepoint_type CodeT, meta::allocator_type<CodeT> Alloc = std::allocator<CodeT>>
+template<font_codepoint_type CodeT, ntf::meta::allocator_type<CodeT> Alloc = std::allocator<CodeT>>
 using font_charset = std::basic_string<CodeT, std::char_traits<CodeT>, Alloc>;
 template<font_codepoint_type CodeT>
 using font_charset_view = std::basic_string_view<CodeT, std::char_traits<CodeT>>;
 
 struct glyph_metrics {
   uint32 id;
-  ntfr::extent2d size;
-  ntfr::extent2d offset;
+  extent2d size;
+  extent2d offset;
   ivec2 bearing;
   ivec2 advance;
 };
 
 using font_glyphs =
-  unique_array<glyph_metrics, allocator_delete<glyph_metrics, virtual_allocator<glyph_metrics>>>;
+  ntf::unique_array<glyph_metrics, ntf::allocator_delete<glyph_metrics, ntf::virtual_allocator<glyph_metrics>>>;
 
-using glyph_map = fixed_hashmap<
+using glyph_map = ntf::fixed_hashmap<
   char32_t, size_t,
   std::hash<char32_t>, std::equal_to<char32_t>,
-  allocator_delete<std::pair<const char32_t, size_t>,
-    virtual_allocator<std::pair<const char32_t, size_t>>
+  ntf::allocator_delete<std::pair<const char32_t, size_t>,
+    ntf::virtual_allocator<std::pair<const char32_t, size_t>>
   >
 >;
 
 struct font_atlas_data {
 public:
-  using bitmap_t = unique_array<uint8, allocator_delete<uint8, virtual_allocator<uint8>>>;
+  using bitmap_t = ntf::unique_array<uint8, ntf::allocator_delete<uint8, ntf::virtual_allocator<uint8>>>;
 
 public:
   using iterator = font_glyphs::iterator;
   using const_iterator = font_glyphs::const_iterator;
 
 public:
-  font_atlas_data(bitmap_t&& bitmap_, ntfr::extent2d bitmap_extent_,
-                  ntfr::image_format bitmap_format_, ntfr::image_alignment bitmap_alignment_,
+  font_atlas_data(bitmap_t&& bitmap_, extent2d bitmap_extent_,
+                  image_format bitmap_format_, image_alignment bitmap_alignment_,
                   font_glyphs&& glyphs_, glyph_map&& glyph_map_) noexcept :
     bitmap{std::move(bitmap_)}, glyphs{std::move(glyphs_)}, map{std::move(glyph_map_)},
     bitmap_extent{bitmap_extent_}, bitmap_format{bitmap_format_},
     bitmap_alignment{bitmap_alignment_} {}
 
 public:
-  template<meta::image_dim_type T = ntfr::extent2d>
-  ntfr::image_data make_bitmap_descriptor(
+  template<meta::image_dim_type T = extent2d>
+  image_data make_bitmap_descriptor(
     const T& offset = {}, uint32 layer = 0, uint32 level = 0
   ) const noexcept {
-    return ntfr::image_data{
+    return image_data{
       .bitmap = bitmap.get(),
       .format = bitmap_format,
       .alignment = bitmap_alignment,
-      .extent = meta::image_dim_traits<ntfr::extent2d>::extent_cast(bitmap_extent),
+      .extent = meta::image_dim_traits<extent2d>::extent_cast(bitmap_extent),
       .offset = meta::image_dim_traits<T>::offset_cast(offset),
       .layer = layer,
       .level = level,
@@ -87,9 +87,9 @@ public:
   bitmap_t bitmap;
   font_glyphs glyphs;
   glyph_map map;
-  ntfr::extent2d bitmap_extent;
-  ntfr::image_format bitmap_format;
-  ntfr::image_alignment bitmap_alignment;
+  extent2d bitmap_extent;
+  image_format bitmap_format;
+  image_alignment bitmap_alignment;
 };
 
 enum class font_load_flags {
@@ -118,8 +118,8 @@ private:
 private:
   struct ft_glyph_data {
     uint32 id;
-    ntfr::extent2d size;  // unused
-    ntfr::extent2d bsize;
+    extent2d size;  // unused
+    extent2d bsize;
     ivec2 hbearing; // unused
     ivec2 vbearing; // unused
     ivec2 bbearing;
@@ -146,9 +146,9 @@ public:
   ft2_font_loader() noexcept;
 
 private:
-  asset_expected<face_t> _load_face(cspan<uint8> file_data, const ntfr::extent2d& glyph_size);
+  asset_expected<face_t> _load_face(span<const uint8> file_data, const extent2d& glyph_size);
   uint32 _get_code_index(const face_t& face, uint64 code);
-  optional<ft_glyph_data> _load_metrics(const face_t& face, uint32 idx, ft_mode load_mode);
+  ntf::optional<ft_glyph_data> _load_metrics(const face_t& face, uint32 idx, ft_mode load_mode);
   const uint8* _render_bitmap(const face_t& face, uint32 idx, ft_mode render_mode);
 
   std::tuple<face_t, font_glyphs, glyph_map> _parse_metrics(
@@ -169,8 +169,8 @@ private:
 public:
   template<font_codepoint_type CodeT>
   auto load_atlas(
-    cspan<uint8> file_data, font_charset_view<CodeT> charset, font_load_flags flags,
-    const ntfr::extent2d& glyph_size, uint32 padding, uint32 atlas_size
+    span<const uint8> file_data, font_charset_view<CodeT> charset, font_load_flags flags,
+    const extent2d& glyph_size, uint32 padding, uint32 atlas_size
   ) -> asset_expected<font_atlas_data>
   {
     const ft_mode mode = +(flags & font_load_flags::render_sdf) ? ft_mode::sdf : ft_mode::normal;
@@ -217,7 +217,7 @@ constexpr auto array_range = []() {
 template<font_codepoint_type T>
 constexpr font_charset_view<T> ascii_charset{array_range<T, T{0}, T{127}>.data(), 128u};
 
-template<font_codepoint_type CodeT, typename Loader = ntf::ft2_font_loader>
+template<font_codepoint_type CodeT, typename Loader = ft2_font_loader>
 auto load_font_atlas(
   const std::string& path,
   font_load_flags flags = font_load_flags::render_sdf,
@@ -233,4 +233,4 @@ auto load_font_atlas(
     });
 }
 
-} // namespace ntf
+} // namespace shogle

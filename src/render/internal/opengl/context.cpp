@@ -1,7 +1,7 @@
 #include "./context.hpp"
 #include <ntfstl/utility.hpp>
 
-namespace ntf::render {
+namespace shogle {
 
 void gl_context::debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity,
                                 GLsizei, const GLchar* msg, const void*) {
@@ -130,7 +130,7 @@ ctx_alloc::string_t<char> gl_context::get_name(ctx_alloc& alloc) {
   return alloc.fmt_string("{} [{} - {}]", name_str, vendor_str, ver_str);
 }
 
-void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render_data) {
+void gl_context::submit_render_data(context_t ctx, span<const ctx_render_data> render_data) {
   std::invoke(_funcs.make_current, _funcs.gl_ctx);
   _state.vao_bind(_vao.id);
 
@@ -217,13 +217,13 @@ void gl_context::submit_render_data(context_t ctx, cspan<ctx_render_data> render
 
     for (const auto& cmd : data.commands) {
       bool external_render = false;
-      std::visit(overload {
-        [&](function_view<void(context_t)> on_render) {
+      std::visit(ntf::overload {
+        [&](ntf::function_view<void(context_t)> on_render) {
           if (on_render) {
             std::invoke(on_render, ctx);
           }
         },
-        [&](function_view<void(context_t, ctx_handle)> on_render) {
+        [&](ntf::function_view<void(context_t, ctx_handle)> on_render) {
           NTF_ASSERT(on_render);
           if (cmd.external) {
             _state.prepare_state(*cmd.external);
@@ -245,4 +245,4 @@ void gl_context::swap_buffers() {
   std::invoke(_funcs.swap_buffers, _funcs.gl_ctx);
 }
 
-} // namespace ntf::render
+} // namespace shogle

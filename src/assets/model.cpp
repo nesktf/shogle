@@ -7,7 +7,7 @@
 
 // #define LOG_BONE_THINGIES
 
-namespace ntf {
+namespace shogle {
 
 namespace {
 
@@ -37,7 +37,7 @@ vec3 asscast(const aiVector3D& vec) {
   return {vec.x, vec.y, vec.z};
 }
 
-ntfr::color4 asscast(const aiColor4D& col) {
+color4 asscast(const aiColor4D& col) {
   return {col.r, col.g, col.b, col.a};
 }
 
@@ -76,7 +76,7 @@ void parse_bone_nodes(uint32 parent, uint32& bone_counter, const aiNode* node,
 
 void parse_weights(std::unordered_map<std::string, std::pair<uint32,mat4>>& bone_map,
                    const aiMesh* mesh,
-                   std::vector<ntfr::vertex_weights<SHOGLE_ASSIMP_WEIGHTS>>& weights) {
+                   std::vector<vertex_weights<SHOGLE_ASSIMP_WEIGHTS>>& weights) {
   NTF_ASSERT(!bone_map.empty());
   const size_t mesh_pos = weights.size();
   weights.resize(weights.size()+mesh->mNumVertices);
@@ -89,7 +89,7 @@ void parse_weights(std::unordered_map<std::string, std::pair<uint32,mat4>>& bone
         return;
       }
       auto& bone = weights[pos];
-      if (bone.indices[i] == ntfr::BONE_TOMBSTONE) {
+      if (bone.indices[i] == BONE_TOMBSTONE) {
         bone.indices[i] = idx;
         bone.weights[i] = weight.mWeight;
         return;
@@ -192,7 +192,7 @@ asset_expected<void> assimp_loader::parse(const std::string& path, model_load_fl
   auto dir = file_dir(path);
   if (!dir) {
     SHOGLE_LOG(error, "[ntf::assimp_loader] Invalid file path: \"{}\"", path);
-    return unexpected{asset_error::format({"[ntf::assimp_loader] Invalid file path: \"{}\""},
+    return ntf::unexpected{asset_error::format({"[ntf::assimp_loader] Invalid file path: \"{}\""},
                                           path)};
   }
   _dir = std::move(*dir);
@@ -201,7 +201,7 @@ asset_expected<void> assimp_loader::parse(const std::string& path, model_load_fl
   const aiScene* scene = importer->ReadFile(path.c_str(), parse_process_flags(flags));
   if (!scene) {
     SHOGLE_LOG(error, "[ntf::assimp_loader] ASSIMP ERROR: {}", importer->GetErrorString());
-    return unexpected{asset_error::format({"ASSIMP ERROR: {}"}, importer->GetErrorString())};
+    return ntf::unexpected{asset_error::format({"ASSIMP ERROR: {}"}, importer->GetErrorString())};
   }
 
   // Extract all bone names from the model meshes
@@ -218,7 +218,7 @@ asset_expected<void> assimp_loader::parse(const std::string& path, model_load_fl
       // Also store the inverse model matrix for later use
       _bone_map.emplace(
         std::make_pair(bone->mName.C_Str(),
-                       std::make_pair(ntfr::BONE_TOMBSTONE, asscast(bone->mOffsetMatrix)))
+                       std::make_pair(BONE_TOMBSTONE, asscast(bone->mOffsetMatrix)))
       );
     }
   }
@@ -262,7 +262,7 @@ void assimp_loader::get_armatures(armature_data& arms) {
     NTF_ASSERT(it != _bone_map.end());
 
     const auto bone_index = it->second.first;
-    if (bone_index != ntfr::BONE_TOMBSTONE) {
+    if (bone_index != BONE_TOMBSTONE) {
       SHOGLE_LOG(warning,
                  "[ntf::assimp_loader] Bone root \"{}\" already parsed, possible node duplicate",
                  root->mName.C_Str());
@@ -271,7 +271,7 @@ void assimp_loader::get_armatures(armature_data& arms) {
 
     uint32 root_idx = bone_counter;
     // Will set BONE_TOMBSTONE as the parent index for the root bone
-    parse_bone_nodes(ntfr::BONE_TOMBSTONE, bone_counter, root, _bone_map, bones);
+    parse_bone_nodes(BONE_TOMBSTONE, bone_counter, root, _bone_map, bones);
 
     if (!is_identity(bones[root_idx].local*bones[root_idx].inv_model)) {
       SHOGLE_LOG(warning,
@@ -576,4 +576,4 @@ void assimp_loader::parse_meshes(mesh_data<vert_type>& data) {
              vertex_count, index_count, scene->mNumMeshes, _path);
 }
 
-} // namespace ntf
+} // namespace shogle

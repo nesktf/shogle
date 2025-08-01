@@ -2,7 +2,7 @@
 
 #include <shogle/render/types.hpp>
 
-namespace ntf::render {
+namespace shogle {
 
 struct shader_binding {
   buffer_t buffer;
@@ -17,9 +17,9 @@ struct vertex_binding {
 };
 
 struct buffer_binding {
-  cspan<vertex_binding> vertex;
+  span<const vertex_binding> vertex;
   buffer_t index;
-  cspan<shader_binding> shader;
+  span<const shader_binding> shader;
 };
 
 struct texture_binding {
@@ -44,11 +44,11 @@ struct render_cmd {
   framebuffer_t target;
   pipeline_t pipeline;
   buffer_binding buffers;
-  cspan<texture_binding> textures;
-  cspan<uniform_const> consts;
+  span<const texture_binding> textures;
+  span<const uniform_const> consts;
   render_opts opts;
   uint32 sort_group;
-  function_view<void(context_t)> render_callback;
+  ntf::function_view<void(context_t)> render_callback;
 };
 
 struct external_state {
@@ -60,9 +60,9 @@ struct external_state {
 
 struct external_cmd {
   framebuffer_t target;
-  weak_cptr<external_state> state;
+  weak_ptr<const external_state> state;
   uint32 sort_group;
-  function_view<void(context_t, ctx_handle)> render_callback;
+  ntf::function_view<void(context_t, ctx_handle)> render_callback;
 };
 
 struct context_params {
@@ -71,7 +71,7 @@ struct context_params {
   uvec4 fb_viewport;
   clear_flag fb_clear_flags;
   color4 fb_clear_color;
-  weak_cptr<malloc_funcs> alloc;
+  weak_ptr<const ntf::malloc_funcs> alloc;
 };
 
 expect<context_t> create_context(const context_params& params);
@@ -85,45 +85,41 @@ void submit_external_command(context_t ctx, const external_cmd& cmd);
 context_api get_api(context_t ctx);
 cstring_view<char> get_name(context_t ctx);
 
-} // namespace ntf::render
-
-namespace ntf::impl {
+namespace impl {
 
 template<typename Derived>
 class rcontext_ops {
-  ntfr::context_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::context_t ptr = static_cast<const Derived&>(*this).get();
+  context_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
+    context_t ptr = static_cast<const Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid context handle");
     return ptr;
   }
 
 public:
-  operator ntfr::context_t() const noexcept { return _ptr(); }
+  operator context_t() const noexcept { return _ptr(); }
 
   void start_frame() const {
-    ntfr::start_frame(_ptr());
+    ::shogle::start_frame(_ptr());
   }
   void end_frame() const {
-    ntfr::end_frame(_ptr());
+    ::shogle::end_frame(_ptr());
   }
   void device_wait() const {
-    ntfr::device_wait(_ptr());
+    ::shogle::device_wait(_ptr());
   }
-  void submit_render_command(const ntfr::render_cmd& cmd) const {
-    ntfr::submit_render_command(_ptr(), cmd);
+  void submit_render_command(const render_cmd& cmd) const {
+    ::shogle::submit_render_command(_ptr(), cmd);
   }
-  void submit_external_command(const ntfr::external_cmd& cmd) const {
-    ntfr::submit_external_command(_ptr(), cmd);
+  void submit_external_command(const external_cmd& cmd) const {
+    ::shogle::submit_external_command(_ptr(), cmd);
   }
 
-  ntfr::context_api api() const {
-    return ntfr::get_api(_ptr());
+  context_api api() const {
+    return ::shogle::get_api(_ptr());
   }
 };
 
-} // namespace ntf::impl
-
-namespace ntf::render {
+} // namespace impl
 
 class context_view : public impl::rcontext_ops<context_view> {
 public:
@@ -137,11 +133,11 @@ private:
   context_t _ctx;
 };
 
-class context : public ::ntf::impl::rcontext_ops<context> {
+class context : public impl::rcontext_ops<context> {
 private:
   struct deleter_t {
     void operator()(context_t ctx) noexcept {
-      ntfr::destroy_context(ctx);
+      ::shogle::destroy_context(ctx);
     }
   };
   using uptr_type = std::unique_ptr<std::remove_pointer_t<context_t>, deleter_t>;
@@ -152,7 +148,7 @@ public:
 
 public:
   static expect<context> create(const context_params& params) {
-    return ntfr::create_context(params)
+    return ::shogle::create_context(params)
     .transform([](context_t ctx) -> context {
       return context{ctx};
     });
@@ -168,4 +164,4 @@ private:
   uptr_type _ctx;
 };
 
-} // namespace ntf::render
+} // namespace shogle

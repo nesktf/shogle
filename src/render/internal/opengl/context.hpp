@@ -9,13 +9,13 @@
 #define GL_CALL(fun, ...) \
 do { \
   fun(__VA_ARGS__); \
-  GLenum glerr = ::ntfr::gl_state::check_error(::ntf::meta::parse_src_str(NTF_FILE), NTF_LINE); \
+  GLenum glerr = ::shogle::gl_state::check_error(::shogle::meta::parse_src_str(NTF_FILE), NTF_LINE); \
   NTF_ASSERT(glerr == 0, "GL ERROR: {}", glerr); \
 } while(0) 
 #define GL_CALL_RET(fun, ...) \
 [&]() { \
   auto ret = fun(__VA_ARGS__); \
-  GLenum glerr = ::ntfr::gl_state::check_error(::ntf::meta::parse_src_str(NTF_FILE), NTF_LINE); \
+  GLenum glerr = ::shogle::gl_state::check_error(::shogle::meta::parse_src_str(NTF_FILE), NTF_LINE); \
   NTF_ASSERT(glerr == 0, "GL ERROR: {}", glerr); \
   return ret; \
 }()
@@ -24,10 +24,10 @@ do { \
 #define GL_CHECK(fun, ...) \
 [&]() { \
   fun(__VA_ARGS__); \
-  return ::ntfr::gl_state::check_error(::ntf::meta::parse_src_str(NTF_FILE), NTF_LINE); \
+  return ::shogle::gl_state::check_error(::shogle::meta::parse_src_str(NTF_FILE), NTF_LINE); \
 }()
 
-namespace ntf::render {
+namespace shogle {
 
 class gl_context;
 
@@ -108,7 +108,7 @@ struct glprog_t {
     uint32 w, h;
   } scissor;
 
-  cspan<attribute_binding> layout;
+  span<const attribute_binding> layout;
 };
 
 struct gltex_t {
@@ -158,7 +158,7 @@ public:
 
 public:
   ctx_buff_status create_buffer(glbuffer_t& buffer, buffer_type type, buffer_flag flags,
-                                size_t size, weak_cptr<buffer_data> data);
+                                size_t size, weak_ptr<const buffer_data> data);
   void destroy_buffer(glbuffer_t& buffer);
   bool buffer_bind(GLuint id, GLenum type);
   ctx_buff_status buffer_upload(glbuffer_t& buffer, size_t size, size_t offset, const void* data);
@@ -174,7 +174,7 @@ public:
   void destroy_shader(glshader_t& shad);
 
   ctx_pip_status create_program(glprog_t& prog,
-                                cspan<glshader_t*> shaders, primitive_mode primitive,
+                                span<glshader_t*> shaders, primitive_mode primitive,
                                 polygon_mode poly_mode, f32 poly_width,
                                 render_tests tests, pip_err_str& err);
   void destroy_program(glprog_t& prog);
@@ -199,7 +199,7 @@ public:
   // void create_framebuffer(framebuffer_t& fbo, extent2d extent,
   //                         fbo_buffer test_buffers, image_format format);
   ctx_fbo_status create_framebuffer(glfbo_t& fbo, extent2d extent,
-                                    fbo_buffer test_buffers, cspan<glfbo_att_t> attachments);
+                                    fbo_buffer test_buffers, span<const glfbo_att_t> attachments);
   void destroy_framebuffer(glfbo_t& fbo);
   bool framebuffer_bind(GLuint id, glfbo_binding binding); 
   void framebuffer_prepare_state(GLuint fbo, clear_flag flags,
@@ -337,7 +337,7 @@ public:
   ctx_fbo_status create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) override;
   ctx_fbo_status destroy_framebuffer(ctx_fbo fbo) noexcept override;
 
-  void submit_render_data(context_t ctx, cspan<ctx_render_data> render_data) override;
+  void submit_render_data(context_t ctx, span<const ctx_render_data> render_data) override;
 
   void device_wait() override;
   void swap_buffers() override;
@@ -363,4 +363,4 @@ public:
   NTF_DECLARE_NO_MOVE_NO_COPY(gl_context);
 };
 
-} // namespace ntf::render
+} // namespace shogle

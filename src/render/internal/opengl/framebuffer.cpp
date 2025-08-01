@@ -1,6 +1,6 @@
 #include "./context.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
 GLenum gl_state::fbo_attachment_cast(fbo_buffer att) noexcept {
   switch (att) {
@@ -15,7 +15,7 @@ GLenum gl_state::fbo_attachment_cast(fbo_buffer att) noexcept {
 }
 
 ctx_fbo_status gl_state::create_framebuffer(glfbo_t& fbo, extent2d extent,
-                                            fbo_buffer buffers, cspan<glfbo_att_t> attachments)
+                                            fbo_buffer buffers, span<const glfbo_att_t> attachments)
 {
   const uint32 w = extent.x;
   const uint32 h = extent.y;
@@ -275,4 +275,4 @@ void gl_context::get_dfbo_params(extent2d& ext, fbo_buffer& buff, u32& msaa) {
 //   return fbo;
 // }
 
-} // namespace ntf::render
+} // namespace shogle

@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-namespace ntf {
+namespace shogle {
 
 constexpr inline std::string_view shad_vert_instanced_font = R"glsl(
 #version 460 core
@@ -110,4 +110,4 @@ void main() {
 
 )glsl";
 
-} // namespace ntf
+} // namespace shogle

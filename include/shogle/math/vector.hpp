@@ -10,7 +10,7 @@
 #include <complex>
 #include <cmath>
 
-namespace ntf {
+namespace shogle {
 
 template<uint32 N, typename T>
 using vec = glm::vec<N, T>;
@@ -359,4 +359,4 @@ mat<4, 4, T> build_trs_matrix(const vec<2, T>& pos,
   return m;
 }
 
-} // namespace ntf
+} // namespace shogle

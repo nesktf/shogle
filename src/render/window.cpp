@@ -5,7 +5,7 @@
 #include <ntfstl/utility.hpp>
 #include <atomic>
 
-namespace ntf::render {
+namespace shogle {
 
 static constexpr u32 round_pow2(u32 x) {
   x--;
@@ -139,7 +139,7 @@ win_expect<window> window::create(const win_params& params) {
       const char* err;
       glfwGetError(&err);
       RENDER_ERROR_LOG("Failed to initialize GLFW: {}", err);
-      return unexpected{win_error{err}};
+      return ntf::unexpected{win_error{err}};
     }
     RENDER_DBG_LOG("GLFW initialized");
   }
@@ -167,22 +167,22 @@ win_expect<window> window::create(const win_params& params) {
 
     i32 depth_bits = 0, stencil_bits = 0;
     switch (gl_params.fb_buffer) {
-      case ntfr::fbo_buffer::depth24u_stencil8u:
+      case fbo_buffer::depth24u_stencil8u:
         stencil_bits = 8;
         [[fallthrough]];
-      case ntfr::fbo_buffer::depth24u:
+      case fbo_buffer::depth24u:
         depth_bits = 24;
         break;
-      case ntfr::fbo_buffer::depth32f_stencil8u:
+      case fbo_buffer::depth32f_stencil8u:
         stencil_bits = 8;
         [[fallthrough]];
-      case ntfr::fbo_buffer::depth32f:
+      case fbo_buffer::depth32f:
         depth_bits = 32;
         break;
-      case ntfr::fbo_buffer::depth16u:
+      case fbo_buffer::depth16u:
         depth_bits = 16;
         break;
-      case ntfr::fbo_buffer::none:
+      case fbo_buffer::none:
         break;
     }
     glfwWindowHint(GLFW_DEPTH_BITS, depth_bits);
@@ -235,13 +235,13 @@ win_expect<window> window::create(const win_params& params) {
     const char* err;
     glfwGetError(&err);
     RENDER_ERROR_LOG("Failed to create GLFW window: {}", err);
-    return unexpected{win_error{err}};
+    return ntf::unexpected{win_error{err}};
   }
   ++win_count;
   glfwMakeContextCurrent(handle);
   glfwSwapInterval(swap_interval);
 
-  return win_expect<window>{in_place, win_cast(handle), context_api::opengl, params.attrib};
+  return win_expect<window>{ntf::in_place, win_cast(handle), context_api::opengl, params.attrib};
 #endif
 }
 
@@ -370,4 +370,4 @@ void window::attribs(win_attrib attrib) {
 #endif
 }
 
-} // namespace ntf::render
+} // namespace shogle

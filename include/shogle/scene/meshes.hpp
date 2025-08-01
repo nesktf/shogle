@@ -3,7 +3,7 @@
 #include <shogle/render/buffer.hpp>
 #include <shogle/render/vertex.hpp>
 
-namespace ntf::render {
+namespace shogle {
 
 class quad_mesh {
 public:
@@ -29,7 +29,7 @@ public:
   static constexpr auto attribute_binding() { return pnt_vertex::aos_binding(); }
 
 public:
-  buffer_binding bindings(cspan<shader_binding> shader_binds = {}) const {
+  buffer_binding bindings(span<const shader_binding> shader_binds = {}) const {
     return { .vertex = _bind, .index = _ebo.get(), .shader = shader_binds };
   }
   vertex_buffer_view vertex() const { return _vbo; }
@@ -66,7 +66,7 @@ public:
   static constexpr auto attribute_binding() { return pnt_vertex::aos_binding(); }
 
 public:
-  buffer_binding bindings(cspan<shader_binding> shader_binds = {}) const {
+  buffer_binding bindings(span<const shader_binding> shader_binds = {}) const {
     return { .vertex = _bind, .index = nullptr, .shader = shader_binds };
   }
   vertex_buffer_view vertex() const { return _vbo; }
@@ -76,4 +76,4 @@ private:
   vertex_binding _bind[3u];
 };
 
-} // namespace ntf::render
+} // namespace shogle

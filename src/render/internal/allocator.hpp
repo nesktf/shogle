@@ -16,34 +16,34 @@
 
 #define RENDER_ERROR_LOG(_fmt, ...) \
   SHOGLE_LOG(error, "[{}:{}] " \
-             _fmt, ::ntf::meta::parse_src_str(NTF_FILE), \
+             _fmt, ::shogle::meta::parse_src_str(NTF_FILE), \
              NTF_LINE __VA_OPT__(,) __VA_ARGS__)
 
 #define RENDER_WARN_LOG(_fmt, ...) \
   SHOGLE_LOG(warning, "[{}:{}] " \
-             _fmt, ::ntf::meta::parse_src_str(NTF_FILE), \
+             _fmt, ::shogle::meta::parse_src_str(NTF_FILE), \
              NTF_LINE __VA_OPT__(,) __VA_ARGS__)
 
 #define RENDER_DBG_LOG(_fmt, ...) \
   SHOGLE_LOG(debug, "[{}:{}] " \
-             _fmt, ::ntf::meta::parse_src_str(NTF_FILE), \
+             _fmt, ::shogle::meta::parse_src_str(NTF_FILE), \
              NTF_LINE __VA_OPT__(,) __VA_ARGS__)
 
 #define RENDER_VRB_LOG(_fmt, ...) \
   SHOGLE_LOG(verbose, "[{}:{}] " \
-             _fmt, ::ntf::meta::parse_src_str(NTF_FILE), \
+             _fmt, ::shogle::meta::parse_src_str(NTF_FILE), \
              NTF_LINE __VA_OPT__(,) __VA_ARGS__)
 
 #define RET_ERROR(_str) \
   RENDER_ERROR_LOG(_str); \
-  return unexpected{render_error{_str}}
+  return ntf::unexpected{render_error{_str}}
 
 #define RET_ERROR_IF(_cond, _str) \
   if (_cond) { RET_ERROR(_str); }
 
 #define RET_ERROR_FMT(_alloc, _fmt, ...) \
   RENDER_ERROR_LOG(_fmt __VA_OPT__(,) __VA_ARGS__); \
-  return unexpected{render_error{_alloc.fmt_arena_string(_fmt __VA_OPT__(,) __VA_ARGS__)}}
+  return ntf::unexpected{render_error{_alloc.fmt_arena_string(_fmt __VA_OPT__(,) __VA_ARGS__)}}
 
 #define RET_ERROR_FMT_IF(_cond, _alloc, _fmt, ...) \
   if (_cond) { RET_ERROR_FMT(_alloc, _fmt, __VA_ARGS__); }
@@ -51,13 +51,13 @@
 #define RET_ERROR_CATCH(_msg) \
   catch (render_error& err) { \
     RENDER_ERROR_LOG(_msg ": {}", err.what()); \
-    return unexpected{std::move(err)}; \
+    return ntf::unexpected{std::move(err)}; \
   } catch (const std::bad_alloc&) { \
     RENDER_ERROR_LOG(_msg ": Allocation failed"); \
-    return unexpected{render_error{"Allocation failed"}}; \
+    return ntf::unexpected{render_error{"Allocation failed"}}; \
   } catch (...) { \
     RENDER_ERROR_LOG(_msg ": Caught (...)"); \
-    return unexpected{render_error{"Unknown error"}}; \
+    return ntf::unexpected{render_error{"Unknown error"}}; \
   }
 
 #define RENDER_ERROR_LOG_CATCH(_msg) \
@@ -67,7 +67,7 @@
     RENDER_ERROR_LOG(_msg ": Caught (...)"); \
   }
 
-namespace ntf::render {
+namespace shogle {
 
 class ctx_alloc {
 public:
@@ -91,7 +91,7 @@ public:
 
     template<typename U = T>
     requires(std::is_convertible_v<U*, T*>)
-    void operator()(uninitialized_t, U* ptr)
+    void operator()(ntf::uninitialized_t, U* ptr)
     noexcept(std::is_nothrow_destructible_v<T>)
     {
       std::invoke(_free, _uptr, ptr, sizeof(T));
@@ -99,7 +99,7 @@ public:
 
     template<typename U = T>
     requires(std::is_convertible_v<U*, T*>)
-    void operator()(uninitialized_t, U* ptr, size_t n)
+    void operator()(ntf::uninitialized_t, U* ptr, size_t n)
     noexcept(std::is_nothrow_destructible_v<T>)
     {
       std::invoke(_free, _uptr, ptr, n*sizeof(T));
@@ -195,7 +195,7 @@ public:
   using uptr_t = std::unique_ptr<T, alloc_del_t<T>>;
 
   template<typename T>
-  using uarray_t = unique_array<T, alloc_del_t<T>>;
+  using uarray_t = ntf::unique_array<T, alloc_del_t<T>>;
 
   template<typename T>
   using vec_t = std::vector<T, adaptor_t<T>>;
@@ -230,10 +230,10 @@ public:
   >;
 
 public:
-  ctx_alloc(const malloc_funcs& funcs, linked_arena&& arena) noexcept;
+  ctx_alloc(const ntf::malloc_funcs& funcs, ntf::linked_arena&& arena) noexcept;
 
 public:
-  static uptr_t<ctx_alloc> make_alloc(weak_cptr<malloc_funcs> alloc, size_t arena_size);
+  static uptr_t<ctx_alloc> make_alloc(weak_ptr<const ntf::malloc_funcs> alloc, size_t arena_size);
   
 public: 
   void* allocate(size_t size, size_t alignment);
@@ -360,10 +360,10 @@ public:
   }
 
 private:
-  linked_arena _arena;
+  ntf::linked_arena _arena;
   void* _user_ptr;
   malloc_fun _malloc;
   mfree_fun _free;
 };
 
-} // namespace ntf::render
+} // namespace shogle

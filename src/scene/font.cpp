@@ -2,7 +2,7 @@
 #include "../assets/shaders/instanced_font.hpp"
 #include <shogle/render/context.hpp>
 
-namespace ntf::render {
+namespace shogle {
 
 namespace {
 
@@ -95,17 +95,17 @@ expect<sdf_text_rule> sdf_text_rule::create(context_view ctx,
 {
   auto frag = fragment_shader::create(ctx, {shad_frag_font_sdf});
   if (!frag) {
-    return unexpected{std::move(frag.error())};
+    return ntf::unexpected{std::move(frag.error())};
   }
 
   auto vert = vertex_shader::create(ctx, {shad_vert_instanced_font});
   if (!vert) {
-    return unexpected{std::move(vert.error())};
+    return ntf::unexpected{std::move(vert.error())};
   }
 
   auto pipeline = make_pipeline(*vert, *frag);
   if (!pipeline) {
-    return unexpected{std::move(pipeline.error())};
+    return ntf::unexpected{std::move(pipeline.error())};
   } 
 
   auto u_transf = pipeline->uniform("u_text_transform");
@@ -115,7 +115,7 @@ expect<sdf_text_rule> sdf_text_rule::create(context_view ctx,
 
   auto buffer = make_ubo(ctx, sizeof(glyph_props));
   if (!buffer){
-    return unexpected{std::move(buffer.error())};
+    return ntf::unexpected{std::move(buffer.error())};
   }
 
   glyph_props props;
@@ -156,17 +156,17 @@ bitmap_text_rule::bitmap_text_rule(pipeline&& pip, uniform_buffer&& ubo,
 expect<bitmap_text_rule> bitmap_text_rule::create(context_view ctx, const color3& color) {
   auto frag = fragment_shader::create(ctx, {shad_frag_font_normal});
   if (!frag) {
-    return unexpected{std::move(frag.error())};
+    return ntf::unexpected{std::move(frag.error())};
   }
 
   auto vert = vertex_shader::create(ctx, {shad_vert_instanced_font});
   if (!vert) {
-    return unexpected{std::move(vert.error())};
+    return ntf::unexpected{std::move(vert.error())};
   }
 
   auto pipeline = make_pipeline(*vert, *frag);
   if (!pipeline) {
-    return unexpected{std::move(pipeline.error())};
+    return ntf::unexpected{std::move(pipeline.error())};
   }
   auto u_transf = pipeline->uniform("u_text_transform");
   auto u_sampler = pipeline->uniform("u_atlas_sampler");
@@ -175,7 +175,7 @@ expect<bitmap_text_rule> bitmap_text_rule::create(context_view ctx, const color3
 
   auto buffer = make_ubo(ctx, sizeof(color3));
   if (!buffer){
-    return unexpected{std::move(buffer.error())};
+    return ntf::unexpected{std::move(buffer.error())};
   }
 
   return bitmap_text_rule{std::move(*pipeline), std::move(*buffer), u_sampler, u_transf, color};
@@ -216,7 +216,7 @@ expect<font_renderer> font_renderer::create(context_view ctx,
     .data = nullptr,
   });
   if (!ssbo) {
-    return unexpected{std::move(ssbo.error())};
+    return ntf::unexpected{std::move(ssbo.error())};
   }
 
   auto font_desc = font.make_bitmap_descriptor();
@@ -234,7 +234,7 @@ expect<font_renderer> font_renderer::create(context_view ctx,
     .data = data,
   });
   if (!tex) {
-    return unexpected{std::move(tex.error())};
+    return ntf::unexpected{std::move(tex.error())};
   }
 
   return font_renderer{
@@ -319,4 +319,4 @@ void font_renderer::render(const quad_mesh& quad, framebuffer_view fbo,
   render(quad, fbo, render_rule, sort_group);
 }
 
-} // namespace ntf::render
+} // namespace shogle

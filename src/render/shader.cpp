@@ -1,6 +1,6 @@
 #include "./internal/platform.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
 shader_t_::shader_t_(context_t ctx_, ctx_shad handle_, const ctx_shad_desc& desc) noexcept:
   ctx_res_node<shader_t_>{ctx_},
@@ -9,7 +9,7 @@ shader_t_::shader_t_(context_t ctx_, ctx_shad handle_, const ctx_shad_desc& desc
 
 shader_t_::~shader_t_() noexcept {}
 
-static cstring_view<char> concatenate_sources(ctx_alloc& alloc, cspan<std::string_view> srcs) {
+static cstring_view<char> concatenate_sources(ctx_alloc& alloc, span<const std::string_view> srcs) {
   NTF_ASSERT(!srcs.empty());
 
   size_t char_count = 1u; // Null terminated
@@ -56,11 +56,11 @@ static expect<void> validate_desc(ctx_alloc& alloc, const shader_desc& desc) {
   return {};
 }
 
-static unexpected<render_error> handle_error(ctx_shad_status status, shad_err_str err) {
+static ntf::unexpected<render_error> handle_error(ctx_shad_status status, shad_err_str err) {
   switch (status) {
     case CTX_SHAD_STATUS_COMPILATION_FAILED: {
       RENDER_ERROR_LOG("Shader compilation failed: {}", err);
-      return unexpected{render_error{err}};
+      return ntf::unexpected{render_error{err}};
     }
     case CTX_SHAD_STATUS_INVALID_HANDLE: {
       RET_ERROR("Invalid texture handle");
@@ -78,7 +78,7 @@ expect<shader_t> create_shader(context_t ctx, const shader_desc& desc) {
     .and_then([&]() -> expect<ctx_shad_desc> {
       auto src = concatenate_sources(alloc, desc.source);
       RET_ERROR_IF(src.empty(), "Failed to concatenate shader sources");
-      return expect<ctx_shad_desc>{in_place, desc.type, src};
+      return expect<ctx_shad_desc>{ntf::in_place, desc.type, src};
     })
     .and_then([&](ctx_shad_desc&& shad_desc) -> expect<shader_t> {
       auto* shad = alloc.allocate_uninited<shader_t_>();
@@ -134,4 +134,4 @@ ctx_handle shader_get_id(shader_t shader) {
   return shader->handle;
 }
 
-} // namespace ntf::render
+} // namespace shogle

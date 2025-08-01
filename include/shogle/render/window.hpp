@@ -1,7 +1,8 @@
 #pragma once
 
 #include <shogle/render/types.hpp>
-namespace ntf::render {
+
+namespace shogle {
 
 using win_error = render_error;
 
@@ -23,17 +24,17 @@ struct win_x11_params {
 };
 
 struct win_gl_params {
-  uint32 ver_major;
-  uint32 ver_minor;
+  u32 ver_major;
+  u32 ver_minor;
   u32 swap_interval;
-  uint32 fb_msaa_level;
-  ntf::render::fbo_buffer fb_buffer;
+  u32 fb_msaa_level;
+  shogle::fbo_buffer fb_buffer;
   bool fb_use_alpha;
 };
 
 struct win_params {
-  uint32 width;
-  uint32 height;
+  u32 width;
+  u32 height;
   const char* title;
   win_attrib attrib;
   context_api renderer_api;
@@ -128,7 +129,7 @@ public:
   using cursore_fun  = fun_t<void(window&, bool)>;
   using scroll_fun   = fun_t<void(window&, dvec2)>;
   using mouse_fun    = fun_t<void(window&, win_button_data)>;
-  using char_fun     = fun_t<void(window&, uint32)>;
+  using char_fun     = fun_t<void(window&, u32)>;
 
 public:
   window(window_t handle, context_api ctx_api, win_attrib attrib) noexcept;
@@ -183,7 +184,7 @@ public:
   }
 
   template<typename F>
-  requires(std::invocable<F, window&, uint32>)
+  requires(std::invocable<F, window&, u32>)
   window& set_char_input_callback(F&& fun) {
     _callbacks.char_input = std::forward<F>(fun);
     return *this;
@@ -227,5 +228,4 @@ public:
   NTF_DECLARE_MOVE_ONLY(window);
 };
 
-} // namespace ntf::render
-
+} // namespace shogle

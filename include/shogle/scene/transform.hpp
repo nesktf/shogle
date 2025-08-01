@@ -16,7 +16,7 @@ noexcept(noexcept(static_cast<Derived&>(*this)._mark_dirty())) { \
   return static_cast<Derived&&>(*this); \
 }
 
-namespace ntf {
+namespace shogle {
 
 namespace impl {
 
@@ -837,6 +837,6 @@ using camera3d =
 //   return this->build_matrix(this->_pos, this->_scale, this->_rot);
 // }
 
-} // namespace ntf
+} // namespace shogle
 
 #undef SHOGLE_TRANSF_DEF_SETTER

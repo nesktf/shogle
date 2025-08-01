@@ -1,6 +1,6 @@
 #include "./internal/platform.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
 framebuffer_t_::framebuffer_t_(context_t ctx_,
                                extent2d extent_, fbo_buffer test_buffer_,
@@ -89,7 +89,7 @@ static const char* fbo_buffer_str(fbo_buffer buff) {
   NTF_UNREACHABLE();
 }
 
-static unexpected<render_error> handle_error(ctx_fbo_status status) {
+static ntf::unexpected<render_error> handle_error(ctx_fbo_status status) {
   switch (status) {
     case CTX_FBO_STATUS_INVALID_HANDLE: {
       RET_ERROR("Invalid framebuffer handle");
@@ -197,4 +197,4 @@ framebuffer_t get_default_framebuffer(context_t ctx) {
   return ctx->default_fbo();
 }
 
-} // namespace ntf::render
+} // namespace shogle

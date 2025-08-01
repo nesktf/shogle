@@ -30,9 +30,9 @@ void context_t_::remove_node(_type res) { \
   __VA_OPT__(--) __VA_ARGS__ \
 }
 
-namespace ntf::render {
+namespace shogle {
 
-static constexpr size_t INITIAL_ARENA_PAGE = mibs(16u);
+static constexpr size_t INITIAL_ARENA_PAGE = ntf::mibs(16u);
 
 context_t_::context_t_(ctx_alloc::uptr_t<ctx_alloc>&& alloc,
                        ctx_alloc::uptr_t<icontext>&& renderer,
@@ -196,11 +196,11 @@ void end_frame(context_t ctx) {
     std::sort(fbo->cmds.begin(), fbo->cmds.end(), cmd_sort);
     std::construct_at(draw_data+fbos_to_blit,
                       fbo->handle, fbo->fdata,
-                      cspan<ctx_render_cmd>{fbo->cmds.data(), fbo->cmds.size()});
+                      span<const ctx_render_cmd>{fbo->cmds.data(), fbo->cmds.size()});
     ++fbos_to_blit;
   });
   if (fbos_to_blit) {
-    ctx->renderer().submit_render_data(ctx, cspan<ctx_render_data>{draw_data, fbos_to_blit});
+    ctx->renderer().submit_render_data(ctx, span<const ctx_render_data>{draw_data, fbos_to_blit});
   }
 
   ctx->renderer().swap_buffers();
@@ -315,4 +315,4 @@ cstring_view<char> get_name(context_t ctx) {
   return ctx->name();
 }
 
-} // namespace ntf::render
+} // namespace shogle

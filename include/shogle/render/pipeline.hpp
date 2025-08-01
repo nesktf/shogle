@@ -2,7 +2,7 @@
 
 #include <shogle/render/context.hpp>
 
-namespace ntf::render {
+namespace shogle {
 
 enum class shader_type : uint8 {
   vertex = 0,
@@ -15,7 +15,7 @@ enum class shader_type : uint8 {
 
 struct shader_desc {
   shader_type type;
-  cspan<cstring_view<char>> source;
+  span<const cstring_view<char>> source;
 };
 
 expect<shader_t> create_shader(context_t ctx, const shader_desc& desc);
@@ -41,8 +41,8 @@ constexpr stages_flag MIN_RENDER_STAGES = stages_flag::vertex | stages_flag::fra
 constexpr stages_flag MIN_COMPUTE_STAGES = stages_flag::compute;
 
 struct pipeline_desc {
-  cspan<attribute_binding> attributes;
-  cspan<shader_t> stages;
+  span<const attribute_binding> attributes;
+  span<const shader_t> stages;
   primitive_mode primitive;
   polygon_mode poly_mode;
   f32 poly_width;
@@ -63,65 +63,63 @@ stages_flag pipeline_get_stages(pipeline_t pipeline);
 context_t pipeline_get_ctx(pipeline_t pipeline);
 ctx_handle pipeline_get_id(pipeline_t pipeline);
 
-} // namespace ntf::render
-
-namespace ntf::impl {
+namespace impl {
 
 template<typename Derived>
 class rshader_ops {
-  ntfr::shader_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::shader_t ptr = static_cast<const Derived&>(*this).get();
+  shader_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
+    shader_t ptr = static_cast<const Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid shader handle");
     return ptr;
   }
 
 public:
-  operator ntfr::shader_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
+  operator shader_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
 
-  ntfr::context_view context() const {
-    return {ntfr::shader_get_ctx(_ptr())};
+  context_view context() const {
+    return {::shogle::shader_get_ctx(_ptr())};
   }
-  ntfr::shader_type type() const {
-    return ntfr::shader_get_type(_ptr());
+  shader_type type() const {
+    return ::shogle::shader_get_type(_ptr());
   }
-  ntfr::ctx_handle id() const {
-    return ntfr::shader_get_id(_ptr());
+  ctx_handle id() const {
+    return ::shogle::shader_get_id(_ptr());
   }
 };
 
 template<typename Derived>
 class rshader_view : public rshader_ops<Derived> {
 protected:
-  rshader_view(ntfr::shader_t shad) noexcept :
+  rshader_view(shader_t shad) noexcept :
     _shad{shad} {}
 
 public:
-  ntfr::shader_t get() const noexcept { return _shad; }
+  shader_t get() const noexcept { return _shad; }
 
   bool empty() const noexcept { return _shad == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
 
 private:
-  ntfr::shader_t _shad;
+  shader_t _shad;
 };
 
 template<typename Derived>
 class rshader_owning : public rshader_ops<Derived> {
 private:
   struct deleter_t {
-    void operator()(ntfr::shader_t shad) noexcept {
-      ntfr::destroy_shader(shad);
+    void operator()(shader_t shad) noexcept {
+      ::shogle::destroy_shader(shad);
     }
   };
-  using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::shader_t>, deleter_t>;
+  using uptr_type = std::unique_ptr<std::remove_pointer_t<shader_t>, deleter_t>;
 
 protected:
-  rshader_owning(ntfr::shader_t shad) noexcept :
+  rshader_owning(shader_t shad) noexcept :
     _shad{shad} {}
 
 public:
-  ntfr::shader_t get() const noexcept { return _shad.get(); }
-  [[nodiscard]] ntfr::shader_t release() noexcept { return _shad.release(); }
+  shader_t get() const noexcept { return _shad.get(); }
+  [[nodiscard]] shader_t release() noexcept { return _shad.release(); }
 
   bool empty() const noexcept { return _shad.get() == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
@@ -130,16 +128,14 @@ private:
   uptr_type _shad;
 };
 
-} // namespace ntf::impl
-
-namespace ntf::render {
+} // namespace impl
 
 class shader_view : public impl::rshader_view<shader_view> {
 public:
   shader_view() noexcept :
     impl::rshader_view<shader_view>{nullptr} {}
 
-  shader_view(ntfr::shader_t shad) noexcept :
+  shader_view(shader_t shad) noexcept :
     impl::rshader_view<shader_view>{shad} {}
 };
 
@@ -148,12 +144,12 @@ public:
   shader() noexcept :
     impl::rshader_owning<shader>{nullptr} {}
 
-  explicit shader(ntfr::shader_t shad) noexcept :
+  explicit shader(shader_t shad) noexcept :
     impl::rshader_owning<shader>{shad} {}
   
 public:
   static expect<shader> create(context_view ctx, const shader_desc& desc) {
-    return ntfr::create_shader(ctx.get(), desc)
+    return ::shogle::create_shader(ctx.get(), desc)
     .transform([](shader_t shad) -> shader {
       return shader{shad};
     });
@@ -211,8 +207,8 @@ private:
     impl::rshader_owning<typed_shader<shad_enum>>{shad} {}
 
 public:
-  static expect<typed_shader> create(context_view ctx, cspan<cstring_view<char>> src) {
-    return ntfr::create_shader(ctx, {
+  static expect<typed_shader> create(context_view ctx, span<const cstring_view<char>> src) {
+    return ::shogle::create_shader(ctx, {
       .type = shad_enum,
       .source = src,
     })
@@ -256,7 +252,7 @@ using compute_shader_view = typed_shader_view<shader_type::compute>;
 } // namespace ntf
 
 
-namespace ntf::render {
+namespace shogle {
 
 class uniform_view {
 public:
@@ -268,27 +264,27 @@ public:
 
 public:
   attribute_type type() const {
-    return ntfr::uniform_get_type(_assert_get());
+    return ::shogle::uniform_get_type(_assert_get());
   }
 
   std::string_view name() const {
-    return ntfr::uniform_get_name(_assert_get());
+    return ::shogle::uniform_get_name(_assert_get());
   }
 
   u32 location() const {
-    return ntfr::uniform_get_location(_assert_get());
+    return ::shogle::uniform_get_location(_assert_get());
   }
 
 private:
-  ntfr::uniform_t _assert_get() const noexcept(NTF_ASSERT_NOEXCEPT) {
+  uniform_t _assert_get() const noexcept(NTF_ASSERT_NOEXCEPT) {
     NTF_ASSERT(_unif, "Invalid uniform handle");
     return _unif;
   }
 
 public:
-  operator ntfr::uniform_t() const { return _assert_get(); }
+  operator uniform_t() const { return _assert_get(); }
 
-  ntfr::uniform_t get() const noexcept { return _unif; }
+  uniform_t get() const noexcept { return _unif; }
 
   bool empty() const noexcept {return _unif == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
@@ -315,44 +311,40 @@ uniform_const format_uniform_const(u32 location, const T& data){
   };
 }
 
-} // namespace ntf::render
-
-namespace ntf::impl {
+namespace impl {
 
 template<typename Derived>
 class rpipeline_ops {
-  ntfr::pipeline_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::pipeline_t ptr = static_cast<const Derived&>(*this).get();
+  pipeline_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
+    pipeline_t ptr = static_cast<const Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid pipeline handle");
     return ptr;
   }
 
 public:
-  operator ntfr::pipeline_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
+  operator pipeline_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
 
-  ntfr::context_view context() const {
-    return {ntfr::pipeline_get_ctx(_ptr())};
+  context_view context() const {
+    return {::shogle::pipeline_get_ctx(_ptr())};
   }
-  ntfr::stages_flag stages() const {
-    return ntfr::pipeline_get_stages(_ptr());
+  stages_flag stages() const {
+    return ::shogle::pipeline_get_stages(_ptr());
   }
-  ntfr::uniform_view uniform(ntfr::cstring_view<char> name) const {
-    return {ntfr::pipeline_get_uniform(_ptr(), name)};
+  uniform_view uniform(cstring_view<char> name) const {
+    return {::shogle::pipeline_get_uniform(_ptr(), name)};
   }
   size_t uniform_count() const {
-    return ntfr::pipeline_get_uniform_count(_ptr());
+    return ::shogle::pipeline_get_uniform_count(_ptr());
   }
-  cspan<ntfr::uniform_t> uniforms() const {
-    return ntfr::pipeline_get_uniforms(_ptr());
+  span<const uniform_t> uniforms() const {
+    return ::shogle::pipeline_get_uniforms(_ptr());
   }
-  ntfr::ctx_handle id() const {
-    return ntfr::pipeline_get_id(_ptr());
+  ctx_handle id() const {
+    return ::shogle::pipeline_get_id(_ptr());
   }
 };
 
-} // namespace ntf::impl
-
-namespace ntf::render {
+} // namespace impl
 
 class pipeline_view : public impl::rpipeline_ops<pipeline_view> {
 public:
@@ -376,10 +368,10 @@ class pipeline : public impl::rpipeline_ops<pipeline> {
 private:
   struct deleter_t {
     void operator()(pipeline_t pip) noexcept {
-      ntfr::destroy_pipeline(pip);
+      ::shogle::destroy_pipeline(pip);
     }
   };
-  using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::pipeline_t>, deleter_t>;
+  using uptr_type = std::unique_ptr<std::remove_pointer_t<pipeline_t>, deleter_t>;
 
 public:
   pipeline() noexcept :
@@ -390,7 +382,7 @@ public:
 
 public:
   static expect<pipeline> create(context_view ctx, const pipeline_desc& desc){
-    return ntfr::create_pipeline(ctx.get(), desc)
+    return ::shogle::create_pipeline(ctx.get(), desc)
     .transform([](pipeline_t pip) -> pipeline {
       return pipeline{pip};
     });
@@ -407,4 +399,4 @@ private:
   uptr_type _pip;
 };
 
-} // namespace ntf
+} // namespace shogle

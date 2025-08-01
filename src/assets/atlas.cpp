@@ -6,7 +6,7 @@
 #define RET_ERR(msg, ...) \
   SHOGLE_LOG(error, "[ntf::grid_atlas_loader] " msg __VA_OPT__(,) __VA_ARGS__); \
   if constexpr (checked) { \
-    return unexpected{asset_error::format({msg}__VA_OPT__(,) __VA_ARGS__)}; \
+    return ntf::unexpected{asset_error::format({msg}__VA_OPT__(,) __VA_ARGS__)}; \
   } else { \
     SHOGLE_ASSET_THROW(msg __VA_OPT__(,) __VA_ARGS__); \
   }
@@ -16,7 +16,7 @@
 
 using nlohmann::json;
 
-namespace ntf {
+namespace shogle {
 
 namespace {
 
@@ -190,7 +190,7 @@ auto grid_atlas_loader::parse(
 }
 
 auto grid_atlas_loader::parse(
-  unchecked_t,
+  ntf::unchecked_t,
   const std::string& path,
   atlas_load_flags flags
 ) -> data_t {
@@ -212,9 +212,9 @@ auto grid_atlas_loader::groups(data_t& data) -> array_type<sprite_data::group> {
   return std::move(data.groups);
 }
 
-auto grid_atlas_loader::sequences(data_t& data) -> optional<array_type<sprite_data::sequence>> {
+auto grid_atlas_loader::sequences(data_t& data) -> ntf::optional<array_type<sprite_data::sequence>> {
   if (data.sequences.size() == 0) {
-    return nullopt;
+    return ntf::nullopt;
   }
   return std::move(data.sequences);
 }
@@ -223,7 +223,7 @@ auto grid_atlas_loader::indices(data_t& data) -> array_type<atlas_index> {
   NTF_ASSERT(!data.indices.empty());
 
   const size_t count = data.indices.size();
-  array_type<atlas_index> out{uninitialized, count};
+  array_type<atlas_index> out{ntf::uninitialized, count};
   for (size_t i = 0; const auto& index : data.indices) {
     out[i] = index;
     ++i;
@@ -231,4 +231,4 @@ auto grid_atlas_loader::indices(data_t& data) -> array_type<atlas_index> {
   return out;
 }
 
-} // namespace ntf
+} // namespace shogle

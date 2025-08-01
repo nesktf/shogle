@@ -5,7 +5,7 @@
 
 #include <imgui.h>
 
-namespace ntf::render {
+namespace shogle {
 
 class imgui_ctx {
 private:
@@ -33,7 +33,7 @@ public:
   void start_frame();
   void end_frame(framebuffer_view target = nullptr, 
                  uint32 sort_group = 0u,
-                 weak_cptr<external_state> state = nullptr,
+                 weak_ptr<const external_state> state = nullptr,
                  ImDrawData* draw_data = nullptr);
 
 private:
@@ -45,4 +45,4 @@ private:
   ImDrawData* _draw_data;
 };
 
-} // namespace ntf::render
+} // namespace shogle

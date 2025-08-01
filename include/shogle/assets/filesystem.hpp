@@ -7,16 +7,16 @@
 #include <fstream>
 #include <filesystem>
 
-namespace ntf {
+namespace shogle {
 
 namespace stdfs = std::filesystem;
 
-inline optional<std::string> file_contents(std::string_view path) {
+inline ntf::optional<std::string> file_contents(std::string_view path) {
   std::string out {};
   std::fstream fs{path.data()};
 
   if (!fs.is_open()) {
-    return nullopt;
+    return ntf::nullopt;
   }
 
   std::ostringstream ss;
@@ -27,10 +27,10 @@ inline optional<std::string> file_contents(std::string_view path) {
   return out;
 }
 
-inline optional<std::string> file_dir(std::string_view path) {
+inline ntf::optional<std::string> file_dir(std::string_view path) {
   auto pos = path.find_last_of('/');
   if (pos == std::string::npos) {
-    return nullopt;
+    return ntf::nullopt;
   }
   return std::string{path.substr(0, pos)};
 }
@@ -38,28 +38,28 @@ inline optional<std::string> file_dir(std::string_view path) {
 using file_close_t = std::unique_ptr<std::FILE, decltype([](std::FILE* f){ std::fclose(f); })>;
 
 template<typename Alloc = std::allocator<uint8>>
-requires(meta::allocator_type<std::remove_cvref_t<Alloc>, uint8>)
+requires(ntf::meta::allocator_type<std::remove_cvref_t<Alloc>, uint8>)
 auto file_data(
   const std::string& path, Alloc&& alloc = {}
 ) noexcept -> asset_expected<
-  unique_array<uint8, allocator_delete<uint8, std::remove_cvref_t<Alloc>>>
+  ntf::unique_array<uint8, ntf::allocator_delete<uint8, std::remove_cvref_t<Alloc>>>
 > {
   stdfs::path in{path};
 
   std::error_code ec;
   const size_t len = static_cast<size_t>(stdfs::file_size(in, ec));
   if (ec) {
-    return unexpected{asset_error::format({"Failed to open '{}', {}"},
+    return ntf::unexpected{asset_error::format({"Failed to open '{}', {}"},
                                           path, ec.message())};
   }
   if (len == 0) {
-    return unexpected{asset_error::format({"Failed to open '{}', empty file"},
+    return ntf::unexpected{asset_error::format({"Failed to open '{}', empty file"},
                                           path)};
   }
-  auto buffer = unique_array<uint8>::from_size(::ntf::uninitialized, len,
+  auto buffer = ntf::unique_array<uint8>::from_size(::ntf::uninitialized, len,
                                                std::forward<Alloc>(alloc));
   if (!buffer) {
-    return unexpected{asset_error::format({"Failed to open '{}', allocation failed"},
+    return ntf::unexpected{asset_error::format({"Failed to open '{}', allocation failed"},
                                           path)};
   }
   std::ifstream in_file{path, std::ios_base::binary};
@@ -69,4 +69,4 @@ auto file_data(
   return buffer;
 }
 
-} // namespace ntf
+} // namespace shogle

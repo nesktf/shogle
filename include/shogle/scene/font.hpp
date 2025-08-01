@@ -6,7 +6,7 @@
 #include <shogle/scene/meshes.hpp>
 #include <shogle/assets/font.hpp>
 
-namespace ntf::render {
+namespace shogle {
 
 struct font_render_data {
   pipeline_t pip;
@@ -81,7 +81,7 @@ private:
                      float atlas_w, float atlas_h);
 
 public:
-  cspan<glyph_entry> data() const { return {_glyph_cache.data(), _glyph_cache.size()}; }
+  span<const glyph_entry> data() const { return {_glyph_cache.data(), _glyph_cache.size()}; }
 
 private:
   std::vector<glyph_entry> _glyph_cache;
@@ -225,7 +225,7 @@ class font_renderer {
 private:
   struct ssbo_callback_t {
     shader_storage_buffer_view ssbo;
-    cspan<text_buffer::glyph_entry> buffer_data;
+    span<const text_buffer::glyph_entry> buffer_data;
     size_t glyph_count;
     size_t offset;
 
@@ -274,4 +274,4 @@ private:
   size_t _batch_sz;
 };
 
-} // namespace ntf::render
+} // namespace shogle

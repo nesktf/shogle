@@ -1,6 +1,6 @@
 #include "./context.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
 attribute_type gl_state::uniform_type_cast(GLenum type) noexcept {
   // TODO: Handle all (or most) sampler types
@@ -144,7 +144,7 @@ GLenum gl_state::blend_eq_cast(blend_mode eq) noexcept {
   NTF_UNREACHABLE();
 }
 
-ctx_pip_status gl_state::create_program(glprog_t& prog, cspan<glshader_t*> shaders,
+ctx_pip_status gl_state::create_program(glprog_t& prog, span<glshader_t*> shaders,
                                         primitive_mode primitive,
                                         polygon_mode poly_mode, f32 poly_width,
                                         render_tests tests, pip_err_str& err)
@@ -566,4 +566,4 @@ ctx_pip_status gl_context::destroy_pipeline(ctx_pip pip) noexcept {
   return CTX_PIP_STATUS_OK;
 }
 
-} // namespace ntf::render
+} // namespace shogle

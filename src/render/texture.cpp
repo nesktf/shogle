@@ -1,6 +1,6 @@
 #include "./internal/platform.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
 texture_t_::texture_t_(context_t ctx_, ctx_tex handle_, const ctx_tex_desc& desc) noexcept :
   ctx_res_node<texture_t_>{ctx_},
@@ -22,13 +22,13 @@ static ctx_tex_desc transform_desc(const texture_desc& desc) {
     .extent = desc.extent,
     .layers = desc.layers,
     .levels = desc.levels,
-    .images = desc.data ? desc.data->images : cspan<image_data>{},
+    .images = desc.data ? desc.data->images : span<const image_data>{},
     .gen_mipmaps = desc.data ? desc.data->generate_mipmaps : false,
   };
 }
 
 static expect<void> validate_images(ctx_alloc& alloc,
-                                    cspan<image_data> images, bool gen_mipmaps,
+                                    span<const image_data> images, bool gen_mipmaps,
                                     const extent3d& max_extent,
                                     uint32 max_layers, uint32 max_levels, texture_type type)
 {
@@ -161,7 +161,7 @@ static const char* tex_smpl_str(texture_sampler sampler) {
   NTF_UNREACHABLE();
 }
 
-static unexpected<render_error> handle_error(ctx_tex_status status) {
+static ntf::unexpected<render_error> handle_error(ctx_tex_status status) {
   switch (status) {
     case CTX_TEX_STATUS_INVALID_LEVELS: {
       RET_ERROR("Invalid texture level value");
@@ -339,4 +339,4 @@ ctx_handle texture_get_id(texture_t tex){
   return tex->handle;
 }
 
-} // namespace ntf::render
+} // namespace shogle

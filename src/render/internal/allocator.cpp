@@ -1,19 +1,19 @@
 #include "allocator.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
-static malloc_funcs base_alloc {
+static ntf::malloc_funcs base_alloc {
   .user_ptr = nullptr,
-  .mem_alloc = malloc_pool::malloc_fn,
-  .mem_free = malloc_pool::free_fn,
+  .mem_alloc = ntf::malloc_pool::malloc_fn,
+  .mem_free = ntf::malloc_pool::free_fn,
 };
 
-ctx_alloc::ctx_alloc(const malloc_funcs& funcs, linked_arena&& arena) noexcept:
+ctx_alloc::ctx_alloc(const ntf::malloc_funcs& funcs, ntf::linked_arena&& arena) noexcept:
   _arena{std::move(arena)},
   _user_ptr{funcs.user_ptr},
   _malloc{funcs.mem_alloc}, _free{funcs.mem_free} {}
 
-auto ctx_alloc::make_alloc(weak_cptr<malloc_funcs> alloc_in,
+auto ctx_alloc::make_alloc(weak_ptr<const ntf::malloc_funcs> alloc_in,
                            size_t arena_size) -> uptr_t<ctx_alloc>
 {
   ctx_alloc* ptr;
@@ -22,7 +22,7 @@ auto ctx_alloc::make_alloc(weak_cptr<malloc_funcs> alloc_in,
     ptr = static_cast<ctx_alloc*>(std::invoke(alloc.mem_alloc, alloc.user_ptr,
                                               sizeof(ctx_alloc), alignof(ctx_alloc)));
     if (ptr) {
-      auto arena = linked_arena::from_extern({
+      auto arena = ntf::linked_arena::from_extern({
         .user_ptr = alloc.user_ptr,
         .mem_alloc = alloc.mem_alloc,
         .mem_free = alloc.mem_free
@@ -66,4 +66,4 @@ void* ctx_alloc::arena_allocate(size_t size, size_t alignment) {
   return ptr;
 }
 
-} // namespace ntf::Render
+} // namespace shogle

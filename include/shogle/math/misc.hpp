@@ -2,7 +2,7 @@
 
 #include <shogle/math/vector.hpp>
 
-namespace ntf {
+namespace shogle {
 
 constexpr inline f32 rad(f32 deg) {
   return glm::radians(deg);
@@ -175,4 +175,4 @@ struct ode_euler {
   }
 };
 
-} // namespace ntf
+} // namespace shogle

@@ -2,9 +2,9 @@
 
 #include <shogle/render/vertex.hpp>
 
-namespace ntf {
+namespace shogle {
 
-constexpr inline ntfr::pn_vertex pn_unindexed_cube_vert[] {
+constexpr inline pn_vertex pn_unindexed_cube_vert[] {
   // position               // normal
   {{-0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f}},
   {{ 0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f}}, 
@@ -49,7 +49,7 @@ constexpr inline ntfr::pn_vertex pn_unindexed_cube_vert[] {
   {{-0.5f,  0.5f, -0.5f},   { 0.0f,  1.0f,  0.0f}}
 };
 
-constexpr inline ntfr::pnt_vertex pnt_unindexed_cube_vert[] {
+constexpr inline pnt_vertex pnt_unindexed_cube_vert[] {
   // position               // normal                // uv
   {{-0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f},   {0.0f, 0.0f}},
   {{ 0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f},   {1.0f, 0.0f}},
@@ -94,7 +94,7 @@ constexpr inline ntfr::pnt_vertex pnt_unindexed_cube_vert[] {
   {{-0.5f,  0.5f, -0.5f},   { 0.0f,  1.0f,  0.0f},   {0.0f, 1.0f}}
 };
 
-constexpr inline ntfr::pnt_vertex pnt_indexed_quad_vert[] {
+constexpr inline pnt_vertex pnt_indexed_quad_vert[] {
   // position               // normal                // uv
   {{-0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 0.0f}},
   {{ 0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {1.0f, 0.0f}},
@@ -102,7 +102,7 @@ constexpr inline ntfr::pnt_vertex pnt_indexed_quad_vert[] {
   {{-0.5f,  0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 1.0f}},
 };
 
-constexpr inline ntfr::pnt_vertex pnt_indexed_quad_vert_inv[] {
+constexpr inline pnt_vertex pnt_indexed_quad_vert_inv[] {
   // position               // normal                // uv
   {{-0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 1.0f}},
   {{ 0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {1.0f, 1.0f}},
@@ -115,4 +115,4 @@ constexpr inline uint32 pnt_indexed_quad_ind[] {
   0, 2, 3  // top left triangle
 };
 
-} // namespace ntf
+} // namespace shogle

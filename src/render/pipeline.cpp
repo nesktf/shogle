@@ -1,6 +1,6 @@
 #include "./internal/platform.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
 uniform_t_::uniform_t_(pipeline_t pip_, ctx_unif handle_,
                        ctx_alloc::string_t<char> name_,
@@ -23,7 +23,7 @@ static ctx_pip_desc transform_desc(ctx_alloc& alloc,
                                    weak_ptr<unif_meta_vec> unifs,
                                    const pipeline_desc& desc)
 {
-  auto parse_stages = [](cspan<shader_t> shaders) -> stages_flag {
+  auto parse_stages = [](span<const shader_t> shaders) -> stages_flag {
     stages_flag out = stages_flag::none;
     for (const shader_t shad : shaders) {
       switch (shad->type) {
@@ -101,11 +101,11 @@ static expect<pipeline_t_::unif_map> make_uniform_map(ctx_alloc& alloc, pipeline
   }
 }
 
-static unexpected<render_error> handle_error(ctx_pip_status status, pip_err_str err) {
+static ntf::unexpected<render_error> handle_error(ctx_pip_status status, pip_err_str err) {
   switch (status) {
     case CTX_PIP_STATUS_LINKING_FAILED: {
       RENDER_ERROR_LOG("Pipeline linking failed: {}", err);
-      return unexpected{render_error{err}};
+      return ntf::unexpected{render_error{err}};
     }
     case CTX_PIP_STATUS_INVALID_HANDLE: {
       RET_ERROR("Invalid texture handle");
@@ -139,7 +139,7 @@ expect<pipeline_t> create_pipeline(context_t ctx, const pipeline_desc& desc) {
       if (!unifs) {
         ctx->renderer().destroy_pipeline(handle);
         alloc.deallocate(pip, sizeof(pipeline_t_));
-        return unexpected{std::move(unifs.error())};
+        return ntf::unexpected{std::move(unifs.error())};
       }
 
       std::construct_at(pip,
@@ -239,4 +239,4 @@ ctx_handle pipeline_get_id(pipeline_t pip) {
   return pip->handle;
 }
 
-} // namespace ntf::render
+} // namespace shogle

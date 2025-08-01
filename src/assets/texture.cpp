@@ -3,39 +3,39 @@
 
 #include <shogle/assets/texture.hpp>
 
-namespace ntf {
+namespace shogle {
 
-optional<std::pair<ntfr::extent2d, uint32>> stb_image_loader::parse_image(const std::string& path) {
+ntf::optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(const std::string& path) {
   int w, h, ch;
   if (stbi_info(path.c_str(), &w, &h, &ch)) {
     return std::make_pair(
-      ntfr::extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
+      extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
     );
   }
-  return nullopt;
+  return ntf::nullopt;
 }
 
-optional<std::pair<ntfr::extent2d, uint32>> stb_image_loader::parse_image(std::FILE* f) {
+ntf::optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(std::FILE* f) {
   int w, h, ch;
   if (stbi_info_from_file(f, &w, &h, &ch)) {
     return std::make_pair(
-      ntfr::extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
+      extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
     );
   }
-  return nullopt;
+  return ntf::nullopt;
 }
 
-optional<std::pair<ntfr::extent2d, uint32>> stb_image_loader::parse_image(cspan<uint8> file_data) {
+ntf::optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(span<const uint8> file_data) {
   int w, h, ch;
   if (stbi_info_from_memory(file_data.data(), file_data.size(), &w, &h, &ch)) {
     return std::make_pair(
-      ntfr::extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
+      extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
     );
   }
-  return nullopt;
+  return ntf::nullopt;
 }
 
-auto stb_image_loader::_load_image(cspan<uint8> file_data, uint32 channels,
+auto stb_image_loader::_load_image(span<const uint8> file_data, uint32 channels,
                                    bool flip_y, image_format format) -> asset_expected<stbi_data>
 {
   stbi_set_flip_vertically_on_load(flip_y);
@@ -72,7 +72,7 @@ auto stb_image_loader::_load_image(cspan<uint8> file_data, uint32 channels,
   }
   if (!data) {
     SHOGLE_LOG(error, "[ntf::stb_image_loader] Failed to parse image: {}", stbi_failure_reason());
-    return unexpected{asset_error{stbi_failure_reason()}};
+    return ntf::unexpected{asset_error{stbi_failure_reason()}};
   }
   SHOGLE_LOG(verbose, "[ntf::stb_image_loader] Parsed {} channels (marked {})",
              ch, channels);
@@ -88,4 +88,4 @@ void stb_image_loader::_stbi_delete(void* data) noexcept {
   stbi_image_free(data);
 }
 
-} // namespace ntf
+} // namespace shogle

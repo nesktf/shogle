@@ -2,18 +2,18 @@
 
 #include <shogle/render/types.hpp>
 
-namespace ntf::render {
+namespace shogle {
 
-constexpr uint32 BONE_TOMBSTONE = std::numeric_limits<uint32>::max();
+constexpr u32 BONE_TOMBSTONE = std::numeric_limits<u32>::max();
 template<size_t num_weights>
 struct vertex_weights {
   vertex_weights() noexcept {
-    for (uint32 i = 0; i < num_weights; ++i) {
+    for (u32 i = 0; i < num_weights; ++i) {
       indices[i] = BONE_TOMBSTONE;
     }
   }
 
-  uint32 indices[num_weights];
+  u32 indices[num_weights];
   f32 weights[num_weights];
 };
 
@@ -28,9 +28,7 @@ struct soa_vertices {
   std::vector<color4> colors;
 };
 
-} // namespace ntf::render
-
-namespace ntf::meta {
+namespace meta {
 
 template<typename Vertex>
 concept vert_has_positions = requires(Vertex vert, const vec3& pos) {
@@ -54,12 +52,12 @@ concept vert_has_tangents = requires(Vertex vert, const vec3& tang, const vec3& 
 };
 
 template<typename Vertex, size_t num_weights>
-concept vert_has_weights = requires(Vertex vert, const ntfr::vertex_weights<num_weights>& weight) {
+concept vert_has_weights = requires(Vertex vert, const vertex_weights<num_weights>& weight) {
   vert.set_weights(weight);
 };
 
 template<typename Vertex>
-concept vert_has_colors = requires(Vertex vert, const ntfr::color4& color) {
+concept vert_has_colors = requires(Vertex vert, const color4& color) {
   vert.set_color(color);
 };
 
@@ -67,7 +65,7 @@ template<typename>
 struct check_soa_vertex : public std::false_type {};
 
 template<size_t w>
-struct check_soa_vertex<ntfr::soa_vertices<w>> : public std::true_type {};
+struct check_soa_vertex<soa_vertices<w>> : public std::true_type {};
 
 template<typename T>
 concept is_soa_vertex = check_soa_vertex<T>::value;
@@ -78,9 +76,7 @@ concept is_aos_vertex = vert_has_positions<T>;
 template<typename T>
 concept is_vertex_type = is_soa_vertex<T> || is_aos_vertex<T>;
 
-} // namespacen ntf::meta
-
-namespace ntf::render {
+} // namespacen meta
 
 struct pn_vertex {
   vec3 position;
@@ -206,4 +202,4 @@ static_assert(
   meta::vert_has_uvs<pnt_vertex>
 );
 
-} // namespace ntf::render
+} // namespace shogle

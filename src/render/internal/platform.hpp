@@ -26,7 +26,7 @@
 #include <variant>
 #include <atomic>
 
-namespace ntf::render {
+namespace shogle {
 
 constexpr bool check_handle(ctx_handle handle) noexcept { return handle != CTX_HANDLE_TOMB; }
 
@@ -79,10 +79,10 @@ public:
   static constexpr u32 MAX_LAYOUT_NUMBER = 32u; // hack
 
 public:
-  ctx_render_cmd(function_view<void(context_t)> on_render_) :
-    external{nullopt}, on_render{on_render_} {}
-  ctx_render_cmd(function_view<void(context_t, ctx_handle)> on_render_) :
-    external{nullopt}, on_render{on_render_} {}
+  ctx_render_cmd(ntf::function_view<void(context_t)> on_render_) :
+    external{ntf::nullopt}, on_render{on_render_} {}
+  ctx_render_cmd(ntf::function_view<void(context_t, ctx_handle)> on_render_) :
+    external{ntf::nullopt}, on_render{on_render_} {}
 
 public:
   ctx_pip pip;
@@ -93,10 +93,10 @@ public:
   span<unif_const_t> uniforms;
   render_opts opts;
   uint32 sort_group;
-  optional<external_state> external;
+  ntf::optional<external_state> external;
   std::variant<
-    function_view<void(context_t, ctx_handle)>,
-    function_view<void(context_t)>
+    ntf::function_view<void(context_t, ctx_handle)>,
+    ntf::function_view<void(context_t)>
   > on_render;
 };
 
@@ -108,15 +108,15 @@ struct ctx_render_data {
   };
 
   ctx_fbo target;
-  weak_cptr<fbo_data_t> data;
-  cspan<ctx_render_cmd> commands;
+  weak_ptr<const fbo_data_t> data;
+  span<const ctx_render_cmd> commands;
 };
 
 struct ctx_buff_desc {
   buffer_type type;
   buffer_flag flags;
   size_t size;
-  weak_cptr<buffer_data> data;
+  weak_ptr<const buffer_data> data;
 };
 
 enum ctx_buff_status {
@@ -133,7 +133,7 @@ struct ctx_tex_desc {
   extent3d extent;
   uint32 layers;
   uint32 levels;
-  cspan<image_data> images;
+  span<const image_data> images;
   bool gen_mipmaps;
 };
 
@@ -168,7 +168,7 @@ enum ctx_shad_status {
 struct ctx_pip_desc {
   ctx_alloc::uarray_t<attribute_binding> layout;
   weak_ptr<unif_meta_vec> uniforms;
-  cspan<ctx_shad> stages;
+  span<const ctx_shad> stages;
   stages_flag stages_flags;
   primitive_mode primitive;
   polygon_mode poly_mode;
@@ -193,7 +193,7 @@ struct ctx_fbo_desc {
 
   extent2d extent;
   fbo_buffer test_buffer;
-  cspan<tex_att_t> ctx_attachments;
+  span<const tex_att_t> ctx_attachments;
   ctx_alloc::uarray_t<fbo_image> attachments;
 };
 
@@ -230,7 +230,7 @@ struct icontext {
   virtual ctx_fbo_status create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) = 0;
   virtual ctx_fbo_status destroy_framebuffer(ctx_fbo fbo) noexcept = 0;
 
-  virtual void submit_render_data(context_t ctx, cspan<ctx_render_data> render_data) = 0;
+  virtual void submit_render_data(context_t ctx, span<const ctx_render_data> render_data) = 0;
 
   virtual void device_wait() = 0;
   virtual void swap_buffers() = 0;
@@ -428,4 +428,4 @@ public:
   NTF_DECLARE_NO_MOVE_NO_COPY(context_t_);
 };
 
-} // namespace ntf::render
+} // namespace shogle

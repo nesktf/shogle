@@ -1,6 +1,6 @@
 #include "./context.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
 GLenum gl_state::attrib_underlying_type_cast(attribute_type type) noexcept {
   switch (type) {
@@ -125,4 +125,4 @@ bool gl_state::vao_bind(GLuint id) {
   return true;
 }
 
-} // namespace ntf::render
+} // namespace shogle

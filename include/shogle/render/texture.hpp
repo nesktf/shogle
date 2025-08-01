@@ -2,7 +2,7 @@
 
 #include <shogle/render/context.hpp>
 
-namespace ntf::render {
+namespace shogle {
 
 using image_alignment = size_t; // usually 1, 2, 4, or 8
 
@@ -12,8 +12,8 @@ struct image_data {
   image_alignment alignment;
   extent3d extent;
   extent3d offset;
-  uint32 layer;
-  uint32 level;
+  u32 layer;
+  u32 level;
 };
 
 template<meta::image_dim_type DimT>
@@ -32,7 +32,7 @@ extent3d image_offset_cast(const DimT& offset) noexcept {
 }
 
 template<meta::image_array_dim_type DimT>
-extent3d image_offset_cast(const DimT& offset, uint32 layer) noexcept {
+extent3d image_offset_cast(const DimT& offset, u32 layer) noexcept {
   return meta::image_dim_traits<DimT>::offset_cast(offset, layer);
 }
 
@@ -66,7 +66,7 @@ enum class cubemap_face : uint8 {
 };
 
 struct texture_data {
-  cspan<image_data> images;
+  span<const image_data> images;
   bool generate_mipmaps;
 };
 
@@ -75,9 +75,9 @@ struct typed_texture_desc {
   texture_sampler sampler;
   texture_addressing addressing;
   extent3d extent;
-  uint32 layers;
-  uint32 levels;
-  weak_cptr<texture_data> data;
+  u32 layers;
+  u32 levels;
+  weak_ptr<const texture_data> data;
 };
 
 struct texture_desc {
@@ -86,9 +86,9 @@ struct texture_desc {
   texture_sampler sampler;
   texture_addressing addressing;
   extent3d extent;
-  uint32 layers;
-  uint32 levels;
-  weak_cptr<texture_data> data;
+  u32 layers;
+  u32 levels;
+  weak_ptr<const texture_data> data;
 };
 
 expect<texture_t> create_texture(context_t ctx, const texture_desc& desc);
@@ -103,69 +103,67 @@ image_format texture_get_format(texture_t tex);
 texture_sampler texture_get_sampler(texture_t tex);
 texture_addressing texture_get_addressing(texture_t tex);
 extent3d texture_get_extent(texture_t tex);
-uint32 texture_get_layers(texture_t tex);
-uint32 texture_get_levels(texture_t tex);
+u32 texture_get_layers(texture_t tex);
+u32 texture_get_levels(texture_t tex);
 context_t texture_get_ctx(texture_t tex);
 ctx_handle texture_get_id(texture_t tex);
 
-constexpr inline uint32 to_cubemap_layer(cubemap_face face) {
-  return static_cast<uint32>(face);
+constexpr inline u32 to_cubemap_layer(cubemap_face face) {
+  return static_cast<u32>(face);
 }
 
-} // namespace ntf::render
-
-namespace ntf::impl {
+namespace impl {
 
 template<typename Derived>
 class rtexture_ops {
-  ntfr::texture_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::texture_t ptr =  static_cast<const Derived&>(*this).get();
+  texture_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
+    texture_t ptr =  static_cast<const Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid texture handle");
     return ptr;
   }
 
 public:
-  operator ntfr::texture_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
+  operator texture_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
 
-  ntfr::expect<void> upload(const ntfr::texture_data& data) const {
-    return ntfr::texture_upload(_ptr(), data);
+  expect<void> upload(const texture_data& data) const {
+    return ::shogle::texture_upload(_ptr(), data);
   }
-  ntfr::expect<void> sampler(ntfr::texture_sampler sampler) const {
-    return ntfr::texture_set_sampler(_ptr(), sampler);
+  expect<void> sampler(texture_sampler sampler) const {
+    return ::shogle::texture_set_sampler(_ptr(), sampler);
   }
-  ntfr::expect<void> addressing(ntfr::texture_addressing addressing) const {
-    return ntfr::texture_set_addressing(_ptr(), addressing);
+  expect<void> addressing(texture_addressing addressing) const {
+    return ::shogle::texture_set_addressing(_ptr(), addressing);
   }
 
-  ntfr::context_view context() const {
-    return {ntfr::texture_get_ctx(_ptr())};
+  context_view context() const {
+    return {::shogle::texture_get_ctx(_ptr())};
   }
-  ntfr::texture_type type() const {
-    return ntfr::texture_get_type(_ptr());
+  texture_type type() const {
+    return ::shogle::texture_get_type(_ptr());
   }
-  ntfr::image_format format() const {
-    return ntfr::texture_get_format(_ptr());
+  image_format format() const {
+    return ::shogle::texture_get_format(_ptr());
   }
-  ntfr::texture_sampler sampler() const {
-    return ntfr::texture_get_sampler(_ptr());
+  texture_sampler sampler() const {
+    return ::shogle::texture_get_sampler(_ptr());
   }
-  ntfr::texture_addressing addressing() const {
-    return ntfr::texture_get_addressing(_ptr());
+  texture_addressing addressing() const {
+    return ::shogle::texture_get_addressing(_ptr());
   }
-  ntfr::ctx_handle id() const {
-    return ntfr::texture_get_id(_ptr());
+  ctx_handle id() const {
+    return ::shogle::texture_get_id(_ptr());
   }
-  ntfr::extent3d extent() const {
-    return ntfr::texture_get_extent(_ptr());
+  extent3d extent() const {
+    return ::shogle::texture_get_extent(_ptr());
   }
-  uint32 layers() const {
-    return ntfr::texture_get_layers(_ptr());
+  u32 layers() const {
+    return ::shogle::texture_get_layers(_ptr());
   }
-  uint32 levels() const {
-    return ntfr::texture_get_levels(_ptr());
+  u32 levels() const {
+    return ::shogle::texture_get_levels(_ptr());
   }
   bool is_cubemap() const {
-    return type() == ntfr::texture_type::cubemap;
+    return type() == texture_type::cubemap;
   }
   bool is_array() const {
     return !is_cubemap() && layers() > 1;
@@ -178,36 +176,36 @@ public:
 template<typename Derived>
 class rtexture_view : public rtexture_ops<Derived> {
 protected:
-  rtexture_view(ntfr::texture_t tex) noexcept :
+  rtexture_view(texture_t tex) noexcept :
     _tex{tex} {}
 
 public:
-  ntfr::texture_t get() const noexcept { return _tex; }
+  texture_t get() const noexcept { return _tex; }
 
   bool empty() const noexcept { return _tex == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
 
 private:
-  ntfr::texture_t _tex;
+  texture_t _tex;
 };
 
 template<typename Derived>
 class rtexture_owning : public rtexture_ops<Derived> {
 private:
   struct deleter_t {
-    void operator()(ntfr::texture_t tex) noexcept {
-      ntfr::destroy_texture(tex);
+    void operator()(texture_t tex) noexcept {
+      ::shogle::destroy_texture(tex);
     }
   };
-  using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::texture_t>, deleter_t>;
+  using uptr_type = std::unique_ptr<std::remove_pointer_t<texture_t>, deleter_t>;
 
 protected:
-  rtexture_owning(ntfr::texture_t tex) noexcept :
+  rtexture_owning(texture_t tex) noexcept :
     _tex{tex} {}
 
 public:
-  ntfr::texture_t get() const noexcept { return _tex.get(); }
-  [[nodiscard]] ntfr::texture_t release() noexcept { return _tex.release(); }
+  texture_t get() const noexcept { return _tex.get(); }
+  [[nodiscard]] texture_t release() noexcept { return _tex.release(); }
 
   bool empty() const noexcept { return _tex.get() == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
@@ -216,30 +214,28 @@ private:
   uptr_type _tex;
 };
 
-} // namespace ntf::impl
+} // namespace impl
 
-namespace ntf::render {
-
-class texture_view : public ntf::impl::rtexture_view<texture_view> {
+class texture_view : public impl::rtexture_view<texture_view> {
 public:
   texture_view() noexcept :
-    ntf::impl::rtexture_view<texture_view>{nullptr} {}
+    impl::rtexture_view<texture_view>{nullptr} {}
 
   texture_view(texture_t tex) noexcept :
-    ntf::impl::rtexture_view<texture_view>{tex} {}
+    impl::rtexture_view<texture_view>{tex} {}
 };
 
-class texture : public ntf::impl::rtexture_owning<texture> {
+class texture : public impl::rtexture_owning<texture> {
 public:
   texture() noexcept :
-    ntf::impl::rtexture_owning<texture>{nullptr} {}
+    impl::rtexture_owning<texture>{nullptr} {}
 
   explicit texture(texture_t tex) noexcept :
-    ntf::impl::rtexture_owning<texture>{tex} {}
+    impl::rtexture_owning<texture>{tex} {}
 
 public:
   static expect<texture> create(context_view ctx, const texture_desc& desc) {
-    return ntfr::create_texture(ctx.get(), desc)
+    return ::shogle::create_texture(ctx.get(), desc)
     .transform([](texture_t tex) -> texture {
       return texture{tex};
     });
@@ -253,7 +249,7 @@ template<texture_type tex_enum>
 class typed_texture;
 
 template<texture_type tex_enum>
-class typed_texture_view : public ntf::impl::rtexture_view<typed_texture_view<tex_enum>> {
+class typed_texture_view : public impl::rtexture_view<typed_texture_view<tex_enum>> {
 private:
   friend typed_texture<tex_enum>;
 
@@ -263,11 +259,11 @@ public:
 
 public:
   typed_texture_view() noexcept :
-    ntf::impl::rtexture_view<typed_texture_view<tex_enum>>{nullptr} {}
+    impl::rtexture_view<typed_texture_view<tex_enum>>{nullptr} {}
 
 private:
   typed_texture_view(texture_t tex) noexcept :
-    ntf::impl::rtexture_view<typed_texture_view<tex_enum>>{tex} {}
+    impl::rtexture_view<typed_texture_view<tex_enum>>{tex} {}
 
 public:
   operator texture_view() const noexcept { return {this->get()}; }
@@ -283,22 +279,22 @@ typed_texture_view<tex_enum> to_typed(texture_view tex) noexcept {
 }
 
 template<texture_type tex_enum>
-class typed_texture : public ntf::impl::rtexture_owning<typed_texture<tex_enum>> {
+class typed_texture : public impl::rtexture_owning<typed_texture<tex_enum>> {
 public:
   template<texture_type _tex_enum>
   friend typed_texture<_tex_enum> to_typed(texture&& tex) noexcept;
 
 public:
   typed_texture() noexcept :
-    ntf::impl::rtexture_owning<typed_texture<tex_enum>>{nullptr} {}
+    impl::rtexture_owning<typed_texture<tex_enum>>{nullptr} {}
 
 private:
   typed_texture(texture_t tex) noexcept :
-    ntf::impl::rtexture_owning<typed_texture<tex_enum>>{tex} {}
+    impl::rtexture_owning<typed_texture<tex_enum>>{tex} {}
 
 public:
   static expect<typed_texture> create(context_view ctx, const typed_texture_desc& desc) {
-    return ntfr::create_texture(ctx.get(), {
+    return ::shogle::create_texture(ctx.get(), {
       .type = tex_enum,
       .format = desc.format,
       .sampler = desc.sampler,
@@ -339,4 +335,4 @@ using texture3d_view = typed_texture_view<texture_type::texture3d>;
 using cubemap_texture = typed_texture<texture_type::cubemap>;
 using cubemap_texture_view = typed_texture_view<texture_type::cubemap>;
 
-} // namespace ntf::render
+} // namespace shogle

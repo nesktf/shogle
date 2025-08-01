@@ -5,7 +5,7 @@
 
 #define SHOGLE_ASSIMP_WEIGHTS 4
 
-namespace ntf {
+namespace shogle {
 
 template<typename Vertex>
 struct mesh_data {
@@ -61,7 +61,7 @@ struct mesh_data {
 };
 
 template<size_t num_weights>
-struct mesh_data<ntfr::soa_vertices<num_weights>> {
+struct mesh_data<soa_vertices<num_weights>> {
   struct mesh {
     std::string name;
     uint32 material;
@@ -92,7 +92,7 @@ struct mesh_data<ntfr::soa_vertices<num_weights>> {
   };
 
   std::vector<mesh> data;
-  ntfr::soa_vertices<num_weights> vertices;
+  soa_vertices<num_weights> vertices;
   std::vector<uint32> indices;
 
   size_t size() const { return data.size(); }
@@ -158,7 +158,7 @@ struct material_data {
     vec_span textures;
   };
   struct texture_entry {
-    ntf::r_material_type type;
+    r_material_type type;
     uint32 index;
   };
 
@@ -196,7 +196,7 @@ template<typename T>
 concept model_loader_parse = requires(T loader,
                                       const std::string& path,
                                       model_load_flags flags) {
-  { loader.parse(path, flags) } -> meta::same_as_any<void, asset_expected<void>>;
+  { loader.parse(path, flags) } -> ntf::meta::same_as_any<void, asset_expected<void>>;
 };
 
 template<typename T>
@@ -279,7 +279,7 @@ load_model_ret<Vertex, checked>::type load_model(const std::string& path,
       if constexpr (model_loader_guarded_parse<Loader>) {
         auto ret = loader.parse(path, flags);
         if (!ret) {
-          return unexpected{std::move(ret.error())};
+          return ntf::unexpected{std::move(ret.error())};
         }
       } else {
         loader.parse(path, flags);
@@ -300,7 +300,7 @@ load_model_ret<Vertex, checked>::type load_model(const std::string& path,
 } // namespace impl
 
 template<meta::is_aos_vertex Vertex, size_t num_weights>
-mesh_data<Vertex> soa_to_aos(const mesh_data<ntfr::soa_vertices<num_weights>>& data) {
+mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
   mesh_data<Vertex> out;
   auto& out_verts = out.vertices;
   out.data.reserve(data.size());
@@ -377,13 +377,13 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<ntfr::soa_vertices<num_weights>>& d
       if (mesh.has_colors()) {
         uint32 count = 0;
         NTF_ASSERT(mesh.colors.count == mesh_verts);
-        mesh.colors.for_each(in_verts.colors, [&](const ntfr::color4& col) {
+        mesh.colors.for_each(in_verts.colors, [&](const color4& col) {
           out_verts[offset+count].set_color(col);
           ++count;
         });
 
       } else {
-        const ntfr::color4 def{0.f, 0.f, 0.f, 0.f};
+        const color4 def{0.f, 0.f, 0.f, 0.f};
         for (uint32 count = 0; count < mesh_verts; ++count) { 
           out_verts[offset+count].set_color(def);
         }
@@ -395,12 +395,12 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<ntfr::soa_vertices<num_weights>>& d
         uint32 count = 0;
         NTF_ASSERT(mesh.weights.count == mesh_verts);
         mesh.weights.for_each(in_verts.weights,
-                              [&](const ntfr::vertex_weights<num_weights>& weights) {
+                              [&](const vertex_weights<num_weights>& weights) {
           out_verts[offset+count].set_weights(weights);
           ++count;
         });
       } else {
-        const ntfr::vertex_weights<num_weights> def;
+        const vertex_weights<num_weights> def;
         for (uint32 count = 0; count < mesh_verts; ++count) { 
           out_verts[offset+count].set_weights(def);
         }
@@ -420,7 +420,7 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<ntfr::soa_vertices<num_weights>>& d
 
 class assimp_loader {
 public:
-  using vert_type = ntfr::soa_vertices<SHOGLE_ASSIMP_WEIGHTS>;
+  using vert_type = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>;
 
 public:
   assimp_loader();
@@ -459,11 +459,11 @@ static_assert(impl::model_loader_animations<assimp_loader>);
 static_assert(impl::model_loader_armatures<assimp_loader>);
 
 template<
-  typename Vertex = ntfr::soa_vertices<SHOGLE_ASSIMP_WEIGHTS>, 
+  typename Vertex = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>, 
   impl::model_loader<Vertex> Loader = assimp_loader
 >
 model_data<Vertex> load_model(
-  unchecked_t,
+  ntf::unchecked_t,
   const std::string& path,
   model_load_flags flags,
   Loader&& loader = {}
@@ -472,7 +472,7 @@ model_data<Vertex> load_model(
 }
 
 template<
-  typename Vertex = ntfr::soa_vertices<SHOGLE_ASSIMP_WEIGHTS>,
+  typename Vertex = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>,
   impl::model_loader<Vertex> Loader = assimp_loader
 >
 asset_expected<model_data<Vertex>> load_model(
@@ -483,4 +483,4 @@ asset_expected<model_data<Vertex>> load_model(
   return impl::load_model<Vertex, Loader, true>(path, flags, std::forward<Loader>(loader));
 }
 
-} // namespace ntf
+} // namespace shogle

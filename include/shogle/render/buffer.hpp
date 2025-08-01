@@ -2,7 +2,7 @@
 
 #include <shogle/render/context.hpp>
 
-namespace ntf::render {
+namespace shogle {
 
 enum class buffer_type : u8 {
   vertex = 0,
@@ -36,14 +36,14 @@ buffer_data format_buffer_data(const T& data, size_t offset = 0u) {
 struct typed_buffer_desc {
   buffer_flag flags;
   size_t size;
-  weak_cptr<buffer_data> data;
+  weak_ptr<const buffer_data> data;
 };
 
 struct buffer_desc {
   buffer_type type;
   buffer_flag flags;
   size_t size;
-  weak_cptr<buffer_data> data;
+  weak_ptr<const buffer_data> data;
 };
 
 expect<buffer_t> create_buffer(context_t ctx, const buffer_desc& desc);
@@ -59,87 +59,85 @@ size_t buffer_get_size(buffer_t buffer);
 context_t buffer_get_ctx(buffer_t buffer);
 ctx_handle buffer_get_id(buffer_t buffer);
 
-} // namespace ntf::render
-
-namespace ntf::impl {
+namespace impl {
 
 template<typename Derived>
 class rbuffer_ops {
-  ntfr::buffer_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    ntfr::buffer_t ptr = static_cast<const Derived&>(*this).get();
+  buffer_t _ptr() const noexcept(NTF_ASSERT_NOEXCEPT) {
+    buffer_t ptr = static_cast<const Derived&>(*this).get();
     NTF_ASSERT(ptr, "Invalid buffer handle");
     return ptr;
   }
 
 public:
-  operator ntfr::buffer_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
+  operator buffer_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
 
   template<typename T>
   requires(std::is_trivially_copyable_v<T>)
-  ntfr::expect<void> upload(const T& data, size_t offset = 0u) const {
-    return ntfr::buffer_upload(_ptr(), sizeof(T), offset, std::addressof(data));
+  expect<void> upload(const T& data, size_t offset = 0u) const {
+    return ::shogle::buffer_upload(_ptr(), sizeof(T), offset, std::addressof(data));
   }
 
-  ntfr::expect<void> upload(const ntfr::buffer_data& data) const {
-    return ntfr::buffer_upload(_ptr(), data);
+  expect<void> upload(const buffer_data& data) const {
+    return ::shogle::buffer_upload(_ptr(), data);
   }
-  ntfr::expect<void> upload(size_t size, size_t offset, const void* data) const {
-    return ntfr::buffer_upload(_ptr(), size, offset, data);
+  expect<void> upload(size_t size, size_t offset, const void* data) const {
+    return ::shogle::buffer_upload(_ptr(), size, offset, data);
   }
-  ntfr::expect<void*> map(size_t size, size_t offset) const {
-    return ntfr::buffer_map(_ptr(), size, offset);
+  expect<void*> map(size_t size, size_t offset) const {
+    return ::shogle::buffer_map(_ptr(), size, offset);
   }
   void unmap(void* mapped) const {
-    ntfr::buffer_unmap(_ptr(), mapped);
+    ::shogle::buffer_unmap(_ptr(), mapped);
   }
 
-  ntfr::context_t context() const {
-    return {ntfr::buffer_get_ctx(_ptr())};
+  context_t context() const {
+    return {::shogle::buffer_get_ctx(_ptr())};
   }
-  ntfr::buffer_type type() const {
-    return ntfr::buffer_get_type(_ptr());
+  buffer_type type() const {
+    return ::shogle::buffer_get_type(_ptr());
   }
   size_t size() const {
-    return ntfr::buffer_get_size(_ptr());
+    return ::shogle::buffer_get_size(_ptr());
   }
-  ntfr::ctx_handle id() const {
-    return ntfr::buffer_get_id(_ptr());
+  ctx_handle id() const {
+    return ::shogle::buffer_get_id(_ptr());
   }
 };
 
 template<typename Derived>
 class rbuffer_view : public rbuffer_ops<Derived> {
 protected:
-  rbuffer_view(ntfr::buffer_t buff) noexcept :
+  rbuffer_view(buffer_t buff) noexcept :
     _buff{buff} {}
 
 public:
-  ntfr::buffer_t get() const noexcept { return _buff; }
+  buffer_t get() const noexcept { return _buff; }
 
   bool empty() const noexcept { return _buff == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
 
 private:
-  ntfr::buffer_t _buff;
+  buffer_t _buff;
 };
 
 template<typename Derived>
 class rbuffer_owning : public rbuffer_ops<Derived> {
 private:
   struct deleter_t {
-    void operator()(ntfr::buffer_t buff) noexcept {
-      ntfr::destroy_buffer(buff);
+    void operator()(buffer_t buff) noexcept {
+      ::shogle::destroy_buffer(buff);
     }
   };
-  using uptr_type = std::unique_ptr<std::remove_pointer_t<ntfr::buffer_t>, deleter_t>;
+  using uptr_type = std::unique_ptr<std::remove_pointer_t<buffer_t>, deleter_t>;
 
 protected:
-  rbuffer_owning(ntfr::buffer_t buff) noexcept :
+  rbuffer_owning(buffer_t buff) noexcept :
     _buff{buff} {}
 
 public:
-  ntfr::buffer_t get() const noexcept { return _buff.get(); }
-  [[nodiscard]] ntfr::buffer_t release() noexcept { return _buff.release(); }
+  buffer_t get() const noexcept { return _buff.get(); }
+  [[nodiscard]] buffer_t release() noexcept { return _buff.release(); }
 
   bool empty() const noexcept { return _buff.get() == nullptr; }
   explicit operator bool() const noexcept { return !empty(); }
@@ -148,30 +146,28 @@ private:
   uptr_type _buff;
 };
 
-} // namespace ntf::impl
+} // namespace impl
 
-namespace ntf::render {
-
-class buffer_view : public ntf::impl::rbuffer_view<buffer_view> {
+class buffer_view : public impl::rbuffer_view<buffer_view> {
 public:
   buffer_view() noexcept :
-    ntf::impl::rbuffer_view<buffer_view>{nullptr} {}
+    impl::rbuffer_view<buffer_view>{nullptr} {}
 
   buffer_view(buffer_t buff) noexcept :
-    ntf::impl::rbuffer_view<buffer_view>{buff} {}
+    impl::rbuffer_view<buffer_view>{buff} {}
 };
 
-class buffer : public ntf::impl::rbuffer_owning<buffer> {
+class buffer : public impl::rbuffer_owning<buffer> {
 public:
   buffer() noexcept :
-    ntf::impl::rbuffer_owning<buffer>{nullptr} {}
+    impl::rbuffer_owning<buffer>{nullptr} {}
 
   explicit buffer(buffer_t buff) noexcept :
-    ntf::impl::rbuffer_owning<buffer>{buff} {}
+    impl::rbuffer_owning<buffer>{buff} {}
 
 public:
   static expect<buffer> create(context_view ctx, const buffer_desc& desc) {
-    return ntfr::create_buffer(ctx.get(), desc)
+    return ::shogle::create_buffer(ctx.get(), desc)
     .transform([](buffer_t buff) -> buffer {
       buffer d{buff};
       return buffer{buff};
@@ -202,7 +198,7 @@ template<buffer_type buff_enum>
 class typed_buffer;
 
 template<buffer_type buff_enum>
-class typed_buffer_view : public ntf::impl::rbuffer_view<typed_buffer_view<buff_enum>> {
+class typed_buffer_view : public impl::rbuffer_view<typed_buffer_view<buff_enum>> {
 private:
   friend typed_buffer<buff_enum>;
 
@@ -212,11 +208,11 @@ public:
 
 public:
   typed_buffer_view() noexcept :
-    ntf::impl::rbuffer_view<typed_buffer_view<buff_enum>>{nullptr} {}
+    impl::rbuffer_view<typed_buffer_view<buff_enum>>{nullptr} {}
 
 private:
   typed_buffer_view(buffer_t buff) noexcept :
-    ntf::impl::rbuffer_view<typed_buffer_view<buff_enum>>{buff} {}
+    impl::rbuffer_view<typed_buffer_view<buff_enum>>{buff} {}
 
 public:
   operator buffer_view() const noexcept { return {this->get()}; }
@@ -232,22 +228,22 @@ typed_buffer_view<buff_enum> to_typed(buffer_view buff) noexcept {
 }
 
 template<buffer_type buff_enum>
-class typed_buffer : public ntf::impl::rbuffer_owning<typed_buffer<buff_enum>> {
+class typed_buffer : public impl::rbuffer_owning<typed_buffer<buff_enum>> {
 public:
   template<buffer_type _buff_enum>
   friend typed_buffer<_buff_enum> to_typed(buffer&& buff) noexcept;
 
 public:
   typed_buffer() noexcept :
-    ntf::impl::rbuffer_owning<typed_buffer<buff_enum>>{nullptr} {}
+    impl::rbuffer_owning<typed_buffer<buff_enum>>{nullptr} {}
 
 private:
   typed_buffer(buffer_t buff) noexcept :
-    ntf::impl::rbuffer_owning<typed_buffer<buff_enum>>{buff} {}
+    impl::rbuffer_owning<typed_buffer<buff_enum>>{buff} {}
 
 public:
   static expect<typed_buffer> create(context_view ctx, const typed_buffer_desc& desc) {
-    return ntfr::create_buffer(ctx.get(), {
+    return create_buffer(ctx.get(), {
       .type = buff_enum,
       .flags = desc.flags,
       .size = desc.size,
@@ -302,5 +298,4 @@ using uniform_buffer_view = typed_buffer_view<buffer_type::uniform>;
 using texel_buffer = typed_buffer<buffer_type::texel>;
 using texel_buffer_view = typed_buffer_view<buffer_type::texel>;
 
-} // namespace ntf::render
-
+} // namespace shogle

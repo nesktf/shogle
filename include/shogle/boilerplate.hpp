@@ -12,7 +12,7 @@
 
 #include <ntfstl/utility.hpp>
 
-namespace ntf::render {
+namespace shogle {
 
 template<typename F>
 concept delta_time_func = std::invocable<F, double>; // f(dt) -> void
@@ -21,7 +21,7 @@ template<typename F>
 concept fixed_render_func = std::invocable<F, double, double>; // f(dt, alpha) -> void
 
 template<typename F>
-concept fixed_update_func = std::invocable<F, uint32>; // f(ups) -> void
+concept fixed_update_func = std::invocable<F, u32>; // f(ups) -> void
 
 template<typename T>
 concept has_render_member = requires(T t) {
@@ -35,7 +35,7 @@ concept has_fixed_render_member = requires(T t) {
 
 template<typename T>
 concept has_fixed_update_member = requires(T t) {
-  { t.on_fixed_update(uint32{}) } -> std::convertible_to<void>;
+  { t.on_fixed_update(u32{}) } -> std::convertible_to<void>;
 };
 
 template<typename T>
@@ -55,7 +55,7 @@ void render_loop(window& win, context_view ctx, LoopObj&& obj) {
   using duration = clock::duration;
   using time_point = std::chrono::time_point<clock, duration>;
 
-  SHOGLE_LOG(debug, "[ntfr::render_loop] Main loop started");
+  SHOGLE_LOG(debug, "[render_loop] Main loop started");
 
   time_point last_time = clock::now();
   while (!win.should_close()) {
@@ -77,11 +77,11 @@ void render_loop(window& win, context_view ctx, LoopObj&& obj) {
   }
   ctx.device_wait();
 
-  SHOGLE_LOG(debug, "[ntfr::render_loop] Main loop exit");
+  SHOGLE_LOG(debug, "[render_loop] Main loop exit");
 }
 
 template<fixed_loop_object LoopObj>
-void render_loop(window& win, context_view ctx, const uint32& ups, LoopObj&& obj) {
+void render_loop(window& win, context_view ctx, const u32& ups, LoopObj&& obj) {
   using namespace std::literals;
 
   auto fixed_elapsed_time =
@@ -91,7 +91,7 @@ void render_loop(window& win, context_view ctx, const uint32& ups, LoopObj&& obj
   using duration = decltype(clock::duration{} + fixed_elapsed_time);
   using time_point = std::chrono::time_point<clock, duration>;
 
-  SHOGLE_LOG(debug, "[ntfr::render_loop] Fixed main loop started at {} ups", ups);
+  SHOGLE_LOG(debug, "[render_loop] Fixed main loop started at {} ups", ups);
 
   time_point last_time = clock::now();
   duration lag = 0s;
@@ -128,11 +128,11 @@ void render_loop(window& win, context_view ctx, const uint32& ups, LoopObj&& obj
   }
   ctx.device_wait();
 
-  SHOGLE_LOG(debug, "[ntfr::render_loop] Main loop exit");
+  SHOGLE_LOG(debug, "[render_loop] Main loop exit");
 }
 
 template<fixed_render_func RFunc, fixed_update_func UFunc>
-void render_loop(window& win, context_view ctx, const uint32& ups,
+void render_loop(window& win, context_view ctx, const u32& ups,
                  RFunc&& render, UFunc&& fixed_update) {
   using namespace std::literals;
 
@@ -143,7 +143,7 @@ void render_loop(window& win, context_view ctx, const uint32& ups,
   using duration = decltype(clock::duration{} + fixed_elapsed_time);
   using time_point = std::chrono::time_point<clock, duration>;
 
-  SHOGLE_LOG(debug, "[ntfr::render_loop] Fixed main loop started at {} ups", ups);
+  SHOGLE_LOG(debug, "[render_loop] Fixed main loop started at {} ups", ups);
 
   time_point last_time = clock::now();
   duration lag = 0s;
@@ -172,7 +172,7 @@ void render_loop(window& win, context_view ctx, const uint32& ups,
   }
   ctx.device_wait();
 
-  SHOGLE_LOG(debug, "[ntfr::render_loop] Main loop exit");
+  SHOGLE_LOG(debug, "[render_loop] Main loop exit");
 }
 
 const inline external_state r_def_ext_state {
@@ -201,10 +201,10 @@ const inline depth_test_opts def_depth_opts {
   .far_bound = 1.f,
 };
 
-inline expect<texture2d> make_texture2d(context_view ctx, const ntf::bitmap_data& image,
+inline expect<texture2d> make_texture2d(context_view ctx, const bitmap_data& image,
                                         texture_sampler sampler,
                                         texture_addressing addressing,
-                                        uint32 levels = 7u, bool mips = true) {
+                                        u32 levels = 7u, bool mips = true) {
   const auto desc = image.make_descriptor();
   const texture_data data {
     .images = {desc},
@@ -224,7 +224,7 @@ inline expect<texture2d> make_texture2d(context_view ctx, const ntf::bitmap_data
 inline expect<texture2d> make_texture2d(context_view ctx, image_format format, extent2d extent,
                                         texture_sampler sampler,
                                         texture_addressing addressing,
-                                        uint32 levels = 7u) {
+                                        u32 levels = 7u) {
   return texture2d::create(ctx, {
     .format = format,
     .sampler = sampler,
@@ -240,7 +240,7 @@ template<meta::image_depth_type DepthT = uint8>
 inline expect<texture2d> load_texture2d(context_view ctx, const std::string& path,
                                         texture_sampler sampler,
                                         texture_addressing addressing,
-                                        uint32 levels = 7u, bool mips = true) {
+                                        u32 levels = 7u, bool mips = true) {
   return load_image<DepthT>(path)
   .and_then([&](auto&& image) -> expect<texture2d> {
     return make_texture2d(ctx, image, sampler, addressing, levels, mips);
@@ -251,8 +251,8 @@ template<typename Vert>
 requires(meta::is_aos_vertex<Vert>)
 expect<pipeline> make_pipeline(
   vertex_shader_view vert, fragment_shader_view frag,
-  weak_cptr<depth_test_opts> depth_test = def_depth_opts,
-  weak_cptr<blend_opts> blending = def_blending_opts
+  weak_ptr<const depth_test_opts> depth_test = def_depth_opts,
+  weak_ptr<const blend_opts> blending = def_blending_opts
 ) {
   auto ctx = vert.context();
   const auto attribs = Vert::aos_binding();
@@ -278,16 +278,16 @@ requires(meta::is_aos_vertex<Vert>)
 expect<pipeline> make_pipeline(
   context_view ctx,
   std::string_view vert_src, std::string_view frag_src,
-  weak_cptr<depth_test_opts> depth_test = def_depth_opts,
-  weak_cptr<blend_opts> blending = def_blending_opts
+  weak_ptr<const depth_test_opts> depth_test = def_depth_opts,
+  weak_ptr<const blend_opts> blending = def_blending_opts
 ) {
   auto vert = vertex_shader::create(ctx, {vert_src});
   if (!vert) {
-    return unexpected{std::move(vert.error())};
+    return ntf::unexpected{std::move(vert.error())};
   }
   auto frag = fragment_shader::create(ctx, {frag_src});
   if (!frag) {
-    return unexpected{std::move(frag.error())};
+    return ntf::unexpected{std::move(frag.error())};
   }
   const auto attribs = Vert::aos_binding();
   const shader_t stages[] = {vert->get(), frag->get()};
@@ -339,15 +339,15 @@ inline expect<std::pair<framebuffer, texture2d>> make_fbo(
       .images = {fb_img},
     });
     if (!fbo) {
-      return unexpected{std::move(fbo.error())};
+      return ntf::unexpected{std::move(fbo.error())};
     }
     return std::make_pair(std::move(*fbo), std::move(tex));
   });
 }
 
 inline expect<std::pair<window, context>> make_gl_ctx(
-  uint32 win_width, uint32 win_height, const char* win_title,
-  uint32 swap_interval = 0,
+  u32 win_width, u32 win_height, const char* win_title,
+  u32 swap_interval = 0,
   const color4& fb_color = {.3f, .3f, .3f, 1.f},
   clear_flag fb_clear = clear_flag::color_depth
 ) {
@@ -380,7 +380,7 @@ inline expect<std::pair<window, context>> make_gl_ctx(
       .alloc = nullptr,
     });
     if (!ctx) {
-      return unexpected{std::move(ctx.error())};
+      return ntf::unexpected{std::move(ctx.error())};
     }
     return std::make_pair(std::move(win), std::move(*ctx));
   });
@@ -392,7 +392,7 @@ inline expect<context> make_gl_ctx(
   clear_flag fb_clear = clear_flag::color_depth
 ) {
   if (win.renderer() != context_api::opengl) {
-    return unexpected{render_error{"Invalid window context"}};
+    return ntf::unexpected{render_error{"Invalid window context"}};
   }
   const auto vp = uvec4{0, 0, win.fb_size()};
   const auto gl_params = window::make_gl_params(win);
@@ -405,26 +405,26 @@ inline expect<context> make_gl_ctx(
     .alloc = nullptr,
   });
   if (!ctx) {
-    return unexpected{std::move(ctx.error())};
+    return ntf::unexpected{std::move(ctx.error())};
   }
   return std::move(*ctx);
 }
 
 template<font_codepoint_type CodeT = char>
-expect<ntfr::font_renderer> r_load_font(
+expect<font_renderer> r_load_font(
   context_view ctx,
   const std::string& path,
   font_charset_view<CodeT> charset = ascii_charset<CodeT>,
-  uint32 glyph_size = 48u,
-  uint32 padding = 0u,
+  u32 glyph_size = 48u,
+  u32 padding = 0u,
   font_load_flags flags = font_load_flags::render_sdf,
   texture_sampler sampler = texture_sampler::linear,
   uint64 batch_size = 64u
 ) {
   return load_font_atlas(path, flags, glyph_size, padding, charset)
-  .and_then([&](auto&& atlas) -> expect<ntfr::font_renderer> {
+  .and_then([&](auto&& atlas) -> expect<font_renderer> {
     return font_renderer::create(ctx, std::move(atlas), sampler, batch_size);
   });
 }
 
-} // namespace ntf::render
+} // namespace shogle

@@ -15,12 +15,12 @@
 #define SHOGLE_ASSET_THROW_IF(cond, ...) \
   if (cond) { SHOGLE_ASSET_THROW(__VA_ARGS__); }
 
-namespace ntf {
+namespace shogle {
 
-using asset_error = error<void>;
+using asset_error = ntf::error<void>;
 
 template<typename T>
-using asset_expected = expected<T, asset_error>;
+using asset_expected = ntf::expected<T, asset_error>;
 
 enum class r_material_type {
   diffuse = 0,
@@ -51,4 +51,4 @@ struct vec_span {
   }
 }; 
 
-} // namespace ntf
+} // namespace shogle

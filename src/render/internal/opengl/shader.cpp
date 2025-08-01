@@ -1,6 +1,6 @@
 #include "./context.hpp"
 
-namespace ntf::render {
+namespace shogle {
 
 GLenum gl_state::shader_type_cast(shader_type type) noexcept {
   switch (type) {
@@ -74,4 +74,4 @@ ctx_shad_status gl_context::destroy_shader(ctx_shad shad) noexcept {
   return CTX_SHAD_STATUS_OK;
 }
 
-} // namespace ntf::render
+} // namespace shogle

@@ -5,12 +5,12 @@
 
 #define RET_ERR(msg, ...) \
   SHOGLE_LOG(error, "[ntf::ft2_bitmap_loader] " msg __VA_OPT__(,) __VA_ARGS__); \
-  return unexpected{asset_error::format({msg}__VA_OPT__(,) __VA_ARGS__)};
+  return ntf::unexpected{asset_error::format({msg}__VA_OPT__(,) __VA_ARGS__)};
 
 #define RET_ERR_IF(cond, ...) \
   if (cond) { RET_ERR(__VA_ARGS__); }
 
-namespace ntf {
+namespace shogle {
 
 void ft2_font_loader::_unload_lib(void* lib) {
   static_assert(std::is_pointer_v<FT_Library>); // Assume FT_Library is just a pointer handle
@@ -33,8 +33,8 @@ ft2_font_loader::ft2_font_loader() noexcept :
   _ft2_lib.reset(static_cast<void*>(lib));
 }
 
-auto ft2_font_loader::_load_face(cspan<uint8> file_data,
-                                 const ntfr::extent2d& glyph_size) -> asset_expected<face_t> {
+auto ft2_font_loader::_load_face(span<const uint8> file_data,
+                                 const extent2d& glyph_size) -> asset_expected<face_t> {
   RET_ERR_IF(!_ft2_lib, "Failed to initialize FreeType");
   FT_Library ft = static_cast<FT_Library>(_ft2_lib.get());
 
@@ -62,7 +62,7 @@ auto ft2_font_loader::_get_code_index(const face_t& face, uint64 code) -> uint32
 }
 
 auto ft2_font_loader::_load_metrics(const face_t& face, uint32 idx,
-                                    ft_mode load_mode) -> optional<ft_glyph_data> {
+                                    ft_mode load_mode) -> ntf::optional<ft_glyph_data> {
   FT_Int32 load_flags;
   switch (load_mode) {
     case ft_mode::sdf: [[fallthrough]]; // SDF doesn't have a loading hint
@@ -73,13 +73,13 @@ auto ft2_font_loader::_load_metrics(const face_t& face, uint32 idx,
   }
   FT_Face ft_face = static_cast<FT_Face>(face.get());
   if (FT_Load_Glyph(ft_face, static_cast<FT_UInt>(idx), load_flags)) {
-    return nullopt;
+    return ntf::nullopt;
   }
   const FT_GlyphSlot g = ft_face->glyph;
   // Since SDF glyphs can't be hinted, we have to render them in this phase
   // Otherwise the bitmap glyph metrics will be incorrect
   if (load_mode == ft_mode::sdf && FT_Render_Glyph(g, FT_RENDER_MODE_SDF)) {
-    return nullopt;
+    return ntf::nullopt;
   }
 
   const auto& m = g->metrics;
@@ -172,14 +172,14 @@ auto ft2_font_loader::_parse_metrics(
 {
   auto&& [face, map, set] = std::move(tuple);
 
-  virtual_allocator<glyph_metrics> metrics_alloc{std::in_place_type_t<malloc_pool>{}};
-  virtual_allocator<std::pair<const char32_t, size_t>> map_alloc{std::in_place_type_t<malloc_pool>{}};
+  ntf::virtual_allocator<glyph_metrics> metrics_alloc{std::in_place_type_t<ntf::malloc_pool>{}};
+  ntf::virtual_allocator<std::pair<const char32_t, size_t>> map_alloc{std::in_place_type_t<ntf::malloc_pool>{}};
 
   auto parsed_glyphs = font_glyphs::from_size(::ntf::uninitialized,
                                               set.size(),
                                               std::move(metrics_alloc));
   auto parsed_map = glyph_map::from_size(map.size(), std::move(map_alloc)).value();
-  auto idx_map = fixed_hashmap<uint32, size_t>::from_size(set.size()).value();
+  auto idx_map = ntf::fixed_hashmap<uint32, size_t>::from_size(set.size()).value();
 
   for (size_t i = 0; const uint32 id : set) {
     auto glyph = _load_metrics(face, id, mode);
@@ -208,9 +208,9 @@ font_atlas_data ft2_font_loader::_load_bitmap(
   auto&& [face, glyphs, map]= std::move(tuple);
   uint32 atlas_extent = _find_atlas_extent(padding, atlas_size,
                                            glyphs.get(), glyphs.size());
-  ntfr::extent2d bitmap_extent{atlas_extent, atlas_extent};
-  const size_t bitmap_sz = ntfr::image_stride<uint8>(bitmap_extent);
-  virtual_allocator<uint8> bitmap_alloc{std::in_place_type_t<malloc_pool>{}};
+  extent2d bitmap_extent{atlas_extent, atlas_extent};
+  const size_t bitmap_sz = image_stride<uint8>(bitmap_extent);
+  ntf::virtual_allocator<uint8> bitmap_alloc{std::in_place_type_t<ntf::malloc_pool>{}};
   auto* bitmap = bitmap_alloc.allocate(bitmap_sz);
   std::memset(bitmap, 0, bitmap_sz);
 
@@ -251,12 +251,12 @@ font_atlas_data ft2_font_loader::_load_bitmap(
              "[ntf::ft2_font_loader] Loaded font atlas: {} glyphs, {} mappings, {}x{} bitmap",
              glyphs.size(), map.size(), bitmap_extent.x, bitmap_extent.y);
 
-  using del_t = allocator_delete<uint8, virtual_allocator<uint8>>;
+  using del_t = ntf::allocator_delete<uint8, ntf::virtual_allocator<uint8>>;
   return font_atlas_data {
     bitmap_t{bitmap_sz, bitmap, del_t{std::move(bitmap_alloc)}},
-    bitmap_extent, ntfr::image_format::r8nu, 1u,
+    bitmap_extent, image_format::r8nu, 1u,
     std::move(glyphs), std::move(map)
   };
 }
 
-} // namespace ntf
+} // namespace shogle

@@ -2,7 +2,7 @@
 
 #include "./texture.hpp"
 
-namespace ntf {
+namespace shogle {
 
 using atlas_index = uint16;
 
@@ -30,7 +30,7 @@ public:
 struct sprite_atlas_data {
 public:
   template<typename T>
-  using array_type = unique_array<T>;
+  using array_type = ntf::unique_array<T>;
 
   using value_type = sprite_data;
   using iterator = array_type<value_type>::iterator;
@@ -107,16 +107,16 @@ public:
     return sequences[static_cast<size_t>(handle)];
   }
 
-  optional<atlas_index> find_sequence(const std::string& name) const {
+  ntf::optional<atlas_index> find_sequence(const std::string& name) const {
     if (sequences.size() == 0) {
-      return nullopt;
+      return ntf::nullopt;
     }
 
     const auto it = std::find_if(sequences.begin(), sequences.end(), [&](const auto& seq) {
       return seq.name == name;
     });
     if (it == sequences.end()) {
-      return nullopt;
+      return ntf::nullopt;
     }
 
     const auto diff = static_cast<ptrdiff_t>(sequences.end()-it);
@@ -131,16 +131,16 @@ public:
     return groups[static_cast<size_t>(handle)];
   }
 
-  optional<atlas_index> find_group(const std::string& name) const {
+  ntf::optional<atlas_index> find_group(const std::string& name) const {
     if (groups.size() == 0) {
-      return nullopt;
+      return ntf::nullopt;
     }
 
     const auto it = std::find_if(groups.begin(), groups.end(), [&](const auto& group) {
       return group.name == name;
     });
     if (it == groups.end()) {
-      return nullopt;
+      return ntf::nullopt;
     }
 
     const auto diff = static_cast<ptrdiff_t>(groups.end()-it);
@@ -177,7 +177,7 @@ concept unchecked_atlas_loader_type = requires(Loader loader,
                                                const std::string& path,
                                                atlas_load_flags flags,
                                                typename Loader::data_t& data) {
-  { loader.parse(unchecked_t{}, path, flags) } -> std::same_as<typename Loader::data_t>;
+  { loader.parse(ntf::unchecked_t{}, path, flags) } -> std::same_as<typename Loader::data_t>;
   { loader.image_path(data) } -> std::same_as<std::string>;
   { loader.sprites(data) } -> std::same_as<sprite_atlas_data::template array_type<sprite_data>>;
 };
@@ -191,9 +191,9 @@ concept atlas_loader_with_groups = atlas_loader_type<Loader> &&
                                             typename Loader::data_t& data) {
   { loader.indices(data) } -> std::same_as<sprite_atlas_data::template array_type<atlas_index>>;
   { loader.groups(data) }
-    -> meta::same_as_any<
+    -> ntf::meta::same_as_any<
       sprite_atlas_data::template array_type<sprite_data::group>,
-      optional<sprite_atlas_data::template array_type<sprite_data::group>>
+      ntf::optional<sprite_atlas_data::template array_type<sprite_data::group>>
     >;
 };
 
@@ -203,9 +203,9 @@ concept atlas_loader_with_sequences = atlas_loader_type<Loader> &&
                                                typename Loader::data_t data) {
   { loader.indices(data) } -> std::same_as<sprite_atlas_data::template array_type<atlas_index>>;
   { loader.sequences(data) }
-    -> meta::same_as_any<
+    -> ntf::meta::same_as_any<
       sprite_atlas_data::template array_type<sprite_data::sequence>,
-      optional<sprite_atlas_data::template array_type<sprite_data::sequence>>
+      ntf::optional<sprite_atlas_data::template array_type<sprite_data::sequence>>
     >;
 };
 
@@ -227,7 +227,7 @@ auto load_atlas(
       auto seqs = loader.sequences(data);
       using gret_t = decltype(groups);
       using sret_t = decltype(seqs);
-      if constexpr (meta::optional_type<gret_t> && meta::optional_type<sret_t>) {
+      if constexpr (ntf::meta::optional_type<gret_t> && ntf::meta::optional_type<sret_t>) {
         if (groups && seqs) {
           return atlas_data_t {
             loader.image_path(data),
@@ -256,7 +256,7 @@ auto load_atlas(
             loader.sprites(data),
           };
         }
-      } else if constexpr (meta::optional_type<gret_t>) {
+      } else if constexpr (ntf::meta::optional_type<gret_t>) {
         if (groups) {
           return atlas_data_t {
             loader.image_path(data),
@@ -273,7 +273,7 @@ auto load_atlas(
             std::move(seqs)
           };
         }
-      } else if constexpr (meta::optional_type<sret_t>) {
+      } else if constexpr (ntf::meta::optional_type<sret_t>) {
         if (seqs) {
           return atlas_data_t {
             loader.image_path(data),
@@ -307,11 +307,11 @@ auto load_atlas(
       if constexpr (checked_atlas_loader_type<Loader>) {
         return loader.parse(path, flags).and_then(parse_ret_data);
       } else {
-        return parse_ret_data(loader.parse(unchecked, path, flags));
+        return parse_ret_data(loader.parse(ntf::unchecked, path, flags));
       }
     });
   } else if constexpr (unchecked_atlas_loader_type<Loader>) {
-    return parse_ret_data(loader.parse(unchecked, path, flags));
+    return parse_ret_data(loader.parse(ntf::unchecked, path, flags));
   } else {
     auto ret = loader.parse(path, flags);
     NTF_ASSERT(ret);
@@ -324,7 +324,7 @@ auto load_atlas(
 class grid_atlas_loader {
 public:
   template<typename T>
-  using array_type = unique_array<T>;
+  using array_type = ntf::unique_array<T>;
 
   struct data_t {
     std::string img_path;
@@ -339,13 +339,13 @@ public:
 
 public:
   asset_expected<data_t> parse(const std::string& path, atlas_load_flags flags);
-  data_t parse(unchecked_t, const std::string& path, atlas_load_flags flags);
+  data_t parse(ntf::unchecked_t, const std::string& path, atlas_load_flags flags);
 
 public:
   std::string image_path(data_t& data);
   array_type<sprite_data> sprites(data_t& data);
   array_type<sprite_data::group> groups(data_t& data);
-  optional<array_type<sprite_data::sequence>> sequences(data_t& data);
+  ntf::optional<array_type<sprite_data::sequence>> sequences(data_t& data);
   array_type<atlas_index> indices(data_t& data);
 };
 static_assert(checked_atlas_loader_type<grid_atlas_loader>);
@@ -364,7 +364,7 @@ asset_expected<sprite_atlas_data> load_atlas(
 
 template<atlas_loader_type Loader = grid_atlas_loader>
 sprite_atlas_data load_atlas(
-  unchecked_t,
+  ntf::unchecked_t,
   const std::string& path,
   atlas_load_flags flags = atlas_load_flags::none,
   Loader&& loader = {}
@@ -372,4 +372,4 @@ sprite_atlas_data load_atlas(
   return impl::load_atlas<Loader, false>(path, flags, std::forward<Loader>(loader));
 }
 
-} // namespace ntf
+} // namespace shogle
