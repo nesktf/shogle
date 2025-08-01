@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../core.hpp"
+#include <shogle/core.hpp>
 
 #include <glad/glad.h>
 
@@ -20,12 +20,6 @@
   glfwCreateWindowSurface(vk_instance, reinterpret_cast<GLFWwindow*>(win_handle), \
                           vk_alloc_ptr, vk_surface_ptr)
 #endif
-
-#include "../context.hpp"
-#include "../buffer.hpp"
-#include "../framebuffer.hpp"
-#include "../texture.hpp"
-#include "../pipeline.hpp"
 
 #include "./allocator.hpp"
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../src/core.hpp"
+#include <shogle/core.hpp>
 
 #include "../../src/assets/filesystem.hpp"
 #include "../../src/assets/meshes.hpp"

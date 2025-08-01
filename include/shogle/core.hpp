@@ -1,6 +1,12 @@
 #pragma once
 
 #include <ntfstl/core.hpp>
+#include <ntfstl/ptr.hpp>
+#include <ntfstl/expected.hpp>
+#include <ntfstl/optional.hpp>
+#include <ntfstl/function.hpp>
+#include <ntfstl/memory_pool.hpp>
+
 
 #if defined(SHOGLE_ENABLE_INTERNAL_LOGS) && SHOGLE_ENABLE_INTERNAL_LOGS
 #include <ntfstl/logger.hpp>

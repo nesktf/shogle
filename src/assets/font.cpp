@@ -34,7 +34,7 @@ ft2_font_loader::ft2_font_loader() noexcept :
 }
 
 auto ft2_font_loader::_load_face(cspan<uint8> file_data,
-                                 const extent2d& glyph_size) -> asset_expected<face_t> {
+                                 const ntfr::extent2d& glyph_size) -> asset_expected<face_t> {
   RET_ERR_IF(!_ft2_lib, "Failed to initialize FreeType");
   FT_Library ft = static_cast<FT_Library>(_ft2_lib.get());
 
@@ -208,7 +208,7 @@ font_atlas_data ft2_font_loader::_load_bitmap(
   auto&& [face, glyphs, map]= std::move(tuple);
   uint32 atlas_extent = _find_atlas_extent(padding, atlas_size,
                                            glyphs.get(), glyphs.size());
-  extent2d bitmap_extent{atlas_extent, atlas_extent};
+  ntfr::extent2d bitmap_extent{atlas_extent, atlas_extent};
   const size_t bitmap_sz = ntfr::image_stride<uint8>(bitmap_extent);
   virtual_allocator<uint8> bitmap_alloc{std::in_place_type_t<malloc_pool>{}};
   auto* bitmap = bitmap_alloc.allocate(bitmap_sz);

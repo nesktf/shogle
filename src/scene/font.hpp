@@ -2,11 +2,6 @@
 
 #include "./meshes.hpp"
 
-#include "../render/pipeline.hpp"
-#include "../render/texture.hpp"
-#include "../render/framebuffer.hpp"
-#include "../render/vertex.hpp"
-
 #include "../assets/font.hpp"
 
 namespace ntf::render {

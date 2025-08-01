@@ -60,8 +60,8 @@ int main() {
   ntfr::text_buffer text_buffer;
   ntf::mat4 cam_proj_fnt = glm::ortho(0.f, 1280.f, 0.f, 720.f);
   auto sdf_rule = ntfr::sdf_text_rule::create(ctx,
-                                             ntf::color3{1.f, 0.f, 0.f}, 0.5f, 0.05f,
-                                             ntf::color3{0.f, 0.f, 0.f},
+                                             ntfr::color3{1.f, 0.f, 0.f}, 0.5f, 0.05f,
+                                             ntfr::color3{0.f, 0.f, 0.f},
                                              ntf::vec2{-0.005f, -0.005f},
                                              0.62f, 0.05f);
   if (!sdf_rule) {
@@ -201,7 +201,7 @@ int main() {
   });
 
   const auto default_fbo = ntfr::framebuffer::get_default(ctx);
-  window.set_viewport_callback([&](auto&, const ntf::extent2d& extent) {
+  window.set_viewport_callback([&](auto&, const ntfr::extent2d& extent) {
     ntf::uint32 w = extent.x;
     ntf::uint32 h = extent.y;
     default_fbo.viewport(ntf::uvec4{0, 0, w, h});

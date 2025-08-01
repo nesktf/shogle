@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../core.hpp"
+#include <shogle/core.hpp>
 #include <ntfstl/expected.hpp>
 #include <ntfstl/allocator.hpp>
 

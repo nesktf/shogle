@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../common.hpp"
+#include <shogle/wrappers.hpp>
 
 #include <ntfstl/ptr.hpp>
 #include <ntfstl/allocator.hpp>

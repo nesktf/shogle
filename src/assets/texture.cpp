@@ -5,31 +5,31 @@
 
 namespace ntf {
 
-optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(const std::string& path) {
+optional<std::pair<ntfr::extent2d, uint32>> stb_image_loader::parse_image(const std::string& path) {
   int w, h, ch;
   if (stbi_info(path.c_str(), &w, &h, &ch)) {
     return std::make_pair(
-      extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
+      ntfr::extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
     );
   }
   return nullopt;
 }
 
-optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(std::FILE* f) {
+optional<std::pair<ntfr::extent2d, uint32>> stb_image_loader::parse_image(std::FILE* f) {
   int w, h, ch;
   if (stbi_info_from_file(f, &w, &h, &ch)) {
     return std::make_pair(
-      extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
+      ntfr::extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
     );
   }
   return nullopt;
 }
 
-optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(cspan<uint8> file_data) {
+optional<std::pair<ntfr::extent2d, uint32>> stb_image_loader::parse_image(cspan<uint8> file_data) {
   int w, h, ch;
   if (stbi_info_from_memory(file_data.data(), file_data.size(), &w, &h, &ch)) {
     return std::make_pair(
-      extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
+      ntfr::extent2d{static_cast<uint32>(w), static_cast<uint32>(h)}, static_cast<uint32>(ch)
     );
   }
   return nullopt;

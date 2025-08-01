@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../render/vertex.hpp"
-#include "../render/buffer.hpp"
+#include <shogle/wrappers.hpp>
 
 namespace ntf::render {
 

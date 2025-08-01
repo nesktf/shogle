@@ -1,7 +1,6 @@
 #include "./internal/platform.hpp"
 #include "../../../include/shogle/boilerplate.hpp"
-#include "./imgui.hpp"
-
+#include <shogle/wrappers.hpp>
 #include <imgui_impl_opengl3.h> // Should work fine with OGL 4.x
 
 // TODO: Define inits for vulkan & software renderer

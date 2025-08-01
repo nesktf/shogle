@@ -3,7 +3,7 @@
 #include "./types.hpp"
 #include "./filesystem.hpp"
 
-#include "../render/texture.hpp"
+#include <shogle/wrappers.hpp>
 
 namespace ntf {
 
@@ -12,23 +12,23 @@ public:
   using texel_array = unique_array<uint8, allocator_delete<uint8, virtual_allocator<uint8>>>;
 
 public:
-  bitmap_data(texel_array&& texels_, extent3d extent_,
+  bitmap_data(texel_array&& texels_, ntfr::extent3d extent_,
              ntfr::image_format format_, ntfr::image_alignment alignment_) noexcept :
     texels{std::move(texels_)}, extent{extent_},
     format{format_}, alignment{alignment_} {}
 
-  bitmap_data(texel_array&& texels_, extent2d extent_,
+  bitmap_data(texel_array&& texels_, ntfr::extent2d extent_,
              ntfr::image_format format_, ntfr::image_alignment alignment_) noexcept :
     texels{std::move(texels_)}, extent{extent_.x, extent_.y, 1u},
     format{format_}, alignment{alignment_} {}
 
-  bitmap_data(texel_array&& texels_, extent1d extent_,
+  bitmap_data(texel_array&& texels_, ntfr::extent1d extent_,
              ntfr::image_format format_, ntfr::image_alignment alignment_) noexcept :
     texels{std::move(texels_)}, extent{extent_, 1u, 1u},
     format{format_}, alignment{alignment_} {}
 
 public:
-  template<meta::image_dim_type T = extent3d>
+  template<meta::image_dim_type T = ntfr::extent3d>
   ntfr::image_data make_descriptor(
     const T& offset = {}, uint32 level = 0, uint32 layer = 0
   ) const noexcept {
@@ -45,7 +45,7 @@ public:
 
 public:
   texel_array texels;
-  extent3d extent;
+  ntfr::extent3d extent;
   ntfr::image_format format;
   ntfr::image_alignment alignment;
 };
@@ -55,14 +55,14 @@ public:
   using texel_array = unique_array<uint8, allocator_delete<uint8, virtual_allocator<uint8>>>;
 
 public:
-  cubemap_data(std::array<texel_array, 6u>&& texels_, extent1d extent_,
+  cubemap_data(std::array<texel_array, 6u>&& texels_, ntfr::extent1d extent_,
                ntfr::image_format format_, ntfr::image_alignment alignment_) noexcept :
     texels{std::move(texels_)}, extent{extent_, extent_},
     format{format_}, alignment{alignment_} {}
 
 public:
   std::array<ntfr::image_data, 6u> make_descriptor(
-    const extent2d& offset = {}, uint32 level = 0
+    const ntfr::extent2d& offset = {}, uint32 level = 0
   ) const noexcept {
     std::array<ntfr::image_data, 6u> images;
 
@@ -82,7 +82,7 @@ public:
 
 public:
   std::array<texel_array, 6u> texels;
-  extent2d extent;
+  ntfr::extent2d extent;
   ntfr::image_format format;
   ntfr::image_alignment alignment;
 };
@@ -164,7 +164,7 @@ public:
         bitmap_data::texel_array{arr_sz, image.data,
           allocator_delete<uint8, virtual_allocator<uint8>>{std::move(stbi_alloc)}
         },
-        extent2d{image.width, image.height}, *format, 4u // alignment = 4 bytes
+        ntfr::extent2d{image.width, image.height}, *format, 4u // alignment = 4 bytes
       };
     });
   }
@@ -195,9 +195,9 @@ private:
                                         bool flip_y, image_format format);
 
 public:
-  static optional<std::pair<extent2d, uint32>> parse_image(const std::string& file);
-  static optional<std::pair<extent2d, uint32>> parse_image(std::FILE* file);
-  static optional<std::pair<extent2d, uint32>> parse_image(cspan<uint8> file_data);
+  static optional<std::pair<ntfr::extent2d, uint32>> parse_image(const std::string& file);
+  static optional<std::pair<ntfr::extent2d, uint32>> parse_image(std::FILE* file);
+  static optional<std::pair<ntfr::extent2d, uint32>> parse_image(cspan<uint8> file_data);
 
 private:
   static void _stbi_delete(void* data) noexcept;

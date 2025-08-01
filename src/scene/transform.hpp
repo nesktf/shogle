@@ -1,8 +1,6 @@
 #pragma once
 
-#include "../math/matrix.hpp"
-#include "../math/quaternion.hpp"
-#include "../math/complex.hpp"
+#include <shogle/math.hpp>
 
 #define SHOGLE_TRANSF_DEF_SETTER(_signature, ...) \
 Derived& _signature & \

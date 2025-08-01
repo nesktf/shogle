@@ -1,9 +1,8 @@
 #pragma once
 
-#include "../render/vertex.hpp"
-#include "./texture.hpp"
-
-#include "../math/quaternion.hpp"
+#include <shogle/wrappers.hpp>
+#include "./types.hpp"
+#include <shogle/math.hpp>
 
 #define SHOGLE_ASSIMP_WEIGHTS 4
 
@@ -379,13 +378,13 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<ntfr::soa_vertices<num_weights>>& d
       if (mesh.has_colors()) {
         uint32 count = 0;
         NTF_ASSERT(mesh.colors.count == mesh_verts);
-        mesh.colors.for_each(in_verts.colors, [&](const color4& col) {
+        mesh.colors.for_each(in_verts.colors, [&](const ntfr::color4& col) {
           out_verts[offset+count].set_color(col);
           ++count;
         });
 
       } else {
-        const color4 def{0.f, 0.f, 0.f, 0.f};
+        const ntfr::color4 def{0.f, 0.f, 0.f, 0.f};
         for (uint32 count = 0; count < mesh_verts; ++count) { 
           out_verts[offset+count].set_color(def);
         }

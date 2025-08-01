@@ -23,8 +23,8 @@ using font_charset_view = std::basic_string_view<CodeT, std::char_traits<CodeT>>
 
 struct glyph_metrics {
   uint32 id;
-  extent2d size;
-  extent2d offset;
+  ntfr::extent2d size;
+  ntfr::extent2d offset;
   ivec2 bearing;
   ivec2 advance;
 };
@@ -49,7 +49,7 @@ public:
   using const_iterator = font_glyphs::const_iterator;
 
 public:
-  font_atlas_data(bitmap_t&& bitmap_, extent2d bitmap_extent_,
+  font_atlas_data(bitmap_t&& bitmap_, ntfr::extent2d bitmap_extent_,
                   ntfr::image_format bitmap_format_, ntfr::image_alignment bitmap_alignment_,
                   font_glyphs&& glyphs_, glyph_map&& glyph_map_) noexcept :
     bitmap{std::move(bitmap_)}, glyphs{std::move(glyphs_)}, map{std::move(glyph_map_)},
@@ -57,7 +57,7 @@ public:
     bitmap_alignment{bitmap_alignment_} {}
 
 public:
-  template<meta::image_dim_type T = extent2d>
+  template<meta::image_dim_type T = ntfr::extent2d>
   ntfr::image_data make_bitmap_descriptor(
     const T& offset = {}, uint32 layer = 0, uint32 level = 0
   ) const noexcept {
@@ -65,7 +65,7 @@ public:
       .bitmap = bitmap.get(),
       .format = bitmap_format,
       .alignment = bitmap_alignment,
-      .extent = meta::image_dim_traits<extent2d>::extent_cast(bitmap_extent),
+      .extent = meta::image_dim_traits<ntfr::extent2d>::extent_cast(bitmap_extent),
       .offset = meta::image_dim_traits<T>::offset_cast(offset),
       .layer = layer,
       .level = level,
@@ -87,7 +87,7 @@ public:
   bitmap_t bitmap;
   font_glyphs glyphs;
   glyph_map map;
-  extent2d bitmap_extent;
+  ntfr::extent2d bitmap_extent;
   ntfr::image_format bitmap_format;
   ntfr::image_alignment bitmap_alignment;
 };
@@ -118,8 +118,8 @@ private:
 private:
   struct ft_glyph_data {
     uint32 id;
-    extent2d size;  // unused
-    extent2d bsize;
+    ntfr::extent2d size;  // unused
+    ntfr::extent2d bsize;
     ivec2 hbearing; // unused
     ivec2 vbearing; // unused
     ivec2 bbearing;
@@ -146,7 +146,7 @@ public:
   ft2_font_loader() noexcept;
 
 private:
-  asset_expected<face_t> _load_face(cspan<uint8> file_data, const extent2d& glyph_size);
+  asset_expected<face_t> _load_face(cspan<uint8> file_data, const ntfr::extent2d& glyph_size);
   uint32 _get_code_index(const face_t& face, uint64 code);
   optional<ft_glyph_data> _load_metrics(const face_t& face, uint32 idx, ft_mode load_mode);
   const uint8* _render_bitmap(const face_t& face, uint32 idx, ft_mode render_mode);
@@ -170,7 +170,7 @@ public:
   template<font_codepoint_type CodeT>
   auto load_atlas(
     cspan<uint8> file_data, font_charset_view<CodeT> charset, font_load_flags flags,
-    const extent2d& glyph_size, uint32 padding, uint32 atlas_size
+    const ntfr::extent2d& glyph_size, uint32 padding, uint32 atlas_size
   ) -> asset_expected<font_atlas_data>
   {
     const ft_mode mode = +(flags & font_load_flags::render_sdf) ? ft_mode::sdf : ft_mode::normal;

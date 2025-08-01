@@ -37,7 +37,7 @@ vec3 asscast(const aiVector3D& vec) {
   return {vec.x, vec.y, vec.z};
 }
 
-color4 asscast(const aiColor4D& col) {
+ntfr::color4 asscast(const aiColor4D& col) {
   return {col.r, col.g, col.b, col.a};
 }
 

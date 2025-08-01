@@ -1,5 +1,6 @@
 #include "./internal/platform.hpp"
-#include "./window.hpp"
+
+#include <shogle/wrappers.hpp>
 
 #include <ntfstl/utility.hpp>
 #include <atomic>
