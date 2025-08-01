@@ -1,5 +1,5 @@
-#include "./internal/platform.hpp"
-#include "./internal/opengl/context.hpp"
+#include "./context.hpp"
+#include "./opengl/context.hpp"
 
 #define DEF_NODE_OPS(_type, _list, ...) \
 void context_t_::insert_node(_type res) { \
@@ -130,7 +130,7 @@ expect<context_t> create_context(const context_params& params) {
     std::construct_at(ctx,
                       std::move(alloc), std::move(renderer), std::move(ctx_name),
                       params.ctx_api, fext, ftbuff, fdata);
-    RENDER_DBG_LOG("Context constructed: {}, {}",
+    SHOGLE_LOG(verbose, "Context constructed: {}, {}",
                    ctx_str(params.ctx_api),
                    ctx->name());
     return ctx;
@@ -163,7 +163,7 @@ void destroy_context(context_t ctx) noexcept {
 
   auto alloc = ctx->on_destroy();
   alloc->destroy(ctx);
-  RENDER_DBG_LOG("Context destroyed");
+  SHOGLE_LOG(verbose, "Context destroyed");
 }
 
 void start_frame(context_t ctx) {

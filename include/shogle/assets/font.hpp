@@ -181,14 +181,14 @@ public:
         for (const auto code : charset) {
           const auto cpoint = static_cast<uint64>(code);
           uint32 idx = _get_code_index(face, cpoint);
-          if (!idx) {
-            SHOGLE_LOG(verbose, "[ntf::ft2_font_loader] Undefined codepoint '{}'", cpoint);
-          }
+          // if (!idx) {
+          //   SHOGLE_LOG(verbose, "[ntf::ft2_font_loader] Undefined codepoint '{}'", cpoint);
+          // }
           set.emplace(idx);
-          const auto [_, empl] = map.try_emplace(static_cast<char32_t>(code), idx);
-          if (!empl) {
-            SHOGLE_LOG(verbose, "[ntf::ft2_font_loader] Duplicate codepoint '{}", cpoint);
-          }
+          [[maybe_unused]] const auto [_, empl] = map.try_emplace(static_cast<char32_t>(code), idx);
+          // if (!empl) {
+          //   SHOGLE_LOG(verbose, "[ntf::ft2_font_loader] Duplicate codepoint '{}", cpoint);
+          // }
         }
         return std::make_tuple(std::move(face), std::move(map), std::move(set));
       })
@@ -225,7 +225,7 @@ auto load_font_atlas(
   font_charset_view<CodeT> charset = ascii_charset<CodeT>,
   Loader&& font_loader = {}
 ) -> asset_expected<font_atlas_data> {
-  SHOGLE_LOG(debug, "[ntf::load_font_atlas] Loading font '{}'", path);
+  // SHOGLE_LOG(debug, "[ntf::load_font_atlas] Loading font '{}'", path);
   return file_data(path)
     .and_then([&](auto&& buffer) {
       return font_loader.load_atlas({buffer.get(), buffer.size()}, charset, flags,

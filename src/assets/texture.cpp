@@ -1,6 +1,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
+#include "../logger.hpp"
 #include <shogle/assets/texture.hpp>
 
 namespace shogle {
@@ -43,7 +44,7 @@ auto stb_image_loader::_load_image(span<const uint8> file_data, uint32 channels,
   uint8* data = nullptr;
   switch (format) {
     case stb_image_loader::STBI_FORMAT_U8: {
-      SHOGLE_LOG(verbose, "[ntf::stb_image_loader] Loading image from {} in u8 format",
+      SHOGLE_LOG(verbose, "Loading image from {} in u8 format",
                  fmt::ptr(file_data.data()));
       data = reinterpret_cast<uint8*>(stbi_load_from_memory(
         file_data.data(), file_data.size_bytes(),
@@ -52,7 +53,7 @@ auto stb_image_loader::_load_image(span<const uint8> file_data, uint32 channels,
       break;
     }
     case stb_image_loader::STBI_FORMAT_U16: {
-      SHOGLE_LOG(verbose, "[ntf::stb_image_loader] Loading image from {} in u16 format",
+      SHOGLE_LOG(verbose, "Loading image from {} in u16 format",
                  fmt::ptr(file_data.data()));
       data = reinterpret_cast<uint8*>(stbi_load_16_from_memory(
         file_data.data(), file_data.size_bytes(),
@@ -61,7 +62,7 @@ auto stb_image_loader::_load_image(span<const uint8> file_data, uint32 channels,
       break;
     }
     case stb_image_loader::STBI_FORMAT_F32: {
-      SHOGLE_LOG(verbose, "[ntf::stb_image_loader] Loading image from {} in f32 format",
+      SHOGLE_LOG(verbose, "Loading image from {} in f32 format",
                  fmt::ptr(file_data.data()));
       data = reinterpret_cast<uint8*>(stbi_loadf_from_memory(
         file_data.data(), file_data.size_bytes(),
@@ -71,10 +72,10 @@ auto stb_image_loader::_load_image(span<const uint8> file_data, uint32 channels,
     }
   }
   if (!data) {
-    SHOGLE_LOG(error, "[ntf::stb_image_loader] Failed to parse image: {}", stbi_failure_reason());
+    SHOGLE_LOG(error, "Failed to parse image: {}", stbi_failure_reason());
     return ntf::unexpected{asset_error{stbi_failure_reason()}};
   }
-  SHOGLE_LOG(verbose, "[ntf::stb_image_loader] Parsed {} channels (marked {})",
+  SHOGLE_LOG(verbose, "Parsed {} channels (marked {})",
              ch, channels);
   return stbi_data {
     .data = data,

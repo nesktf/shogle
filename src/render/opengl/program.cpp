@@ -166,7 +166,7 @@ ctx_pip_status gl_state::create_program(glprog_t& prog, span<glshader_t*> shader
     GL_CALL(glGetShaderInfoLog, shaders[0]->id, 1024, &err_len, span.data());
     GL_CALL(glDeleteProgram, id);
     err = {span.data(), span.size()};
-    RENDER_ERROR_LOG("Failed to link program: {}", err);
+    SHOGLE_LOG(error, "Failed to link program: {}", err);
     return CTX_PIP_STATUS_LINKING_FAILED;
   }
 

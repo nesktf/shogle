@@ -1,4 +1,5 @@
-#include "./internal/platform.hpp"
+#include "./texture.hpp"
+#include "./context.hpp"
 
 namespace shogle {
 
@@ -37,7 +38,7 @@ static expect<void> validate_images(ctx_alloc& alloc,
   }
 
   if (gen_mipmaps && max_levels == 1) {
-    RENDER_WARN_LOG("Ignoring mipmap generation for texture with level 1");
+    SHOGLE_LOG(warning, "Ignoring mipmap generation for texture with level 1");
   }
 
   for (size_t i = 0u; const auto& img : images) {
@@ -202,7 +203,7 @@ expect<texture_t> create_texture(context_t ctx, const texture_desc& desc) {
                         ctx, handle, tex_desc);
       ctx->insert_node(tex);
       NTF_ASSERT(tex->prev == nullptr);
-      RENDER_DBG_LOG(
+      SHOGLE_LOG(verbose,
         "Texture created ({}) [type: {}, ext: {}x{}x{}, lvl: {}, lyr: {}, add: {}, sam: {}]",
         tex->handle,
         tex_type_str(tex->type), tex->extent.x, tex->extent.y, tex->extent.z,
@@ -223,7 +224,7 @@ void destroy_texture(texture_t tex) noexcept {
   if (--tex->refcount > 0) {
     return;
   }
-  RENDER_DBG_LOG(
+  SHOGLE_LOG(verbose, 
     "Texture destroyed ({}) [type: {}, ext: {}x{}x{}, lvl: {}, lyr: {}, add: {}, sam: {}]",
     tex->handle,
     tex_type_str(tex->type), tex->extent.x, tex->extent.y, tex->extent.z,

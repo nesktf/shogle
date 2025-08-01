@@ -1,4 +1,5 @@
-#include "./internal/platform.hpp"
+#include "./buffer.hpp"
+#include "./context.hpp"
 
 namespace shogle {
 
@@ -76,7 +77,7 @@ expect<buffer_t> create_buffer(context_t ctx, const buffer_desc& desc) {
                         ctx, handle, buff_desc);
       ctx->insert_node(buff);
       NTF_ASSERT(buff->prev == nullptr);
-      RENDER_DBG_LOG("Buffer created {} [type: {}]",
+      SHOGLE_LOG(verbose, "Buffer created {} [type: {}]",
                      buff->handle, buffer_type_str(desc.type));
 
       return buff;
@@ -90,7 +91,7 @@ void destroy_buffer(buffer_t buffer) noexcept {
   }
   const auto handle = buffer->handle;
   auto* ctx = buffer->ctx;
-  RENDER_DBG_LOG("Buffer destroyed ({}) [type: {}]",
+  SHOGLE_LOG(verbose, "Buffer destroyed ({}) [type: {}]",
                  buffer->handle, buffer_type_str(buffer->type));
 
   ctx->remove_node(buffer);

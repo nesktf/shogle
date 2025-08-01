@@ -1,3 +1,4 @@
+#include "../logger.hpp"
 #include <shogle/assets/model.hpp>
 #include <shogle/assets/filesystem.hpp>
 
@@ -95,7 +96,7 @@ void parse_weights(std::unordered_map<std::string, std::pair<uint32,mat4>>& bone
         return;
       }
     }
-    SHOGLE_LOG(warning, "[ntf::assimp_loader] Bone weights out of range in vertex {}", pos);
+    SHOGLE_LOG(warning, "Bone weights out of range in vertex {}", pos);
   };
 
   for (uint32 i = 0; i < mesh->mNumBones; ++i) {
@@ -113,7 +114,7 @@ void log_bones(const std::vector<armature_data::armature>& armatures,
                const std::vector<armature_data::bone>& bones,
                std::unordered_map<std::string, std::pair<uint32,mat4>>& bone_map) {
   uint32 i = 0;
-  SHOGLE_LOG(verbose, "[ntf::assimp_loader] Bone vec:");
+  SHOGLE_LOG(verbose, "Bone vec:");
   for (const auto& bone : bones) {
     const char* parent_str = 
       bone.parent == BONE_TOMBSTONE ? "x" : bones[bone.parent].name.c_str();
@@ -134,13 +135,13 @@ void log_bones(const std::vector<armature_data::armature>& armatures,
                inv[0][3], inv[1][3], inv[2][3], inv[3][3]);
   }
 
-  SHOGLE_LOG(verbose, "[ntf::assimp_loader] Bone map:");
+  SHOGLE_LOG(verbose, "Bone map:");
   for (const auto& [name, pair] : bone_map) {
     SHOGLE_LOG(verbose, " - [{}] {}", pair.first, name);
   }
 
   i = 0;
-  SHOGLE_LOG(verbose, "[ntf::assimp_loader] Armatures:");
+  SHOGLE_LOG(verbose, "Armatures:");
   for (const auto& [name, span]: armatures) {
     SHOGLE_LOG(verbose, " - [{}] {} -> ({}) {} {}",
                i++, name, bones[span.index].name, span.index, span.count);
@@ -191,7 +192,7 @@ asset_expected<void> assimp_loader::parse(const std::string& path, model_load_fl
 
   auto dir = file_dir(path);
   if (!dir) {
-    SHOGLE_LOG(error, "[ntf::assimp_loader] Invalid file path: \"{}\"", path);
+    SHOGLE_LOG(error, "Invalid file path: \"{}\"", path);
     return ntf::unexpected{asset_error::format({"[ntf::assimp_loader] Invalid file path: \"{}\""},
                                           path)};
   }
@@ -200,7 +201,7 @@ asset_expected<void> assimp_loader::parse(const std::string& path, model_load_fl
 
   const aiScene* scene = importer->ReadFile(path.c_str(), parse_process_flags(flags));
   if (!scene) {
-    SHOGLE_LOG(error, "[ntf::assimp_loader] ASSIMP ERROR: {}", importer->GetErrorString());
+    SHOGLE_LOG(error, "ASSIMP ERROR: {}", importer->GetErrorString());
     return ntf::unexpected{asset_error::format({"ASSIMP ERROR: {}"}, importer->GetErrorString())};
   }
 
@@ -232,7 +233,7 @@ void assimp_loader::get_armatures(armature_data& arms) {
   const aiNode* scene_root = scene->mRootNode;
 
   if (_bone_map.empty()) {
-    SHOGLE_LOG(debug, "[ntf::assimp_loader] No armatures found in \"{}\"", _path);
+    SHOGLE_LOG(debug, "No armatures found in \"{}\"", _path);
     return;
   }
 
@@ -250,7 +251,7 @@ void assimp_loader::get_armatures(armature_data& arms) {
     possible_roots.emplace_back(bone_node);
   }
 
-  SHOGLE_LOG(verbose, "[ntf::assimp_loader] Found {} possible bone root(s)",
+  SHOGLE_LOG(verbose, "Found {} possible bone root(s)",
              possible_roots.size());
 
   uint32 bone_counter = 0;
@@ -264,7 +265,7 @@ void assimp_loader::get_armatures(armature_data& arms) {
     const auto bone_index = it->second.first;
     if (bone_index != BONE_TOMBSTONE) {
       SHOGLE_LOG(warning,
-                 "[ntf::assimp_loader] Bone root \"{}\" already parsed, possible node duplicate",
+                 "Bone root \"{}\" already parsed, possible node duplicate",
                  root->mName.C_Str());
       continue;
     }
@@ -275,7 +276,7 @@ void assimp_loader::get_armatures(armature_data& arms) {
 
     if (!is_identity(bones[root_idx].local*bones[root_idx].inv_model)) {
       SHOGLE_LOG(warning,
-                 "[ntf::assimp_loader] Malformed transform in root \"{}\", correction applied",
+                 "Malformed transform in root \"{}\", correction applied",
                  root->mName.C_Str());
       bones[root_idx].local = node_model(root->mParent)*bones[root_idx].local;
     }
@@ -285,7 +286,7 @@ void assimp_loader::get_armatures(armature_data& arms) {
 #ifdef LOG_BONE_THINGIES
   log_bones(armatures, bones, _bone_map);
 #endif
-  SHOGLE_LOG(debug, "[ntf::assimp_loader] Parsed {} armatures, {} bones from \"{}\"",
+  SHOGLE_LOG(debug, "Parsed {} armatures, {} bones from \"{}\"",
              arms.size(), arms.bone_size(), _path);
 }
 
@@ -294,7 +295,7 @@ void assimp_loader::get_animations(animation_data& anims) {
   const aiScene* scene = importer->GetScene();
 
   if (!scene->HasAnimations()) {
-    SHOGLE_LOG(debug, "[ntf::assimp_loader] No animations found in \"{}\"", _path);
+    SHOGLE_LOG(debug, "No animations found in \"{}\"", _path);
     return;
   }
 
@@ -307,7 +308,7 @@ void assimp_loader::get_animations(animation_data& anims) {
   animations.reserve(scene->mNumAnimations);
   for (uint32 i = 0; i < scene->mNumAnimations; ++i) {
     const aiAnimation* ai_anim = scene->mAnimations[i];
-    SHOGLE_LOG(verbose, "[ntf::assimp_loader] Parsing animation \"{}\"", ai_anim->mName.C_Str());
+    SHOGLE_LOG(verbose, "Parsing animation \"{}\"", ai_anim->mName.C_Str());
 
     animations.emplace_back();
     auto& anim = animations.back();
@@ -322,7 +323,7 @@ void assimp_loader::get_animations(animation_data& anims) {
       const char* bone_name = node_anim->mNodeName.C_Str();
       auto it = _bone_map.find(bone_name);
       if (it == _bone_map.end()) {
-        SHOGLE_LOG(warning, "[ntf::assimp_loader] Unknown bone node \"{}\" for animation \"{}\"",
+        SHOGLE_LOG(warning, "Unknown bone node \"{}\" for animation \"{}\"",
                    bone_name, anim.name);
         channels--;
         continue;
@@ -356,7 +357,7 @@ void assimp_loader::get_animations(animation_data& anims) {
     anim.frames.count = channels;
   }
 
-  SHOGLE_LOG(debug, "[ntf::assimp_loader] Parsed {} animation(s), {} frames from \"{}\"",
+  SHOGLE_LOG(debug, "Parsed {} animation(s), {} frames from \"{}\"",
              animations.size(), kframes.size(), _path);
 }
 
@@ -365,7 +366,7 @@ void assimp_loader::get_materials(material_data& materials) {
   const aiScene* scene = importer->GetScene();
 
   if (!scene->HasMaterials()) {
-    SHOGLE_LOG(debug, "[ntf::assimp_loader] No materials found in \"{}\"", _path);
+    SHOGLE_LOG(debug, "No materials found in \"{}\"", _path);
     return;
   }
 
@@ -378,14 +379,14 @@ void assimp_loader::get_materials(material_data& materials) {
       auto tex_path = fmt::format("{}/{}", _dir,filename.C_Str());
 
       if (!std::filesystem::exists(tex_path)) {
-        SHOGLE_LOG(warning, "[ntf::assimp_loader] Invalid texture path \"{}\"", tex_path);
+        SHOGLE_LOG(warning, "Invalid texture path \"{}\"", tex_path);
         continue;
       }
 
       auto it = parsed_tex.find(tex_path);
       uint32 idx;
       if (it == parsed_tex.end()) {
-        SHOGLE_LOG(verbose, "[ntf::assimp_loader] Found texture \"{}\"", tex_path);
+        SHOGLE_LOG(verbose, "Found texture \"{}\"", tex_path);
         materials.paths.emplace_back(tex_path);
         idx = materials.paths.size()-1;
         parsed_tex.emplace(std::make_pair(std::move(tex_path), idx));
@@ -404,14 +405,14 @@ void assimp_loader::get_materials(material_data& materials) {
     materials.data.emplace_back();
     auto& mat = materials.data.back();
     mat.name = ai_mat->GetName().C_Str();
-    SHOGLE_LOG(verbose, "[ntf::assimp_loader] Found material \"{}\"", mat.name);
+    SHOGLE_LOG(verbose, "Found material \"{}\"", mat.name);
 
     load_textures(ai_mat, aiTextureType_DIFFUSE);
     load_textures(ai_mat, aiTextureType_SPECULAR);
   }
 
   SHOGLE_LOG(debug,
-             "[ntf::assimp_loader] Parsed {} material(s), {} texture(s), {} image(s) from \"{}\"",
+             "Parsed {} material(s), {} texture(s), {} image(s) from \"{}\"",
              materials.size(), materials.textures.size(), materials.paths.size(), _path);
 }
 
@@ -487,10 +488,10 @@ void assimp_loader::parse_meshes(mesh_data<vert_type>& data) {
 
     const uint32 nverts = ai_mesh->mNumVertices;
     if (!ai_mesh->HasPositions()) {
-      SHOGLE_LOG(warning, "[ntf::assimp_loader] Mesh without vertices: \"{}\"", mesh.name);
+      SHOGLE_LOG(warning, "Mesh without vertices: \"{}\"", mesh.name);
       continue;
     } else {
-      SHOGLE_LOG(verbose, "[ntf::assimp_loader] Found {} vertices in mesh \"{}\"", 
+      SHOGLE_LOG(verbose, "Found {} vertices in mesh \"{}\"", 
                  nverts, mesh.name);
     }
 
@@ -510,7 +511,7 @@ void assimp_loader::parse_meshes(mesh_data<vert_type>& data) {
       mesh.indices.index = indices.size()-mesh_indices;
       mesh.indices.count = mesh_indices;
       mesh.faces = ai_mesh->mNumFaces;
-      SHOGLE_LOG(verbose, "[ntf::assimp_loader] Found {} faces ({} indices) in mesh \"{}\"",
+      SHOGLE_LOG(verbose, "Found {} faces ({} indices) in mesh \"{}\"",
                  ai_mesh->mNumFaces, mesh.indices.count, mesh.name);
     } else {
       mesh.indices.index = VSPAN_TOMBSTONE;
@@ -572,7 +573,7 @@ void assimp_loader::parse_meshes(mesh_data<vert_type>& data) {
     mesh.positions.index = vertices.positions.size()-nverts;
     mesh.positions.count = nverts;
   }
-  SHOGLE_LOG(debug, "[ntf::assimp_loader] Parsed {} vertices, {} indices, {} mesh(es) from \"{}\"",
+  SHOGLE_LOG(debug, "Parsed {} vertices, {} indices, {} mesh(es) from \"{}\"",
              vertex_count, index_count, scene->mNumMeshes, _path);
 }
 

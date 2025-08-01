@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../platform.hpp"
+#include "../common.hpp"
 
 #ifdef SHOGLE_GL_DISABLE_ASSERTIONS
 #define GL_CALL(fun, ...) fun(__VA_ARGS__)

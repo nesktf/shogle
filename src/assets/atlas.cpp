@@ -1,10 +1,11 @@
+#include "../logger.hpp"
 #include <shogle/assets/atlas.hpp>
 #include <shogle/assets/filesystem.hpp>
 
 #include <nlohmann/json.hpp>
 
 #define RET_ERR(msg, ...) \
-  SHOGLE_LOG(error, "[ntf::grid_atlas_loader] " msg __VA_OPT__(,) __VA_ARGS__); \
+  SHOGLE_LOG(error, msg __VA_OPT__(,) __VA_ARGS__); \
   if constexpr (checked) { \
     return ntf::unexpected{asset_error::format({msg}__VA_OPT__(,) __VA_ARGS__)}; \
   } else { \

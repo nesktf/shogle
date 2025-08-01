@@ -1,5 +1,9 @@
 #pragma once
 
+#include <glad/glad.h>
+
+#include "../logger.hpp"
+
 #include <shogle/render/context.hpp>
 #include <shogle/render/texture.hpp>
 #include <shogle/render/buffer.hpp>
@@ -13,36 +17,35 @@
 
 #include <deque>
 #include <queue>
+#include <variant>
+#include <atomic>
 
-#define RENDER_ERROR_LOG(_fmt, ...) \
-  SHOGLE_LOG(error, "[{}:{}] " \
-             _fmt, ::shogle::meta::parse_src_str(NTF_FILE), \
-             NTF_LINE __VA_OPT__(,) __VA_ARGS__)
+#if defined(SHOGLE_ENABLE_GLFW) && SHOGLE_ENABLE_GLFW
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 
-#define RENDER_WARN_LOG(_fmt, ...) \
-  SHOGLE_LOG(warning, "[{}:{}] " \
-             _fmt, ::shogle::meta::parse_src_str(NTF_FILE), \
-             NTF_LINE __VA_OPT__(,) __VA_ARGS__)
-
-#define RENDER_DBG_LOG(_fmt, ...) \
-  SHOGLE_LOG(debug, "[{}:{}] " \
-             _fmt, ::shogle::meta::parse_src_str(NTF_FILE), \
-             NTF_LINE __VA_OPT__(,) __VA_ARGS__)
-
-#define RENDER_VRB_LOG(_fmt, ...) \
-  SHOGLE_LOG(verbose, "[{}:{}] " \
-             _fmt, ::shogle::meta::parse_src_str(NTF_FILE), \
-             NTF_LINE __VA_OPT__(,) __VA_ARGS__)
+#define SHOGLE_GL_LOAD_PROC \
+  reinterpret_cast<GLADloadproc>(glfwGetProcAddress)
+#define SHOGLE_GL_MAKE_CTX_CURRENT(win_handle) \
+  glfwMakeContextCurrent(reinterpret_cast<GLFWwindow*>(win_handle))
+#define SHOGLE_GL_SET_SWAP_INTERVAL(win_handle, interval) \
+  glfwSwapInterval(interval)
+#define SHOGLE_GL_SWAP_BUFFERS(win_handle) \
+  glfwSwapBuffers(reinterpret_cast<GLFWwindow*>(win_handle))
+#define SHOGLE_VK_CREATE_SURFACE(win_handle, vk_instance, vk_surface_ptr, vk_alloc_ptr) \
+  glfwCreateWindowSurface(vk_instance, reinterpret_cast<GLFWwindow*>(win_handle), \
+                          vk_alloc_ptr, vk_surface_ptr)
+#endif
 
 #define RET_ERROR(_str) \
-  RENDER_ERROR_LOG(_str); \
+  SHOGLE_LOG(error, _str); \
   return ntf::unexpected{render_error{_str}}
 
 #define RET_ERROR_IF(_cond, _str) \
   if (_cond) { RET_ERROR(_str); }
 
 #define RET_ERROR_FMT(_alloc, _fmt, ...) \
-  RENDER_ERROR_LOG(_fmt __VA_OPT__(,) __VA_ARGS__); \
+  SHOGLE_LOG(error, _fmt, __VA_ARGS__); \
   return ntf::unexpected{render_error{_alloc.fmt_arena_string(_fmt __VA_OPT__(,) __VA_ARGS__)}}
 
 #define RET_ERROR_FMT_IF(_cond, _alloc, _fmt, ...) \
@@ -50,21 +53,21 @@
 
 #define RET_ERROR_CATCH(_msg) \
   catch (render_error& err) { \
-    RENDER_ERROR_LOG(_msg ": {}", err.what()); \
+    SHOGLE_LOG(error, _msg ": {}", err.what()); \
     return ntf::unexpected{std::move(err)}; \
   } catch (const std::bad_alloc&) { \
-    RENDER_ERROR_LOG(_msg ": Allocation failed"); \
+    SHOGLE_LOG(error, _msg ": Allocation failed"); \
     return ntf::unexpected{render_error{"Allocation failed"}}; \
   } catch (...) { \
-    RENDER_ERROR_LOG(_msg ": Caught (...)"); \
+    SHOGLE_LOG(error, _msg ": Caught (...)"); \
     return ntf::unexpected{render_error{"Unknown error"}}; \
   }
 
 #define RENDER_ERROR_LOG_CATCH(_msg) \
   catch (const std::exception& ex) { \
-    RENDER_ERROR_LOG(_msg ": {}", ex.what()); \
+    SHOGLE_LOG(error, _msg ": {}", ex.what()); \
   } catch (...) { \
-    RENDER_ERROR_LOG(_msg ": Caught (...)"); \
+    SHOGLE_LOG(error, _msg ": Caught (...)"); \
   }
 
 namespace shogle {
@@ -364,6 +367,226 @@ private:
   void* _user_ptr;
   malloc_fun _malloc;
   mfree_fun _free;
+};
+
+constexpr bool check_handle(ctx_handle handle) noexcept { return handle != CTX_HANDLE_TOMB; }
+
+using ctx_buff = ctx_handle;
+using ctx_tex = ctx_handle;
+using ctx_shad = ctx_handle;
+using ctx_pip = ctx_handle;
+using ctx_unif = ctx_handle;
+
+using ctx_fbo = ctx_handle;
+constexpr auto DEFAULT_FBO_HANDLE = CTX_HANDLE_TOMB;
+
+struct ctx_unif_meta {
+  ctx_unif handle;
+  ctx_alloc::string_t<char> name;
+  attribute_type type;
+  size_t size;
+};
+using unif_meta_vec = ctx_alloc::vec_t<ctx_unif_meta>;
+
+template<typename T>
+using handle_map = std::unordered_map<ctx_handle, T>;
+
+struct ctx_limits {
+  uint32 tex_max_layers;
+  uint32 tex_max_extent;
+  uint32 tex_max_extent3d;
+};
+
+class ctx_render_cmd {
+public:
+  struct unif_const_t {
+    u32 location;
+    attribute_data data;
+    attribute_type type;
+  };
+
+  struct shad_bind_t {
+    ctx_buff handle;
+    uint32 binding;
+    size_t offset;
+    size_t size;
+  };
+
+  struct tex_bind_t {
+    ctx_tex handle;
+    u32 sampler;
+  };
+
+  static constexpr u32 MAX_LAYOUT_NUMBER = 32u; // hack
+
+public:
+  ctx_render_cmd(ntf::function_view<void(context_t)> on_render_) :
+    external{ntf::nullopt}, on_render{on_render_} {}
+  ctx_render_cmd(ntf::function_view<void(context_t, ctx_handle)> on_render_) :
+    external{ntf::nullopt}, on_render{on_render_} {}
+
+public:
+  ctx_pip pip;
+  std::array<ctx_buff, MAX_LAYOUT_NUMBER> vbo;
+  ctx_buff ebo;
+  span<shad_bind_t> shader_buffers;
+  span<tex_bind_t> textures;
+  span<unif_const_t> uniforms;
+  render_opts opts;
+  uint32 sort_group;
+  ntf::optional<external_state> external;
+  std::variant<
+    ntf::function_view<void(context_t, ctx_handle)>,
+    ntf::function_view<void(context_t)>
+  > on_render;
+};
+
+struct ctx_render_data {
+  struct fbo_data_t {
+    color4 clear_color;
+    uvec4 viewport;
+    clear_flag clear_flags;
+  };
+
+  ctx_fbo target;
+  weak_ptr<const fbo_data_t> data;
+  span<const ctx_render_cmd> commands;
+};
+
+struct ctx_buff_desc {
+  buffer_type type;
+  buffer_flag flags;
+  size_t size;
+  weak_ptr<const buffer_data> data;
+};
+
+enum ctx_buff_status {
+  CTX_BUFF_STATUS_OK = 0,
+  CTX_BUFF_STATUS_INVALID_HANDLE,
+  CTX_BUFF_STATUS_ALLOC_FAILED,
+};
+
+struct ctx_tex_desc {
+  texture_type type;
+  image_format format;
+  texture_sampler sampler;
+  texture_addressing addressing;
+  extent3d extent;
+  uint32 layers;
+  uint32 levels;
+  span<const image_data> images;
+  bool gen_mipmaps;
+};
+
+using ctx_tex_data = texture_data;
+
+struct ctx_tex_opts {
+  texture_sampler sampler;
+  texture_addressing addresing;
+};
+
+enum ctx_tex_status {
+  CTX_TEX_STATUS_OK = 0,
+  CTX_TEX_STATUS_INVALID_HANDLE,
+  CTX_TEX_STATUS_INVALID_ADDRESING,
+  CTX_TEX_STATUS_INVALID_SAMPLER,
+  CTX_TEX_STATUS_INVALID_LEVELS,
+};
+
+struct ctx_shad_desc {
+  shader_type type;
+  cstring_view<char> source;
+};
+
+using shad_err_str = cstring_view<char>;
+
+enum ctx_shad_status {
+  CTX_SHAD_STATUS_OK = 0,
+  CTX_SHAD_STATUS_INVALID_HANDLE,
+  CTX_SHAD_STATUS_COMPILATION_FAILED,
+};
+
+struct ctx_pip_desc {
+  ctx_alloc::uarray_t<attribute_binding> layout;
+  weak_ptr<unif_meta_vec> uniforms;
+  span<const ctx_shad> stages;
+  stages_flag stages_flags;
+  primitive_mode primitive;
+  polygon_mode poly_mode;
+  f32 poly_width;
+  render_tests tests;
+};
+
+using pip_err_str = cstring_view<char>;
+
+enum ctx_pip_status {
+  CTX_PIP_STATUS_OK = 0,
+  CTX_PIP_STATUS_INVALID_HANDLE,
+  CTX_PIP_STATUS_LINKING_FAILED,
+};
+
+struct ctx_fbo_desc {
+  struct tex_att_t {
+    ctx_tex texture;
+    uint32 layer;
+    uint32 level;
+  };
+
+  extent2d extent;
+  fbo_buffer test_buffer;
+  span<const tex_att_t> ctx_attachments;
+  ctx_alloc::uarray_t<fbo_image> attachments;
+};
+
+enum ctx_fbo_status {
+  CTX_FBO_STATUS_OK = 0,
+  CTX_FBO_STATUS_INVALID_HANDLE,
+};
+
+template<typename T>
+class ctx_res_node {
+public:
+  ctx_res_node(context_t ctx_) noexcept :
+    ctx{ctx_}, prev{nullptr}, next{nullptr} {}
+
+public:
+  context_t ctx;
+  T *prev, *next;
+};
+
+
+struct icontext {
+  virtual ~icontext() = default;
+  virtual void get_limits(ctx_limits& limits) = 0;
+  virtual ctx_alloc::string_t<char> get_name(ctx_alloc& alloc) = 0;
+  virtual void get_dfbo_params(extent2d& ext, fbo_buffer& buff, u32& msaa) = 0;
+
+  virtual ctx_buff_status create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) = 0;
+  virtual ctx_buff_status update_buffer(ctx_buff buff, const buffer_data& data) = 0;
+  virtual ctx_buff_status map_buffer(ctx_buff buff, void** ptr, size_t size, size_t offset) = 0;
+  virtual ctx_buff_status unmap_buffer(ctx_buff buff, void* ptr) noexcept = 0;
+  virtual ctx_buff_status destroy_buffer(ctx_buff buff) noexcept = 0;
+
+  virtual ctx_tex_status create_texture(ctx_tex& tex, const ctx_tex_desc& desc) = 0;
+  virtual ctx_tex_status update_texture(ctx_tex tex, const ctx_tex_data& data) = 0;
+  virtual ctx_tex_status update_texture(ctx_tex tex, const ctx_tex_opts& opts) = 0;
+  virtual ctx_tex_status destroy_texture(ctx_tex tex) noexcept = 0;
+
+  virtual ctx_shad_status create_shader(ctx_shad& shad, shad_err_str& err,
+                                        const ctx_shad_desc& desc) = 0;
+  virtual ctx_shad_status destroy_shader(ctx_shad shad) noexcept = 0;
+
+  virtual ctx_pip_status create_pipeline(ctx_pip& pip, pip_err_str& err,
+                                         const ctx_pip_desc& desc) = 0;
+  virtual ctx_pip_status destroy_pipeline(ctx_pip pip) noexcept = 0;
+
+  virtual ctx_fbo_status create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) = 0;
+  virtual ctx_fbo_status destroy_framebuffer(ctx_fbo fbo) noexcept = 0;
+
+  virtual void submit_render_data(context_t ctx, span<const ctx_render_data> render_data) = 0;
+
+  virtual void device_wait() = 0;
+  virtual void swap_buffers() = 0;
 };
 
 } // namespace shogle

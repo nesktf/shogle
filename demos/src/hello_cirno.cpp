@@ -1,6 +1,8 @@
 #include <shogle/shogle.hpp>
 #include <shogle/boilerplate.hpp>
 
+#include <ntfstl/logger.hpp>
+
 int main() {
   ntf::logger::set_level(ntf::log_level::verbose);
   

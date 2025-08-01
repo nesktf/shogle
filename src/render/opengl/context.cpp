@@ -51,13 +51,13 @@ void gl_context::debug_callback(GLenum src, GLenum type, GLuint id, GLenum sever
   }();
 
   if (type == GL_DEBUG_TYPE_ERROR) {
-    RENDER_ERROR_LOG("[GL_DEBUG][{}][{}][{}][{}] {}",
+    SHOGLE_LOG(error, "[GL_DEBUG][{}][{}][{}][{}] {}",
                      severity_msg, type_msg, src_msg, id, msg);
   } else if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
-    RENDER_VRB_LOG("[GL_DEBUG][{}][{}][{}][{}] {}",
+    SHOGLE_LOG(verbose, "[GL_DEBUG][{}][{}][{}][{}] {}",
                    severity_msg, type_msg, src_msg, id, msg);
   } else {
-    RENDER_DBG_LOG("[GL_DEBUG][{}][{}][{}][{}] {}",
+    SHOGLE_LOG(debug, "[GL_DEBUG][{}][{}][{}][{}] {}",
                    severity_msg, type_msg, src_msg, id, msg);
   }
 }
@@ -95,11 +95,11 @@ gl_context::gl_context(ctx_alloc& alloc, const context_gl_params& params) noexce
   _state.init(gl_context::debug_callback, this);
   _state.create_vao(_vao);
   _state.vao_bind(_vao.id);
-  RENDER_DBG_LOG("OpenGL context created");
+  SHOGLE_LOG(verbose, "OpenGL context created");
 }
 
 gl_context::~gl_context() noexcept {
-  RENDER_DBG_LOG("OpenGL context destroyed");
+  SHOGLE_LOG(verbose, "OpenGL context destroyed");
 }
 
 void gl_context::get_limits(ctx_limits& limits) {

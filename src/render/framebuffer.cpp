@@ -1,4 +1,5 @@
-#include "./internal/platform.hpp"
+#include "./framebuffer.hpp"
+#include "./context.hpp"
 
 namespace shogle {
 
@@ -56,7 +57,7 @@ static expect<void> validate_desc(context_t ctx, const fbo_image_desc& desc) {
   NTF_ASSERT(ctx);
   if (desc.viewport.x+desc.viewport.z != desc.extent.x ||
       desc.viewport.y+desc.viewport.w != desc.extent.y) {
-    RENDER_WARN_LOG("Mismatching viewport size");
+    SHOGLE_LOG(warning, "Mismatching viewport size");
   }
   auto& alloc = ctx->alloc();
 
@@ -128,7 +129,7 @@ expect<framebuffer_t> create_framebuffer(context_t ctx, const fbo_image_desc& de
                         std::move(fbo_desc.attachments), fdata);
       ctx->insert_node(fbo);
       NTF_ASSERT(fbo->prev == nullptr);
-      RENDER_DBG_LOG("Framebuffer created ({}) [ext: {}x{}, buf: {}, atts: {}]",
+      SHOGLE_LOG(verbose, "Framebuffer created ({}) [ext: {}x{}, buf: {}, atts: {}]",
                      fbo->handle, fbo->extent.x, fbo->extent.y,
                      fbo_buffer_str(fbo->test_buffer), fbo->attachments.size());
       return fbo;
@@ -143,7 +144,7 @@ void destroy_framebuffer(framebuffer_t fbo) noexcept {
   const auto handle = fbo->handle;
   auto* ctx = fbo->ctx;
 
-  RENDER_DBG_LOG("Framebuffer destroyed ({}) [ext: {}x{}, buf: {}, atts: {}]",
+  SHOGLE_LOG(verbose, "Framebuffer destroyed ({}) [ext: {}x{}, buf: {}, atts: {}]",
                  fbo->handle, fbo->extent.x, fbo->extent.y,
                  fbo_buffer_str(fbo->test_buffer), fbo->attachments.size());
 

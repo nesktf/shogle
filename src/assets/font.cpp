@@ -1,10 +1,11 @@
+#include "../logger.hpp"
 #include <shogle/scene/font.hpp>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
 #define RET_ERR(msg, ...) \
-  SHOGLE_LOG(error, "[ntf::ft2_bitmap_loader] " msg __VA_OPT__(,) __VA_ARGS__); \
+  SHOGLE_LOG(error, msg __VA_OPT__(,) __VA_ARGS__); \
   return ntf::unexpected{asset_error::format({msg}__VA_OPT__(,) __VA_ARGS__)};
 
 #define RET_ERR_IF(cond, ...) \
@@ -27,7 +28,7 @@ ft2_font_loader::ft2_font_loader() noexcept :
 {
   FT_Library lib;
   if (FT_Init_FreeType(&lib)) {
-    SHOGLE_LOG(error, "[ntf::ft2_bitmap_loader] Failed to initialize FreeType handle");
+    SHOGLE_LOG(error, "Failed to initialize FreeType handle");
     return;
   }
   _ft2_lib.reset(static_cast<void*>(lib));
@@ -184,7 +185,7 @@ auto ft2_font_loader::_parse_metrics(
   for (size_t i = 0; const uint32 id : set) {
     auto glyph = _load_metrics(face, id, mode);
     if (!glyph) {
-      SHOGLE_LOG(warning, "[ntf::ft2_font_loader] Failed to load glyph with id '{}'",
+      SHOGLE_LOG(warning, "Failed to load glyph with id '{}'",
                  id);
       continue;
     }
@@ -220,7 +221,7 @@ font_atlas_data ft2_font_loader::_load_bitmap(
   for (auto& glyph : glyphs) {
     const uint8* buff = _render_bitmap(face, glyph.id, mode);
     if (!buff) {
-      SHOGLE_LOG(verbose, "[ntf::ft2_font_loader] Skipping empty bitmap for glyph '{}'",
+      SHOGLE_LOG(verbose, "Skipping empty bitmap for glyph '{}'",
                  glyph.id);
       continue;
     }
@@ -248,7 +249,7 @@ font_atlas_data ft2_font_loader::_load_bitmap(
   }
 
   SHOGLE_LOG(debug,
-             "[ntf::ft2_font_loader] Loaded font atlas: {} glyphs, {} mappings, {}x{} bitmap",
+             "Loaded font atlas: {} glyphs, {} mappings, {}x{} bitmap",
              glyphs.size(), map.size(), bitmap_extent.x, bitmap_extent.y);
 
   using del_t = ntf::allocator_delete<uint8, ntf::virtual_allocator<uint8>>;

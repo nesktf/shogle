@@ -14,6 +14,7 @@
 #include <shogle/render/framebuffer.hpp>
 #include <shogle/render/window.hpp>
 #include <shogle/render/vertex.hpp>
+#include <shogle/render/loop.hpp>
 #include <shogle/render/imgui.hpp>
 
 #include <shogle/assets/filesystem.hpp>

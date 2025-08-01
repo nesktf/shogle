@@ -147,8 +147,8 @@ public:
         _stbi_delete(image.data);
         return ntf::unexpected{asset_error{"Failed to parse channel tag"}};
       }
-      SHOGLE_LOG(debug, "[ntf::stb_image_loader] Loaded {} {}x{} image with {} channels",
-                 meta::image_depth_traits<DepthT>::name, image.width, image.height, image.channels);
+      // SHOGLE_LOG(debug, "[ntf::stb_image_loader] Loaded {} {}x{} image with {} channels",
+                 // meta::image_depth_traits<DepthT>::name, image.width, image.height, image.channels);
 
       const size_t arr_sz = image.channels*image.height*image.width*sizeof(DepthT);
 
@@ -202,7 +202,7 @@ asset_expected<bitmap_data> load_image(
   image_load_flags flags = image_load_flags::flip_y,
   uint32 channels = 0u, Loader&& loader = {}
 ) {
-  SHOGLE_LOG(debug, "[ntf::load_image] Loading image from file '{}'", path);
+  // SHOGLE_LOG(debug, "[ntf::load_image] Loading image from file '{}'", path);
   return file_data(path)
     .and_then([&](auto&& buffer) {
       return loader.load_image(meta::image_depth_traits<DepthT>::tag,

@@ -1,4 +1,4 @@
-#include "./internal/platform.hpp"
+#include "./common.hpp"
 
 #include <shogle/render/window.hpp>
 
@@ -138,10 +138,10 @@ win_expect<window> window::create(const win_params& params) {
     if (!glfwInit()) {
       const char* err;
       glfwGetError(&err);
-      RENDER_ERROR_LOG("Failed to initialize GLFW: {}", err);
+      SHOGLE_LOG(error, "Failed to initialize GLFW: {}", err);
       return ntf::unexpected{win_error{err}};
     }
-    RENDER_DBG_LOG("GLFW initialized");
+    SHOGLE_LOG(verbose, "GLFW initialized");
   }
 
   const char* title = params.title ? params.title : "window - ShOGLE";
@@ -156,7 +156,7 @@ win_expect<window> window::create(const win_params& params) {
     u32 msaa = gl_params.fb_msaa_level;
     if (msaa > 0) {
       if (transparent_fbo) {
-        RENDER_WARN_LOG("Framebuffer alpha set, ignoring MSAA");
+        SHOGLE_LOG(warning, "Framebuffer alpha set, ignoring MSAA");
       } else {
         msaa = msaa > 64 ? 64 : round_pow2(msaa);
         glfwWindowHint(GLFW_SAMPLES, msaa);
@@ -229,12 +229,12 @@ win_expect<window> window::create(const win_params& params) {
   if (!handle) {
     if (win_count.load() == 0) {
       glfwTerminate();
-      RENDER_DBG_LOG("GLFW terminated");
+      SHOGLE_LOG(verbose, "GLFW terminated");
     }
 
     const char* err;
     glfwGetError(&err);
-    RENDER_ERROR_LOG("Failed to create GLFW window: {}", err);
+    SHOGLE_LOG(error, "Failed to create GLFW window: {}", err);
     return ntf::unexpected{win_error{err}};
   }
   ++win_count;
@@ -268,10 +268,10 @@ void window::_destroy() {
     return;
   }
   glfwDestroyWindow(win_cast(_handle));
-  RENDER_DBG_LOG("Window destroyed");
+  SHOGLE_LOG(verbose, "Window destroyed");
   if (--win_count == 0) {
     glfwTerminate();
-    RENDER_DBG_LOG("GLFW terminated");
+    SHOGLE_LOG(verbose, "GLFW terminated");
   }
 #endif
 }
