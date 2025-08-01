@@ -90,8 +90,6 @@ public:
 enum class image_load_flags {
   none = 0,
   flip_y = 1 << 0,
-  mark_normalized = 1 << 1,
-  mark_nonlinear = 1 << 2,
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(image_load_flags);
 
@@ -143,13 +141,8 @@ public:
     }();
 
     return _load_image(file_data, channels, +(flags & image_load_flags::flip_y), stbi_format)
-    .and_then([flags](stbi_data&& image) -> asset_expected<bitmap_data> {
-      const uint8 channel_flags =
-        (+(flags & image_load_flags::mark_nonlinear) ? IMAGE_DEPTH_NONLINEAR_BIT : 0) |
-        (+(flags & image_load_flags::mark_normalized) ? IMAGE_DEPTH_NORMALIZE_BIT : 0) |
-        (image.channels & IMAGE_DEPTH_CHANNELS_MASK);
-
-      auto format = meta::image_depth_traits<DepthT>::parse_channels(channel_flags);
+    .and_then([](stbi_data&& image) -> asset_expected<bitmap_data> {
+      auto format = meta::image_depth_traits<DepthT>::parse_channels(image.channels);
       if (!format) {
         _stbi_delete(image.data);
         return ntf::unexpected{asset_error{"Failed to parse channel tag"}};
@@ -206,7 +199,7 @@ private:
 template<meta::image_depth_type DepthT, typename Loader = stb_image_loader>
 asset_expected<bitmap_data> load_image(
   const std::string& path,
-  image_load_flags flags = image_load_flags::mark_normalized | image_load_flags::flip_y,
+  image_load_flags flags = image_load_flags::flip_y,
   uint32 channels = 0u, Loader&& loader = {}
 ) {
   SHOGLE_LOG(debug, "[ntf::load_image] Loading image from file '{}'", path);

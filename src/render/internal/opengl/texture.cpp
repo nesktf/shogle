@@ -15,54 +15,70 @@ GLenum gl_state::texture_type_cast(texture_type type, bool is_array) noexcept {
   NTF_UNREACHABLE();
 }
 
+
 GLenum gl_state::texture_format_cast(image_format format) noexcept {
   switch (format) {
-    case image_format::r8n:       return GL_R8_SNORM;
-    case image_format::r8nu:      return GL_R8;
-    case image_format::r8u:       return GL_R8UI;
-    case image_format::r8i:       return GL_R8I;
-    case image_format::r16u:      return GL_R16UI;
-    case image_format::r16i:      return GL_R16I;
-    case image_format::r16f:      return GL_R16F;
-    case image_format::r32u:      return GL_R32UI;
-    case image_format::r32i:      return GL_R32I;
-    case image_format::r32f:      return GL_R32F;
+    case image_format::r8u : return GL_R8;
+    case image_format::rg8u: return GL_RG8;
+    case image_format::rgb8u: return GL_RGB8;
+    case image_format::rgba8u: return GL_RGBA8;
 
-    case image_format::rg8n:      return GL_RG8_SNORM;
-    case image_format::rg8nu:     return GL_RG;
-    case image_format::rg8u:      return GL_RG8UI;
-    case image_format::rg8i:      return GL_RG8I;
-    case image_format::rg16u:     return GL_RG16UI;
-    case image_format::rg16i:     return GL_RG16I;
-    case image_format::rg16f:     return GL_RG16F;
-    case image_format::rg32u:     return GL_RG32UI;
-    case image_format::rg32i:     return GL_RG32I;
-    case image_format::rg32f:     return GL_RG32F;
+    case image_format::r16u: return GL_R16;
+    case image_format::rg16u: return GL_RG16;
+    case image_format::rgb16u: return GL_RGB16;
+    case image_format::rgba16u: return GL_RGBA16;
 
-    case image_format::rgb8n:     return GL_RGB8_SNORM;
-    case image_format::rgb8nu:    return GL_RGB8;
-    case image_format::rgb8u:     return GL_RGB8UI;
-    case image_format::rgb8i:     return GL_RGB8I;
-    case image_format::rgb16u:    return GL_RGB16UI;
-    case image_format::rgb16i:    return GL_RGB16I;
-    case image_format::rgb16f:    return GL_RGB16F;
-    case image_format::rgb32u:    return GL_RGB32UI;
-    case image_format::rgb32i:    return GL_RGB32I;
-    case image_format::rgb32f:    return GL_RGB32F;
+    case image_format::r32f: return GL_R32F;
+    case image_format::rg32f: return GL_RG32F;
+    case image_format::rgb32f: return GL_RGB32F;
+    case image_format::rgba32f: return GL_RGBA32F;
 
-    case image_format::rgba8n:    return GL_RGBA8_SNORM;
-    case image_format::rgba8nu:   return GL_RGBA8;
-    case image_format::rgba8u:    return GL_RGBA8UI;
-    case image_format::rgba8i:    return GL_RGBA8UI;
-    case image_format::rgba16u:   return GL_RGBA16UI;
-    case image_format::rgba16i:   return GL_RGBA16I;
-    case image_format::rgba16f:   return GL_RGBA16F;
-    case image_format::rgba32u:   return GL_RGBA32UI;
-    case image_format::rgba32i:   return GL_RGBA32I;
-    case image_format::rgba32f:   return GL_RGBA32F;
-
-    case image_format::srgb8u:    return GL_SRGB8;
-    case image_format::srgba8u:   return GL_SRGB8_ALPHA8;
+    // case image_format::r8n:       return GL_R8_SNORM;
+    // case image_format::r8nu:      return GL_R8;
+    // case image_format::r8u:       return GL_R8UI;
+    // case image_format::r8i:       return GL_R8I;
+    // case image_format::r16u:      return GL_R16UI;
+    // case image_format::r16i:      return GL_R16I;
+    // case image_format::r16f:      return GL_R16F;
+    // case image_format::r32u:      return GL_R32UI;
+    // case image_format::r32i:      return GL_R32I;
+    // case image_format::r32f:      return GL_R32F;
+    //
+    // case image_format::rg8n:      return GL_RG8_SNORM;
+    // case image_format::rg8nu:     return GL_RG;
+    // case image_format::rg8u:      return GL_RG8UI;
+    // case image_format::rg8i:      return GL_RG8I;
+    // case image_format::rg16u:     return GL_RG16UI;
+    // case image_format::rg16i:     return GL_RG16I;
+    // case image_format::rg16f:     return GL_RG16F;
+    // case image_format::rg32u:     return GL_RG32UI;
+    // case image_format::rg32i:     return GL_RG32I;
+    // case image_format::rg32f:     return GL_RG32F;
+    //
+    // case image_format::rgb8n:     return GL_RGB8_SNORM;
+    // case image_format::rgb8nu:    return GL_RGB8;
+    // case image_format::rgb8u:     return GL_RGB8UI;
+    // case image_format::rgb8i:     return GL_RGB8I;
+    // case image_format::rgb16u:    return GL_RGB16UI;
+    // case image_format::rgb16i:    return GL_RGB16I;
+    // case image_format::rgb16f:    return GL_RGB16F;
+    // case image_format::rgb32u:    return GL_RGB32UI;
+    // case image_format::rgb32i:    return GL_RGB32I;
+    // case image_format::rgb32f:    return GL_RGB32F;
+    //
+    // case image_format::rgba8n:    return GL_RGBA8_SNORM;
+    // case image_format::rgba8nu:   return GL_RGBA8;
+    // case image_format::rgba8u:    return GL_RGBA8UI;
+    // case image_format::rgba8i:    return GL_RGBA8UI;
+    // case image_format::rgba16u:   return GL_RGBA16UI;
+    // case image_format::rgba16i:   return GL_RGBA16I;
+    // case image_format::rgba16f:   return GL_RGBA16F;
+    // case image_format::rgba32u:   return GL_RGBA32UI;
+    // case image_format::rgba32i:   return GL_RGBA32I;
+    // case image_format::rgba32f:   return GL_RGBA32F;
+    //
+    // case image_format::srgb8u:    return GL_SRGB8;
+    // case image_format::srgba8u:   return GL_SRGB8_ALPHA8;
   };
 
   NTF_UNREACHABLE();
@@ -71,52 +87,24 @@ GLenum gl_state::texture_format_cast(image_format format) noexcept {
 GLenum gl_state::texture_format_symbolic_cast(image_format format) noexcept {
 
   switch (format) {
-    case image_format::r8n:       [[fallthrough]];
-    case image_format::r8nu:      [[fallthrough]];
     case image_format::r8u:       [[fallthrough]];
-    case image_format::r8i:       [[fallthrough]];
     case image_format::r16u:      [[fallthrough]];
-    case image_format::r16i:      [[fallthrough]];
-    case image_format::r16f:      [[fallthrough]];
-    case image_format::r32u:      [[fallthrough]];
-    case image_format::r32i:      [[fallthrough]];
     case image_format::r32f:      return GL_RED;
 
-    case image_format::rg8n:      [[fallthrough]];
-    case image_format::rg8nu:     [[fallthrough]];
     case image_format::rg8u:      [[fallthrough]];
-    case image_format::rg8i:      [[fallthrough]];
     case image_format::rg16u:     [[fallthrough]];
-    case image_format::rg16i:     [[fallthrough]];
-    case image_format::rg16f:     [[fallthrough]];
-    case image_format::rg32u:     [[fallthrough]];
-    case image_format::rg32i:     [[fallthrough]];
     case image_format::rg32f:     return GL_RG;
 
-    case image_format::rgb8n:     [[fallthrough]];
-    case image_format::rgb8nu:    [[fallthrough]];
     case image_format::rgb8u:     [[fallthrough]];
-    case image_format::rgb8i:     [[fallthrough]];
     case image_format::rgb16u:    [[fallthrough]];
-    case image_format::rgb16i:    [[fallthrough]];
-    case image_format::rgb16f:    [[fallthrough]];
-    case image_format::rgb32u:    [[fallthrough]];
-    case image_format::rgb32i:    [[fallthrough]];
     case image_format::rgb32f:    return GL_RGB;
 
-    case image_format::rgba8n:    [[fallthrough]];
-    case image_format::rgba8nu:   [[fallthrough]];
     case image_format::rgba8u:    [[fallthrough]];
-    case image_format::rgba8i:    [[fallthrough]];
     case image_format::rgba16u:   [[fallthrough]];
-    case image_format::rgba16i:   [[fallthrough]];
-    case image_format::rgba16f:   [[fallthrough]];
-    case image_format::rgba32u:   [[fallthrough]];
-    case image_format::rgba32i:   [[fallthrough]];
     case image_format::rgba32f:   return GL_RGBA;
 
-    case image_format::srgb8u:    [[fallthrough]];
-    case image_format::srgba8u:   return GL_SRGB;
+    // case image_format::srgb8u:    [[fallthrough]];
+    // case image_format::srgba8u:   return GL_SRGB;
   }
 
   NTF_UNREACHABLE();
@@ -125,49 +113,16 @@ GLenum gl_state::texture_format_symbolic_cast(image_format format) noexcept {
 GLenum gl_state::texture_format_underlying_cast(image_format format) noexcept {
   switch (format) {
     case image_format::r8u:       [[fallthrough]];
-    case image_format::r8nu:      [[fallthrough]];
-    case image_format::r8n:       [[fallthrough]];
     case image_format::rg8u:      [[fallthrough]];
-    case image_format::rg8n:      [[fallthrough]];
-    case image_format::rg8nu:     [[fallthrough]];
     case image_format::rgb8u:     [[fallthrough]];
-    case image_format::rgb8n:     [[fallthrough]];
-    case image_format::rgb8nu:    [[fallthrough]];
-    case image_format::rgba8u:    [[fallthrough]];
-    case image_format::rgba8n:    [[fallthrough]];
-    case image_format::rgba8nu:   [[fallthrough]];
-    case image_format::srgb8u:    [[fallthrough]];
-    case image_format::srgba8u:   return GL_UNSIGNED_BYTE;
-
-    case image_format::r8i:       [[fallthrough]];
-    case image_format::rg8i:      [[fallthrough]];
-    case image_format::rgb8i:     [[fallthrough]];
-    case image_format::rgba8i:    return GL_BYTE;
+    case image_format::rgba8u:    return GL_UNSIGNED_BYTE;
+    // case image_format::srgb8u:    [[fallthrough]];
+    // case image_format::srgba8u:   return GL_UNSIGNED_BYTE;
 
     case image_format::r16u:      [[fallthrough]];
     case image_format::rg16u:     [[fallthrough]];
     case image_format::rgb16u:    [[fallthrough]];
     case image_format::rgba16u:   return GL_UNSIGNED_SHORT;
-
-    case image_format::r16i:      [[fallthrough]];
-    case image_format::rg16i:     [[fallthrough]];
-    case image_format::rgb16i:    [[fallthrough]];
-    case image_format::rgba16i:   return GL_SHORT;
-
-    case image_format::r16f:      [[fallthrough]];
-    case image_format::rg16f:     [[fallthrough]];
-    case image_format::rgb16f:    [[fallthrough]];
-    case image_format::rgba16f:   return GL_HALF_FLOAT;
-
-    case image_format::r32u:      [[fallthrough]];
-    case image_format::rg32u:     [[fallthrough]];
-    case image_format::rgb32u:    [[fallthrough]];
-    case image_format::rgba32u:   return GL_UNSIGNED_INT;
-
-    case image_format::r32i:      [[fallthrough]];
-    case image_format::rg32i:     [[fallthrough]];
-    case image_format::rgb32i:    [[fallthrough]];
-    case image_format::rgba32i:   return GL_INT;
 
     case image_format::r32f:      [[fallthrough]];
     case image_format::rg32f:     [[fallthrough]];

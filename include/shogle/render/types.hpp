@@ -73,30 +73,12 @@ using extent1d = u32;
 using extent2d = uvec2;
 using extent3d = uvec3;
 
-enum class image_format : u8 {
-
-  r8nu=0,  r8n,     r8u,     r8i,
-  r16u,    r16i,    r16f,
-  r32u,    r32i,    r32f,
-
-  rg8nu,   rg8n,    rg8u,    rg8i,
-  rg16u,   rg16i,   rg16f,
-  rg32u,   rg32i,   rg32f,
-
-  rgb8nu,  rgb8n,   rgb8u,   rgb8i,
-  rgb16u,  rgb16i,  rgb16f,
-  rgb32u,  rgb32i,  rgb32f,
-
-  rgba8nu, rgba8n,  rgba8u,  rgba8i,
-  rgba16u, rgba16i, rgba16f,
-  rgba32u, rgba32i, rgba32f,
-
-  srgb8u,  srgba8u,
+enum class image_format : u32 {
+  r8u,    r16u,    r32f,
+  rg8u,   rg16u,   rg32f,
+  rgb8u,  rgb16u,  rgb32f,
+  rgba8u, rgba16u, rgba32f,
 };
-
-constexpr u8 IMAGE_DEPTH_CHANNELS_MASK = 0b00000111;
-constexpr u8 IMAGE_DEPTH_NORMALIZE_BIT = 0b10000000;
-constexpr u8 IMAGE_DEPTH_NONLINEAR_BIT = 0b01000000;
 
 enum class context_api {
   none = 0,
@@ -390,60 +372,12 @@ struct image_depth_traits<u8> {
   static constexpr bool is_floating = false;
   static constexpr std::string_view name = "8 bit unsigned";
 
-  static constexpr ntf::optional<shogle::image_format> parse_channels(u8 flags) noexcept {
-    const u8 channels = flags & shogle::IMAGE_DEPTH_CHANNELS_MASK;
-    if (flags & shogle::IMAGE_DEPTH_NORMALIZE_BIT) {
-      switch (channels) {
-        case 1u: return shogle::image_format::r8nu;
-        case 2u: return shogle::image_format::rg8nu;
-        case 3u: return shogle::image_format::rgb8nu;
-        case 4u: return shogle::image_format::rgba8nu;
-      }
-    } else if (flags & shogle::IMAGE_DEPTH_NONLINEAR_BIT) {
-      switch (channels) {
-        case 3u: return shogle::image_format::srgb8u;
-        case 4u: return shogle::image_format::srgba8u;
-      }
-    } else {
-      switch (channels) {
-        case 1u: return shogle::image_format::r8u;
-        case 2u: return shogle::image_format::rg8u;
-        case 3u: return shogle::image_format::rgb8u;
-        case 4u: return shogle::image_format::rgba8u;
-      }
-    }
-    return ntf::nullopt;
-  }
-};
-
-NTF_DECLARE_TAG_TYPE(image_depth_s8);
-template<>
-struct image_depth_traits<int8> {
-  static constexpr bool is_specialized = true;
-
-  using tag_type = image_depth_s8_t;
-  static constexpr tag_type tag = image_depth_s8;
-
-  static constexpr bool is_signed = true;
-  static constexpr bool is_floating = false;
-  static constexpr std::string_view name = "8 bit signed";
-
-  static constexpr ntf::optional<shogle::image_format> parse_channels(u8 flags) noexcept {
-    const u8 channels = flags & shogle::IMAGE_DEPTH_CHANNELS_MASK;
-    if (flags & shogle::IMAGE_DEPTH_NORMALIZE_BIT) {
-      switch (channels) {
-        case 1u: return shogle::image_format::r8n;
-        case 2u: return shogle::image_format::rg8n;
-        case 3u: return shogle::image_format::rgb8n;
-        case 4u: return shogle::image_format::rgba8n;
-      }
-    } else {
-      switch (channels) {
-        case 1u: return shogle::image_format::r8i;
-        case 2u: return shogle::image_format::rg8i;
-        case 3u: return shogle::image_format::rgb8i;
-        case 4u: return shogle::image_format::rgba8i;
-      }
+  static constexpr ntf::optional<image_format> parse_channels(u32 nch) noexcept {
+    switch (nch) {
+      case 1u: return image_format::r8u;
+      case 2u: return image_format::rg8u;
+      case 3u: return image_format::rgb8u;
+      case 4u: return image_format::rgba8u;
     }
     return ntf::nullopt;
   }
@@ -461,37 +395,12 @@ struct image_depth_traits<uint16> {
   static constexpr bool is_floating = false;
   static constexpr std::string_view name = "16 bit unsigned";
 
-  static constexpr ntf::optional<shogle::image_format> parse_channels(u8 flags) noexcept {
-    const u8 channels = flags & shogle::IMAGE_DEPTH_CHANNELS_MASK;
-    switch (channels) {
-      case 1u: return shogle::image_format::r16u;
-      case 2u: return shogle::image_format::rg16u;
-      case 3u: return shogle::image_format::rgb16u;
-      case 4u: return shogle::image_format::rgba16u;
-    }
-    return ntf::nullopt;
-  }
-};
-
-NTF_DECLARE_TAG_TYPE(image_depth_s16);
-template<>
-struct image_depth_traits<int16> {
-  static constexpr bool is_specialized = true;
-
-  using tag_type = image_depth_s16_t;
-  static constexpr tag_type tag = image_depth_s16;
-
-  static constexpr bool is_signed = true;
-  static constexpr bool is_floating = false;
-  static constexpr std::string_view name = "16 bit signed";
-
-  static constexpr ntf::optional<shogle::image_format> parse_channels(u8 flags) noexcept {
-    const u8 channels = flags & shogle::IMAGE_DEPTH_CHANNELS_MASK;
-    switch (channels) {
-      case 1u: return shogle::image_format::r16i;
-      case 2u: return shogle::image_format::rg16i;
-      case 3u: return shogle::image_format::rgb16i;
-      case 4u: return shogle::image_format::rgba16i;
+  static constexpr ntf::optional<image_format> parse_channels(u32 nch) noexcept {
+    switch (nch) {
+      case 1u: return image_format::r16u;
+      case 2u: return image_format::rg16u;
+      case 3u: return image_format::rgb16u;
+      case 4u: return image_format::rgba16u;
     }
     return ntf::nullopt;
   }
@@ -509,13 +418,12 @@ struct image_depth_traits<float32> {
   static constexpr bool is_floating = true;
   static constexpr std::string_view name = "32 bit float";
 
-  static constexpr ntf::optional<shogle::image_format> parse_channels(u8 flags) noexcept {
-    const u8 channels = flags & shogle::IMAGE_DEPTH_CHANNELS_MASK;
-    switch (channels) {
-      case 1u: return shogle::image_format::r32f;
-      case 2u: return shogle::image_format::rg32f;
-      case 3u: return shogle::image_format::rgb32f;
-      case 4u: return shogle::image_format::rgba32f;
+  static constexpr ntf::optional<image_format> parse_channels(u32 nch) noexcept {
+    switch (nch) {
+      case 1u: return image_format::r32f;
+      case 2u: return image_format::rg32f;
+      case 3u: return image_format::rgb32f;
+      case 4u: return image_format::rgba32f;
     }
     return ntf::nullopt;
   }

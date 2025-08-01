@@ -312,7 +312,7 @@ inline expect<std::pair<framebuffer, texture2d>> make_fbo(
   const color4& clear_color, clear_flag clear_flags,
   texture_sampler sampler = texture_sampler::nearest,
   texture_addressing addressing = texture_addressing::clamp_edge,
-  image_format format = image_format::rgb8nu,
+  image_format format = image_format::rgb8u,
   fbo_buffer test_buffer = fbo_buffer::depth24u_stencil8u
 ) {
   return texture2d::create(ctx, {
