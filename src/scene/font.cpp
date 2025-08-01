@@ -81,7 +81,7 @@ void text_buffer::_append_glyph(const glyph_metrics& glyph,
 
 
 sdf_text_rule::sdf_text_rule(pipeline&& pip, uniform_buffer&& ubo,
-                             uniform_view u_sampler, uniform_view u_transf,
+                             u32 u_sampler, u32 u_transf,
                              const glyph_props& props) :
   _pipeline{std::move(pip)}, _uniform_buffer{std::move(ubo)},
   _u_sampler{u_sampler}, _u_transf{u_transf},
@@ -108,10 +108,10 @@ render_expect<sdf_text_rule> sdf_text_rule::create(context_view ctx,
     return ntf::unexpected{std::move(pipeline.error())};
   } 
 
-  auto u_transf = pipeline->uniform("u_text_transform");
-  auto u_sampler = pipeline->uniform("u_atlas_sampler");
-  NTF_ASSERT(!u_transf.empty());
-  NTF_ASSERT(!u_sampler.empty());
+  auto u_transf = pipeline->uniform_location("u_text_transform");
+  auto u_sampler = pipeline->uniform_location("u_atlas_sampler");
+  NTF_ASSERT(u_transf.has_value());
+  NTF_ASSERT(u_sampler.has_value());
 
   auto buffer = make_ubo(ctx, sizeof(glyph_props));
   if (!buffer){
@@ -127,7 +127,7 @@ render_expect<sdf_text_rule> sdf_text_rule::create(context_view ctx,
   props.out_width = outline_width;
   props.out_edge = outline_edge;
 
-  return sdf_text_rule{std::move(*pipeline), std::move(*buffer), u_sampler, u_transf, props};
+  return sdf_text_rule{std::move(*pipeline), std::move(*buffer), *u_sampler, *u_transf, props};
 }
 
 font_render_data sdf_text_rule::write_uniforms() {
@@ -147,7 +147,7 @@ font_render_data sdf_text_rule::write_uniforms() {
 
 
 bitmap_text_rule::bitmap_text_rule(pipeline&& pip, uniform_buffer&& ubo,
-                                   uniform_view u_sampler, uniform_view u_transf,
+                                   u32 u_sampler, u32 u_transf,
                                    const color3& color) :
   _pipeline{std::move(pip)}, _uniform_buffer{std::move(ubo)},
   _u_sampler{u_sampler}, _u_transf{u_transf},
@@ -168,17 +168,17 @@ render_expect<bitmap_text_rule> bitmap_text_rule::create(context_view ctx, const
   if (!pipeline) {
     return ntf::unexpected{std::move(pipeline.error())};
   }
-  auto u_transf = pipeline->uniform("u_text_transform");
-  auto u_sampler = pipeline->uniform("u_atlas_sampler");
-  NTF_ASSERT(!u_transf.empty());
-  NTF_ASSERT(!u_sampler.empty());
+  auto u_transf = pipeline->uniform_location("u_text_transform");
+  auto u_sampler = pipeline->uniform_location("u_atlas_sampler");
+  NTF_ASSERT(u_transf.has_value());
+  NTF_ASSERT(u_sampler.has_value());
 
   auto buffer = make_ubo(ctx, sizeof(color3));
   if (!buffer){
     return ntf::unexpected{std::move(buffer.error())};
   }
 
-  return bitmap_text_rule{std::move(*pipeline), std::move(*buffer), u_sampler, u_transf, color};
+  return bitmap_text_rule{std::move(*pipeline), std::move(*buffer), *u_sampler, *u_transf, color};
 }
 
 font_render_data bitmap_text_rule::write_uniforms() {

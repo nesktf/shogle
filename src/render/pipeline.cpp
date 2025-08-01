@@ -128,17 +128,10 @@ ctx_handle shader_get_id(shader_t shader) {
   return shader->handle;
 }
 
-
-uniform_t_::uniform_t_(pipeline_t pip_, ctx_unif handle_,
-                       ctx_alloc::string_t name_,
-                       attribute_type type_, size_t size_) noexcept :
-  pip{pip_}, handle{handle_},
-  name{std::move(name_)}, type{type_}, size{size_} {}
-
 pipeline_t_::pipeline_t_(context_t ctx_, ctx_pip handle_,
                          stages_flag stages_, primitive_mode primitive_, polygon_mode poly_mode_,
                          ctx_alloc::uarray_t<attribute_binding>&& layout_,
-                         unif_map&& unifs_) noexcept :
+                         unif_meta_vec&& unifs_) noexcept :
   ctx_res_node<pipeline_t_>{ctx_},
   handle{handle_},
   stages{stages_}, primitive{primitive_}, poly_mode{poly_mode_},
@@ -212,22 +205,6 @@ static render_expect<void> validate_desc(const pipeline_desc&) {
   return {}; // TODO: validation
 }
 
-static render_expect<pipeline_t_::unif_map> make_uniform_map(ctx_alloc& alloc, pipeline_t pip,
-                                                      const unif_meta_vec& unifs)
-{
-  try {
-    auto map = alloc.make_string_map<uniform_t_>(unifs.size());
-    for (const auto& unif : unifs) {
-      auto [_, emp] =
-        map.try_emplace(unif.name, pip, unif.handle, unif.name, unif.type, unif.size);
-      NTF_ASSERT(emp);
-    }
-    return map;
-  } catch (const std::bad_alloc&) {
-    return {ntf::unexpect, render_error::alloc_failure};
-  }
-}
-
 render_expect<pipeline_t> create_pipeline(context_t ctx, const pipeline_desc& desc) {
   if (!ctx) {
     return {ntf::unexpect, render_error::no_error};
@@ -235,7 +212,7 @@ render_expect<pipeline_t> create_pipeline(context_t ctx, const pipeline_desc& de
 
   try {
     auto& alloc = ctx->alloc();
-    auto unif_query = alloc.make_vector<ctx_unif_meta>();
+    auto unif_query = alloc.make_vector<ctx_uniform_data>();
     return validate_desc(desc)
     .and_then([&]() -> render_expect<ctx_pip_desc> { return transform_desc(alloc, unif_query, desc); })
     .and_then([&](ctx_pip_desc&& pip_desc) -> render_expect<pipeline_t> { 
@@ -250,16 +227,9 @@ render_expect<pipeline_t> create_pipeline(context_t ctx, const pipeline_desc& de
         return {ntf::unexpect, ret};
       }
 
-      auto unifs = make_uniform_map(alloc, pip, unif_query);
-      if (!unifs) {
-        ctx->renderer().destroy_pipeline(handle);
-        alloc.deallocate(pip, sizeof(pipeline_t_));
-        return ntf::unexpected{std::move(unifs.error())};
-      }
-
       std::construct_at(pip,
                         ctx, handle, pip_desc.stages_flags, pip_desc.primitive, pip_desc.poly_mode,
-                        std::move(pip_desc.layout), std::move(*unifs));
+                        std::move(pip_desc.layout), std::move(unif_query));
       ctx->insert_node(pip);
       NTF_ASSERT(pip->prev == nullptr);
       SHOGLE_LOG(verbose, "Pipeline created ({})", pip->handle);
@@ -283,65 +253,36 @@ void destroy_pipeline(pipeline_t pip) noexcept {
   ctx->alloc().destroy(pip);
 }
 
-span<uniform_t> pipeline_get_uniforms(pipeline_t pip) {
-  if (!pip) {
-    return {};
+ntf::optional<u32> pipeline_get_uniform_location(pipeline_t pip, string_view name) {
+  NTF_ASSERT(pip);
+  auto it = std::find_if(pip->unifs.begin(), pip->unifs.end(), [name](const auto& unif) {
+    return unif.name == name;
+  });
+  if (it == pip->unifs.end()) {
+    return ntf::nullopt;
   }
-  try {
-    auto& alloc = pip->ctx->alloc();
-    auto unifs = alloc.arena_span<uniform_t>(pip->unifs.size());
-    for (size_t i = 0u; auto& [_, unif] : pip->unifs) {
-      unifs[i] = &unif;
-      ++i;
-    }
-    return unifs;
-  } catch(...) {}
-
-  return {};
+  return it->location;
 }
 
-uniform_t pipeline_get_uniform(pipeline_t pip, string_view name) {
-  if (!pip) {
-    return nullptr;
-  }
-  auto& alloc = pip->ctx->alloc();
-  auto str = alloc.make_string(name.size());
-  str.append(name);
-
-  auto unif_it = pip->unifs.find(str);
-  if (unif_it == pip->unifs.end()) {
-    SHOGLE_LOG(warning, "Uniform not found: {}", name);
-    return nullptr;
-  }
-
-  return &unif_it->second;
+attribute_type pipeline_get_uniform_type(pipeline_t pip, u32 uniform) {
+  auto it = std::find_if(pip->unifs.begin(), pip->unifs.end(), [uniform](const auto& unif) {
+    return unif.location == uniform;
+  });
+  NTF_ASSERT(it != pip->unifs.end());
+  return it->type;
 }
 
-size_t pipeline_get_uniform_count(pipeline_t pip) {
-  if (!pip){
-    return 0u;
-  }
-  return pip->unifs.size();
+string_view pipeline_get_uniform_name(pipeline_t pip, u32 uniform) {
+  auto it = std::find_if(pip->unifs.begin(), pip->unifs.end(), [uniform](const auto& unif) {
+    return unif.location == uniform;
+  });
+  NTF_ASSERT(it != pip->unifs.end());
+  return it->name;
 }
 
 stages_flag pipeline_get_stages(pipeline_t pip) {
   NTF_ASSERT(pip);
   return pip->stages;
-}
-
-attribute_type uniform_get_type(uniform_t unif) {
-  NTF_ASSERT(unif);
-  return unif->type;
-}
-
-string_view uniform_get_name(uniform_t unif) {
-  NTF_ASSERT(unif);
-  return unif->name;
-}
-
-u32 uniform_get_location(uniform_t unif) {
-  NTF_ASSERT(unif);
-  return static_cast<u32>(unif->handle);
 }
 
 context_t r_pipeline_get_ctx(pipeline_t pip) {

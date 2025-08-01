@@ -366,13 +366,14 @@ using ctx_unif = ctx_handle;
 using ctx_fbo = ctx_handle;
 constexpr auto DEFAULT_FBO_HANDLE = CTX_HANDLE_TOMB;
 
-struct ctx_unif_meta {
-  ctx_unif handle;
+struct ctx_uniform_data {
+  u32 location;
   ctx_alloc::string_t name;
   attribute_type type;
   size_t size;
 };
-using unif_meta_vec = ctx_alloc::vec_t<ctx_unif_meta>;
+
+using unif_meta_vec = ctx_alloc::vec_t<ctx_uniform_data>;
 
 template<typename T>
 using handle_map = std::unordered_map<ctx_handle, T>;

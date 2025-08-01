@@ -120,23 +120,23 @@ int main() {
   auto [fbo, fbo_tex] = shogle::make_fbo(ctx, {1280, 720}, {1.f, 0.f, 0.f, 1.f},
                                         shogle::clear_flag::color_depth).value();
 
-  auto u_col_model = pipe_col.uniform("model");
-  auto u_col_proj = pipe_col.uniform("proj");
-  auto u_col_view = pipe_col.uniform("view");
-  auto u_col_color = pipe_col.uniform("color");
+  auto u_col_model = pipe_col.uniform_location("model").value();
+  auto u_col_proj = pipe_col.uniform_location("proj").value();
+  auto u_col_view = pipe_col.uniform_location("view").value();
+  auto u_col_color = pipe_col.uniform_location("color").value();
 
-  auto u_tex_model = pipe_tex.uniform("model");
-  auto u_tex_proj = pipe_tex.uniform("proj");
-  auto u_tex_view = pipe_tex.uniform("view");
-  auto u_tex_color = pipe_tex.uniform("color");
-  auto u_tex_sampler = pipe_tex.uniform("sampler0");
+  auto u_tex_model = pipe_tex.uniform_location("model").value();
+  auto u_tex_proj = pipe_tex.uniform_location("proj").value();
+  auto u_tex_view = pipe_tex.uniform_location("view").value();
+  auto u_tex_color = pipe_tex.uniform_location("color").value();
+  auto u_tex_sampler = pipe_tex.uniform_location("sampler0").value();
 
-  auto u_atl_model = pipe_atl.uniform("model");
-  auto u_atl_proj = pipe_atl.uniform("proj");
-  auto u_atl_view = pipe_atl.uniform("view");
-  auto u_atl_offset = pipe_atl.uniform("offset");
-  auto u_atl_color = pipe_atl.uniform("color");
-  auto u_atl_sampler = pipe_atl.uniform("sampler0");
+  auto u_atl_model = pipe_atl.uniform_location("model").value();
+  auto u_atl_proj = pipe_atl.uniform_location("proj").value();
+  auto u_atl_view = pipe_atl.uniform_location("view").value();
+  auto u_atl_offset = pipe_atl.uniform_location("offset").value();
+  auto u_atl_color = pipe_atl.uniform_location("color").value();
+  auto u_atl_sampler = pipe_atl.uniform_location("sampler0").value();
 
   ntf::float32 fb_ratio = 1280.f/720.f;
   auto transf_cube = shogle::transform3d<ntf::float32>{}

@@ -424,8 +424,8 @@ void gl_state::program_query_uniforms(glprog_t& prog, unif_meta_vec& unif) {
     GLchar name[128];
     GLsizei len;
     GL_CALL(glGetActiveUniform, prog.id, static_cast<GLuint>(i), 128, &len, &size, &type, name);
-    unif.emplace_back(ctx_unif_meta{
-      .handle = static_cast<ctx_unif>(i),
+    unif.emplace_back(ctx_uniform_data{
+      .location = static_cast<u32>(i),
       .name = {name, _alloc.make_adaptor<char>()},
       .type = uniform_type_cast(type),
       .size = static_cast<size_t>(len),

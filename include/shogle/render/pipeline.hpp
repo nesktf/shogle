@@ -52,12 +52,9 @@ struct pipeline_desc {
 render_expect<pipeline_t> create_pipeline(context_t ctx, const pipeline_desc& desc);
 void destroy_pipeline(pipeline_t pipeline) noexcept;
 
-span<uniform_t> pipeline_get_uniforms(pipeline_t pipeline);
-uniform_t pipeline_get_uniform(pipeline_t pip, string_view name);
-size_t pipeline_get_uniform_count(pipeline_t pip);
-attribute_type uniform_get_type(uniform_t uniform);
-string_view uniform_get_name(uniform_t uniform);
-u32 uniform_get_location(uniform_t uniform);
+ntf::optional<u32> pipeline_get_uniform_location(pipeline_t pip, string_view name);
+attribute_type pipeline_get_uniform_type(pipeline_t pip, u32 uniform);
+string_view pipeline_get_uniform_name(pipeline_t pip, u32 uniform);
 
 stages_flag pipeline_get_stages(pipeline_t pipeline);
 context_t pipeline_get_ctx(pipeline_t pipeline);
@@ -249,58 +246,6 @@ using tess_eval_shader_view = typed_shader_view<shader_type::tesselation_eval>;
 using compute_shader = typed_shader<shader_type::compute>;
 using compute_shader_view = typed_shader_view<shader_type::compute>;
 
-} // namespace ntf
-
-
-namespace shogle {
-
-class uniform_view {
-public:
-  constexpr uniform_view() noexcept :
-    _unif{nullptr} {}
-
-  constexpr uniform_view(uniform_t unif) noexcept :
-    _unif{unif} {}
-
-public:
-  attribute_type type() const {
-    return ::shogle::uniform_get_type(_assert_get());
-  }
-
-  std::string_view name() const {
-    return ::shogle::uniform_get_name(_assert_get());
-  }
-
-  u32 location() const {
-    return ::shogle::uniform_get_location(_assert_get());
-  }
-
-private:
-  uniform_t _assert_get() const noexcept(NTF_ASSERT_NOEXCEPT) {
-    NTF_ASSERT(_unif, "Invalid uniform handle");
-    return _unif;
-  }
-
-public:
-  operator uniform_t() const { return _assert_get(); }
-
-  uniform_t get() const noexcept { return _unif; }
-
-  bool empty() const noexcept {return _unif == nullptr; }
-  explicit operator bool() const noexcept { return !empty(); }
-
-private:
-  uniform_t _unif;
-};
-
-template<meta::attribute_type T>
-uniform_const format_uniform_const(uniform_view uniform, const T& data) {
-  return {
-    .data = {std::in_place_type_t<T>{}, data},
-    .type = meta::attribute_traits<T>::tag,
-    .location = uniform.location(),
-  };
-}
 
 template<meta::attribute_type T>
 uniform_const format_uniform_const(u32 location, const T& data){
@@ -330,14 +275,14 @@ public:
   stages_flag stages() const {
     return ::shogle::pipeline_get_stages(_ptr());
   }
-  uniform_view uniform(string_view name) const {
-    return {::shogle::pipeline_get_uniform(_ptr(), name)};
+  ntf::optional<u32> uniform_location(string_view name) const {
+    return ::shogle::pipeline_get_uniform_location(_ptr(), name);
   }
-  size_t uniform_count() const {
-    return ::shogle::pipeline_get_uniform_count(_ptr());
+  attribute_type uniform_type(u32 location) const {
+    return ::shogle::pipeline_get_uniform_type(_ptr(), location);
   }
-  span<const uniform_t> uniforms() const {
-    return ::shogle::pipeline_get_uniforms(_ptr());
+  string_view uniform_name(u32 location) const {
+    return ::shogle::pipeline_get_uniform_name(_ptr(), location);
   }
   ctx_handle id() const {
     return ::shogle::pipeline_get_id(_ptr());

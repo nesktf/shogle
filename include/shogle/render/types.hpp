@@ -43,7 +43,6 @@ NTF_DECLARE_OPAQUE_HANDLE(buffer_t);
 NTF_DECLARE_OPAQUE_HANDLE(shader_t);
 NTF_DECLARE_OPAQUE_HANDLE(pipeline_t);
 NTF_DECLARE_OPAQUE_HANDLE(framebuffer_t);
-NTF_DECLARE_OPAQUE_HANDLE(uniform_t);
 
 using ctx_handle = uint64;
 constexpr ctx_handle CTX_HANDLE_TOMB = std::numeric_limits<ctx_handle>::max();

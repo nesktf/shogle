@@ -11,8 +11,8 @@ namespace shogle {
 struct font_render_data {
   pipeline_t pip;
   shader_binding binds;
-  uniform_view u_sampler;
-  uniform_view u_transf;
+  u32 u_sampler;
+  u32 u_transf;
 };
 
 struct font_render_rule {
@@ -105,7 +105,7 @@ private:
 
 private:
   sdf_text_rule(pipeline&& pip, uniform_buffer&& ubo,
-                uniform_view u_sampler, uniform_view u_transf,
+                u32 u_sampler, u32 u_transf,
                 const glyph_props& props);
 
 public:
@@ -180,15 +180,15 @@ public:
 private:
   pipeline _pipeline;
   uniform_buffer _uniform_buffer;
-  uniform_view _u_sampler;
-  uniform_view _u_transf;
+  u32 _u_sampler;
+  u32 _u_transf;
   glyph_props _props;
 };
 
 class bitmap_text_rule final : public font_render_rule {
 private:
   bitmap_text_rule(pipeline&& pip, uniform_buffer&& ubo,
-                   uniform_view u_sampler, uniform_view u_transf,
+                   u32 u_sampler, u32 u_transf,
                    const color3& color);
 
 public:
@@ -216,8 +216,8 @@ public:
 private:
   pipeline _pipeline;
   uniform_buffer _uniform_buffer;
-  uniform_view _u_sampler;
-  uniform_view _u_transf;
+  u32 _u_sampler;
+  u32 _u_transf;
   color3 _text_color;
 };
 
