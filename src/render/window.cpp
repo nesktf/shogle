@@ -139,7 +139,7 @@ win_expect<window> window::create(const win_params& params) {
       const char* err;
       glfwGetError(&err);
       SHOGLE_LOG(error, "Failed to initialize GLFW: {}", err);
-      return ntf::unexpected{win_error{err}};
+      return {ntf::unexpect, win_error::backend_init_failure, err};
     }
     SHOGLE_LOG(verbose, "GLFW initialized");
   }
@@ -235,7 +235,7 @@ win_expect<window> window::create(const win_params& params) {
     const char* err;
     glfwGetError(&err);
     SHOGLE_LOG(error, "Failed to create GLFW window: {}", err);
-    return ntf::unexpected{win_error{err}};
+      return {ntf::unexpect, win_error::creation_failure, err};
   }
   ++win_count;
   glfwMakeContextCurrent(handle);
@@ -368,6 +368,15 @@ void window::attribs(win_attrib attrib) {
   glfwSetWindowAttrib(win_cast(_handle), GLFW_FOCUS_ON_SHOW, +(attrib & win_attrib::show_focus));
   _attrib = attrib;
 #endif
+}
+
+const char* win_error::error_string(code_t ret) {
+  switch (ret) {
+    case code_t::no_error: return "No error";
+    case code_t::creation_failure: return "Window creation failure";
+    case code_t::backend_init_failure: return "Window backend failure";
+  }
+  NTF_UNREACHABLE();
 }
 
 } // namespace shogle

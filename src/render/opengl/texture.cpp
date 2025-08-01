@@ -155,7 +155,7 @@ GLenum gl_state::texture_addressing_cast(texture_addressing address) noexcept {
   NTF_UNREACHABLE();
 }
 
-ctx_tex_status gl_state::create_texture(gltex_t& tex, texture_type type, image_format format,
+ctx_status gl_state::create_texture(gltex_t& tex, texture_type type, image_format format,
                                         texture_sampler sampler, texture_addressing addressing,
                                         extent3d extent, uint32 layers, uint32 levels,
                                         const ctx_limits& limits)
@@ -242,7 +242,7 @@ ctx_tex_status gl_state::create_texture(gltex_t& tex, texture_type type, image_f
   tex.layers = layers;
   tex.levels = levels;
   
-  return CTX_TEX_STATUS_OK;
+  return render_error::no_error;
 }
 
 void gl_state::destroy_texture(gltex_t& tex) {
@@ -271,7 +271,7 @@ bool gl_state::texture_bind(GLuint id, GLenum type, uint32 index) {
   return true;
 }
 
-ctx_tex_status gl_state::texture_upload(gltex_t& tex, const void* texels, image_format format,
+ctx_status gl_state::texture_upload(gltex_t& tex, const void* texels, image_format format,
                                         image_alignment alignment, extent3d offset,
                                         uint32 layer, uint32 level)
 {
@@ -355,7 +355,7 @@ ctx_tex_status gl_state::texture_upload(gltex_t& tex, const void* texels, image_
     }
   }
   glPixelStorei(GL_UNPACK_ALIGNMENT, DEFAULT_IMAGE_ALIGNMENT);
-  return CTX_TEX_STATUS_OK;
+  return render_error::no_error;
 }
 
 bool gl_state::texture_set_sampler(gltex_t& tex, texture_sampler sampler) {
@@ -400,7 +400,7 @@ bool gl_state::texture_gen_mipmaps(gltex_t& tex) {
   return GL_CHECK(glGenerateMipmap, tex.type) == GL_NO_ERROR;
 }
 
-ctx_tex_status gl_context::create_texture(ctx_tex& tex, const ctx_tex_desc& desc) {
+ctx_status gl_context::create_texture(ctx_tex& tex, const ctx_tex_desc& desc) {
   ctx_tex handle = _textures.acquire();
   NTF_ASSERT(check_handle(handle));
   auto& texture = _textures.get(handle);
@@ -409,7 +409,7 @@ ctx_tex_status gl_context::create_texture(ctx_tex& tex, const ctx_tex_desc& desc
   auto status = _state.create_texture(texture, desc.type, desc.format, 
                                       desc.sampler, desc.addressing,
                                       desc.extent, desc.layers, desc.levels, limits);
-  if (status != CTX_TEX_STATUS_OK) {
+  if (status != render_error::no_error) {
     _textures.push(handle);
     return status;
   }
@@ -420,7 +420,7 @@ ctx_tex_status gl_context::create_texture(ctx_tex& tex, const ctx_tex_desc& desc
       .generate_mipmaps = desc.gen_mipmaps,
     });
   }
-  if (status != CTX_TEX_STATUS_OK) {
+  if (status != render_error::no_error) {
     _state.destroy_texture(texture);
     _textures.push(handle);
     return status;
@@ -429,55 +429,55 @@ ctx_tex_status gl_context::create_texture(ctx_tex& tex, const ctx_tex_desc& desc
   return status;
 }
 
-ctx_tex_status gl_context::destroy_texture(ctx_tex tex) noexcept {
+ctx_status gl_context::destroy_texture(ctx_tex tex) noexcept {
   if (!_textures.validate(tex)) {
-    return CTX_TEX_STATUS_INVALID_HANDLE;
+    return render_error::invalid_handle;
   }
   auto& texture = _textures.get(tex);
   _state.destroy_texture(texture);
   _textures.push(tex);
-  return CTX_TEX_STATUS_OK;
+  return render_error::no_error;
 }
 
-ctx_tex_status gl_context::update_texture(ctx_tex tex, const ctx_tex_data& data) {
+ctx_status gl_context::update_texture(ctx_tex tex, const ctx_tex_data& data) {
   if (!_textures.validate(tex)) {
-    return CTX_TEX_STATUS_INVALID_HANDLE;
+    return render_error::invalid_handle;
   }
   auto& texture = _textures.get(tex);
   for (const auto& image : data.images) {
     auto status = _state.texture_upload(texture, image.bitmap, image.format,
                                         image.alignment, image.offset,
                                         image.layer, image.level);
-    if (status != CTX_TEX_STATUS_OK){
+    if (status != render_error::no_error) {
       return status;
     }
   }
   if (data.generate_mipmaps) {
     // TODO: check if the texture can generate mipmaps based on its size
     if (texture.levels < 2) {
-      return CTX_TEX_STATUS_INVALID_LEVELS;
+      return render_error::tex_invalid_level;
     }
     if (!_state.texture_gen_mipmaps(texture)) {
-      return CTX_TEX_STATUS_INVALID_LEVELS;
+      return render_error::tex_invalid_level;
     }
   }
-  return CTX_TEX_STATUS_OK;
+  return render_error::no_error;
 }
 
-ctx_tex_status gl_context::update_texture(ctx_tex tex, const ctx_tex_opts& opts) {
+ctx_status gl_context::update_texture(ctx_tex tex, const ctx_tex_opts& opts) {
   if (!_textures.validate(tex)) {
-    return CTX_TEX_STATUS_INVALID_HANDLE;
+    return render_error::invalid_handle;
   }
   auto& texture = _textures.get(tex);
   bool add_succ = _state.texture_set_addressing(texture, opts.addresing);
   bool sam_succ = _state.texture_set_sampler(texture, opts.sampler);
   if (!add_succ) {
-    return CTX_TEX_STATUS_INVALID_ADDRESING;
+    return render_error::tex_invalid_addressing;
   }
   if (!sam_succ) {
-    return CTX_TEX_STATUS_INVALID_SAMPLER;
+    return render_error::tex_invalid_sampler;
   }
-  return CTX_TEX_STATUS_OK;
+  return render_error::no_error;
 }
 
 } // namespace shogle

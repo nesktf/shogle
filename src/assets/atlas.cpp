@@ -29,7 +29,7 @@ auto grid_atlas_loader_parse_impl(
   const std::string& path,
   atlas_load_flags flags
 ) -> std::conditional_t<checked,
-                        asset_expected<grid_atlas_loader::data_t>,
+                        asset_expect<grid_atlas_loader::data_t>,
                         grid_atlas_loader::data_t> {
   auto dir_path = file_dir(path);
   RET_ERR_IF(!dir_path, "Invalid path \"{}\"", path);
@@ -186,7 +186,7 @@ auto grid_atlas_loader_parse_impl(
 auto grid_atlas_loader::parse(
   const std::string& path,
   atlas_load_flags flags
-) -> asset_expected<data_t> {
+) -> asset_expect<data_t> {
   return grid_atlas_loader_parse_impl<true>(path, flags);
 }
 

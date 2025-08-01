@@ -37,7 +37,7 @@ ntf::optional<std::pair<extent2d, uint32>> stb_image_loader::parse_image(span<co
 }
 
 auto stb_image_loader::_load_image(span<const uint8> file_data, uint32 channels,
-                                   bool flip_y, image_format format) -> asset_expected<stbi_data>
+                                   bool flip_y, image_format format) -> asset_expect<stbi_data>
 {
   stbi_set_flip_vertically_on_load(flip_y);
   int w, h, ch;

@@ -22,7 +22,7 @@ private:
   }
 
 public:
-  expect<quad_mesh> static create(context_view ctx,
+  render_expect<quad_mesh> static create(context_view ctx,
                                   bool inverted_uvs = false, bool dynamic_storage = false);
 
 public:
@@ -60,7 +60,7 @@ private:
   }
 
 public:
-  expect<cube_mesh> static create(context_view ctx, bool dynamic_storage = false);
+  render_expect<cube_mesh> static create(context_view ctx, bool dynamic_storage = false);
 
 public:
   static constexpr auto attribute_binding() { return pnt_vertex::aos_binding(); }

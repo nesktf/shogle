@@ -127,7 +127,7 @@ public:
 public:
   template<typename DepthT>
   requires(ntf::meta::same_as_any<DepthT, uint8, uint16, float>)
-  asset_expected<bitmap_data> load_image(
+  asset_expect<bitmap_data> load_image(
     span<const uint8> file_data, image_load_flags flags, uint32 channels
   ) {
     constexpr image_format stbi_format = [](){
@@ -141,7 +141,7 @@ public:
     }();
 
     return _load_image(file_data, channels, +(flags & image_load_flags::flip_y), stbi_format)
-    .and_then([](stbi_data&& image) -> asset_expected<bitmap_data> {
+    .and_then([](stbi_data&& image) -> asset_expect<bitmap_data> {
       auto format = meta::image_depth_traits<DepthT>::parse_channels(image.channels);
       if (!format) {
         _stbi_delete(image.data);
@@ -162,21 +162,21 @@ public:
     });
   }
 
-  asset_expected<bitmap_data> load_image(
+  asset_expect<bitmap_data> load_image(
     meta::image_depth_traits<uint8>::tag_type,
     span<const uint8> file_data, image_load_flags flags, uint32 channels
   ) {
     return load_image<uint8>(file_data, flags, channels);
   }
 
-  asset_expected<bitmap_data> load_image(
+  asset_expect<bitmap_data> load_image(
     meta::image_depth_traits<uint16>::tag_type,
     span<const uint8> file_data, image_load_flags flags, uint32 channels
   ) {
     return load_image<uint16>(file_data, flags, channels);
   }
 
-  asset_expected<bitmap_data> load_image(
+  asset_expect<bitmap_data> load_image(
     meta::image_depth_traits<float>::tag_type,
     span<const uint8> file_data, image_load_flags flags, uint32 channels
   ) {
@@ -184,7 +184,7 @@ public:
   }
 
 private:
-  asset_expected<stbi_data> _load_image(span<const uint8> file_data, uint32 channels,
+  asset_expect<stbi_data> _load_image(span<const uint8> file_data, uint32 channels,
                                         bool flip_y, image_format format);
 
 public:
@@ -197,7 +197,7 @@ private:
 };
 
 template<meta::image_depth_type DepthT, typename Loader = stb_image_loader>
-asset_expected<bitmap_data> load_image(
+asset_expect<bitmap_data> load_image(
   const std::string& path,
   image_load_flags flags = image_load_flags::flip_y,
   uint32 channels = 0u, Loader&& loader = {}

@@ -10,7 +10,7 @@ shader_t_::shader_t_(context_t ctx_, ctx_shad handle_, const ctx_shad_desc& desc
 
 shader_t_::~shader_t_() noexcept {}
 
-static cstring_view<char> concatenate_sources(ctx_alloc& alloc, span<const std::string_view> srcs) {
+static string_view concatenate_sources(ctx_alloc& alloc, span<const std::string_view> srcs) {
   NTF_ASSERT(!srcs.empty());
 
   size_t char_count = 1u; // Null terminated
@@ -47,50 +47,43 @@ static const char* shader_type_str(shader_type type) {
   NTF_UNREACHABLE();
 }
 
-static expect<void> validate_desc(ctx_alloc& alloc, const shader_desc& desc) {
+static render_expect<void> validate_desc(const shader_desc& desc) {
   // TODO: Validate the actual source using reflection or something?
-  RET_ERROR_IF(desc.source.empty(), "No shader sources provided");
-  for (size_t i = 0u; const auto& src : desc.source) {
-    RET_ERROR_FMT_IF(src.empty(), alloc, "Empty shader source at index {}", i);
-    ++i;
+  if (desc.source.empty()) {
+    return {ntf::unexpect, render_error::pip_no_source};
+  }
+  for (const auto& src : desc.source) {
+    if (src.empty()) {
+      return {ntf::unexpect, render_error::pip_no_source};
+    }
   }
   return {};
 }
 
-static ntf::unexpected<render_error> handle_error(ctx_shad_status status, shad_err_str err) {
-  switch (status) {
-    case CTX_SHAD_STATUS_COMPILATION_FAILED: {
-      SHOGLE_LOG(error, "Shader compilation failed: {}", err);
-      return ntf::unexpected{render_error{err}};
-    }
-    case CTX_SHAD_STATUS_INVALID_HANDLE: {
-      RET_ERROR("Invalid texture handle");
-    }
-    case CTX_SHAD_STATUS_OK: NTF_UNREACHABLE();
+render_expect<shader_t> create_shader(context_t ctx, const shader_desc& desc) {
+  if (!ctx) {
+    return {ntf::unexpect, render_error::invalid_handle};
   }
-  NTF_UNREACHABLE();
-}
-
-expect<shader_t> create_shader(context_t ctx, const shader_desc& desc) {
-  RET_ERROR_IF(!ctx, "Invalid context handle");
   try {
     auto& alloc = ctx->alloc();
-    return validate_desc(alloc, desc)
-    .and_then([&]() -> expect<ctx_shad_desc> {
+    return validate_desc(desc)
+    .and_then([&]() -> render_expect<ctx_shad_desc> {
       auto src = concatenate_sources(alloc, desc.source);
-      RET_ERROR_IF(src.empty(), "Failed to concatenate shader sources");
-      return expect<ctx_shad_desc>{ntf::in_place, desc.type, src};
+      if (src.empty()) {
+        return {ntf::unexpect, render_error::alloc_failure};
+      }
+      return render_expect<ctx_shad_desc>{ntf::in_place, desc.type, src};
     })
-    .and_then([&](ctx_shad_desc&& shad_desc) -> expect<shader_t> {
+    .and_then([&](ctx_shad_desc&& shad_desc) -> render_expect<shader_t> {
       auto* shad = alloc.allocate_uninited<shader_t_>();
       NTF_ASSERT(shad);
 
       ctx_shad handle = CTX_HANDLE_TOMB;
       shad_err_str err;
       const auto ret = ctx->renderer().create_shader(handle, err, shad_desc);
-      if (ret != CTX_SHAD_STATUS_OK) {
+      if (ret != render_error::no_error) {
         alloc.deallocate(shad, sizeof(shader_t_));
-        return handle_error(ret, err);
+        return {ntf::unexpect, ret};
       }
 
       NTF_ASSERT(check_handle(handle));
@@ -137,7 +130,7 @@ ctx_handle shader_get_id(shader_t shader) {
 
 
 uniform_t_::uniform_t_(pipeline_t pip_, ctx_unif handle_,
-                       ctx_alloc::string_t<char> name_,
+                       ctx_alloc::string_t name_,
                        attribute_type type_, size_t size_) noexcept :
   pip{pip_}, handle{handle_},
   name{std::move(name_)}, type{type_}, size{size_} {}
@@ -215,11 +208,11 @@ static ctx_pip_desc transform_desc(ctx_alloc& alloc,
   };
 }
 
-static expect<void> validate_desc(const pipeline_desc&) {
+static render_expect<void> validate_desc(const pipeline_desc&) {
   return {}; // TODO: validation
 }
 
-static expect<pipeline_t_::unif_map> make_uniform_map(ctx_alloc& alloc, pipeline_t pip,
+static render_expect<pipeline_t_::unif_map> make_uniform_map(ctx_alloc& alloc, pipeline_t pip,
                                                       const unif_meta_vec& unifs)
 {
   try {
@@ -231,42 +224,30 @@ static expect<pipeline_t_::unif_map> make_uniform_map(ctx_alloc& alloc, pipeline
     }
     return map;
   } catch (const std::bad_alloc&) {
-    RET_ERROR("Failed to allocate uniform map");
+    return {ntf::unexpect, render_error::alloc_failure};
   }
 }
 
-static ntf::unexpected<render_error> handle_error(ctx_pip_status status, pip_err_str err) {
-  switch (status) {
-    case CTX_PIP_STATUS_LINKING_FAILED: {
-      SHOGLE_LOG(error, "Pipeline linking failed: {}", err);
-      return ntf::unexpected{render_error{err}};
-    }
-    case CTX_PIP_STATUS_INVALID_HANDLE: {
-      RET_ERROR("Invalid texture handle");
-    }
-    case CTX_PIP_STATUS_OK: NTF_UNREACHABLE();
+render_expect<pipeline_t> create_pipeline(context_t ctx, const pipeline_desc& desc) {
+  if (!ctx) {
+    return {ntf::unexpect, render_error::no_error};
   }
-  NTF_UNREACHABLE();
-}
-
-expect<pipeline_t> create_pipeline(context_t ctx, const pipeline_desc& desc) {
-  RET_ERROR_IF(!ctx, "Invalid context handle");
 
   try {
     auto& alloc = ctx->alloc();
     auto unif_query = alloc.make_vector<ctx_unif_meta>();
     return validate_desc(desc)
-    .and_then([&]() -> expect<ctx_pip_desc> { return transform_desc(alloc, unif_query, desc); })
-    .and_then([&](ctx_pip_desc&& pip_desc) -> expect<pipeline_t> { 
+    .and_then([&]() -> render_expect<ctx_pip_desc> { return transform_desc(alloc, unif_query, desc); })
+    .and_then([&](ctx_pip_desc&& pip_desc) -> render_expect<pipeline_t> { 
       auto* pip = alloc.allocate_uninited<pipeline_t_>();
       NTF_ASSERT(pip);
 
       ctx_pip handle = CTX_HANDLE_TOMB;
       pip_err_str err;
       const auto ret = ctx->renderer().create_pipeline(handle, err, pip_desc);
-      if (ret != CTX_PIP_STATUS_OK) {
+      if (ret != render_error::no_error) {
         alloc.deallocate(pip, sizeof(pipeline_t_));
-        return handle_error(ret, err);
+        return {ntf::unexpect, ret};
       }
 
       auto unifs = make_uniform_map(alloc, pip, unif_query);
@@ -319,7 +300,7 @@ span<uniform_t> pipeline_get_uniforms(pipeline_t pip) {
   return {};
 }
 
-uniform_t pipeline_get_uniform(pipeline_t pip, cstring_view<char> name) {
+uniform_t pipeline_get_uniform(pipeline_t pip, string_view name) {
   if (!pip) {
     return nullptr;
   }
@@ -353,7 +334,7 @@ attribute_type uniform_get_type(uniform_t unif) {
   return unif->type;
 }
 
-cstring_view<char> uniform_get_name(uniform_t unif) {
+string_view uniform_get_name(uniform_t unif) {
   NTF_ASSERT(unif);
   return unif->name;
 }

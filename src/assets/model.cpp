@@ -186,7 +186,7 @@ assimp_loader::~assimp_loader() noexcept {
   delete importer;
 }
 
-asset_expected<void> assimp_loader::parse(const std::string& path, model_load_flags flags) {
+asset_expect<void> assimp_loader::parse(const std::string& path, model_load_flags flags) {
   Assimp::Importer* importer = static_cast<Assimp::Importer*>(_importer);
   importer->SetPropertyBool(AI_CONFIG_IMPORT_REMOVE_EMPTY_BONES, true);
 

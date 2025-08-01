@@ -87,7 +87,7 @@ sdf_text_rule::sdf_text_rule(pipeline&& pip, uniform_buffer&& ubo,
   _u_sampler{u_sampler}, _u_transf{u_transf},
   _props{props} {}
 
-expect<sdf_text_rule> sdf_text_rule::create(context_view ctx,
+render_expect<sdf_text_rule> sdf_text_rule::create(context_view ctx,
                                             const color3& color, float width, float edge,
                                             const color3& outline_color,
                                             const vec2& outline_offset,
@@ -153,7 +153,7 @@ bitmap_text_rule::bitmap_text_rule(pipeline&& pip, uniform_buffer&& ubo,
   _u_sampler{u_sampler}, _u_transf{u_transf},
   _text_color{color} {}
 
-expect<bitmap_text_rule> bitmap_text_rule::create(context_view ctx, const color3& color) {
+render_expect<bitmap_text_rule> bitmap_text_rule::create(context_view ctx, const color3& color) {
   auto frag = fragment_shader::create(ctx, {shad_frag_font_normal});
   if (!frag) {
     return ntf::unexpected{std::move(frag.error())};
@@ -203,7 +203,7 @@ font_renderer::font_renderer(shader_storage_buffer&& ssbo, texture2d&& atlas,
   _glyphs{std::move(glyphs)}, _glyph_map{std::move(map)},
   _transform{transform}, _bitmap_extent{bitmap_extent}, _batch_sz{batch} {}
 
-expect<font_renderer> font_renderer::create(context_view ctx,
+render_expect<font_renderer> font_renderer::create(context_view ctx,
                                             const mat4& transform,
                                             font_atlas_data&& font,
                                             texture_sampler sampler, size_t batch_size)

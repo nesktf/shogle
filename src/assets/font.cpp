@@ -35,7 +35,7 @@ ft2_font_loader::ft2_font_loader() noexcept :
 }
 
 auto ft2_font_loader::_load_face(span<const uint8> file_data,
-                                 const extent2d& glyph_size) -> asset_expected<face_t> {
+                                 const extent2d& glyph_size) -> asset_expect<face_t> {
   RET_ERR_IF(!_ft2_lib, "Failed to initialize FreeType");
   FT_Library ft = static_cast<FT_Library>(_ft2_lib.get());
 

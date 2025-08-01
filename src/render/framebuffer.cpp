@@ -53,26 +53,33 @@ static ctx_fbo_desc transform_desc(ctx_alloc& alloc, const fbo_image_desc& desc)
   };
 }
 
-static expect<void> validate_desc(context_t ctx, const fbo_image_desc& desc) {
+static render_expect<void> validate_desc(context_t ctx, const fbo_image_desc& desc) {
   NTF_ASSERT(ctx);
   if (desc.viewport.x+desc.viewport.z != desc.extent.x ||
       desc.viewport.y+desc.viewport.w != desc.extent.y) {
     SHOGLE_LOG(warning, "Mismatching viewport size");
   }
-  auto& alloc = ctx->alloc();
+  if (desc.images.empty()) {
+    return {ntf::unexpect, render_error::tex_no_images};
+  }
 
-  RET_ERROR_IF(desc.images.empty(), "No images attached");
-  for (uint32 i = 0; const auto& att : desc.images) {
+  for (const auto& att : desc.images) {
     auto tex = att.texture;
-    RET_ERROR_FMT_IF(!tex || tex->ctx != ctx, alloc, "Invalid texture handle at index {}", i);
+    if (!tex || tex->ctx != ctx) {
+      return {ntf::unexpect, render_error::invalid_handle};
+    }
 
-    RET_ERROR_FMT_IF(att.layer > tex->layers, alloc, "Invalid texture layer at index {}", i);
+    if (att.layer > tex->layers) {
+      return {ntf::unexpect, render_error::tex_invalid_layer};
+    }
 
-    RET_ERROR_FMT_IF(att.level > tex->levels, alloc, "Invalid texture level at index {}", i);
+    if (att.level > tex->levels) {
+      return {ntf::unexpect, render_error::tex_invalid_level};
+    }
 
-    RET_ERROR_FMT_IF(tex->extent.x != desc.extent.x || tex->extent.y != desc.extent.y,
-                     alloc, "Invalid texture extent at index {}", i);
-    ++i;
+    if (tex->extent.x != desc.extent.x || tex->extent.y != desc.extent.y) {
+      return {ntf::unexpect, render_error::tex_invalid_extent};
+    }
   }
 
   return {};
@@ -90,32 +97,24 @@ static const char* fbo_buffer_str(fbo_buffer buff) {
   NTF_UNREACHABLE();
 }
 
-static ntf::unexpected<render_error> handle_error(ctx_fbo_status status) {
-  switch (status) {
-    case CTX_FBO_STATUS_INVALID_HANDLE: {
-      RET_ERROR("Invalid framebuffer handle");
-    }
-    case CTX_FBO_STATUS_OK: NTF_UNREACHABLE();
+render_expect<framebuffer_t> create_framebuffer(context_t ctx, const fbo_image_desc& desc) {
+  if (!ctx) {
+    return {ntf::unexpect, render_error::invalid_handle};
   }
-  NTF_UNREACHABLE();
-}
-
-expect<framebuffer_t> create_framebuffer(context_t ctx, const fbo_image_desc& desc) {
-  RET_ERROR_IF(!ctx, "Invalid context handle");
 
   try {
     auto& alloc = ctx->alloc();
     return validate_desc(ctx, desc)
-    .and_then([&]() -> expect<ctx_fbo_desc> { return transform_desc(alloc, desc); })
-    .and_then([&](ctx_fbo_desc&& fbo_desc) -> expect<framebuffer_t> {
+    .and_then([&]() -> render_expect<ctx_fbo_desc> { return transform_desc(alloc, desc); })
+    .and_then([&](ctx_fbo_desc&& fbo_desc) -> render_expect<framebuffer_t> {
       auto* fbo = alloc.allocate_uninited<framebuffer_t_>();
       NTF_ASSERT(fbo);
 
       ctx_fbo handle = CTX_HANDLE_TOMB;
       const auto ret = ctx->renderer().create_framebuffer(handle, fbo_desc);
-      if (ret != CTX_FBO_STATUS_OK){
+      if (ret != render_error::no_error){
         alloc.deallocate(fbo, sizeof(framebuffer_t_));
-        return handle_error(ret);
+        return {ntf::unexpect, ret};
       }
 
       NTF_ASSERT(check_handle(handle));

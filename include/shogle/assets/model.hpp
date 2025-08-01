@@ -196,14 +196,14 @@ template<typename T>
 concept model_loader_parse = requires(T loader,
                                       const std::string& path,
                                       model_load_flags flags) {
-  { loader.parse(path, flags) } -> ntf::meta::same_as_any<void, asset_expected<void>>;
+  { loader.parse(path, flags) } -> ntf::meta::same_as_any<void, asset_expect<void>>;
 };
 
 template<typename T>
 concept model_loader_guarded_parse = requires(T loader,
                                               const std::string& path,
                                               model_load_flags flags) {
-  { loader.parse(path, flags) } -> std::same_as<asset_expected<void>>;
+  { loader.parse(path, flags) } -> std::same_as<asset_expect<void>>;
 };
 
 template<typename T, typename Vertex>
@@ -240,7 +240,7 @@ concept model_loader =
 
 template<typename Vertex, bool>
 struct load_model_ret {
-  using type = asset_expected<model_data<Vertex>>;
+  using type = asset_expect<model_data<Vertex>>;
 };
 
 template<typename Vertex>
@@ -275,7 +275,7 @@ load_model_ret<Vertex, checked>::type load_model(const std::string& path,
   };
 
   if constexpr (checked) {
-    return asset_expected<model_t>::catch_error([&]() -> asset_expected<model_t> {
+    return asset_expect<model_t>::catch_error([&]() -> asset_expect<model_t> {
       if constexpr (model_loader_guarded_parse<Loader>) {
         auto ret = loader.parse(path, flags);
         if (!ret) {
@@ -426,7 +426,7 @@ public:
   assimp_loader();
   ~assimp_loader() noexcept;
 
-  asset_expected<void> parse(const std::string& path, model_load_flags flags);
+  asset_expect<void> parse(const std::string& path, model_load_flags flags);
 
   void get_armatures(armature_data& data);
   void get_animations(animation_data& data);
@@ -475,7 +475,7 @@ template<
   typename Vertex = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>,
   impl::model_loader<Vertex> Loader = assimp_loader
 >
-asset_expected<model_data<Vertex>> load_model(
+asset_expect<model_data<Vertex>> load_model(
   const std::string& path, 
   model_load_flags flags,
   Loader&& loader = {}

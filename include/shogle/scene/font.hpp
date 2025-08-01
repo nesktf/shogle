@@ -109,7 +109,7 @@ private:
                 const glyph_props& props);
 
 public:
-  static expect<sdf_text_rule> create(context_view ctx,
+  static render_expect<sdf_text_rule> create(context_view ctx,
                                       const color3& color, float width, float edge,
                                       const color3& outline_color = {0.f, 0.f, 0.f},
                                       const vec2& outline_offset = {0.f, 0.f},
@@ -192,7 +192,7 @@ private:
                    const color3& color);
 
 public:
-  static expect<bitmap_text_rule> create(context_view ctx, const color3& color);
+  static render_expect<bitmap_text_rule> create(context_view ctx, const color3& color);
 
 public:
   font_render_data write_uniforms() override;
@@ -238,7 +238,7 @@ private:
                 const mat4& transform, vec2 bitmap_extent, size_t batch) noexcept;
 
 public:
-  static expect<font_renderer> create(
+  static render_expect<font_renderer> create(
     context_view ctx, 
     const mat4& transform,
     font_atlas_data&& font, 

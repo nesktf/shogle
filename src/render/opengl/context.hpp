@@ -157,23 +157,23 @@ public:
   void init(GLDEBUGPROC debug_callback, gl_context* ctx);
 
 public:
-  ctx_buff_status create_buffer(glbuffer_t& buffer, buffer_type type, buffer_flag flags,
+  ctx_status create_buffer(glbuffer_t& buffer, buffer_type type, buffer_flag flags,
                                 size_t size, weak_ptr<const buffer_data> data);
   void destroy_buffer(glbuffer_t& buffer);
   bool buffer_bind(GLuint id, GLenum type);
-  ctx_buff_status buffer_upload(glbuffer_t& buffer, size_t size, size_t offset, const void* data);
-  ctx_buff_status buffer_map(glbuffer_t& buffer, void** ptr, size_t size, size_t offset);
+  ctx_status buffer_upload(glbuffer_t& buffer, size_t size, size_t offset, const void* data);
+  ctx_status buffer_map(glbuffer_t& buffer, void** ptr, size_t size, size_t offset);
   void buffer_unmap(glbuffer_t& buffer, void* ptr);
 
   void create_vao(glvao_t& vao);
   void destroy_vao(glvao_t& vao);
   bool vao_bind(GLuint id);
 
-  ctx_shad_status create_shader(glshader_t& shad, shader_type type, std::string_view src,
+  ctx_status create_shader(glshader_t& shad, shader_type type, std::string_view src,
                                 shad_err_str& err);
   void destroy_shader(glshader_t& shad);
 
-  ctx_pip_status create_program(glprog_t& prog,
+  ctx_status create_program(glprog_t& prog,
                                 span<glshader_t*> shaders, primitive_mode primitive,
                                 polygon_mode poly_mode, f32 poly_width,
                                 render_tests tests, pip_err_str& err);
@@ -183,13 +183,13 @@ public:
   bool program_prepare_state(glprog_t& prog);
   void push_uniform(GLuint location, attribute_type tye, const attribute_data& data);
 
-  ctx_tex_status create_texture(gltex_t& tex, texture_type type, image_format format,
+  ctx_status create_texture(gltex_t& tex, texture_type type, image_format format,
                                 texture_sampler sampler, texture_addressing addressing,
                                 extent3d extent, uint32 layers, uint32 levels,
                                 const ctx_limits& limits);
   void destroy_texture(gltex_t& tex);
   bool texture_bind(GLuint tex, GLenum type, uint32 index);
-  ctx_tex_status texture_upload(gltex_t& tex, const void* texels,
+  ctx_status texture_upload(gltex_t& tex, const void* texels,
                                 image_format image, image_alignment alignment,
                                 extent3d offset, uint32 layer, uint32 level);
   bool texture_set_sampler(gltex_t& tex, texture_sampler sampler);
@@ -198,7 +198,7 @@ public:
 
   // void create_framebuffer(framebuffer_t& fbo, extent2d extent,
   //                         fbo_buffer test_buffers, image_format format);
-  ctx_fbo_status create_framebuffer(glfbo_t& fbo, extent2d extent,
+  ctx_status create_framebuffer(glfbo_t& fbo, extent2d extent,
                                     fbo_buffer test_buffers, span<const glfbo_att_t> attachments);
   void destroy_framebuffer(glfbo_t& fbo);
   bool framebuffer_bind(GLuint id, glfbo_binding binding); 
@@ -307,35 +307,35 @@ public:
   gl_context(ctx_alloc& alloc, const context_gl_params& params) noexcept;
 
 public:
-  static expect<ctx_alloc::uptr_t<icontext>> load_context(ctx_alloc& alloc,
+  static render_expect<ctx_alloc::uptr_t<icontext>> load_context(ctx_alloc& alloc,
                                                           const context_gl_params& params);
 
 public:
   void get_limits(ctx_limits& limits) override;
-  ctx_alloc::string_t<char> get_name(ctx_alloc& alloc) override;
+  ctx_alloc::string_t get_name(ctx_alloc& alloc) override;
   void get_dfbo_params(extent2d& ext, fbo_buffer& buff, u32& msaa) override;
 
-  ctx_buff_status create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) override;
-  ctx_buff_status update_buffer(ctx_buff buff, const buffer_data& data) override;
-  ctx_buff_status map_buffer(ctx_buff buff, void** ptr, size_t size, size_t offset) override;
-  ctx_buff_status unmap_buffer(ctx_buff buff, void* ptr) noexcept override;
-  ctx_buff_status destroy_buffer(ctx_buff buff) noexcept override;
+  ctx_status create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) override;
+  ctx_status update_buffer(ctx_buff buff, const buffer_data& data) override;
+  ctx_status map_buffer(ctx_buff buff, void** ptr, size_t size, size_t offset) override;
+  ctx_status unmap_buffer(ctx_buff buff, void* ptr) noexcept override;
+  ctx_status destroy_buffer(ctx_buff buff) noexcept override;
 
-  ctx_tex_status create_texture(ctx_tex& tex, const ctx_tex_desc& desc) override;
-  ctx_tex_status update_texture(ctx_tex tex, const ctx_tex_data& data) override;
-  ctx_tex_status update_texture(ctx_tex tex, const ctx_tex_opts& opts) override;
-  ctx_tex_status destroy_texture(ctx_tex tex) noexcept override;
+  ctx_status create_texture(ctx_tex& tex, const ctx_tex_desc& desc) override;
+  ctx_status update_texture(ctx_tex tex, const ctx_tex_data& data) override;
+  ctx_status update_texture(ctx_tex tex, const ctx_tex_opts& opts) override;
+  ctx_status destroy_texture(ctx_tex tex) noexcept override;
 
-  ctx_shad_status create_shader(ctx_shad& shad, shad_err_str& err,
+  ctx_status create_shader(ctx_shad& shad, shad_err_str& err,
                                 const ctx_shad_desc& desc) override;
-  ctx_shad_status destroy_shader(ctx_shad shad) noexcept override;
+  ctx_status destroy_shader(ctx_shad shad) noexcept override;
 
-  ctx_pip_status create_pipeline(ctx_pip& pip, pip_err_str& err,
+  ctx_status create_pipeline(ctx_pip& pip, pip_err_str& err,
                                  const ctx_pip_desc& desc) override;
-  ctx_pip_status destroy_pipeline(ctx_pip pip) noexcept override;
+  ctx_status destroy_pipeline(ctx_pip pip) noexcept override;
 
-  ctx_fbo_status create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) override;
-  ctx_fbo_status destroy_framebuffer(ctx_fbo fbo) noexcept override;
+  ctx_status create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) override;
+  ctx_status destroy_framebuffer(ctx_fbo fbo) noexcept override;
 
   void submit_render_data(context_t ctx, span<const ctx_render_data> render_data) override;
 

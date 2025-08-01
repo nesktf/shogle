@@ -28,7 +28,7 @@ struct fbo_image_desc {
 //   image_format color_buffer;
 // };
 
-expect<framebuffer_t> create_framebuffer(context_t ctx, const fbo_image_desc& desc);
+render_expect<framebuffer_t> create_framebuffer(context_t ctx, const fbo_image_desc& desc);
 // expect<framebuffer_t> create_framebuffer(context_t ctx, const fbo_color_desc& desc);
 void destroy_framebuffer(framebuffer_t fb) noexcept;
 
@@ -126,7 +126,7 @@ public:
     _pip{pip} {}
 
 public:
-  static expect<framebuffer> create(context_view ctx, const fbo_image_desc& desc){
+  static render_expect<framebuffer> create(context_view ctx, const fbo_image_desc& desc){
     return ::shogle::create_framebuffer(ctx.get(), desc)
     .transform([](framebuffer_t pip) -> framebuffer {
       return framebuffer{pip};

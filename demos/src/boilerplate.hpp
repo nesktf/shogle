@@ -40,7 +40,7 @@ const inline depth_test_opts def_depth_opts {
   .far_bound = 1.f,
 };
 
-inline expect<texture2d> make_texture2d(context_view ctx, const bitmap_data& image,
+inline render_expect<texture2d> make_texture2d(context_view ctx, const bitmap_data& image,
                                         texture_sampler sampler,
                                         texture_addressing addressing,
                                         u32 levels = 7u, bool mips = true) {
@@ -60,7 +60,7 @@ inline expect<texture2d> make_texture2d(context_view ctx, const bitmap_data& ima
   });
 }
 
-inline expect<texture2d> make_texture2d(context_view ctx, image_format format, extent2d extent,
+inline render_expect<texture2d> make_texture2d(context_view ctx, image_format format, extent2d extent,
                                         texture_sampler sampler,
                                         texture_addressing addressing,
                                         u32 levels = 7u) {
@@ -76,19 +76,19 @@ inline expect<texture2d> make_texture2d(context_view ctx, image_format format, e
 }
 
 template<meta::image_depth_type DepthT = uint8>
-inline expect<texture2d> load_texture2d(context_view ctx, const std::string& path,
+inline render_expect<texture2d> load_texture2d(context_view ctx, const std::string& path,
                                         texture_sampler sampler,
                                         texture_addressing addressing,
                                         u32 levels = 7u, bool mips = true) {
   return load_image<DepthT>(path)
-  .and_then([&](auto&& image) -> expect<texture2d> {
+  .and_then([&](auto&& image) -> render_expect<texture2d> {
     return make_texture2d(ctx, image, sampler, addressing, levels, mips);
   });
 }
 
 template<typename Vert>
 requires(meta::is_aos_vertex<Vert>)
-expect<pipeline> make_pipeline(
+render_expect<pipeline> make_pipeline(
   vertex_shader_view vert, fragment_shader_view frag,
   weak_ptr<const depth_test_opts> depth_test = def_depth_opts,
   weak_ptr<const blend_opts> blending = def_blending_opts
@@ -114,7 +114,7 @@ expect<pipeline> make_pipeline(
 
 template<typename Vert>
 requires(meta::is_aos_vertex<Vert>)
-expect<pipeline> make_pipeline(
+render_expect<pipeline> make_pipeline(
   context_view ctx,
   std::string_view vert_src, std::string_view frag_src,
   weak_ptr<const depth_test_opts> depth_test = def_depth_opts,
@@ -146,7 +146,7 @@ expect<pipeline> make_pipeline(
   });
 }
 
-inline expect<std::pair<framebuffer, texture2d>> make_fbo(
+inline render_expect<std::pair<framebuffer, texture2d>> make_fbo(
   context_view ctx, const extent2d& extent,
   const color4& clear_color, clear_flag clear_flags,
   texture_sampler sampler = texture_sampler::nearest,
@@ -163,7 +163,7 @@ inline expect<std::pair<framebuffer, texture2d>> make_fbo(
     .levels = 1,
     .data = nullptr,
   })
-  .and_then([&](auto&& tex) -> expect<std::pair<framebuffer, texture2d>> {
+  .and_then([&](auto&& tex) -> render_expect<std::pair<framebuffer, texture2d>> {
     const fbo_image fb_img {
       .texture = tex.get(),
       .layer = 0u,
@@ -184,7 +184,7 @@ inline expect<std::pair<framebuffer, texture2d>> make_fbo(
   });
 }
 
-inline expect<std::pair<window, context>> make_gl_ctx(
+inline render_expect<std::pair<window, context>> make_gl_ctx(
   u32 win_width, u32 win_height, const char* win_title,
   u32 swap_interval = 0,
   const color4& fb_color = {.3f, .3f, .3f, 1.f},
@@ -198,7 +198,7 @@ inline expect<std::pair<window, context>> make_gl_ctx(
     .fb_buffer = fbo_buffer::depth24u_stencil8u,
     .fb_use_alpha = false,
   };
-  return window::create({
+  auto win = window::create({
     .width = win_width,
     .height = win_height,
     .title = win_title,
@@ -206,32 +206,33 @@ inline expect<std::pair<window, context>> make_gl_ctx(
     .renderer_api = context_api::opengl,
     .platform_params = nullptr,
     .renderer_params = &win_gl,
-  })
-  .and_then([&](auto&& win) -> expect<std::pair<window, context>> {
-    const auto vp = uvec4{0, 0, win.fb_size()};
-    const auto gl_params = window::make_gl_params(win);
-    auto ctx = context::create({
-      .ctx_params = &gl_params,
-      .ctx_api = win.renderer(),
-      .fb_viewport = vp,
-      .fb_clear_flags = fb_clear,
-      .fb_clear_color = fb_color,
-      .alloc = nullptr,
-    });
-    if (!ctx) {
-      return ntf::unexpected{std::move(ctx.error())};
-    }
-    return std::make_pair(std::move(win), std::move(*ctx));
   });
+  if (!win) {
+    return {ntf::unexpect, render_error::unknown_error, win.error().msg()};
+  }
+  const auto vp = uvec4{0, 0, win->fb_size()};
+  const auto gl_params = window::make_gl_params(*win);
+  auto ctx = context::create({
+    .ctx_params = &gl_params,
+    .ctx_api = win->renderer(),
+    .fb_viewport = vp,
+    .fb_clear_flags = fb_clear,
+    .fb_clear_color = fb_color,
+    .alloc = nullptr,
+  });
+  if (!ctx) {
+    return ntf::unexpected{std::move(ctx.error())};
+  }
+  return {ntf::in_place, std::move(*win), std::move(*ctx)};
 }
 
-inline expect<context> make_gl_ctx(
+inline render_expect<context> make_gl_ctx(
   const window& win,
   const color4& fb_color = {.3f, .3f, .3f, 1.f},
   clear_flag fb_clear = clear_flag::color_depth
 ) {
   if (win.renderer() != context_api::opengl) {
-    return ntf::unexpected{render_error{"Invalid window context"}};
+    return {ntf::unexpect, render_error::invalid_handle, "Invalid window context"};
   }
   const auto vp = uvec4{0, 0, win.fb_size()};
   const auto gl_params = window::make_gl_params(win);
@@ -250,7 +251,7 @@ inline expect<context> make_gl_ctx(
 }
 
 template<font_codepoint_type CodeT = char>
-expect<font_renderer> r_load_font(
+render_expect<font_renderer> r_load_font(
   context_view ctx,
   const std::string& path,
   font_charset_view<CodeT> charset = ascii_charset<CodeT>,
@@ -261,7 +262,7 @@ expect<font_renderer> r_load_font(
   uint64 batch_size = 64u
 ) {
   return load_font_atlas(path, flags, glyph_size, padding, charset)
-  .and_then([&](auto&& atlas) -> expect<font_renderer> {
+  .and_then([&](auto&& atlas) -> render_expect<font_renderer> {
     return font_renderer::create(ctx, std::move(atlas), sampler, batch_size);
   });
 }

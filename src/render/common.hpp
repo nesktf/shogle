@@ -37,30 +37,20 @@
                           vk_alloc_ptr, vk_surface_ptr)
 #endif
 
-#define RET_ERROR(_str) \
-  SHOGLE_LOG(error, _str); \
-  return ntf::unexpected{render_error{_str}}
-
-#define RET_ERROR_IF(_cond, _str) \
-  if (_cond) { RET_ERROR(_str); }
-
 #define RET_ERROR_FMT(_alloc, _fmt, ...) \
   SHOGLE_LOG(error, _fmt, __VA_ARGS__); \
   return ntf::unexpected{render_error{_alloc.fmt_arena_string(_fmt __VA_OPT__(,) __VA_ARGS__)}}
 
-#define RET_ERROR_FMT_IF(_cond, _alloc, _fmt, ...) \
-  if (_cond) { RET_ERROR_FMT(_alloc, _fmt, __VA_ARGS__); }
-
 #define RET_ERROR_CATCH(_msg) \
   catch (render_error& err) { \
     SHOGLE_LOG(error, _msg ": {}", err.what()); \
-    return ntf::unexpected{std::move(err)}; \
+    return {ntf::unexpect, std::move(err)}; \
   } catch (const std::bad_alloc&) { \
     SHOGLE_LOG(error, _msg ": Allocation failed"); \
-    return ntf::unexpected{render_error{"Allocation failed"}}; \
+    return {ntf::unexpect, render_error::alloc_failure}; \
   } catch (...) { \
     SHOGLE_LOG(error, _msg ": Caught (...)"); \
-    return ntf::unexpected{render_error{"Unknown error"}}; \
+    return {ntf::unexpect, render_error::unknown_error}; \
   }
 
 #define RENDER_ERROR_LOG_CATCH(_msg) \
@@ -209,8 +199,7 @@ public:
   template<typename T>
   using queue_t = std::queue<T, deque_t<T>>;
 
-  template<typename T>
-  using string_t = std::basic_string<T, std::char_traits<T>, adaptor_t<T>>;
+  using string_t = std::basic_string<char, std::char_traits<char>, adaptor_t<char>>;
 
   // template<typename T>
   // struct string_hash {
@@ -221,14 +210,14 @@ public:
   //   }
   // };
 
-  template<typename T, typename U = char>
+  template<typename T>
   using string_fhashmap_t = std::unordered_map<
-    string_t<U>, T,
-    std::hash<cstring_view<U>>, std::equal_to<cstring_view<U>>,
+    string_t, T,
+    std::hash<string_view>, std::equal_to<string_view>,
     // rp_alloc::alloc_del_t<std::pair<const std::string, r_uniform_>>
     // allocator_delete<
     //   std::pair<const string_t<U>, T>,
-      adaptor_t<std::pair<const string_t<U>, T>>
+      adaptor_t<std::pair<const string_t, T>>
     // >
   >;
 
@@ -300,9 +289,8 @@ public:
     return vec;
   }
 
-  template<typename T = char>
-  string_t<T> make_string(size_t reserve = 0u) {
-    string_t<T> str{make_adaptor<T>()};
+  string_t make_string(size_t reserve = 0u) {
+    string_t str{make_adaptor<char>()};
     if (reserve){
       str.reserve(reserve);
     }
@@ -311,21 +299,20 @@ public:
 
   template<typename T>
   string_fhashmap_t<T> make_string_map(size_t sz) {
-    string_fhashmap_t<T> map{make_adaptor<std::pair<const string_t<char>, T>>()};
+    string_fhashmap_t<T> map{make_adaptor<std::pair<const string_t, T>>()};
     map.reserve(sz);
     return map;
   }
 
-  template<typename T = char>
-  string_t<T> vfmt_string(fmt::string_view fmt, fmt::format_args args) {
-    auto adaptor = make_adaptor<T>();
-    fmt::basic_memory_buffer<T, fmt::inline_buffer_size, adaptor_t<T>> buff{adaptor};
+  string_t vfmt_string(fmt::string_view fmt, fmt::format_args args) {
+    auto adaptor = make_adaptor<char>();
+    fmt::basic_memory_buffer<char, fmt::inline_buffer_size, adaptor_t<char>> buff{adaptor};
     fmt::vformat_to(std::back_inserter(buff), fmt, args);
-    return string_t<T>{buff.data(), buff.size(), adaptor};
+    return string_t{buff.data(), buff.size(), adaptor};
   }
 
-  template<typename T = char, typename... Args>
-  string_t<T> fmt_string(fmt::string_view fmt, Args&&... args) {
+  template<typename... Args>
+  string_t fmt_string(fmt::string_view fmt, Args&&... args) {
     return vfmt_string(fmt, fmt::make_format_args(std::forward<Args>(args)...));
   }
 
@@ -349,16 +336,15 @@ public:
     return span<T>{arena_allocate_uninited<T>(count), count};
   }
 
-  template<typename T = char>
-  cstring_view<T> vfmt_arena_string(fmt::string_view fmt, fmt::format_args args) {
-    arena_adaptor_t<T> adaptor{*this};
-    fmt::basic_memory_buffer<T, 0u, arena_adaptor_t<T>> buff{adaptor};
+  string_view vfmt_arena_string(fmt::string_view fmt, fmt::format_args args) {
+    arena_adaptor_t<char> adaptor{*this};
+    fmt::basic_memory_buffer<char, 0u, arena_adaptor_t<char>> buff{adaptor};
     fmt::vformat_to(std::back_inserter(buff), fmt, args);
-    return cstring_view<T>{buff.data(), buff.size()};
+    return {buff.data(), buff.size()};
   }
 
-  template<typename T = char, typename... Args>
-  cstring_view<T> fmt_arena_string(fmt::string_view fmt, Args&&... args) {
+  template<typename... Args>
+  string_view fmt_arena_string(fmt::string_view fmt, Args&&... args) {
     return vfmt_arena_string(fmt, fmt::make_format_args(std::forward<Args>(args)...));
   }
 
@@ -382,7 +368,7 @@ constexpr auto DEFAULT_FBO_HANDLE = CTX_HANDLE_TOMB;
 
 struct ctx_unif_meta {
   ctx_unif handle;
-  ctx_alloc::string_t<char> name;
+  ctx_alloc::string_t name;
   attribute_type type;
   size_t size;
 };
@@ -460,12 +446,6 @@ struct ctx_buff_desc {
   weak_ptr<const buffer_data> data;
 };
 
-enum ctx_buff_status {
-  CTX_BUFF_STATUS_OK = 0,
-  CTX_BUFF_STATUS_INVALID_HANDLE,
-  CTX_BUFF_STATUS_ALLOC_FAILED,
-};
-
 struct ctx_tex_desc {
   texture_type type;
   image_format format;
@@ -485,26 +465,12 @@ struct ctx_tex_opts {
   texture_addressing addresing;
 };
 
-enum ctx_tex_status {
-  CTX_TEX_STATUS_OK = 0,
-  CTX_TEX_STATUS_INVALID_HANDLE,
-  CTX_TEX_STATUS_INVALID_ADDRESING,
-  CTX_TEX_STATUS_INVALID_SAMPLER,
-  CTX_TEX_STATUS_INVALID_LEVELS,
-};
-
 struct ctx_shad_desc {
   shader_type type;
-  cstring_view<char> source;
+  string_view source;
 };
 
-using shad_err_str = cstring_view<char>;
-
-enum ctx_shad_status {
-  CTX_SHAD_STATUS_OK = 0,
-  CTX_SHAD_STATUS_INVALID_HANDLE,
-  CTX_SHAD_STATUS_COMPILATION_FAILED,
-};
+using shad_err_str = string_view; 
 
 struct ctx_pip_desc {
   ctx_alloc::uarray_t<attribute_binding> layout;
@@ -517,13 +483,7 @@ struct ctx_pip_desc {
   render_tests tests;
 };
 
-using pip_err_str = cstring_view<char>;
-
-enum ctx_pip_status {
-  CTX_PIP_STATUS_OK = 0,
-  CTX_PIP_STATUS_INVALID_HANDLE,
-  CTX_PIP_STATUS_LINKING_FAILED,
-};
+using pip_err_str = string_view; 
 
 struct ctx_fbo_desc {
   struct tex_att_t {
@@ -538,11 +498,6 @@ struct ctx_fbo_desc {
   ctx_alloc::uarray_t<fbo_image> attachments;
 };
 
-enum ctx_fbo_status {
-  CTX_FBO_STATUS_OK = 0,
-  CTX_FBO_STATUS_INVALID_HANDLE,
-};
-
 template<typename T>
 class ctx_res_node {
 public:
@@ -555,33 +510,35 @@ public:
 };
 
 
+using ctx_status = render_error::code_t;
+
 struct icontext {
   virtual ~icontext() = default;
   virtual void get_limits(ctx_limits& limits) = 0;
-  virtual ctx_alloc::string_t<char> get_name(ctx_alloc& alloc) = 0;
+  virtual ctx_alloc::string_t get_name(ctx_alloc& alloc) = 0;
   virtual void get_dfbo_params(extent2d& ext, fbo_buffer& buff, u32& msaa) = 0;
 
-  virtual ctx_buff_status create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) = 0;
-  virtual ctx_buff_status update_buffer(ctx_buff buff, const buffer_data& data) = 0;
-  virtual ctx_buff_status map_buffer(ctx_buff buff, void** ptr, size_t size, size_t offset) = 0;
-  virtual ctx_buff_status unmap_buffer(ctx_buff buff, void* ptr) noexcept = 0;
-  virtual ctx_buff_status destroy_buffer(ctx_buff buff) noexcept = 0;
+  virtual ctx_status create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) = 0;
+  virtual ctx_status update_buffer(ctx_buff buff, const buffer_data& data) = 0;
+  virtual ctx_status map_buffer(ctx_buff buff, void** ptr, size_t size, size_t offset) = 0;
+  virtual ctx_status unmap_buffer(ctx_buff buff, void* ptr) noexcept = 0;
+  virtual ctx_status destroy_buffer(ctx_buff buff) noexcept = 0;
 
-  virtual ctx_tex_status create_texture(ctx_tex& tex, const ctx_tex_desc& desc) = 0;
-  virtual ctx_tex_status update_texture(ctx_tex tex, const ctx_tex_data& data) = 0;
-  virtual ctx_tex_status update_texture(ctx_tex tex, const ctx_tex_opts& opts) = 0;
-  virtual ctx_tex_status destroy_texture(ctx_tex tex) noexcept = 0;
+  virtual ctx_status create_texture(ctx_tex& tex, const ctx_tex_desc& desc) = 0;
+  virtual ctx_status update_texture(ctx_tex tex, const ctx_tex_data& data) = 0;
+  virtual ctx_status update_texture(ctx_tex tex, const ctx_tex_opts& opts) = 0;
+  virtual ctx_status destroy_texture(ctx_tex tex) noexcept = 0;
 
-  virtual ctx_shad_status create_shader(ctx_shad& shad, shad_err_str& err,
+  virtual ctx_status create_shader(ctx_shad& shad, shad_err_str& err,
                                         const ctx_shad_desc& desc) = 0;
-  virtual ctx_shad_status destroy_shader(ctx_shad shad) noexcept = 0;
+  virtual ctx_status destroy_shader(ctx_shad shad) noexcept = 0;
 
-  virtual ctx_pip_status create_pipeline(ctx_pip& pip, pip_err_str& err,
+  virtual ctx_status create_pipeline(ctx_pip& pip, pip_err_str& err,
                                          const ctx_pip_desc& desc) = 0;
-  virtual ctx_pip_status destroy_pipeline(ctx_pip pip) noexcept = 0;
+  virtual ctx_status destroy_pipeline(ctx_pip pip) noexcept = 0;
 
-  virtual ctx_fbo_status create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) = 0;
-  virtual ctx_fbo_status destroy_framebuffer(ctx_fbo fbo) noexcept = 0;
+  virtual ctx_status create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) = 0;
+  virtual ctx_status destroy_framebuffer(ctx_fbo fbo) noexcept = 0;
 
   virtual void submit_render_data(context_t ctx, span<const ctx_render_data> render_data) = 0;
 

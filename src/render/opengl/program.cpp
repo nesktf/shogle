@@ -144,7 +144,7 @@ GLenum gl_state::blend_eq_cast(blend_mode eq) noexcept {
   NTF_UNREACHABLE();
 }
 
-ctx_pip_status gl_state::create_program(glprog_t& prog, span<glshader_t*> shaders,
+ctx_status gl_state::create_program(glprog_t& prog, span<glshader_t*> shaders,
                                         primitive_mode primitive,
                                         polygon_mode poly_mode, f32 poly_width,
                                         render_tests tests, pip_err_str& err)
@@ -167,7 +167,7 @@ ctx_pip_status gl_state::create_program(glprog_t& prog, span<glshader_t*> shader
     GL_CALL(glDeleteProgram, id);
     err = {span.data(), span.size()};
     SHOGLE_LOG(error, "Failed to link program: {}", err);
-    return CTX_PIP_STATUS_LINKING_FAILED;
+    return render_error::pip_linking_failure;
   }
 
   for (const auto& shader : shaders) {
@@ -242,7 +242,7 @@ ctx_pip_status gl_state::create_program(glprog_t& prog, span<glshader_t*> shader
     prog.flags &= ~GLPROG_ENABLE_CULLING;
   }
 
-  return CTX_PIP_STATUS_OK;
+  return render_error::no_error;
 }
 
 void gl_state::destroy_program(glprog_t& prog) {
@@ -521,7 +521,7 @@ void gl_state::prepare_state(const external_state& state) {
   }
 }
 
-ctx_pip_status gl_context::create_pipeline(ctx_pip& pip, pip_err_str& err,
+ctx_status gl_context::create_pipeline(ctx_pip& pip, pip_err_str& err,
                                            const ctx_pip_desc& desc){
   NTF_ASSERT(!desc.stages.empty());
   auto shads = _alloc.arena_span<glshader_t*>(desc.stages.size());
@@ -538,7 +538,7 @@ ctx_pip_status gl_context::create_pipeline(ctx_pip& pip, pip_err_str& err,
   const auto status = _state.create_program(program, shads, desc.primitive,
                                             desc.poly_mode, desc.poly_width,
                                             desc.tests, err);
-  if (status != CTX_PIP_STATUS_OK) {
+  if (status != render_error::no_error) {
     _programs.push(handle);
     return status;
   }
@@ -549,21 +549,21 @@ ctx_pip_status gl_context::create_pipeline(ctx_pip& pip, pip_err_str& err,
   } catch(...) {
     _state.destroy_program(program);
     _programs.push(handle);
-    return CTX_PIP_STATUS_LINKING_FAILED;
+    return render_error::pip_linking_failure;
   }
   NTF_ASSERT(program.id);
   pip = handle;
   return status;
 }
 
-ctx_pip_status gl_context::destroy_pipeline(ctx_pip pip) noexcept {
+ctx_status gl_context::destroy_pipeline(ctx_pip pip) noexcept {
   if (!_programs.validate(pip)) {
-    return CTX_PIP_STATUS_INVALID_HANDLE;
+    return render_error::invalid_handle;
   }
   auto& program = _programs.get(pip);
   _state.destroy_program(program);
   _programs.push(pip);
-  return CTX_PIP_STATUS_OK;
+  return render_error::no_error;
 }
 
 } // namespace shogle

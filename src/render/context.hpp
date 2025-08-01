@@ -11,7 +11,7 @@ struct context_t_ {
 public:
   context_t_(ctx_alloc::uptr_t<ctx_alloc>&& alloc,
              ctx_alloc::uptr_t<icontext>&& renderer,
-             ctx_alloc::string_t<char>&& renderer_name,
+             ctx_alloc::string_t&& renderer_name,
              // window_t win,
              context_api api,
              extent2d fbo_ext, fbo_buffer fbo_tbuff,
@@ -48,7 +48,7 @@ public:
   framebuffer_t default_fbo() { return &_default_fbo;}
   // window_t window() const { return _win; }
   size_t fbo_count() const { return _fbo_list_sz; }
-  cstring_view<char> name() const { return _renderer_name; }
+  string_view name() const { return _renderer_name; }
 
 public:
   ctx_alloc::uptr_t<ctx_alloc> on_destroy();
@@ -56,7 +56,7 @@ public:
 private:
   ctx_alloc::uptr_t<ctx_alloc> _alloc;
   ctx_alloc::uptr_t<icontext> _renderer;
-  ctx_alloc::string_t<char> _renderer_name;
+  ctx_alloc::string_t _renderer_name;
 
   context_api _api;
   // window_t _win;

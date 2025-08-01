@@ -146,7 +146,7 @@ public:
   ft2_font_loader() noexcept;
 
 private:
-  asset_expected<face_t> _load_face(span<const uint8> file_data, const extent2d& glyph_size);
+  asset_expect<face_t> _load_face(span<const uint8> file_data, const extent2d& glyph_size);
   uint32 _get_code_index(const face_t& face, uint64 code);
   ntf::optional<ft_glyph_data> _load_metrics(const face_t& face, uint32 idx, ft_mode load_mode);
   const uint8* _render_bitmap(const face_t& face, uint32 idx, ft_mode render_mode);
@@ -171,7 +171,7 @@ public:
   auto load_atlas(
     span<const uint8> file_data, font_charset_view<CodeT> charset, font_load_flags flags,
     const extent2d& glyph_size, uint32 padding, uint32 atlas_size
-  ) -> asset_expected<font_atlas_data>
+  ) -> asset_expect<font_atlas_data>
   {
     const ft_mode mode = +(flags & font_load_flags::render_sdf) ? ft_mode::sdf : ft_mode::normal;
     return _load_face(file_data, glyph_size)
@@ -224,7 +224,7 @@ auto load_font_atlas(
   uint32 glyph_size = 48u, uint32 padding = 0u,
   font_charset_view<CodeT> charset = ascii_charset<CodeT>,
   Loader&& font_loader = {}
-) -> asset_expected<font_atlas_data> {
+) -> asset_expect<font_atlas_data> {
   // SHOGLE_LOG(debug, "[ntf::load_font_atlas] Loading font '{}'", path);
   return file_data(path)
     .and_then([&](auto&& buffer) {

@@ -62,7 +62,7 @@ void gl_context::debug_callback(GLenum src, GLenum type, GLuint id, GLenum sever
   }
 }
 
-expect<ctx_alloc::uptr_t<icontext>> gl_context::load_context(ctx_alloc& alloc,
+render_expect<ctx_alloc::uptr_t<icontext>> gl_context::load_context(ctx_alloc& alloc,
                                                              const context_gl_params& params) {
   NTF_ASSERT(params.get_proc_address);
   NTF_ASSERT(params.make_current);
@@ -81,7 +81,9 @@ expect<ctx_alloc::uptr_t<icontext>> gl_context::load_context(ctx_alloc& alloc,
   });
   glad_gl_ctx = nullptr;
   glad_gl_proc = nullptr;
-  RET_ERROR_IF(!glad_succ, "Failed to load GLAD");
+  if (!glad_succ) {
+    return {ntf::unexpect, render_error::gl_load_failed, "Failed to load GLAD"};
+  }
   icontext* ctx = alloc.construct<gl_context>(alloc, params);
   NTF_ASSERT(ctx);
   return alloc.wrap_unique(ctx);
@@ -123,11 +125,11 @@ void gl_context::get_limits(ctx_limits& limits) {
   // _fbo_max_attachments = max_fbo_attach;
 }
 
-ctx_alloc::string_t<char> gl_context::get_name(ctx_alloc& alloc) {
+ctx_alloc::string_t gl_context::get_name(ctx_alloc& alloc) {
   const char* name_str = reinterpret_cast<const char*>(GL_CALL_RET(glGetString, GL_RENDERER));
   const char* vendor_str = reinterpret_cast<const char*>(GL_CALL_RET(glGetString, GL_VENDOR));
   const char* ver_str = reinterpret_cast<const char*>(GL_CALL_RET(glGetString, GL_VERSION));
-  return alloc.fmt_string("{} [{} - {}]", name_str, vendor_str, ver_str);
+  return alloc.fmt_string("{} [{} - {}]", ver_str, vendor_str, name_str);
 }
 
 void gl_context::submit_render_data(context_t ctx, span<const ctx_render_data> render_data) {

@@ -15,10 +15,10 @@ enum class shader_type : uint8 {
 
 struct shader_desc {
   shader_type type;
-  span<const cstring_view<char>> source;
+  span<const string_view> source;
 };
 
-expect<shader_t> create_shader(context_t ctx, const shader_desc& desc);
+render_expect<shader_t> create_shader(context_t ctx, const shader_desc& desc);
 void destroy_shader(shader_t shader) noexcept;
 
 shader_type shader_get_type(shader_t shader);
@@ -49,14 +49,14 @@ struct pipeline_desc {
   render_tests tests;
 };
 
-expect<pipeline_t> create_pipeline(context_t ctx, const pipeline_desc& desc);
+render_expect<pipeline_t> create_pipeline(context_t ctx, const pipeline_desc& desc);
 void destroy_pipeline(pipeline_t pipeline) noexcept;
 
 span<uniform_t> pipeline_get_uniforms(pipeline_t pipeline);
-uniform_t pipeline_get_uniform(pipeline_t pip, cstring_view<char> name);
+uniform_t pipeline_get_uniform(pipeline_t pip, string_view name);
 size_t pipeline_get_uniform_count(pipeline_t pip);
 attribute_type uniform_get_type(uniform_t uniform);
-cstring_view<char> uniform_get_name(uniform_t uniform);
+string_view uniform_get_name(uniform_t uniform);
 u32 uniform_get_location(uniform_t uniform);
 
 stages_flag pipeline_get_stages(pipeline_t pipeline);
@@ -148,7 +148,7 @@ public:
     impl::rshader_owning<shader>{shad} {}
   
 public:
-  static expect<shader> create(context_view ctx, const shader_desc& desc) {
+  static render_expect<shader> create(context_view ctx, const shader_desc& desc) {
     return ::shogle::create_shader(ctx.get(), desc)
     .transform([](shader_t shad) -> shader {
       return shader{shad};
@@ -207,7 +207,7 @@ private:
     impl::rshader_owning<typed_shader<shad_enum>>{shad} {}
 
 public:
-  static expect<typed_shader> create(context_view ctx, span<const cstring_view<char>> src) {
+  static render_expect<typed_shader> create(context_view ctx, span<const string_view> src) {
     return ::shogle::create_shader(ctx, {
       .type = shad_enum,
       .source = src,
@@ -330,7 +330,7 @@ public:
   stages_flag stages() const {
     return ::shogle::pipeline_get_stages(_ptr());
   }
-  uniform_view uniform(cstring_view<char> name) const {
+  uniform_view uniform(string_view name) const {
     return {::shogle::pipeline_get_uniform(_ptr(), name)};
   }
   size_t uniform_count() const {
@@ -381,7 +381,7 @@ public:
     _pip{pip} {}
 
 public:
-  static expect<pipeline> create(context_view ctx, const pipeline_desc& desc){
+  static render_expect<pipeline> create(context_view ctx, const pipeline_desc& desc){
     return ::shogle::create_pipeline(ctx.get(), desc)
     .transform([](pipeline_t pip) -> pipeline {
       return pipeline{pip};

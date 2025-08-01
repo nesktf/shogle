@@ -36,7 +36,7 @@ static constexpr size_t INITIAL_ARENA_PAGE = ntf::mibs(16u);
 
 context_t_::context_t_(ctx_alloc::uptr_t<ctx_alloc>&& alloc,
                        ctx_alloc::uptr_t<icontext>&& renderer,
-                       ctx_alloc::string_t<char>&& renderer_name,
+                       ctx_alloc::string_t&& renderer_name,
                        context_api api_,
                        extent2d fbo_ext, fbo_buffer fbo_tbuff,
                        const ctx_render_data::fbo_data_t& fdata) noexcept :
@@ -106,14 +106,18 @@ static const char* ctx_str(context_api api) {
   NTF_UNREACHABLE();
 }
 
-expect<context_t> create_context(const context_params& params) {
+render_expect<context_t> create_context(const context_params& params) {
   auto alloc = ctx_alloc::make_alloc(params.alloc, INITIAL_ARENA_PAGE);
-  RET_ERROR_IF(!alloc, "Failed to create allocator");
+  if (!alloc) {
+    return {ntf::unexpect, render_error::alloc_failure};
+  }
 
-  auto construct_local_context = [&](ctx_alloc::uptr_t<icontext>&& renderer) -> expect<context_t> {
+  auto construct_local_context = [&](ctx_alloc::uptr_t<icontext>&& renderer) -> render_expect<context_t> {
     auto ctx_name = renderer->get_name(*alloc);
     context_t ctx = alloc->allocate_uninited<context_t_>();
-    RET_ERROR_IF(!ctx, "Failed to allocate context");
+    if (!ctx) {
+      return {ntf::unexpect, render_error::alloc_failure};
+    }
 
     const ctx_render_data::fbo_data_t fdata {
       .clear_color = params.fb_clear_color,
@@ -308,11 +312,38 @@ context_api get_api(context_t ctx) {
   return ctx->api();
 }
 
-cstring_view<char> get_name(context_t ctx) {
+string_view get_name(context_t ctx) {
   if (!ctx) {
     return {};
   }
   return ctx->name();
+}
+
+const char* render_error::error_string(code_t error) {
+  switch (error) {
+    case render_error::no_error: return "No error";
+    case render_error::unknown_error: return "Unkown error";
+    case render_error::alloc_failure: return "Allocation failure";
+    case render_error::invalid_handle: return "Invalid handle argument";
+    case render_error::invalid_offset: return "Invalid offset argument";
+    case render_error::no_data: return "No data argument provided";
+    case render_error::pip_compilation_failure: return "Shader compilation failure";
+    case render_error::pip_linking_failure: return "Shader linking failure";
+    case render_error::buff_alloc_failure: return "GPU Allocation failure";
+    case render_error::buff_not_dynamic: return "Non dynamic buffer";
+    case render_error::buff_not_mappable: return "Non mappable buffer";
+    case render_error::tex_invalid_layer: return "Invalid texture layer argument";
+    case render_error::tex_invalid_extent: return "Invalid texture extent argument";
+    case render_error::tex_invalid_level: return "Invalid texture level argument";
+    case render_error::tex_invalid_addressing: return "Invalid texture addressing argument";
+    case render_error::tex_invalid_sampler: return "Invalid texture sampler argument";
+    case render_error::tex_out_of_limits_extent: return "Extent is above GPU texture limits";
+    case render_error::tex_no_images: return "No image argument provided";
+    case render_error::pip_no_source: return "No shader source provided";
+    case render_error::pip_invalid_stages: return "Invalud pipeline shader configuration";
+    case render_error::gl_load_failed: return "OpenGL proc loading failure";
+  }
+  NTF_UNREACHABLE();
 }
 
 } // namespace shogle

@@ -1,6 +1,5 @@
 #include <shogle/shogle.hpp>
-#include <shogle/boilerplate.hpp>
-
+#include "./boilerplate.hpp"
 #include <ntfstl/logger.hpp>
 
 int main() {

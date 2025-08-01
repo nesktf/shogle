@@ -17,11 +17,6 @@
 
 namespace shogle {
 
-using asset_error = ntf::error<void>;
-
-template<typename T>
-using asset_expected = ntf::expected<T, asset_error>;
-
 enum class r_material_type {
   diffuse = 0,
   specular,

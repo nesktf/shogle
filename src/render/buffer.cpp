@@ -19,13 +19,18 @@ static ctx_buff_desc transform_desc(const buffer_desc& desc) {
   };
 }
 
-static expect<void> validate_desc(const buffer_desc& desc) {
+static render_expect<void> validate_desc(const buffer_desc& desc) {
   if (desc.data) {
-    RET_ERROR_IF(!desc.data->data, "Invalid buffer data");
-    RET_ERROR_IF(desc.data->size+desc.data->offset > desc.size, "Invalid buffer data offset");
+    if (!desc.data->data) {
+      return {ntf::unexpect, render_error::no_data};
+    }
+    if (desc.data->size+desc.data->offset > desc.size) {
+      return {ntf::unexpect, render_error::invalid_offset};
+    }
   } else {
-    RET_ERROR_IF(!+(desc.flags & buffer_flag::dynamic_storage),
-                 "Can't create non dynamic buffer with no data");
+    if (!+(desc.flags & buffer_flag::dynamic_storage)) {
+      return {ntf::unexpect, render_error::buff_not_dynamic};
+    }
   }
 
   return {};
@@ -42,34 +47,23 @@ static const char* buffer_type_str(buffer_type type) {
   NTF_UNREACHABLE();
 }
 
-static ntf::unexpected<render_error> handle_error(ctx_buff_status status){
-  switch (status){
-    case CTX_BUFF_STATUS_ALLOC_FAILED: {
-      RET_ERROR("Buffer allocation failed");
-    }
-    case CTX_BUFF_STATUS_INVALID_HANDLE: {
-      RET_ERROR("Invalid buffer handle");
-    }
-    case CTX_BUFF_STATUS_OK: NTF_UNREACHABLE();
+render_expect<buffer_t> create_buffer(context_t ctx, const buffer_desc& desc) {
+  if (!ctx) {
+    return {ntf::unexpect, render_error::invalid_handle};
   }
-  NTF_UNREACHABLE();
-}
-
-expect<buffer_t> create_buffer(context_t ctx, const buffer_desc& desc) {
-  RET_ERROR_IF(!ctx, "Invalid context handle");
   auto& alloc = ctx->alloc();
   try {
     return validate_desc(desc)
     .transform([&]() -> ctx_buff_desc { return transform_desc(desc); })
-    .and_then([&](ctx_buff_desc&& buff_desc) -> expect<buffer_t> {
+    .and_then([&](ctx_buff_desc&& buff_desc) -> render_expect<buffer_t> {
       auto* buff = alloc.allocate_uninited<buffer_t_>();
       NTF_ASSERT(buff);
 
       ctx_buff handle = CTX_HANDLE_TOMB;
       const auto ret = ctx->renderer().create_buffer(handle, buff_desc);
-      if (ret != CTX_BUFF_STATUS_OK) {
+      if (ret != render_error::no_error) {
         alloc.deallocate(buff, sizeof(buffer_t_));
-        return handle_error(ret);
+        return {ntf::unexpect, ret};
       }
 
       NTF_ASSERT(check_handle(handle));
@@ -99,19 +93,26 @@ void destroy_buffer(buffer_t buffer) noexcept {
   ctx->alloc().destroy(buffer);
 }
 
-expect<void> buffer_upload(buffer_t buffer, const buffer_data& data) {
+render_expect<void> buffer_upload(buffer_t buffer, const buffer_data& data) {
   return buffer_upload(buffer, data.size, data.offset, data.data);
 }
 
-expect<void> buffer_upload(buffer_t buffer, size_t size, size_t offset, const void* data) {
-  RET_ERROR_IF(!buffer, "Invalid buffer handle");
+render_expect<void> buffer_upload(buffer_t buffer, size_t size, size_t offset, const void* data) {
+  if (!buffer) {
+    return {ntf::unexpect, render_error::invalid_handle};
+  }
 
-  RET_ERROR_IF(!data, "Invalid buffer data");
+  if (!data) {
+    return {ntf::unexpect, render_error::no_data};
+  }
 
-  RET_ERROR_IF(!+(buffer->flags & buffer_flag::dynamic_storage),
-               "Can't update non dynamic buffer");
+  if (!+(buffer->flags & buffer_flag::dynamic_storage)) {
+    return {ntf::unexpect, render_error::buff_not_dynamic};
+  }
 
-  RET_ERROR_IF(size+offset > buffer->size, "Invalid buffer data offset");
+  if (size+offset > buffer->size) {
+    return {ntf::unexpect, render_error::invalid_offset};
+  }
 
   try {
     const auto ret = buffer->ctx->renderer().update_buffer(buffer->handle, {
@@ -119,24 +120,34 @@ expect<void> buffer_upload(buffer_t buffer, size_t size, size_t offset, const vo
       .size = size,
       .offset = offset,
     });
-    RET_ERROR_IF(ret != CTX_BUFF_STATUS_OK, "Failed to update buffer");
+    if (ret != render_error::no_error) {
+      return {ntf::unexpect, ret};
+    }
   }
   RET_ERROR_CATCH("Failed to update buffer");
 
   return {};
 }
 
-expect<void*> buffer_map(buffer_t buffer, size_t size, size_t offset) {
-  RET_ERROR_IF(!buffer, "Invalid buffer handle");
-  RET_ERROR_IF(!+(buffer->flags & buffer_flag::read_mappable) ||
-              !+(buffer->flags & buffer_flag::write_mappable),
-               "Non mappable buffer");
-  RET_ERROR_IF(offset+size > buffer->size, "Invalid mapping size");
+render_expect<void*> buffer_map(buffer_t buffer, size_t size, size_t offset) {
+  if (!buffer) {
+    return {ntf::unexpect, render_error::invalid_handle};
+  }
+
+  const bool nonmappable = !+(buffer->flags & buffer_flag::read_mappable) ||
+              !+(buffer->flags & buffer_flag::write_mappable);
+  if (nonmappable) {
+    return {ntf::unexpect, render_error::buff_not_mappable};
+  }
+
+  if (offset+size > buffer->size) {
+    return {ntf::unexpect, render_error::invalid_offset};
+  }
 
   void* ptr = nullptr;
   const auto ret = buffer->ctx->renderer().map_buffer(buffer->handle, &ptr, size, offset);
-  if (ret != CTX_BUFF_STATUS_OK){
-    return handle_error(ret);
+  if (ret != render_error::no_error){
+    return {ntf::unexpect, ret};
   }
   NTF_ASSERT(ptr);
   return ptr;

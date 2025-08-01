@@ -74,7 +74,7 @@ struct context_params {
   weak_ptr<const ntf::malloc_funcs> alloc;
 };
 
-expect<context_t> create_context(const context_params& params);
+render_expect<context_t> create_context(const context_params& params);
 void destroy_context(context_t ctx) noexcept;
 
 void start_frame(context_t ctx);
@@ -83,7 +83,7 @@ void device_wait(context_t ctx);
 void submit_render_command(context_t ctx, const render_cmd& cmd);
 void submit_external_command(context_t ctx, const external_cmd& cmd);
 context_api get_api(context_t ctx);
-cstring_view<char> get_name(context_t ctx);
+string_view get_name(context_t ctx);
 
 namespace impl {
 
@@ -147,7 +147,7 @@ public:
     _ctx{ctx} {}
 
 public:
-  static expect<context> create(const context_params& params) {
+  static render_expect<context> create(const context_params& params) {
     return ::shogle::create_context(params)
     .transform([](context_t ctx) -> context {
       return context{ctx};

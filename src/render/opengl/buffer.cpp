@@ -26,7 +26,7 @@ GLenum& gl_state::_buffer_pos(GLenum type) {
   NTF_UNREACHABLE();
 }
 
-ctx_buff_status gl_state::create_buffer(glbuffer_t& buffer, buffer_type type, buffer_flag flags,
+ctx_status gl_state::create_buffer(glbuffer_t& buffer, buffer_type type, buffer_flag flags,
                                         size_t size, weak_ptr<const buffer_data> data)
 {
   const bool is_dynamic = +(flags & buffer_flag::dynamic_storage);
@@ -56,7 +56,7 @@ ctx_buff_status gl_state::create_buffer(glbuffer_t& buffer, buffer_type type, bu
     GL_CALL(glBindBuffer, gltype, last);
     GL_CALL(glDeleteBuffers, 1, &id);
     _buffer_pos(gltype) = last;
-    return CTX_BUFF_STATUS_ALLOC_FAILED;
+    return render_error::buff_alloc_failure;
   }
   _buffer_pos(gltype) = id;
 
@@ -66,7 +66,7 @@ ctx_buff_status gl_state::create_buffer(glbuffer_t& buffer, buffer_type type, bu
   buffer.flags = glflags;
   buffer.mapping = access_flags;
 
-  return CTX_BUFF_STATUS_OK;
+  return render_error::no_error;
 }
 
 void gl_state::destroy_buffer(glbuffer_t& buffer) {
@@ -90,7 +90,7 @@ bool gl_state::buffer_bind(GLuint id, GLenum type) {
   return true;
 }
 
-ctx_buff_status gl_state::buffer_upload(glbuffer_t& buffer, size_t size,
+ctx_status gl_state::buffer_upload(glbuffer_t& buffer, size_t size,
                                         size_t offset, const void* data)
 {
   NTF_ASSERT(buffer.flags & GL_DYNAMIC_STORAGE_BIT);
@@ -98,10 +98,10 @@ ctx_buff_status gl_state::buffer_upload(glbuffer_t& buffer, size_t size,
 
   buffer_bind(buffer.id, buffer.type);
   GL_CALL(glBufferSubData, buffer.type, offset, size, data);
-  return CTX_BUFF_STATUS_OK;
+  return render_error::no_error;
 }
 
-ctx_buff_status gl_state::buffer_map(glbuffer_t& buffer, void** ptr, size_t size, size_t offset) {
+ctx_status gl_state::buffer_map(glbuffer_t& buffer, void** ptr, size_t size, size_t offset) {
   NTF_ASSERT(ptr);
   NTF_ASSERT(offset+size <= buffer.size);
   NTF_ASSERT(buffer.mapping != 0);
@@ -109,7 +109,7 @@ ctx_buff_status gl_state::buffer_map(glbuffer_t& buffer, void** ptr, size_t size
   buffer_bind(buffer.id, buffer.type);
   void* ptr_ret = GL_CALL_RET(glMapBufferRange, buffer.type, offset, size, buffer.mapping);
   *ptr = ptr_ret;
-  return CTX_BUFF_STATUS_OK;
+  return render_error::no_error;
 }
 
 void gl_state::buffer_unmap(glbuffer_t& buffer, void*) {
@@ -117,12 +117,12 @@ void gl_state::buffer_unmap(glbuffer_t& buffer, void*) {
   GL_CALL(glUnmapBuffer, buffer.type);
 }
 
-ctx_buff_status gl_context::create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) {
+ctx_status gl_context::create_buffer(ctx_buff& buff, const ctx_buff_desc& desc) {
   ctx_buff handle = _buffers.acquire();
   NTF_ASSERT(check_handle(handle));
   auto& buffer = _buffers.get(handle);
   const auto status = _state.create_buffer(buffer, desc.type, desc.flags, desc.size, desc.data);
-  if (status != CTX_BUFF_STATUS_OK) {
+  if (status != render_error::no_error) {
     _buffers.push(handle);
     return status;
   }
@@ -132,39 +132,39 @@ ctx_buff_status gl_context::create_buffer(ctx_buff& buff, const ctx_buff_desc& d
   return status;
 }
 
-ctx_buff_status gl_context::destroy_buffer(ctx_buff buff) noexcept {
+ctx_status gl_context::destroy_buffer(ctx_buff buff) noexcept {
   if (!_buffers.validate(buff)) {
-    return CTX_BUFF_STATUS_INVALID_HANDLE;
+    return render_error::invalid_handle;
   }
   auto& buffer = _buffers.get(buff);
   _state.destroy_buffer(buffer);
   _buffers.push(buff);
-  return CTX_BUFF_STATUS_OK;
+  return render_error::no_error;
 }
 
-ctx_buff_status gl_context::update_buffer(ctx_buff buff, const buffer_data& data) {
+ctx_status gl_context::update_buffer(ctx_buff buff, const buffer_data& data) {
   if (!_buffers.validate(buff)) {
-    return CTX_BUFF_STATUS_INVALID_HANDLE;
+    return render_error::invalid_handle;
   }
   auto& buffer = _buffers.get(buff);
   return _state.buffer_upload(buffer, data.size, data.offset, data.data);
 }
 
-ctx_buff_status gl_context::map_buffer(ctx_buff buff, void** ptr, size_t size, size_t offset) {
+ctx_status gl_context::map_buffer(ctx_buff buff, void** ptr, size_t size, size_t offset) {
   if (!_buffers.validate(buff)) {
-    return CTX_BUFF_STATUS_INVALID_HANDLE;
+    return render_error::invalid_handle;
   }
   auto& buffer = _buffers.get(buff);
   return _state.buffer_map(buffer, ptr, size, offset);
 }
 
-ctx_buff_status gl_context::unmap_buffer(ctx_buff buff, void* ptr) noexcept {
+ctx_status gl_context::unmap_buffer(ctx_buff buff, void* ptr) noexcept {
   if (!_buffers.validate(buff) || !ptr) {
-    return CTX_BUFF_STATUS_INVALID_HANDLE;
+    return render_error::invalid_handle;
   }
   auto& buffer = _buffers.get(buff);
   _state.buffer_unmap(buffer, ptr);
-  return CTX_BUFF_STATUS_OK;
+  return render_error::no_error;
 }
 
 } // namespace shogle

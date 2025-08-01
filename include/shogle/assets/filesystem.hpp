@@ -41,7 +41,7 @@ template<typename Alloc = std::allocator<uint8>>
 requires(ntf::meta::allocator_type<std::remove_cvref_t<Alloc>, uint8>)
 auto file_data(
   const std::string& path, Alloc&& alloc = {}
-) noexcept -> asset_expected<
+) noexcept -> asset_expect<
   ntf::unique_array<uint8, ntf::allocator_delete<uint8, std::remove_cvref_t<Alloc>>>
 > {
   stdfs::path in{path};

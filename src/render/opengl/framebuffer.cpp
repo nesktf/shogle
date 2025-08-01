@@ -14,7 +14,7 @@ GLenum gl_state::fbo_attachment_cast(fbo_buffer att) noexcept {
   return 0;
 }
 
-ctx_fbo_status gl_state::create_framebuffer(glfbo_t& fbo, extent2d extent,
+ctx_status gl_state::create_framebuffer(glfbo_t& fbo, extent2d extent,
                                             fbo_buffer buffers, span<const glfbo_att_t> attachments)
 {
   const uint32 w = extent.x;
@@ -72,7 +72,7 @@ ctx_fbo_status gl_state::create_framebuffer(glfbo_t& fbo, extent2d extent,
   fbo.extent.x = w;
   fbo.extent.y = h;
 
-  return CTX_FBO_STATUS_OK;
+  return render_error::no_error;
 }
 
 void gl_state::destroy_framebuffer(glfbo_t& fbo) {
@@ -145,7 +145,7 @@ void gl_state::framebuffer_prepare_state(GLuint fb, clear_flag flags,
   GL_CALL(glClear, clear_bit_cast(flags));
 }
 
-ctx_fbo_status gl_context::create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) {
+ctx_status gl_context::create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& desc) {
   NTF_ASSERT(!desc.attachments.empty());
   auto atts = _alloc.arena_span<glfbo_att_t>(desc.attachments.size());
   for (size_t i = 0u; const auto& att : desc.ctx_attachments) {
@@ -161,7 +161,7 @@ ctx_fbo_status gl_context::create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& 
   auto& framebuffer = _framebuffers.get(handle);
   const auto status = _state.create_framebuffer(framebuffer, desc.extent,
                                                 desc.test_buffer, atts);
-  if (status != CTX_FBO_STATUS_OK) {
+  if (status != render_error::no_error) {
     _framebuffers.push(handle);
     return status;
   }
@@ -170,14 +170,14 @@ ctx_fbo_status gl_context::create_framebuffer(ctx_fbo& fbo, const ctx_fbo_desc& 
   return status;
 }
 
-ctx_fbo_status gl_context::destroy_framebuffer(ctx_fbo fbo) noexcept {
+ctx_status gl_context::destroy_framebuffer(ctx_fbo fbo) noexcept {
   if (!_framebuffers.validate(fbo)) {
-    return CTX_FBO_STATUS_INVALID_HANDLE;
+    return render_error::invalid_handle;
   }
   auto& framebuffer = _framebuffers.get(fbo);
   _state.destroy_framebuffer(framebuffer);
   _framebuffers.push(fbo);
-  return CTX_FBO_STATUS_OK;
+  return render_error::no_error;
 }
 
 void gl_context::get_dfbo_params(extent2d& ext, fbo_buffer& buff, u32& msaa) {

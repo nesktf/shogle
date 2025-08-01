@@ -1,5 +1,6 @@
 #pragma once
 
+#include <shogle/core.hpp>
 #include <shogle/math/vector.hpp>
 
 #if defined(SHOGLE_EXPOSE_GLFW) && SHOGLE_EXPOSE_GLFW
@@ -46,25 +47,6 @@ NTF_DECLARE_OPAQUE_HANDLE(uniform_t);
 
 using ctx_handle = uint64;
 constexpr ctx_handle CTX_HANDLE_TOMB = std::numeric_limits<ctx_handle>::max();
-
-template<typename T>
-using cstring_view = std::basic_string_view<T, std::char_traits<T>>;
-
-class render_error : public std::exception {
-public:
-  render_error(cstring_view<char> str) noexcept :
-    _str{str} {}
-
-public:
-  const char* what() const noexcept override { return _str.data(); }
-  cstring_view<char> msg() const { return _str; }
-
-private:
-  cstring_view<char> _str;
-};
-
-template<typename T>
-using expect = ::ntf::expected<T, render_error>;
 
 using color3 = vec3;
 using color4 = vec4;

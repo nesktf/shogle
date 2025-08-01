@@ -91,12 +91,12 @@ struct texture_desc {
   weak_ptr<const texture_data> data;
 };
 
-expect<texture_t> create_texture(context_t ctx, const texture_desc& desc);
+render_expect<texture_t> create_texture(context_t ctx, const texture_desc& desc);
 void destroy_texture(texture_t tex) noexcept;
 
-expect<void> texture_upload(texture_t tex, const texture_data& data);
-expect<void> texture_set_sampler(texture_t tex, texture_sampler sampler);
-expect<void> texture_set_addressing(texture_t tex, texture_addressing adressing);
+render_expect<void> texture_upload(texture_t tex, const texture_data& data);
+render_expect<void> texture_set_sampler(texture_t tex, texture_sampler sampler);
+render_expect<void> texture_set_addressing(texture_t tex, texture_addressing adressing);
 
 texture_type texture_get_type(texture_t tex);
 image_format texture_get_format(texture_t tex);
@@ -125,13 +125,13 @@ class rtexture_ops {
 public:
   operator texture_t() const noexcept(NTF_ASSERT_NOEXCEPT) { return _ptr(); }
 
-  expect<void> upload(const texture_data& data) const {
+  render_expect<void> upload(const texture_data& data) const {
     return ::shogle::texture_upload(_ptr(), data);
   }
-  expect<void> sampler(texture_sampler sampler) const {
+  render_expect<void> sampler(texture_sampler sampler) const {
     return ::shogle::texture_set_sampler(_ptr(), sampler);
   }
-  expect<void> addressing(texture_addressing addressing) const {
+  render_expect<void> addressing(texture_addressing addressing) const {
     return ::shogle::texture_set_addressing(_ptr(), addressing);
   }
 
@@ -234,7 +234,7 @@ public:
     impl::rtexture_owning<texture>{tex} {}
 
 public:
-  static expect<texture> create(context_view ctx, const texture_desc& desc) {
+  static render_expect<texture> create(context_view ctx, const texture_desc& desc) {
     return ::shogle::create_texture(ctx.get(), desc)
     .transform([](texture_t tex) -> texture {
       return texture{tex};
@@ -293,7 +293,7 @@ private:
     impl::rtexture_owning<typed_texture<tex_enum>>{tex} {}
 
 public:
-  static expect<typed_texture> create(context_view ctx, const typed_texture_desc& desc) {
+  static render_expect<typed_texture> create(context_view ctx, const typed_texture_desc& desc) {
     return ::shogle::create_texture(ctx.get(), {
       .type = tex_enum,
       .format = desc.format,

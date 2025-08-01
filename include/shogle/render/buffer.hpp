@@ -46,12 +46,12 @@ struct buffer_desc {
   weak_ptr<const buffer_data> data;
 };
 
-expect<buffer_t> create_buffer(context_t ctx, const buffer_desc& desc);
+render_expect<buffer_t> create_buffer(context_t ctx, const buffer_desc& desc);
 void destroy_buffer(buffer_t buffer) noexcept;
 
-expect<void> buffer_upload(buffer_t buffer, const buffer_data& data);
-expect<void> buffer_upload(buffer_t buffer, size_t size, size_t offset, const void* data);
-expect<void*> buffer_map(buffer_t buffer, size_t size, size_t offset);
+render_expect<void> buffer_upload(buffer_t buffer, const buffer_data& data);
+render_expect<void> buffer_upload(buffer_t buffer, size_t size, size_t offset, const void* data);
+render_expect<void*> buffer_map(buffer_t buffer, size_t size, size_t offset);
 void buffer_unmap(buffer_t buffer, void* mapped);
 
 buffer_type buffer_get_type(buffer_t buffer);
@@ -74,17 +74,17 @@ public:
 
   template<typename T>
   requires(std::is_trivially_copyable_v<T>)
-  expect<void> upload(const T& data, size_t offset = 0u) const {
+  render_expect<void> upload(const T& data, size_t offset = 0u) const {
     return ::shogle::buffer_upload(_ptr(), sizeof(T), offset, std::addressof(data));
   }
 
-  expect<void> upload(const buffer_data& data) const {
+  render_expect<void> upload(const buffer_data& data) const {
     return ::shogle::buffer_upload(_ptr(), data);
   }
-  expect<void> upload(size_t size, size_t offset, const void* data) const {
+  render_expect<void> upload(size_t size, size_t offset, const void* data) const {
     return ::shogle::buffer_upload(_ptr(), size, offset, data);
   }
-  expect<void*> map(size_t size, size_t offset) const {
+  render_expect<void*> map(size_t size, size_t offset) const {
     return ::shogle::buffer_map(_ptr(), size, offset);
   }
   void unmap(void* mapped) const {
@@ -166,7 +166,7 @@ public:
     impl::rbuffer_owning<buffer>{buff} {}
 
 public:
-  static expect<buffer> create(context_view ctx, const buffer_desc& desc) {
+  static render_expect<buffer> create(context_view ctx, const buffer_desc& desc) {
     return ::shogle::create_buffer(ctx.get(), desc)
     .transform([](buffer_t buff) -> buffer {
       buffer d{buff};
@@ -175,7 +175,7 @@ public:
   }
 
   template<typename U, size_t N>
-  static expect<buffer> create(context_view ctx, U (&arr)[N],
+  static render_expect<buffer> create(context_view ctx, U (&arr)[N],
                                buffer_flag flags, buffer_type type, size_t offset = 0u) {
     const buffer_data data {
       .data = std::addressof(arr),
@@ -242,7 +242,7 @@ private:
     impl::rbuffer_owning<typed_buffer<buff_enum>>{buff} {}
 
 public:
-  static expect<typed_buffer> create(context_view ctx, const typed_buffer_desc& desc) {
+  static render_expect<typed_buffer> create(context_view ctx, const typed_buffer_desc& desc) {
     return create_buffer(ctx.get(), {
       .type = buff_enum,
       .flags = desc.flags,
@@ -255,7 +255,7 @@ public:
   }
 
   template<typename U, size_t N>
-  static expect<typed_buffer> create(context_view ctx, U (&arr)[N], buffer_flag flags,
+  static render_expect<typed_buffer> create(context_view ctx, U (&arr)[N], buffer_flag flags,
                                      size_t offset = 0u) {
     const buffer_data data {
       .data = std::addressof(arr),

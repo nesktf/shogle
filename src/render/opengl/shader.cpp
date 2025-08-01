@@ -15,7 +15,7 @@ GLenum gl_state::shader_type_cast(shader_type type) noexcept {
   NTF_UNREACHABLE();
 }
 
-ctx_shad_status gl_state::create_shader(glshader_t& shader, shader_type type,
+ctx_status gl_state::create_shader(glshader_t& shader, shader_type type,
                                         std::string_view src, shad_err_str& err)
 {
   const GLenum gltype = shader_type_cast(type);
@@ -35,12 +35,12 @@ ctx_shad_status gl_state::create_shader(glshader_t& shader, shader_type type,
     GL_CALL(glGetShaderInfoLog, id, 1024, &err_len, span.data());
     GL_CALL(glDeleteShader, id);
     err = {span.data(), span.size()};
-    return CTX_SHAD_STATUS_COMPILATION_FAILED;
+    return render_error::pip_compilation_failure;
   }
 
   shader.id = id;
   shader.type = gltype;
-  return CTX_SHAD_STATUS_OK;
+  return render_error::no_error;
 }
 
 void gl_state::destroy_shader(glshader_t& shader) {
@@ -48,14 +48,14 @@ void gl_state::destroy_shader(glshader_t& shader) {
   GL_CALL(glDeleteShader, shader.id);
 }
 
-ctx_shad_status gl_context::create_shader(ctx_shad& shad, shad_err_str& err,
+ctx_status gl_context::create_shader(ctx_shad& shad, shad_err_str& err,
                                           const ctx_shad_desc& desc) {
   ctx_shad handle = _shaders.acquire();
   NTF_ASSERT(check_handle(handle));
   auto& shader = _shaders.get(handle);
   shader.id = 0;
   const auto status = _state.create_shader(shader, desc.type, desc.source, err);
-  if (status != CTX_SHAD_STATUS_OK) {
+  if (status != render_error::no_error) {
     _shaders.push(handle);
     return status;
   }
@@ -64,14 +64,14 @@ ctx_shad_status gl_context::create_shader(ctx_shad& shad, shad_err_str& err,
   return status;
 }
 
-ctx_shad_status gl_context::destroy_shader(ctx_shad shad) noexcept {
+ctx_status gl_context::destroy_shader(ctx_shad shad) noexcept {
   if (!_shaders.validate(shad)) {
-    return CTX_SHAD_STATUS_INVALID_HANDLE;
+    return render_error::invalid_handle;
   }
   auto& shader = _shaders.get(shad);
   _state.destroy_shader(shader);
   _shaders.push(shad);
-  return CTX_SHAD_STATUS_OK;
+  return render_error::no_error;
 }
 
 } // namespace shogle

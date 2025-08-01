@@ -4,11 +4,6 @@
 
 namespace shogle {
 
-using win_error = render_error;
-
-template<typename T>
-using win_expect = ::ntf::expected<T, win_error>;
-
 enum class win_attrib {
   none = 0,
   decorate   = 1 << 1,

@@ -19,12 +19,12 @@ public:
 struct uniform_t_ {
 public:
   uniform_t_(pipeline_t pip_, ctx_unif handle_,
-             ctx_alloc::string_t<char> name_, attribute_type type_, size_t size_) noexcept;
+             ctx_alloc::string_t name_, attribute_type type_, size_t size_) noexcept;
 
 public:
   pipeline_t pip;
   ctx_unif handle;
-  ctx_alloc::string_t<char> name;
+  ctx_alloc::string_t name;
   attribute_type type;
   size_t size;
 };

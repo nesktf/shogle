@@ -167,7 +167,7 @@ concept checked_atlas_loader_type = requires(Loader loader,
                                              const std::string& path,
                                              atlas_load_flags flags,
                                              typename Loader::data_t& data) {
-  { loader.parse(path, flags) } -> std::same_as<asset_expected<typename Loader::data_t>>;
+  { loader.parse(path, flags) } -> std::same_as<asset_expect<typename Loader::data_t>>;
   { loader.image_path(data) } -> std::same_as<std::string>;
   { loader.sprites(data) } -> std::same_as<sprite_atlas_data::template array_type<sprite_data>>;
 };
@@ -216,9 +216,9 @@ auto load_atlas(
   const std::string& path,
   atlas_load_flags flags,
   Loader&& loader
-) -> std::conditional_t<checked, asset_expected<sprite_atlas_data>, sprite_atlas_data> {
+) -> std::conditional_t<checked, asset_expect<sprite_atlas_data>, sprite_atlas_data> {
   using atlas_data_t = sprite_atlas_data;
-  using ret_t = std::conditional_t<checked, asset_expected<atlas_data_t>, atlas_data_t>;
+  using ret_t = std::conditional_t<checked, asset_expect<atlas_data_t>, atlas_data_t>;
 
   // TODO: Maybe rewrite this unholy mess, somehow
   auto parse_ret_data = [&](auto&& data) -> ret_t {
@@ -303,7 +303,7 @@ auto load_atlas(
   };
 
   if constexpr (checked) {
-    return asset_expected<atlas_data_t>::catch_error([&]() -> asset_expected<atlas_data_t> {
+    return asset_expect<atlas_data_t>::catch_error([&]() -> asset_expect<atlas_data_t> {
       if constexpr (checked_atlas_loader_type<Loader>) {
         return loader.parse(path, flags).and_then(parse_ret_data);
       } else {
@@ -338,7 +338,7 @@ public:
   grid_atlas_loader() = default;
 
 public:
-  asset_expected<data_t> parse(const std::string& path, atlas_load_flags flags);
+  asset_expect<data_t> parse(const std::string& path, atlas_load_flags flags);
   data_t parse(ntf::unchecked_t, const std::string& path, atlas_load_flags flags);
 
 public:
@@ -354,7 +354,7 @@ static_assert(atlas_loader_with_sequences<grid_atlas_loader>);
 static_assert(atlas_loader_with_groups<grid_atlas_loader>);
 
 template<atlas_loader_type Loader = grid_atlas_loader>
-asset_expected<sprite_atlas_data> load_atlas(
+asset_expect<sprite_atlas_data> load_atlas(
   const std::string& path,
   atlas_load_flags flags = atlas_load_flags::none,
   Loader&& loader = {}
