@@ -173,8 +173,8 @@ auto ft2_font_loader::_parse_metrics(
 {
   auto&& [face, map, set] = std::move(tuple);
 
-  ntf::virtual_allocator<glyph_metrics> metrics_alloc{std::in_place_type_t<ntf::malloc_pool>{}};
-  ntf::virtual_allocator<std::pair<const char32_t, size_t>> map_alloc{std::in_place_type_t<ntf::malloc_pool>{}};
+  ntf::virtual_inplace_alloc<glyph_metrics> metrics_alloc{std::in_place_type_t<ntf::malloc_pool>{}};
+  ntf::virtual_inplace_alloc<std::pair<const char32_t, size_t>> map_alloc{std::in_place_type_t<ntf::malloc_pool>{}};
 
   auto parsed_glyphs = font_glyphs::from_size(::ntf::uninitialized,
                                               set.size(),
@@ -211,7 +211,7 @@ font_atlas_data ft2_font_loader::_load_bitmap(
                                            glyphs.get(), glyphs.size());
   extent2d bitmap_extent{atlas_extent, atlas_extent};
   const size_t bitmap_sz = image_stride<uint8>(bitmap_extent);
-  ntf::virtual_allocator<uint8> bitmap_alloc{std::in_place_type_t<ntf::malloc_pool>{}};
+  ntf::virtual_inplace_alloc<uint8> bitmap_alloc{std::in_place_type_t<ntf::malloc_pool>{}};
   auto* bitmap = bitmap_alloc.allocate(bitmap_sz);
   std::memset(bitmap, 0, bitmap_sz);
 
@@ -252,7 +252,7 @@ font_atlas_data ft2_font_loader::_load_bitmap(
              "Loaded font atlas: {} glyphs, {} mappings, {}x{} bitmap",
              glyphs.size(), map.size(), bitmap_extent.x, bitmap_extent.y);
 
-  using del_t = ntf::allocator_delete<uint8, ntf::virtual_allocator<uint8>>;
+  using del_t = ntf::allocator_delete<uint8, ntf::virtual_inplace_alloc<uint8>>;
   return font_atlas_data {
     bitmap_t{bitmap_sz, bitmap, del_t{std::move(bitmap_alloc)}},
     bitmap_extent, image_format::r8u, 1u,

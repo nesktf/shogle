@@ -228,7 +228,8 @@ void submit_external_command(context_t ctx, const external_cmd& cmd) {
   auto& tcmd = target->cmds.back();
 
   if (cmd.state) {
-    tcmd.external = *cmd.state;
+    tcmd.external.emplace(*cmd.state);
+    // tcmd.external = *cmd.state;
   }
   tcmd.sort_group = cmd.sort_group;
   tcmd.pip = CTX_HANDLE_TOMB; // for sorting, draw last

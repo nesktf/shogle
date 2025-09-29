@@ -9,7 +9,7 @@ namespace shogle {
 
 struct bitmap_data {
 public:
-  using texel_array = ntf::unique_array<uint8, ntf::allocator_delete<uint8, ntf::virtual_allocator<uint8>>>;
+  using texel_array = ntf::unique_array<uint8, ntf::allocator_delete<uint8, ntf::virtual_inplace_alloc<uint8>>>;
 
 public:
   bitmap_data(texel_array&& texels_, extent3d extent_,
@@ -52,7 +52,7 @@ public:
 
 struct cubemap_data {
 public:
-  using texel_array = ntf::unique_array<uint8, ntf::allocator_delete<uint8, ntf::virtual_allocator<uint8>>>;
+  using texel_array = ntf::unique_array<uint8, ntf::allocator_delete<uint8, ntf::virtual_inplace_alloc<uint8>>>;
 
 public:
   cubemap_data(std::array<texel_array, 6u>&& texels_, extent1d extent_,
@@ -106,7 +106,10 @@ private:
       NTF_UNUSED(size);
       stb_image_loader::_stbi_delete(mem);
     };
+
+    constexpr bool is_equal(const stbi_deleter&) const noexcept { return true; }
   };
+  static_assert(ntf::meta::allocator_pool_type<stbi_deleter>);
 
   enum image_format {
     STBI_FORMAT_U8 = 0,
@@ -152,10 +155,10 @@ public:
 
       const size_t arr_sz = image.channels*image.height*image.width*sizeof(DepthT);
 
-      ntf::virtual_allocator<uint8> stbi_alloc{std::in_place_type_t<stbi_deleter>{}};
+      ntf::virtual_inplace_alloc<uint8> stbi_alloc{std::in_place_type_t<stbi_deleter>{}};
       return bitmap_data{
         bitmap_data::texel_array{arr_sz, image.data,
-          ntf::allocator_delete<uint8, ntf::virtual_allocator<uint8>>{std::move(stbi_alloc)}
+          ntf::allocator_delete<uint8, ntf::virtual_inplace_alloc<uint8>>{std::move(stbi_alloc)}
         },
         extent2d{image.width, image.height}, *format, 4u // alignment = 4 bytes
       };

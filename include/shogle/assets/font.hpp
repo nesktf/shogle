@@ -30,19 +30,19 @@ struct glyph_metrics {
 };
 
 using font_glyphs =
-  ntf::unique_array<glyph_metrics, ntf::allocator_delete<glyph_metrics, ntf::virtual_allocator<glyph_metrics>>>;
+  ntf::unique_array<glyph_metrics, ntf::allocator_delete<glyph_metrics, ntf::virtual_inplace_alloc<glyph_metrics>>>;
 
 using glyph_map = ntf::fixed_hashmap<
   char32_t, size_t,
   std::hash<char32_t>, std::equal_to<char32_t>,
   ntf::allocator_delete<std::pair<const char32_t, size_t>,
-    ntf::virtual_allocator<std::pair<const char32_t, size_t>>
+    ntf::virtual_inplace_alloc<std::pair<const char32_t, size_t>>
   >
 >;
 
 struct font_atlas_data {
 public:
-  using bitmap_t = ntf::unique_array<uint8, ntf::allocator_delete<uint8, ntf::virtual_allocator<uint8>>>;
+  using bitmap_t = ntf::unique_array<uint8, ntf::allocator_delete<uint8, ntf::virtual_inplace_alloc<uint8>>>;
 
 public:
   using iterator = font_glyphs::iterator;
