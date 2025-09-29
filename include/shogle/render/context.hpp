@@ -1,6 +1,7 @@
 #pragma once
 
 #include <shogle/render/types.hpp>
+#include <memory>
 
 namespace shogle {
 
