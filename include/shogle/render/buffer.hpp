@@ -13,11 +13,11 @@ enum class buffer_type : u8 {
 };
 
 enum class buffer_flag : u8 {
-  none              = 0,
-  dynamic_storage   = 1 << 0,
-  read_mappable     = 1 << 1,
-  write_mappable    = 1 << 2,
-  rw_mappable       = (1<<1) | (1<<2),
+  none = 0,
+  dynamic_storage = 1 << 0,
+  read_mappable = 1 << 1,
+  write_mappable = 1 << 2,
+  rw_mappable = (1 << 1) | (1 << 2),
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(buffer_flag);
 
@@ -81,40 +81,36 @@ public:
   render_expect<void> upload(const buffer_data& data) const {
     return ::shogle::buffer_upload(_ptr(), data);
   }
+
   render_expect<void> upload(size_t size, size_t offset, const void* data) const {
     return ::shogle::buffer_upload(_ptr(), size, offset, data);
   }
+
   render_expect<void*> map(size_t size, size_t offset) const {
     return ::shogle::buffer_map(_ptr(), size, offset);
   }
-  void unmap(void* mapped) const {
-    ::shogle::buffer_unmap(_ptr(), mapped);
-  }
 
-  context_t context() const {
-    return {::shogle::buffer_get_ctx(_ptr())};
-  }
-  buffer_type type() const {
-    return ::shogle::buffer_get_type(_ptr());
-  }
-  size_t size() const {
-    return ::shogle::buffer_get_size(_ptr());
-  }
-  ctx_handle id() const {
-    return ::shogle::buffer_get_id(_ptr());
-  }
+  void unmap(void* mapped) const { ::shogle::buffer_unmap(_ptr(), mapped); }
+
+  context_t context() const { return {::shogle::buffer_get_ctx(_ptr())}; }
+
+  buffer_type type() const { return ::shogle::buffer_get_type(_ptr()); }
+
+  size_t size() const { return ::shogle::buffer_get_size(_ptr()); }
+
+  ctx_handle id() const { return ::shogle::buffer_get_id(_ptr()); }
 };
 
 template<typename Derived>
 class rbuffer_view : public rbuffer_ops<Derived> {
 protected:
-  rbuffer_view(buffer_t buff) noexcept :
-    _buff{buff} {}
+  rbuffer_view(buffer_t buff) noexcept : _buff{buff} {}
 
 public:
   buffer_t get() const noexcept { return _buff; }
 
   bool empty() const noexcept { return _buff == nullptr; }
+
   explicit operator bool() const noexcept { return !empty(); }
 
 private:
@@ -125,21 +121,21 @@ template<typename Derived>
 class rbuffer_owning : public rbuffer_ops<Derived> {
 private:
   struct deleter_t {
-    void operator()(buffer_t buff) noexcept {
-      ::shogle::destroy_buffer(buff);
-    }
+    void operator()(buffer_t buff) noexcept { ::shogle::destroy_buffer(buff); }
   };
+
   using uptr_type = std::unique_ptr<std::remove_pointer_t<buffer_t>, deleter_t>;
 
 protected:
-  rbuffer_owning(buffer_t buff) noexcept :
-    _buff{buff} {}
+  rbuffer_owning(buffer_t buff) noexcept : _buff{buff} {}
 
 public:
   buffer_t get() const noexcept { return _buff.get(); }
+
   [[nodiscard]] buffer_t release() noexcept { return _buff.release(); }
 
   bool empty() const noexcept { return _buff.get() == nullptr; }
+
   explicit operator bool() const noexcept { return !empty(); }
 
 private:
@@ -150,44 +146,38 @@ private:
 
 class buffer_view : public impl::rbuffer_view<buffer_view> {
 public:
-  buffer_view() noexcept :
-    impl::rbuffer_view<buffer_view>{nullptr} {}
+  buffer_view() noexcept : impl::rbuffer_view<buffer_view>{nullptr} {}
 
-  buffer_view(buffer_t buff) noexcept :
-    impl::rbuffer_view<buffer_view>{buff} {}
+  buffer_view(buffer_t buff) noexcept : impl::rbuffer_view<buffer_view>{buff} {}
 };
 
 class buffer : public impl::rbuffer_owning<buffer> {
 public:
-  buffer() noexcept :
-    impl::rbuffer_owning<buffer>{nullptr} {}
+  buffer() noexcept : impl::rbuffer_owning<buffer>{nullptr} {}
 
-  explicit buffer(buffer_t buff) noexcept :
-    impl::rbuffer_owning<buffer>{buff} {}
+  explicit buffer(buffer_t buff) noexcept : impl::rbuffer_owning<buffer>{buff} {}
 
 public:
   static render_expect<buffer> create(context_view ctx, const buffer_desc& desc) {
-    return ::shogle::create_buffer(ctx.get(), desc)
-    .transform([](buffer_t buff) -> buffer {
-      buffer d{buff};
+    return ::shogle::create_buffer(ctx.get(), desc).transform([](buffer_t buff) -> buffer {
       return buffer{buff};
     });
   }
 
   template<typename U, size_t N>
-  static render_expect<buffer> create(context_view ctx, U (&arr)[N],
-                               buffer_flag flags, buffer_type type, size_t offset = 0u) {
-    const buffer_data data {
+  static render_expect<buffer> create(context_view ctx, U (&arr)[N], buffer_flag flags,
+                                      buffer_type type, size_t offset = 0u) {
+    const buffer_data data{
       .data = std::addressof(arr),
       .size = sizeof(arr),
       .offset = offset,
     };
     return create(ctx, {
-      .type = type,
-      .flags = flags,
-      .size = sizeof(arr),
-      .data = data,
-    });
+                         .type = type,
+                         .flags = flags,
+                         .size = sizeof(arr),
+                         .data = data,
+                       });
   }
 
 public:
@@ -207,12 +197,11 @@ public:
   friend typed_buffer_view<_buff_enum> to_typed(buffer_view buff) noexcept;
 
 public:
-  typed_buffer_view() noexcept :
-    impl::rbuffer_view<typed_buffer_view<buff_enum>>{nullptr} {}
+  typed_buffer_view() noexcept : impl::rbuffer_view<typed_buffer_view<buff_enum>>{nullptr} {}
 
 private:
   typed_buffer_view(buffer_t buff) noexcept :
-    impl::rbuffer_view<typed_buffer_view<buff_enum>>{buff} {}
+      impl::rbuffer_view<typed_buffer_view<buff_enum>>{buff} {}
 
 public:
   operator buffer_view() const noexcept { return {this->get()}; }
@@ -234,50 +223,48 @@ public:
   friend typed_buffer<_buff_enum> to_typed(buffer&& buff) noexcept;
 
 public:
-  typed_buffer() noexcept :
-    impl::rbuffer_owning<typed_buffer<buff_enum>>{nullptr} {}
+  typed_buffer() noexcept : impl::rbuffer_owning<typed_buffer<buff_enum>>{nullptr} {}
 
 private:
-  typed_buffer(buffer_t buff) noexcept :
-    impl::rbuffer_owning<typed_buffer<buff_enum>>{buff} {}
+  typed_buffer(buffer_t buff) noexcept : impl::rbuffer_owning<typed_buffer<buff_enum>>{buff} {}
 
 public:
   static render_expect<typed_buffer> create(context_view ctx, const typed_buffer_desc& desc) {
-    return create_buffer(ctx.get(), {
-      .type = buff_enum,
-      .flags = desc.flags,
-      .size = desc.size,
-      .data = desc.data,
-    })
-    .transform([](buffer_t buff) -> typed_buffer {
-      return typed_buffer{buff};
-    });
+    return create_buffer(ctx.get(),
+                         {
+                           .type = buff_enum,
+                           .flags = desc.flags,
+                           .size = desc.size,
+                           .data = desc.data,
+                         })
+      .transform([](buffer_t buff) -> typed_buffer { return typed_buffer{buff}; });
   }
 
   template<typename U, size_t N>
   static render_expect<typed_buffer> create(context_view ctx, U (&arr)[N], buffer_flag flags,
-                                     size_t offset = 0u) {
-    const buffer_data data {
+                                            size_t offset = 0u) {
+    const buffer_data data{
       .data = std::addressof(arr),
       .size = sizeof(arr),
       .offset = offset,
     };
     return create(ctx, {
-      .flags = flags,
-      .size = sizeof(arr),
-      .data = data,
-    });
+                         .flags = flags,
+                         .size = sizeof(arr),
+                         .data = data,
+                       });
   }
 
 public:
   operator buffer_view() const noexcept { return {this->get()}; }
+
   operator typed_buffer_view<buff_enum>() const noexcept { return {this->get()}; }
 };
 
 template<buffer_type buff_enum>
 typed_buffer<buff_enum> to_typed(buffer&& buff) noexcept {
   buffer_t ptr = nullptr;
-  if (buff.type() == buff_enum){
+  if (buff.type() == buff_enum) {
     ptr = buff.release();
   }
   return typed_buffer<buff_enum>{ptr};
