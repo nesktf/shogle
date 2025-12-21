@@ -1,11 +1,12 @@
 #pragma once
 
 #include <ntfstl/core.hpp>
-#include <ntfstl/ptr.hpp>
+#include <ntfstl/error.hpp>
 #include <ntfstl/expected.hpp>
-#include <ntfstl/optional.hpp>
 #include <ntfstl/function.hpp>
 #include <ntfstl/memory_pool.hpp>
+#include <ntfstl/optional.hpp>
+#include <ntfstl/ptr.hpp>
 
 namespace ntf::meta {
 
@@ -15,15 +16,16 @@ concept any_std_cont = requires(Cont a, const Cont b) {
   requires std::regular<Cont>;
   requires std::swappable<Cont>;
   requires std::destructible<typename Cont::value_type>;
-  requires std::same_as<typename Cont::reference, typename Cont::value_type &>;
-  requires std::same_as<typename Cont::const_reference, const typename Cont::value_type &>;
+  requires std::same_as<typename Cont::reference, typename Cont::value_type&>;
+  requires std::same_as<typename Cont::const_reference, const typename Cont::value_type&>;
   requires std::forward_iterator<typename Cont::iterator>;
   requires std::forward_iterator<typename Cont::const_iterator>;
   requires std::signed_integral<typename Cont::difference_type>;
-  requires std::same_as<typename Cont::difference_type, typename std::iterator_traits<typename
-                                                        Cont::iterator>::difference_type>;
-  requires std::same_as<typename Cont::difference_type, typename std::iterator_traits<typename
-                                                        Cont::const_iterator>::difference_type>;
+  requires std::same_as<typename Cont::difference_type,
+                        typename std::iterator_traits<typename Cont::iterator>::difference_type>;
+  requires std::same_as<
+    typename Cont::difference_type,
+    typename std::iterator_traits<typename Cont::const_iterator>::difference_type>;
   { a.begin() } -> std::same_as<typename Cont::iterator>;
   { a.end() } -> std::same_as<typename Cont::iterator>;
   { b.begin() } -> std::same_as<typename Cont::const_iterator>;
@@ -36,9 +38,8 @@ concept any_std_cont = requires(Cont a, const Cont b) {
 };
 
 template<typename Cont, typename T>
-concept std_cont = any_std_cont<Cont> && requires() {
-  requires std::same_as<typename Cont::value_type, T>;
-};
+concept std_cont =
+  any_std_cont<Cont> && requires() { requires std::same_as<typename Cont::value_type, T>; };
 
 template<typename Cont, typename T, typename... Args>
 concept grow_emplace_cont = std_cont<Cont, T> && requires(Cont c, T obj, Args&&... args) {
@@ -95,24 +96,24 @@ public:
   };
 
 public:
-  render_error() noexcept :
-    _msg{}, _code{no_error} {}
+  render_error() noexcept : _msg{}, _code{no_error} {}
 
-  render_error(code_t code) noexcept :
-    _msg{}, _code{code} {}
+  render_error(code_t code) noexcept : _msg{}, _code{code} {}
 
-  render_error(code_t code, string_view msg) noexcept :
-    _msg{msg}, _code{code} {}
+  render_error(code_t code, string_view msg) noexcept : _msg{msg}, _code{code} {}
 
 public:
   static const char* error_string(code_t ret);
 
 public:
   code_t code() const { return _code; }
+
   string_view code_str() const { return error_string(_code); }
+
   const char* what() const noexcept override { return error_string(_code); }
 
   string_view msg() const { return _msg; }
+
   bool has_msg() const { return !_msg.empty(); }
 
 private:
@@ -132,24 +133,24 @@ public:
   };
 
 public:
-  win_error() noexcept :
-    _msg{}, _code{no_error} {}
+  win_error() noexcept : _msg{}, _code{no_error} {}
 
-  win_error(code_t code) noexcept :
-    _msg{}, _code{code} {}
+  win_error(code_t code) noexcept : _msg{}, _code{code} {}
 
-  win_error(code_t code, string_view msg) noexcept :
-    _msg{msg}, _code{code} {}
+  win_error(code_t code, string_view msg) noexcept : _msg{msg}, _code{code} {}
 
 public:
   static const char* error_string(code_t ret);
 
 public:
   code_t code() const { return _code; }
+
   string_view code_str() const { return error_string(_code); }
+
   const char* what() const noexcept override { return error_string(_code); }
 
   string_view msg() const { return _msg; }
+
   bool has_msg() const { return !_msg.empty(); }
 
 private:

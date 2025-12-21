@@ -19,13 +19,16 @@ struct mesh_data {
     vec_span vertices;
 
     size_t vertex_count() const { return vertices.count; }
+
     size_t index_count() const { return indices.count; }
 
     bool has_indices() const { return indices.index != VSPAN_TOMBSTONE; }
+
     bool has_vertices() const { return vertices.index != VSPAN_TOMBSTONE; }
 
-    size_t vertices_size() const { return vertex_count()*sizeof(Vertex); }
-    size_t indices_size() const { return index_count()*sizeof(uint32); }
+    size_t vertices_size() const { return vertex_count() * sizeof(Vertex); }
+
+    size_t indices_size() const { return index_count() * sizeof(uint32); }
 
     Vertex* vertex_data(std::vector<Vertex>& verts) const {
       NTF_ASSERT(vertices.index < verts.size());
@@ -57,6 +60,7 @@ struct mesh_data {
   size_t vertex_count() const { return vertices.size(); }
 
   bool has_vertices() const { return !vertices.empty(); }
+
   bool has_indices() const { return !indices.empty(); }
 };
 
@@ -78,17 +82,24 @@ struct mesh_data<soa_vertices<num_weights>> {
 
     // Should always have at least one position per vertex
     size_t vertex_count() const { return positions.count; }
+
     size_t index_count() const { return indices.count; }
 
     bool has_indices() const { return indices.index != VSPAN_TOMBSTONE; }
+
     bool has_positions() const { return positions.index != VSPAN_TOMBSTONE; }
+
     bool has_normals() const { return normals.index != VSPAN_TOMBSTONE; }
+
     bool has_uvs() const { return uvs.index != VSPAN_TOMBSTONE; }
+
     bool has_tangents() const { return tangents.index != VSPAN_TOMBSTONE; }
+
     bool has_weights() const { return weights.index != VSPAN_TOMBSTONE; }
+
     bool has_colors() const { return colors.index != VSPAN_TOMBSTONE; }
 
-    size_t indices_size() const { return index_count()*sizeof(uint32); }
+    size_t indices_size() const { return index_count() * sizeof(uint32); }
   };
 
   std::vector<mesh> data;
@@ -96,13 +107,19 @@ struct mesh_data<soa_vertices<num_weights>> {
   std::vector<uint32> indices;
 
   size_t size() const { return data.size(); }
+
   size_t vertex_count() const { return vertices.positions.size(); }
 
   bool has_positions() const { return !vertices.positions.empty(); }
+
   bool has_normals() const { return !vertices.normals.empty(); }
+
   bool has_uvs() const { return !vertices.uvs.empty(); }
+
   bool has_tangents() const { return !vertices.tangents.empty(); }
+
   bool has_colors() const { return !vertices.colors.empty(); }
+
   bool has_weights() const { return !vertices.weights.empty(); }
 };
 
@@ -111,6 +128,7 @@ struct armature_data {
     std::string name;
     vec_span bones;
   };
+
   struct bone {
     std::string name;
     uint32 parent;
@@ -122,6 +140,7 @@ struct armature_data {
   std::vector<bone> bones;
 
   size_t size() const { return data.size(); }
+
   size_t bone_size() const { return bones.size(); }
 };
 
@@ -157,6 +176,7 @@ struct material_data {
     std::string name;
     vec_span textures;
   };
+
   struct texture_entry {
     r_material_type type;
     uint32 index;
@@ -177,15 +197,18 @@ struct model_data {
   mesh_data<Vertex> meshes;
 
   bool has_armatures() const { return armatures.size() != 0; }
+
   bool has_animations() const { return animations.size() != 0; }
+
   bool has_materials() const { return materials.size() != 0; }
+
   bool has_meshes() const { return meshes.size() != 0; }
 };
 
 enum class model_load_flags {
-  none          = 0,
-  triangulate   = 1 << 0,
-  flip_uvs      = 1 << 1,
+  none = 0,
+  triangulate = 1 << 0,
+  flip_uvs = 1 << 1,
   calc_tangents = 1 << 2,
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(model_load_flags);
@@ -193,44 +216,33 @@ NTF_DEFINE_ENUM_CLASS_FLAG_OPS(model_load_flags);
 namespace impl {
 
 template<typename T>
-concept model_loader_parse = requires(T loader,
-                                      const std::string& path,
-                                      model_load_flags flags) {
+concept model_loader_parse = requires(T loader, const std::string& path, model_load_flags flags) {
   { loader.parse(path, flags) } -> ntf::meta::same_as_any<void, asset_expect<void>>;
 };
 
 template<typename T>
-concept model_loader_guarded_parse = requires(T loader,
-                                              const std::string& path,
-                                              model_load_flags flags) {
-  { loader.parse(path, flags) } -> std::same_as<asset_expect<void>>;
-};
+concept model_loader_guarded_parse =
+  requires(T loader, const std::string& path, model_load_flags flags) {
+    { loader.parse(path, flags) } -> std::same_as<asset_expect<void>>;
+  };
 
 template<typename T, typename Vertex>
-concept model_loader_meshes = requires(T loader,
-                                       mesh_data<Vertex>& data
-) {
+concept model_loader_meshes = requires(T loader, mesh_data<Vertex>& data) {
   { loader.get_meshes(data) } -> std::same_as<void>;
 };
 
 template<typename T>
-concept model_loader_armatures = requires(T loader,
-                                          armature_data& data
-) {
+concept model_loader_armatures = requires(T loader, armature_data& data) {
   { loader.get_armatures(data) } -> std::same_as<void>;
 };
 
 template<typename T>
-concept model_loader_animations = requires(T loader,
-                                           animation_data& data
-) {
+concept model_loader_animations = requires(T loader, animation_data& data) {
   { loader.get_animations(data) } -> std::same_as<void>;
 };
 
 template<typename T>
-concept model_loader_materials = requires(T loader,
-                                          material_data& data
-) {
+concept model_loader_materials = requires(T loader, material_data& data) {
   { loader.get_materials(data) } -> std::same_as<void>;
 };
 
@@ -249,10 +261,8 @@ struct load_model_ret<Vertex, false> {
 };
 
 template<typename Vertex, model_loader<Vertex> Loader, bool checked>
-load_model_ret<Vertex, checked>::type load_model(const std::string& path,
-                                                 model_load_flags flags,
+load_model_ret<Vertex, checked>::type load_model(const std::string& path, model_load_flags flags,
                                                  Loader&& loader) {
-  using model_t = model_data<Vertex>;
   auto make_data = [&]() {
     // Assume everything else doesn't throw
     model_data<Vertex> model;
@@ -275,17 +285,15 @@ load_model_ret<Vertex, checked>::type load_model(const std::string& path,
   };
 
   if constexpr (checked) {
-    return asset_expect<model_t>::catch_error([&]() -> asset_expect<model_t> {
-      if constexpr (model_loader_guarded_parse<Loader>) {
-        auto ret = loader.parse(path, flags);
-        if (!ret) {
-          return ntf::unexpected{std::move(ret.error())};
-        }
-      } else {
-        loader.parse(path, flags);
+    if constexpr (model_loader_guarded_parse<Loader>) {
+      auto ret = loader.parse(path, flags);
+      if (!ret) {
+        return ntf::unexpected{std::move(ret.error())};
       }
-      return make_data();
-    });
+    } else {
+      loader.parse(path, flags);
+    }
+    return make_data();
   } else {
     if constexpr (model_loader_guarded_parse<Loader>) {
       auto ret = loader.parse(path, flags);
@@ -314,7 +322,7 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
     {
       uint32 count = 0;
       mesh.positions.for_each(in_verts.positions, [&](const vec3& pos) {
-        out_verts[offset+count].set_position(pos);
+        out_verts[offset + count].set_position(pos);
         ++count;
       });
     }
@@ -324,13 +332,13 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
         uint32 count = 0;
         NTF_ASSERT(mesh.normals.count == mesh_verts);
         mesh.normals.for_each(in_verts.normals, [&](const vec3& norm) {
-          out_verts[offset+count].set_normal(norm);
+          out_verts[offset + count].set_normal(norm);
           ++count;
         });
       } else {
         const vec3 def{0.f, 0.f, 0.f};
-        for (uint32 count = 0; count < mesh_verts; ++count) { 
-          out_verts[offset+count].set_normal(def);
+        for (uint32 count = 0; count < mesh_verts; ++count) {
+          out_verts[offset + count].set_normal(def);
         }
       }
     }
@@ -340,13 +348,13 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
         uint32 count = 0;
         NTF_ASSERT(mesh.uvs.count == mesh_verts);
         mesh.uvs.for_each(in_verts.uvs, [&](const vec2& uv) {
-          out_verts[offset+count].set_uv(uv);
+          out_verts[offset + count].set_uv(uv);
           ++count;
         });
       } else {
         const vec2 def{0.f, 0.f};
-        for (uint32 count = 0; count < mesh_verts; ++count) { 
-          out_verts[offset+count].set_uv(def);
+        for (uint32 count = 0; count < mesh_verts; ++count) {
+          out_verts[offset + count].set_uv(def);
         }
       }
     }
@@ -356,19 +364,19 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
         uint32 count = 0;
         NTF_ASSERT(mesh.tangents.count == mesh_verts);
         mesh.tangents.for_each(in_verts.tangents, [&](const vec3& tang) {
-          out_verts[offset+count].set_tangent(tang);
+          out_verts[offset + count].set_tangent(tang);
           ++count;
         });
         count = 0;
         mesh.bitangents.for_each(in_verts.bitangents, [&](const vec3& bitang) {
-          out_verts[offset+count].set_bitangent(bitang);
+          out_verts[offset + count].set_bitangent(bitang);
           ++count;
         });
       } else {
         const vec3 def{0.f, 0.f, 0.f};
-        for (uint32 count = 0; count < mesh_verts; ++count) { 
-          out_verts[offset+count].set_tangent(def);
-          out_verts[offset+count].set_bitangent(def);
+        for (uint32 count = 0; count < mesh_verts; ++count) {
+          out_verts[offset + count].set_tangent(def);
+          out_verts[offset + count].set_bitangent(def);
         }
       }
     }
@@ -378,14 +386,14 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
         uint32 count = 0;
         NTF_ASSERT(mesh.colors.count == mesh_verts);
         mesh.colors.for_each(in_verts.colors, [&](const color4& col) {
-          out_verts[offset+count].set_color(col);
+          out_verts[offset + count].set_color(col);
           ++count;
         });
 
       } else {
         const color4 def{0.f, 0.f, 0.f, 0.f};
-        for (uint32 count = 0; count < mesh_verts; ++count) { 
-          out_verts[offset+count].set_color(def);
+        for (uint32 count = 0; count < mesh_verts; ++count) {
+          out_verts[offset + count].set_color(def);
         }
       }
     }
@@ -394,22 +402,19 @@ mesh_data<Vertex> soa_to_aos(const mesh_data<soa_vertices<num_weights>>& data) {
       if (mesh.has_weights()) {
         uint32 count = 0;
         NTF_ASSERT(mesh.weights.count == mesh_verts);
-        mesh.weights.for_each(in_verts.weights,
-                              [&](const vertex_weights<num_weights>& weights) {
-          out_verts[offset+count].set_weights(weights);
+        mesh.weights.for_each(in_verts.weights, [&](const vertex_weights<num_weights>& weights) {
+          out_verts[offset + count].set_weights(weights);
           ++count;
         });
       } else {
         const vertex_weights<num_weights> def;
-        for (uint32 count = 0; count < mesh_verts; ++count) { 
-          out_verts[offset+count].set_weights(def);
+        for (uint32 count = 0; count < mesh_verts; ++count) {
+          out_verts[offset + count].set_weights(def);
         }
       }
     }
 
-    out.data.emplace_back(
-      mesh.name, mesh.material, mesh.faces, mesh.indices, mesh.positions
-    );
+    out.data.emplace_back(mesh.name, mesh.material, mesh.faces, mesh.indices, mesh.positions);
     out.indices = data.indices;
 
     offset += mesh_verts;
@@ -449,7 +454,7 @@ private:
 
 private:
   void* _importer;
-  std::unordered_map<std::string, std::pair<uint32,mat4>> _bone_map;
+  std::unordered_map<std::string, std::pair<uint32, mat4>> _bone_map;
   std::string _path, _dir;
 };
 
@@ -458,28 +463,17 @@ static_assert(impl::model_loader_materials<assimp_loader>);
 static_assert(impl::model_loader_animations<assimp_loader>);
 static_assert(impl::model_loader_armatures<assimp_loader>);
 
-template<
-  typename Vertex = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>, 
-  impl::model_loader<Vertex> Loader = assimp_loader
->
-model_data<Vertex> load_model(
-  ntf::unchecked_t,
-  const std::string& path,
-  model_load_flags flags,
-  Loader&& loader = {}
-) {
+template<typename Vertex = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>,
+         impl::model_loader<Vertex> Loader = assimp_loader>
+model_data<Vertex> load_model(ntf::unchecked_t, const std::string& path, model_load_flags flags,
+                              Loader&& loader = {}) {
   return impl::load_model<Vertex, Loader, false>(path, flags, std::forward<Loader>(loader));
 }
 
-template<
-  typename Vertex = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>,
-  impl::model_loader<Vertex> Loader = assimp_loader
->
-asset_expect<model_data<Vertex>> load_model(
-  const std::string& path, 
-  model_load_flags flags,
-  Loader&& loader = {}
-) {
+template<typename Vertex = soa_vertices<SHOGLE_ASSIMP_WEIGHTS>,
+         impl::model_loader<Vertex> Loader = assimp_loader>
+asset_expect<model_data<Vertex>> load_model(const std::string& path, model_load_flags flags,
+                                            Loader&& loader = {}) {
   return impl::load_model<Vertex, Loader, true>(path, flags, std::forward<Loader>(loader));
 }
 
