@@ -1,14 +1,14 @@
 #pragma once
 
-#include <shogle/render/types.hpp>
+#include <shogle/render/common.hpp>
 
 namespace shogle {
 
 enum class win_attrib {
   none = 0,
-  decorate   = 1 << 1,
-  resizable  = 1 << 2,
-  floating   = 1 << 3,
+  decorate = 1 << 1,
+  resizable = 1 << 2,
+  floating = 1 << 3,
   show_focus = 1 << 4,
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(win_attrib);
@@ -37,6 +37,7 @@ struct win_params {
   const void* renderer_params;
 };
 
+// clang-format off
 enum class win_key : int16 { // Follows GLFW key values
   unknown = -1,
   space = 32, apostrophe = 39,
@@ -72,6 +73,7 @@ using win_keyscancode = int32;
 enum class win_button : uint8 { // Follows GLFW button values
   m1 = 0, m2, m3, m4, m5, m6, m7, m8,
 };
+// clang-format on
 
 enum class win_action : uint8 { // Follows GLFW action values
   release = 0,
@@ -80,13 +82,13 @@ enum class win_action : uint8 { // Follows GLFW action values
 };
 
 enum class win_keymod : uint8 { // Follows GLFW mod values
-  none     = 0x00,
-  shift    = 0x01,
-  ctrl     = 0x02,
-  alt      = 0x04,
-  super    = 0x08,
+  none = 0x00,
+  shift = 0x01,
+  ctrl = 0x02,
+  alt = 0x04,
+  super = 0x08,
   capslock = 0x10,
-  numlock  = 0x20,
+  numlock = 0x20,
 };
 NTF_DEFINE_ENUM_CLASS_FLAG_OPS(win_keymod);
 
@@ -113,18 +115,18 @@ class window {
 private:
   struct callback_handler_t;
   friend callback_handler_t;
-  
+
   template<typename Signature>
   using fun_t = std::function<Signature>;
 
 public:
   using viewport_fun = fun_t<void(window&, extent2d)>;
-  using key_fun      = fun_t<void(window&, win_key_data)>;
-  using cursorp_fun  = fun_t<void(window&, dvec2)>;
-  using cursore_fun  = fun_t<void(window&, bool)>;
-  using scroll_fun   = fun_t<void(window&, dvec2)>;
-  using mouse_fun    = fun_t<void(window&, win_button_data)>;
-  using char_fun     = fun_t<void(window&, u32)>;
+  using key_fun = fun_t<void(window&, win_key_data)>;
+  using cursorp_fun = fun_t<void(window&, dvec2)>;
+  using cursore_fun = fun_t<void(window&, bool)>;
+  using scroll_fun = fun_t<void(window&, dvec2)>;
+  using mouse_fun = fun_t<void(window&, win_button_data)>;
+  using char_fun = fun_t<void(window&, u32)>;
 
 public:
   window(window_t handle, context_api ctx_api, win_attrib attrib) noexcept;
@@ -193,7 +195,9 @@ public:
 
 public:
   window_t get() const { return _handle; }
+
   context_api renderer() const { return _ctx_api; }
+
   win_attrib attribs() const { return _attrib; }
 
   bool should_close() const;
@@ -209,6 +213,7 @@ private:
   window_t _handle;
   context_api _ctx_api;
   win_attrib _attrib;
+
   struct {
     viewport_fun viewport;
     key_fun keypress;

@@ -4,3 +4,6 @@
 [submodule "extern/ntfstl"]
 	path = extern/ntfstl
 	url = https://github.com/nesktf/ntfstl.git
+[submodule "extern/chimatools"]
+	path = extern/chimatools
+	url = https://github.com/nesktf/chimatools.git

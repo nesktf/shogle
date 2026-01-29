@@ -1,48 +1,62 @@
 #pragma once
 
-#include <shogle/render/context.hpp>
-#include <shogle/render/framebuffer.hpp>
+#include <shogle/render/common.hpp>
 
 #include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 namespace shogle {
 
-class imgui_ctx {
-private:
-  imgui_ctx(context_view win, context_api shogle_api) noexcept;
+constexpr inline ImGuiConfigFlags DEFAULT_IMGUI_CONFIG =
+  ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 
-public:
-  imgui_ctx(imgui_ctx&& other) noexcept;
-  imgui_ctx(const imgui_ctx&) = delete;
+template<render_context_tag tag>
+void imgui_init(GLFWwindow* win, ImGuiConfigFlags flags = DEFAULT_IMGUI_CONFIG,
+                bool bind_callbacks = true) {
+  NTF_ASSERT(win);
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO& io = ImGui::GetIO();
+  io.ConfigFlags = flags;
+  ImGui::StyleColorsDark();
+  if constexpr (tag == render_context_tag::opengl) {
+    ImGui_ImplGlfw_InitForOpenGL(win, bind_callbacks);
+    ImGui_ImplOpenGL3_Init("#version 150");
+  } else {
+    NTF_ASSERT(false, "TODO");
+  }
+}
 
-  ~imgui_ctx() noexcept;
+template<render_context_tag tag>
+void imgui_new_frame() {
+  if constexpr (tag == render_context_tag::opengl) {
+    ImGui_ImplGlfw_NewFrame();
+    ImGui_ImplOpenGL3_NewFrame();
+  } else {
+    NTF_ASSERT(false, "TODO");
+  }
+  ImGui::NewFrame();
+}
 
-public:
-  static imgui_ctx create(context_view ctx, window_t win,
-                          ImGuiConfigFlags flags = ImGuiConfigFlags_NavEnableKeyboard,
-                          bool bind_callbacks = true);
+template<render_context_tag tag>
+void imgui_end_frame() {
+  if constexpr (tag == render_context_tag::opengl) {
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+  } else {
+    NTF_ASSERT(false, "TODO");
+  }
+}
 
-public:
-  imgui_ctx& operator=(imgui_ctx&& other) noexcept;
-  imgui_ctx& operator=(const imgui_ctx&) = delete;
-
-public:
-  void operator()(context_t, ctx_handle);
-
-public:
-  void start_frame();
-  void end_frame(framebuffer_view target = nullptr, 
-                 uint32 sort_group = 0u,
-                 weak_ptr<const external_state> state = nullptr,
-                 ImDrawData* draw_data = nullptr);
-
-private:
-  void _destroy() noexcept;
-
-private:
-  context_view _ctx;
-  context_api _shogle_api;
-  ImDrawData* _draw_data;
-};
+template<render_context_tag tag>
+void imgui_destroy() {
+  if constexpr (tag == render_context_tag::opengl) {
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+  } else {
+    NTF_ASSERT(false, "TODO");
+  }
+  ImGui::DestroyContext();
+}
 
 } // namespace shogle
