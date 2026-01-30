@@ -175,6 +175,7 @@ std::string_view tex_format_string(gl_texture::texture_format format) {
 #undef STR
 }
 
+#if 0
 std::string_view tex_sampler_string(gldefs::GLenum sampler) {
 #define STR(enum_)                      \
   case gl_texture::SAMPLER_MIN_##enum_: \
@@ -193,6 +194,7 @@ std::string_view tex_sampler_string(gldefs::GLenum sampler) {
 
 #undef STR
 }
+#endif
 
 std::string_view tex_type_string(gl_texture::texture_type type) {
   switch (type) {
@@ -230,11 +232,13 @@ void log_allocation([[maybe_unused]] gl_context& gl, gldefs::GLhandle tex,
     args.extent.height, args.extent.depth, args.levels, args.layers, ms_str[args.multisampling]);
 }
 
+#if 0
 void log_binding([[maybe_unused]] gl_context& gl, gldefs::GLhandle tex, const gl_buffer& buffer,
                  gl_texture::texture_format format, size_t size, size_t offset) {
   OPENGL_ALLOC_LOG("Texture bound to buffer ({}) [buff: {}, format: {}, size: {}, offset: {}]",
                    tex, buffer.id(), tex_format_string(format), size, offset);
 }
+#endif
 
 void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
                 const gl_texture::image_data& image, const extent3d& offset, u32 lyr, u32 lvl) {
@@ -278,11 +282,12 @@ void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
 
   const auto [w, h, d] = tex.extent();
   const auto [ow, oh, od] = offset;
-  OPENGL_ACTION_LOG("Texture upload ({}) [type: {}, extent: {}x{}x{}, ptr: {}, sz: {}, align: {}, "
-                    "pixel_type: {}, pixel_format: {}, off: {}x{}x{}, lyr: {}, lvl: {}]",
-                    tex.id(), tex_type_string(tex.type()), w, h, d, fmt::ptr(image.data),
-                    image.size, (u32)image.alignment, pixel_type_string(image.datatype),
-                    pixel_format_string(image.format), ow, oh, od, lyr, lvl);
+  OPENGL_ACTION_LOG(
+    "Texture upload ({}) [type: {}, extent: {}x{}x{}, ptr: {}, sz: {}x{}x{}, align: {}, "
+    "pixel_type: {}, pixel_format: {}, off: {}x{}x{}, lyr: {}, lvl: {}]",
+    tex.id(), tex_type_string(tex.type()), w, h, d, fmt::ptr(image.data), image.extent.width,
+    image.extent.height, image.extent.depth, (u32)image.alignment,
+    pixel_type_string(image.datatype), pixel_format_string(image.format), ow, oh, od, lyr, lvl);
 }
 
 void log_destroy([[maybe_unused]] gl_context& gl, const gl_texture& tex) {
@@ -481,13 +486,95 @@ void gl_texture::deallocate_n(gl_context& gl, span<gl_texture> texes) {
   }
 }
 
+namespace {
+
+auto do_upload_images(gl_context& gl, gldefs::GLhandle tex, gl_texture::texture_type type,
+                      const gl_texture::image_data* images, u32 image_count,
+                      const extent3d& offset, u32 level) -> gl_texture::n_err_return {
+  if (type == gl_texture::TEX_TYPE_BUFFER) {
+    return {0, GL_INVALID_VALUE};
+  }
+  NTF_ASSERT(images != nullptr && image_count);
+
+  gldefs::GLenum err = 0;
+  const auto upload1d = [&](u32 xoff) {
+    u32 i = 0;
+    for (; i < image_count; ++i) {
+      const auto& image = images[i];
+      err = GL_RET_ERR(glTexSubImage1D(type, level, xoff, image.extent.width, image.format,
+                                       image.datatype, image.data));
+      if (err) {
+        return i;
+      }
+    }
+    return i;
+  };
+  const auto upload2d = [&](u32 yoff) {
+    u32 i = 0;
+    for (; i < image_count; ++i) {
+      const auto image = images[i];
+      err = GL_RET_ERR(glTexSubImage2D(
+        type, level, offset.width, yoff ? yoff : i, image.extent.width,
+        yoff ? image.extent.height : image_count, image.format, image.datatype, image.data));
+      if (err) {
+        return i;
+      }
+    }
+    return i;
+  };
+  const auto upload3d = [&](u32 zoff) {
+    u32 i = 0;
+    for (; i < image_count; ++i) {
+      const auto image = images[i];
+      err = GL_RET_ERR(glTexSubImage3D(type, level, offset.width, offset.height, zoff ? zoff : i,
+                                       image.extent.width, image.extent.height,
+                                       zoff ? image.extent.depth : i, image.format, image.datatype,
+                                       image.data));
+      if (err) {
+        return i;
+      }
+    }
+    return i;
+  };
+
+  GL_ASSERT(glBindTexture(type, tex));
+  u32 uploaded = 0;
+  switch (type) {
+    case gl_texture::TEX_TYPE_1D: {
+      uploaded = upload1d(offset.width);
+    } break;
+    case gl_texture::TEX_TYPE_1D_ARRAY: {
+      uploaded = upload2d(0);
+    } break;
+    case gl_texture::TEX_TYPE_2D_MULTISAMPLE:
+      [[fallthrough]];
+    case gl_texture::TEX_TYPE_2D: {
+      uploaded = upload2d(offset.height);
+    } break;
+    case gl_texture::TEX_TYPE_2D_MULTISAMPLE_ARRAY:
+      [[fallthrough]];
+    case gl_texture::TEX_TYPE_2D_ARRAY: {
+      uploaded = upload3d(0);
+    } break;
+    case gl_texture::TEX_TYPE_3D: {
+      uploaded = upload3d(offset.depth);
+    }; break;
+    default:
+      NTF_UNREACHABLE();
+  }
+  GL_ASSERT(glBindTexture(type, GL_DEFAULT_BINDING));
+  return {uploaded, err};
+}
+
+} // namespace
+
 gl_expect<void> gl_texture::upload_image(gl_context& gl, const image_data& image,
                                          const extent3d& offset, u32 layer, u32 level) {
   if (type() == gl_texture::TEX_TYPE_BUFFER) {
     return {ntf::unexpect, GL_INVALID_VALUE};
   }
 
-  const auto [count, err] = do_upload_images(gl, id(), type(), &image, 1, offset, layer, level);
+  const auto [count, err] = do_upload_images(gl, id(), type(), &image, 1, offset, level);
   if (err) {
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
     OPENGL_ERR_LOG("Texture upload failed ({}) [type: {}, ptr: {}, err: {}]", id(),
@@ -503,51 +590,13 @@ gl_expect<void> gl_texture::upload_image(gl_context& gl, const image_data& image
   return {};
 }
 
-namespace {
-
-auto do_upload_image_layers(gl_context& gl, gldefs::GLhandle tex, gl_texture::texture_type type,
-                            const gl_texture::image_data* images, u32 image_count,
-                            const extent3d& offset, u32 level) -> gl_texture::n_err_return {
-  if (type == gl_texture::TEX_TYPE_BUFFER) {
-    return {0, GL_INVALID_VALUE};
-  }
-  NTF_ASSERT(images != nullptr && image_count);
-
-  gldefs::GLenum err = 0;
-  const auto upload1d = [&](u32 xoff, u32 width) {
-    u32 i = 0;
-    for (; i < image_count; ++i) {
-      const auto& image = images[i];
-      err = GL_RET_ERR(glTexSubImage1D(type, level, xoff, width ? width : image.extent.width,
-                                       image.format, image.datatype, image.data));
-      if (err) {
-        return i;
-      }
-    }
-    return i;
-  };
-
-  GL_ASSERT(glBindTexture(type, tex));
-  u32 uploaded = 0;
-  switch (type) {
-    case gl_texture::TEX_TYPE_1D: {
-      uploaded = upload1d(offset.width, 0);
-    } break;
-  }
-  GL_ASSERT(glBindTexture(type, GL_DEFAULT_BINDING));
-  return {uploaded, err};
-}
-
-} // namespace
-
 auto gl_texture::upload_image_layers(gl_context& gl, const image_data* layers, u32 layer_count,
                                      const extent3d& offset, u32 level) -> n_err_return {
   if (!layers || !layer_count) {
     return {0, GL_INVALID_VALUE};
   }
   layer_count = std::max(layer_count, _layers);
-  const auto [count, err] =
-    do_upload_image_layers(gl, id(), type(), layers, layer_count, offset, level);
+  const auto [count, err] = do_upload_images(gl, id(), type(), layers, layer_count, offset, level);
   NTF_UNUSED(err);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
   if (err) {
@@ -570,7 +619,7 @@ auto gl_texture::upload_image_layers(gl_context& gl, span<const image_data> laye
   }
   u32 layer_count = std::max((u32)layers.size(), _layers);
   const auto [count, err] =
-    do_upload_image_layers(gl, id(), type(), layers.data(), layer_count, offset, level);
+    do_upload_images(gl, id(), type(), layers.data(), layer_count, offset, level);
   NTF_UNUSED(err);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
   OPENGL_ERR_LOG("Texture layer upload failure ({}) [type: {}, ptr:{}, uploaded: {}/{}, err: {}]",

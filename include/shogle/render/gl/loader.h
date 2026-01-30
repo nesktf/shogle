@@ -97,7 +97,9 @@ SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver
   X(glDeleteBuffers, void, GLsizei n, const GLuint* buffers)                                      \
   X(glBufferData, void, GLenum target, GLsizeiptr size, const void* data, GLenum usage)           \
   X(glBufferSubData, void, GLenum target, GLintptr offset, GLsizeiptr size, const void* data)     \
+  X(glGetBufferSubData, void, GLenum target, GLintptr offset, GLsizeiptr size, void* data)        \
   X(glMapBuffer, void*, GLenum target, GLenum access)                                             \
+  X(glBufferStorage, void, GLenum target, GLsizeiptr size, const void* data, GLbitfield flags)    \
   X(glMapBufferRange, void*, GLenum target, GLintptr offset, GLsizeiptr length,                   \
     GLbitfield access)                                                                            \
   X(glUnmapBuffer, void, GLenum target)                                                           \
