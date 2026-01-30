@@ -186,4 +186,53 @@ struct attribute_union {
   attribute_type type;
 };
 
+struct vertex_attribute {
+  u32 location;
+  u32 format;
+  attribute_type type;
+  size_t offset;
+};
+
+template<u32 AttribCount>
+requires(AttribCount > 0)
+class vertex_layout {
+public:
+  static constexpr u32 attribute_count = AttribCount;
+
+public:
+  size_t layout_stride() const noexcept { return stride; }
+
+  span<const vertex_attribute, AttribCount> layout_attributes() const noexcept { return attribs; }
+
+public:
+  std::array<vertex_attribute, AttribCount> attribs;
+  size_t stride;
+};
+
+namespace meta {
+
+template<typename Layout>
+concept vertex_layout_type = requires(const Layout& layout) {
+  requires std::convertible_to<std::decay_t<decltype(Layout::attribute_count)>, u32>;
+  requires(Layout::attribute_count > 0u);
+  { layout.layout_stride() } -> std::convertible_to<size_t>;
+  {
+    layout.layout_attributes()
+  } -> std::same_as<span<const vertex_attribute, Layout::attribute_count>>;
+};
+
+template<typename T>
+concept vertex_type = requires() {
+  requires std::convertible_to<std::decay_t<decltype(T::attribute_count)>, u32>;
+  requires(T::attribute_count > 0u);
+  { T::attributes() } -> vertex_layout_type;
+};
+
+} // namespace meta
+
+template<meta::vertex_type T>
+struct vertex_arg {
+  using type = T;
+};
+
 } // namespace shogle
