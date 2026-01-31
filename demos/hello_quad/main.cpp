@@ -53,31 +53,49 @@ constexpr std::string_view vert_src = R"glsl(
 #version 460 core
 
 layout (location = 0) in vec3 att_pos;
-layout (location = 1) in vec3 att_norm;
-layout (location = 1) in vec2 att_uv;
+layout (location = 1) in vec4 att_color;
+
+layout (location = 0) out vec4 frag_color;
   
 void main() {
-  gl_Position = vec4(aPos, 1.0);
+  gl_Position = vec4(att_pos, 1.0f);
+  frag_color = att_color;
 }  
 )glsl";
 
 constexpr std::string_view frag_src = R"glsl(
 #version 460 core
 
-out vec4 frag_color;  
+layout (location = 0) in vec4 frag_color;
+
+layout (location = 0) out vec4 out_color;
   
 void main() {
-  frag_color = vec4(1.0, 0.0, 0.0, 1.0);
+  out_color = frag_color;
 }
 )glsl";
 
+// clang-format off
+constexpr auto vertices = std::to_array<shogle::pc_vertex>({
+  // pos               // color
+  {{-.5f, -.5f,  0.f}, {1.f, 0.f, 0.f, 1.f}},
+  {{ .5f, -.5f,  0.f}, {0.f, 1.f, 0.f, 1.f}},
+  {{ .5f,  .5f,  0.f}, {0.f, 0.f, 1.f, 1.f}},
+  {{-.5f,  .5f,  0.f}, {1.f, 1.f, 1.f, 1.f}},
+});
+
+constexpr auto indices = std::to_array<u16>({
+  0, 1, 2,
+	2, 3, 0,
+});
+// clang-format on
+
 void run_demo(GLFWwindow* win, shogle::gl_context& gl) {
-  shogle::gl_vertex_layout quad_layout(gl, shogle::vertex_arg<shogle::soa_pnt_vertex>{});
+  shogle::gl_vertex_layout quad_layout(gl, shogle::aos_vertex_arg<shogle::pc_vertex>{});
   const shogle::scope_end layout_end = [&]() {
     shogle::gl_vertex_layout::destroy(gl, quad_layout);
   };
 
-  static constexpr auto vertices = shogle::pnt_indexed_quad_vert<shogle::soa_pnt_vertex>;
   static constexpr size_t vbo_size = vertices.size() * sizeof(vertices[0]);
   shogle::gl_buffer quad_vbo(gl, shogle::gl_buffer::BUFFER_VERTEX, vbo_size);
   const shogle::scope_end vbo_end = [&]() {
@@ -85,7 +103,6 @@ void run_demo(GLFWwindow* win, shogle::gl_context& gl) {
   };
   quad_vbo.upload_data(gl, vertices.data(), vbo_size, 0).value();
 
-  static constexpr auto indices = shogle::pnt_indexed_quad_ind_u32;
   static constexpr size_t ebo_size = indices.size() * sizeof(indices[0]);
   shogle::gl_buffer quad_ebo(gl, shogle::gl_buffer::BUFFER_INDEX, ebo_size);
   const shogle::scope_end ebo_end = [&]() {

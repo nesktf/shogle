@@ -4,57 +4,11 @@
 
 namespace shogle {
 
-namespace impl {
-
-template<bool UseAos, typename T>
-consteval auto make_pnt_layout() {
-  static_assert(T::attribute_count == 3u);
-  return vertex_layout<3u>{
-    .attribs = {{
-      {.location = 0, .type = attribute_type::vec3, .offset = UseAos * offsetof(T, pos)},
-      {.location = 1, .type = attribute_type::vec3, .offset = UseAos * offsetof(T, normal)},
-      {.location = 2, .type = attribute_type::vec2, .offset = UseAos * offsetof(T, uv)},
-    }},
-    .stride = UseAos * sizeof(T),
-  };
-}
-
-template<bool UseAos, typename T>
-consteval auto make_pn_layout() {
-  static_assert(T::attribute_count == 2u);
-  return vertex_layout<2u>{
-    .attribs = {{
-      {.location = 0, .type = attribute_type::vec3, .offset = UseAos * offsetof(T, pos)},
-      {.location = 1, .type = attribute_type::vec3, .offset = UseAos * offsetof(T, normal)},
-    }},
-    .stride = UseAos * sizeof(T),
-  };
-}
-
-} // namespace impl
-
 // clang-format off
-struct aos_pnt_vertex {
+struct pnt_vertex {
 public:
-  static constexpr u32 attribute_count = 3;
-	static constexpr inline vertex_layout<attribute_count> attributes();
-
-public:
-  vec3 pos;
-  vec3 normal;
-  vec2 uv;
-};
-
-constexpr inline auto aos_pnt_vertex::attributes() -> vertex_layout<attribute_count> {
-	return impl::make_pnt_layout<true, aos_pnt_vertex>();
-}
-
-static_assert(meta::vertex_type<aos_pnt_vertex>);
-
-struct soa_pnt_vertex {
-public:
-  static constexpr u32 attribute_count = 3;
-	static constexpr inline vertex_layout<attribute_count> attributes();
+  static constexpr u32 attribute_count = 3u;
+	static constexpr inline auto attributes() noexcept;
 
 public:
   vec3 pos;
@@ -62,46 +16,53 @@ public:
   vec2 uv;
 };
 
-constexpr inline auto soa_pnt_vertex::attributes() -> vertex_layout<attribute_count> {
-	return impl::make_pnt_layout<false, soa_pnt_vertex>();
+constexpr inline auto pnt_vertex::attributes() noexcept {
+  return std::to_array<vertex_attribute>({
+		{.location = 0, .type = attribute_type::vec3, .offset = offsetof(pnt_vertex, pos)},
+		{.location = 1, .type = attribute_type::vec3, .offset = offsetof(pnt_vertex, normal)},
+		{.location = 2, .type = attribute_type::vec2, .offset = offsetof(pnt_vertex, uv)},
+	});
 }
 
-static_assert(meta::vertex_type<soa_pnt_vertex>);
+static_assert(meta::vertex_type<pnt_vertex>);
 
-struct aos_pn_vertex {
+struct pn_vertex {
 public:
-  static constexpr u32 attribute_count = 2;
-	static constexpr inline vertex_layout<attribute_count> attributes();
+  static constexpr u32 attribute_count = 2u;
+	static constexpr inline auto attributes() noexcept;
 
 public:
   vec3 pos;
   vec3 normal;
 };
 
-constexpr inline auto aos_pn_vertex::attributes() -> vertex_layout<attribute_count> {
-	return impl::make_pn_layout<true, aos_pn_vertex>();
+constexpr inline auto pn_vertex::attributes() noexcept{
+	return std::to_array<vertex_attribute>({
+    {.location = 0, .type = attribute_type::vec3, .offset = offsetof(pn_vertex, pos)},
+		{.location = 1, .type = attribute_type::vec3, .offset = offsetof(pn_vertex, normal)},
+  });
 }
 
-static_assert(meta::vertex_type<aos_pn_vertex>);
+static_assert(meta::vertex_type<pn_vertex>);
 
-struct soa_pn_vertex {
+struct pc_vertex {
 public:
-  static constexpr u32 attribute_count = 2;
-	static constexpr inline vertex_layout<attribute_count> attributes();
+	static constexpr u32 attribute_count = 2u;
+	static constexpr inline auto attributes() noexcept;
 
 public:
-  vec3 pos;
-  vec3 normal;
+	vec3 pos;
+	vec4 color;
 };
 
-constexpr inline auto soa_pn_vertex::attributes() -> vertex_layout<attribute_count> {
-	return impl::make_pn_layout<false, soa_pn_vertex>();
+constexpr inline auto pc_vertex::attributes() noexcept{
+	return std::to_array<vertex_attribute>({
+    {.location = 0, .type = attribute_type::vec3, .offset = offsetof(pc_vertex, pos)},
+		{.location = 1, .type = attribute_type::vec4, .offset = offsetof(pc_vertex, color)},
+  });
 }
 
-static_assert(meta::vertex_type<soa_pn_vertex>);
-
-template<ntf::meta::same_as_any<soa_pn_vertex, aos_pn_vertex> T>
-constexpr inline auto pn_unindexed_cube_vert = std::to_array<T>({
+constexpr inline auto pn_unindexed_cube_vert = std::to_array<pn_vertex>({
   // position               // normal
   {{-0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f}},
   {{ 0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f}}, 
@@ -146,8 +107,7 @@ constexpr inline auto pn_unindexed_cube_vert = std::to_array<T>({
   {{-0.5f,  0.5f, -0.5f},   { 0.0f,  1.0f,  0.0f}}
 });
 
-template<ntf::meta::same_as_any<soa_pnt_vertex, aos_pnt_vertex> T>
-constexpr inline auto pnt_unindexed_cube_vert = std::to_array<T>({
+constexpr inline auto pnt_unindexed_cube_vert = std::to_array<pnt_vertex>({
   // position               // normal                // uv
   {{-0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f},   {0.0f, 0.0f}},
   {{ 0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f},   {1.0f, 0.0f}},
@@ -192,8 +152,7 @@ constexpr inline auto pnt_unindexed_cube_vert = std::to_array<T>({
   {{-0.5f,  0.5f, -0.5f},   { 0.0f,  1.0f,  0.0f},   {0.0f, 1.0f}}
 });
 
-template<ntf::meta::same_as_any<soa_pnt_vertex, aos_pnt_vertex> T>
-constexpr inline auto pnt_indexed_quad_vert = std::to_array<T>({
+constexpr inline auto pnt_indexed_quad_vert = std::to_array<pnt_vertex>({
   // position               // normal                // uv
   {{-0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 0.0f}},
   {{ 0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {1.0f, 0.0f}},
@@ -201,8 +160,12 @@ constexpr inline auto pnt_indexed_quad_vert = std::to_array<T>({
   {{-0.5f,  0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 1.0f}},
 });
 
-template<ntf::meta::same_as_any<soa_pnt_vertex, aos_pnt_vertex> T>
-constexpr inline auto pnt_indexed_quad_vert_inv = std::to_array<T>({
+constexpr inline auto pc_indexed_quad_vert = std::to_array<pc_vertex>({
+  // position               // color
+  {{-0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  0.0f,  1.0f}},
+});
+
+constexpr inline auto pnt_indexed_quad_vert_inv = std::to_array<pnt_vertex>({
   // position               // normal                // uv
   {{-0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 1.0f}},
   {{ 0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {1.0f, 1.0f}},
