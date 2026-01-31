@@ -1,7 +1,57 @@
 #include "./context_private.hpp"
+#include <shogle/render/gl/context.hpp>
 #include <shogle/render/gl/pipeline.hpp>
 
 namespace shogle {
+
+gl_shader::gl_shader(create_t, gldefs::GLhandle id, shader_stage stage) : _id(id), _stage(stage) {}
+
+gl_shader::gl_shader(gl_context& gl, std::string_view src, shader_stage stage) :
+    gl_shader(::shogle::gl_shader::create(gl, src, stage).value()) {}
+
+gl_s_expect<gl_shader> gl_shader::create(gl_context& gl, std::string_view src,
+                                         shader_stage stage) {
+
+  NTF_UNUSED(gl);
+  gldefs::GLhandle shader = GL_ASSERT_RET(glCreateShader(stage));
+
+  const char* src_data = src.data();
+  const GLint len = static_cast<GLint>(src.size());
+  GL_ASSERT(glShaderSource(shader, 1, &src_data, &len));
+  GL_CALL(glCompileShader(shader)); // No assert
+
+  int succ;
+  GL_ASSERT(glGetShaderiv(shader, GL_COMPILE_STATUS, &succ));
+  if (!succ) {
+    GLint err_len = 0; // includes null terminator
+    GL_ASSERT(glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &err_len));
+    char log_buffer[1024] = {0};
+    GL_ASSERT(glGetShaderInfoLog(shader, 1024, &err_len, &log_buffer[0]));
+    GL_ASSERT(glDeleteShader(shader));
+    std::string_view buffer_view(log_buffer, std::min(err_len, 1024));
+    OPENGL_ERR_LOG("Shader compilation failed: {}", buffer_view);
+    return {ntf::unexpect, fmt::format("Shader compilation failed: {}", buffer_view)};
+  }
+  return {ntf::in_place, create_t{}, shader, stage};
+}
+
+void gl_shader::destroy(gl_context& gl, gl_shader& shader) noexcept {
+  if (shader._id == GL_NULL_HANDLE) {
+    return;
+  }
+  GL_ASSERT(glDeleteShader(shader._id));
+  shader._id = GL_NULL_HANDLE;
+}
+
+gldefs::GLhandle gl_shader::id() const {
+  NTF_ASSERT(_id != GL_NULL_HANDLE, "gl_shader use after free");
+  return _id;
+}
+
+gl_shader::shader_stage gl_shader::stage() const {
+  NTF_ASSERT(_id != GL_NULL_HANDLE, "gl_shader use after free");
+  return _stage;
+}
 
 namespace {
 
@@ -10,11 +60,11 @@ constexpr u32 map_shader(gl_shader::shader_stage stage) noexcept {
 }
 
 // Make sure everything has an unique index
-static_assert(map_shader(gl_shader::SHADER_FRAGMENT) == 2);
-static_assert(map_shader(gl_shader::SHADER_GEOMETRY) == 3);
-static_assert(map_shader(gl_shader::SHADER_VERTEX) == 4);
-static_assert(map_shader(gl_shader::SHADER_TESS_EVAL) == 7);
-static_assert(map_shader(gl_shader::SHADER_TESS_CTRL) == 8);
+static_assert(map_shader(gl_shader::STAGE_FRAGMENT) == 2);
+static_assert(map_shader(gl_shader::STAGE_GEOMETRY) == 3);
+static_assert(map_shader(gl_shader::STAGE_VERTEX) == 4);
+static_assert(map_shader(gl_shader::STAGE_TESS_EVAL) == 7);
+static_assert(map_shader(gl_shader::STAGE_TESS_CTRL) == 8);
 
 } // namespace
 
@@ -23,7 +73,7 @@ gl_shader_builder::gl_shader_builder() noexcept {
 }
 
 gl_shader_builder& gl_shader_builder::add_shader(const gl_shader& shader) {
-  NTF_ASSERT(shader.stage() != gl_shader::SHADER_COMPUTE,
+  NTF_ASSERT(shader.stage() != gl_shader::STAGE_COMPUTE,
              "Can't use compute shaders in a graphics pipeline");
   _shaders[map_shader(shader.stage())] = shader.id();
   return *this;
@@ -33,287 +83,233 @@ gldefs::GLhandle gl_shader_builder::get_shader(gl_shader::shader_stage stage) {
   return _shaders[map_shader(stage)];
 }
 
-ntf::optional<gl_graphics_shader_set> gl_shader_builder::build() {
-  const auto vert = _shaders[map_shader(gl_shader::SHADER_VERTEX)];
+ntf::optional<gl_shader::graphics_set> gl_shader_builder::build() {
+  const auto vert = _shaders[map_shader(gl_shader::STAGE_VERTEX)];
   if (!vert) {
     return {ntf::nullopt};
   }
-  const auto frag = _shaders[map_shader(gl_shader::SHADER_FRAGMENT)];
+  const auto frag = _shaders[map_shader(gl_shader::STAGE_FRAGMENT)];
   if (!frag) {
     return {ntf::nullopt};
   }
-  gl_graphics_shader_set set;
-  set.shader_count = 0;
-  const auto add_shader = [&](gldefs::GLhandle shader) {
-    NTF_ASSERT(set.shader_count < set.shaders.size());
-    set.shaders[set.shader_count++] = shader;
+
+  std::array<gldefs::GLhandle, 5u> shader_set;
+  u32 shader_count = 0;
+  gldefs::GLenum stages = 0;
+  const auto add_shader = [&](gldefs::GLhandle shader, gl_shader::stages_bits bits) {
+    NTF_ASSERT(shader_count < shader_set.size());
+    shader_set[shader_count++] = shader;
+    stages |= bits;
   };
-  add_shader(vert);
-  add_shader(frag);
-  if (auto geom = _shaders[map_shader(gl_shader::SHADER_GEOMETRY)]; geom) {
-    add_shader(geom);
+  add_shader(vert, gl_shader::STAGE_VERTEX_BIT);
+  add_shader(frag, gl_shader::STAGE_FRAGMENT_BIT);
+  if (auto geom = _shaders[map_shader(gl_shader::STAGE_GEOMETRY)]; geom) {
+    add_shader(geom, gl_shader::STAGE_GEOMETRY_BIT);
   }
 
   // For tesselation, the evaluation stage is always required
   // and the control stage is optional
-  const auto eval = _shaders[map_shader(gl_shader::SHADER_TESS_EVAL)];
-  const auto ctrl = _shaders[map_shader(gl_shader::SHADER_TESS_CTRL)];
+  const auto eval = _shaders[map_shader(gl_shader::STAGE_TESS_EVAL)];
+  const auto ctrl = _shaders[map_shader(gl_shader::STAGE_TESS_CTRL)];
   if (ctrl && !eval) {
     return {ntf::nullopt};
   }
   if (eval) {
-    add_shader(eval);
+    add_shader(eval, gl_shader::STAGE_TESS_EVAL_BIT);
   }
   if (ctrl) {
-    add_shader(ctrl);
+    add_shader(ctrl, gl_shader::STAGE_TESS_CTRL_BIT);
   }
 
-  return {ntf::in_place, std::move(set)};
+  NTF_ASSERT(shader_count >= 2 && shader_count <= 5);
+  return {ntf::in_place, shader_set, shader_count, (gl_shader::stages_bits)stages};
 }
 
-fn gl_shader::create(gl_context& gl, std::string_view src, shader_stage stage)
-  -> gl_s_expect<gl_shader> {
-  NTF_UNUSED(gl);
-  static constexpr auto shader_types = std::to_array({
-    GL_VERTEX_SHADER,
-    GL_FRAGMENT_SHADER,
-    GL_GEOMETRY_SHADER,
-    GL_TESS_CONTROL_SHADER,
-    GL_TESS_EVALUATION_SHADER,
-  });
-  NTF_ASSERT(stage < SHADER_COUNT);
+gl_graphics_pipeline::gl_graphics_pipeline(create_t, gldefs::GLhandle program,
+                                           gl_shader::stages_bits stages, primitive_mode primitive,
+                                           polygon_mode poly_mode) :
+    _stencil(::shogle::gl_stencil_test_props::make_default(false)),
+    _depth(::shogle::gl_depth_test_props::make_default(false)),
+    _blending(::shogle::gl_blending_props::make_default(false)),
+    _culling(::shogle::gl_culling_props::make_default(false)), _stages(stages), _program(program),
+    _primitive(primitive), _poly_mode(poly_mode), _poly_width(1.f) {}
 
-  GLenum id = glCreateShader(shader_types[stage]);
-  NTF_ASSERT(id != NULL_BINDING);
+gl_graphics_pipeline::gl_graphics_pipeline(gl_context& gl, const gl_shader::graphics_set& shaders,
+                                           primitive_mode primitive, polygon_mode poly_mode) :
+    gl_graphics_pipeline(
+      ::shogle::gl_graphics_pipeline::create(gl, shaders, primitive, poly_mode).value()) {}
 
-  const char* src_data = src.data();
-  const GLint len = static_cast<GLint>(src.size());
-  GL_ASSERT(glShaderSource(id, 1, &src_data, &len));
-  glCompileShader(id);
+gl_s_expect<gl_graphics_pipeline>
+gl_graphics_pipeline::create(gl_context& gl, const gl_shader::graphics_set& shaders,
+                             primitive_mode primitive, polygon_mode poly_mode) {
+  const auto shader_span = shaders.stages();
+  NTF_ASSERT(!shader_span.empty(), "No shaders in set");
+  NTF_ASSERT(shader_span.size() >= 2 && shader_span.size() <= 5, "Invalid shader set");
+  NTF_ASSERT(shaders.active_stages() & gl_shader::STAGE_VERTEX_BIT, "No vertex shader in set");
+  NTF_ASSERT(shaders.active_stages() & gl_shader::STAGE_FRAGMENT_BIT, "No fragment shader in set");
 
-  int succ;
-  GL_ASSERT(glGetShaderiv(id, GL_COMPILE_STATUS, &succ));
-  if (!succ) {
-    GLint err_len = 0; // includes null terminator
-    GL_ASSERT(glGetShaderiv(id, GL_INFO_LOG_LENGTH, &err_len));
-    char log_buffer[1024] = {0};
-    GL_ASSERT(glGetShaderInfoLog(id, 1024, &err_len, &log_buffer[0]));
-    GL_ASSERT(glDeleteShader(id));
-    std::string_view buffer_view(log_buffer, std::min(err_len, 1024));
-    return {ntf::unexpect, fmt::format("Shader compilation failed: {}", buffer_view)};
-  }
-  return {ntf::in_place, id, stage};
-}
-
-fn gl_shader::destroy(gl_context& gl) -> void {
-  NTF_UNUSED(gl);
-  NTF_ASSERT(_id != NULL_BINDING, "gl_shader use after free");
-  GL_ASSERT(glDeleteShader(_id));
-  _id = NULL_BINDING;
-}
-
-fn gl_shader::id() const -> gl_handle {
-  NTF_ASSERT(_id != NULL_BINDING, "gl_shader use after free");
-  return _id;
-}
-
-fn gl_shader::stage() const -> GLenum {
-  NTF_ASSERT(_id != NULL_BINDING, "gl_shader use after free");
-  return _stage;
-}
-
-gl_shader::gl_shader(gl_handle id, shader_stage stage) : _id(id), _stage(stage) {}
-
-fn gl_pipeline::create(gl_context& gl, span<const gl_attribute_binding> attributes,
-                       gl_shader::shader_map shaders, GLenum primitive, GLenum polymode)
-  -> gl_s_expect<gl_pipeline> {
-  NTF_UNUSED(gl);
-  if (attributes.empty() || attributes.size() > MAX_ATTRIBUTE_BINDINGS) {
-    return {ntf::unexpect, "Invalid attribute binding count"};
-  }
-  if (shaders[gl_shader::SHADER_VERTEX] == gl_shader::NULL_BINDING) {
-    return {ntf::unexpect, "No vertex shader provided"};
-  }
-  if (shaders[gl_shader::SHADER_FRAGMENT] == gl_shader::NULL_BINDING) {
-    return {ntf::unexpect, "No fragment shader provided"};
-  }
-
-  GLuint program = glCreateProgram();
-  NTF_ASSERT(program != NULL_BINDING);
-
-  for (const gl_handle shader : shaders) {
+  gldefs::GLhandle program = GL_ASSERT_RET(glCreateProgram());
+  for (const gldefs::GLhandle shader : shader_span) {
     GL_ASSERT(glAttachShader(program, shader));
   }
-  glLinkProgram(program);
+  GL_CALL(glLinkProgram(program));
 
   int succ;
   GL_ASSERT(glGetProgramiv(program, GL_LINK_STATUS, &succ));
   if (!succ) {
     GLint err_len = 0; // includes null terminator
-    GL_ASSERT(glGetShaderiv(shaders[gl_shader::SHADER_VERTEX], GL_INFO_LOG_LENGTH, &err_len));
+    GL_ASSERT(glGetShaderiv(shader_span[0], GL_INFO_LOG_LENGTH, &err_len));
     char log_buffer[1024] = {0};
-    GL_ASSERT(
-      glGetShaderInfoLog(shaders[gl_shader::SHADER_VERTEX], 1024, &err_len, &log_buffer[0]));
+    GL_ASSERT(glGetShaderInfoLog(shader_span[0], 1024, &err_len, &log_buffer[0]));
     GL_ASSERT(glDeleteProgram(program));
     std::string_view buffer_view(log_buffer, std::min(err_len, 1024));
+    OPENGL_ERR_LOG("Program linking failed: {}", buffer_view);
     return {ntf::unexpect, fmt::format("Program linking failed: {}", buffer_view)};
   }
 
-  for (const gl_handle shader : shaders) {
-    GL_ASSERT(glDetachShader(program, shader));
+  for (const gldefs::GLhandle shader : shader_span) {
+    GL_ASSERT(glDettachShader(program, shader));
   }
-
-  attribute_bindings binds{};
-  for (const auto& attribute : attributes) {
-    binds.bindings[binds.count++] = attribute;
-  }
-  GLuint vao;
-  GL_ASSERT(glCreateVertexArrays(1, &vao));
-  return {ntf::in_place, program, primitive, polymode, vao, binds};
+  return {ntf::in_place, create_t{}, program, shaders.active_stages(), primitive, poly_mode};
 }
 
-fn gl_pipeline::destroy(gl_context& gl) -> void {
-  NTF_UNUSED(gl);
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  GL_ASSERT(glDeleteVertexArrays(1, &_vao));
-  GL_ASSERT(glDeleteProgram(_program));
-  _program = NULL_BINDING;
+void gl_graphics_pipeline::destroy(gl_context& gl, gl_graphics_pipeline& pipeline) noexcept {
+  if (pipeline._program == GL_NULL_HANDLE) {
+    return;
+  }
+  GL_ASSERT(glDeleteProgram(pipeline._program));
+  pipeline._program = GL_NULL_HANDLE;
 }
 
-fn gl_pipeline::uniform_location(const char* name) -> ntf::optional<u32> {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  GLint loc = glGetUniformLocation(_program, name);
+ntf::optional<u32> gl_graphics_pipeline::uniform_location(gl_context& gl, const char* name) {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  const gldefs::GLint loc = GL_ASSERT_RET(glGetUniformLocation(_program, name));
   if (loc == -1) {
     return {ntf::nullopt};
+  } else {
+    return {ntf::in_place, static_cast<u32>(loc)};
   }
-  return {ntf::in_place, static_cast<u32>(loc)};
 }
 
-fn gl_pipeline::_query_uniform_index(u32 idx) -> uniform_props {
-  GLint size;
-  GLsizei len;
-  uniform_props props;
-  GL_ASSERT(glGetActiveUniform(_program, static_cast<GLuint>(idx), MAX_UNIFORM_NAME_SIZE, &len,
-                               &size, &props.type, props.name));
-  props.size = static_cast<size_t>(size);
-  props.name_len = static_cast<u32>(len);
-  return props;
-}
-
-fn gl_pipeline::reset_props() -> gl_pipeline& {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  _poly_width = 1.f;
-  _stencil.enable = false;
-  _depth.enable = false;
-  _blending.enable = false;
-  _culling.enable = false;
-  return *this;
-}
-
-fn gl_pipeline::set_poly_mode(GLenum poly_mode) -> gl_pipeline& {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  _poly_mode = poly_mode;
-  return *this;
-}
-
-fn gl_pipeline::set_poly_width(f32 poly_width) -> gl_pipeline& {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  _poly_width = poly_width;
-  return *this;
-}
-
-fn gl_pipeline::set_primitive(GLenum primitive) -> gl_pipeline& {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  _primitive = primitive;
-  return *this;
-}
-
-fn gl_pipeline::set_stencil_test(const stencil_test_props& stencil) -> gl_pipeline& {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  _stencil = stencil;
-  return *this;
-}
-
-fn gl_pipeline::set_depth_test(const depth_test_props& depth) -> gl_pipeline& {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  _depth = depth;
-  return *this;
-}
-
-fn gl_pipeline::set_blending(const blending_props& blending) -> gl_pipeline& {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  _blending = blending;
-  return *this;
-}
-
-fn gl_pipeline::set_culling(const culling_props& culling) -> gl_pipeline& {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  _culling = culling;
-  return *this;
-}
-
-fn gl_pipeline::program() const -> gl_handle {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  return _program;
-}
-
-fn gl_pipeline::vao() const -> gl_handle {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  return _vao;
-}
-
-fn gl_pipeline::attributes() const -> span<const gl_attribute_binding> {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  return {_attributes.bindings.data(), _attributes.count};
-}
-
-fn gl_pipeline::primitive() const -> GLenum {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  return _primitive;
-}
-
-fn gl_pipeline::poly_mode() const -> GLenum {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  return _poly_mode;
-}
-
-fn gl_pipeline::poly_width() const -> f32 {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  return _poly_width;
-}
-
-fn gl_pipeline::stencil_test() const -> stencil_test_props {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  return _stencil;
-}
-
-fn gl_pipeline::depth_test() const -> depth_test_props {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  return _depth;
-}
-
-fn gl_pipeline::blending() const -> blending_props {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  return _blending;
-}
-
-fn gl_pipeline::culling() const -> culling_props {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  return _culling;
-}
-
-fn gl_pipeline::uniform_count() const -> u32 {
-  NTF_ASSERT(_program != NULL_BINDING, "gl_pipeline use after free");
-  GLint count;
+u32 gl_graphics_pipeline::uniform_count(gl_context& gl) const {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  gldefs::GLint count;
   GL_ASSERT(glGetProgramiv(_program, GL_ACTIVE_UNIFORMS, &count));
   return static_cast<u32>(count);
 }
 
-gl_pipeline::gl_pipeline(gl_handle program, GLenum primitive, GLenum poly_mode, gl_handle vao,
-                         attribute_bindings attributes) :
-    _attributes(attributes), _program(program), _vao(vao), _primitive(primitive),
-    _poly_mode(poly_mode) {
-  reset_props();
+auto gl_graphics_pipeline::query_uniform_index(gl_context& gl, uniform_props& props, u32 idx)
+  -> uniform_type {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  gldefs::GLint size;
+  gldefs::GLsizei len;
+  gldefs::GLenum type;
+  const auto err = GL_RET_ERR(glGetActiveUniform(
+    _program, static_cast<GLuint>(idx), MAX_UNIFORM_NAME_SIZE, &len, &size, &type, props.name));
+  if (err) {
+    return UNIFORM_NONE;
+  }
+  props.name_len = std::min(static_cast<size_t>(len), MAX_UNIFORM_NAME_SIZE);
+  props.type = static_cast<uniform_type>(type);
+  props.size = static_cast<size_t>(size);
+  return props.type;
+}
+
+gl_graphics_pipeline& gl_graphics_pipeline::reset_props() {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  _stencil = ::shogle::gl_stencil_test_props::make_default(false);
+  _depth = ::shogle::gl_depth_test_props::make_default(false);
+  _blending = ::shogle::gl_blending_props::make_default(false);
+  _culling = ::shogle::gl_culling_props::make_default(false);
+  return *this;
+}
+
+gl_graphics_pipeline& gl_graphics_pipeline::set_primitive(primitive_mode primitive) {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  _primitive = primitive;
+  return *this;
+}
+
+gl_graphics_pipeline& gl_graphics_pipeline::set_poly_mode(polygon_mode poly_mode) {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  _poly_mode = poly_mode;
+  return *this;
+}
+
+gl_graphics_pipeline& gl_graphics_pipeline::set_poly_width(f32 poly_width) {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  _poly_width = poly_width;
+  return *this;
+}
+
+gl_graphics_pipeline&
+gl_graphics_pipeline::set_stencil_test(const gl_stencil_test_props& stencil) {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  _stencil = stencil;
+  return *this;
+}
+
+gl_graphics_pipeline& gl_graphics_pipeline::set_depth_test(const gl_depth_test_props& depth) {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  _depth = depth;
+  return *this;
+}
+
+gl_graphics_pipeline& gl_graphics_pipeline::set_blending(const gl_blending_props& blending) {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  _blending = blending;
+  return *this;
+}
+
+gl_graphics_pipeline& gl_graphics_pipeline::set_culling(const gl_culling_props& culling) {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  _culling = culling;
+  return *this;
+}
+
+gldefs::GLhandle gl_graphics_pipeline::program() const {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  return _program;
+}
+
+gl_shader::stages_bits gl_graphics_pipeline::stages() const {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  return _stages;
+}
+
+auto gl_graphics_pipeline::primitive() const -> primitive_mode {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  return _primitive;
+}
+
+auto gl_graphics_pipeline::poly_mode() const -> polygon_mode {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  return _poly_mode;
+}
+
+f32 gl_graphics_pipeline::poly_width() const {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  return _poly_width;
+}
+
+const gl_stencil_test_props& gl_graphics_pipeline::stencil_test() const {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  return _stencil;
+}
+
+const gl_depth_test_props& gl_graphics_pipeline::depth_test() const {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  return _depth;
+}
+
+const gl_blending_props& gl_graphics_pipeline::blending() const {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  return _blending;
+}
+
+const gl_culling_props& gl_graphics_pipeline::culling() const {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  return _culling;
 }
 
 } // namespace shogle

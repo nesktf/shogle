@@ -37,7 +37,7 @@ class gl_context;
 class gl_texture;
 class gl_buffer;
 class gl_shader;
-class gl_pipeline;
+class gl_graphics_pipeline;
 class gl_framebuffer;
 
 namespace impl {

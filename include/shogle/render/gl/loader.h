@@ -55,6 +55,11 @@ SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver
 #define GL_DEPTH_ATTACHMENT         0x8D00
 #define GL_DEPTH_COMPONENT          0x1902
 
+#define GL_COMPILE_STATUS  0x8B81
+#define GL_LINK_STATUS     0x8B82
+#define GL_INFO_LOG_LENGTH 0x8B84
+#define GL_ACTIVE_UNIFORMS 0x8B86
+
 #define SHOGLE_GL_DOFUNCS(X)                                                                      \
   X(glGetString, const GLubyte*, GLenum name)                                                     \
   X(glGetError, GLenum, void)                                                                     \
@@ -105,9 +110,18 @@ SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver
   X(glUnmapBuffer, void, GLenum target)                                                           \
   X(glCreateShader, GLuint, GLenum type)                                                          \
   X(glDeleteShader, void, GLuint shader)                                                          \
+  X(glCreateProgram, GLuint, void)                                                                \
+  X(glDeleteProgram, void, GLuint program)                                                        \
   X(glShaderSource, void, GLuint shader, GLsizei count, const GLchar* const* string,              \
     const GLint* length)                                                                          \
   X(glCompileShader, void, GLuint shader)                                                         \
+  X(glLinkProgram, void, GLuint program)                                                          \
+  X(glAttachShader, void, GLuint program, GLuint shader)                                          \
+  X(glDettachShader, void, GLuint program, GLuint shader)                                         \
+  X(glGetProgramiv, void, GLuint program, GLenum pname, GLint* params)                            \
+  X(glGetUniformLocation, GLint, GLuint program, const char* name)                                \
+  X(glGetActiveUniform, void, GLuint program, GLuint index, GLsizei bufSize, GLsizei* length,     \
+    GLint* size, GLenum* type, GLchar* name)                                                      \
   X(glGetShaderiv, void, GLuint shader, GLenum pname, GLint* params)                              \
   X(glGetShaderInfoLog, void, GLuint shader, GLsizei bufSize, GLsizei* length, GLchar* infoLog)   \
   X(glBindRenderbuffer, void, GLenum target, GLuint renderbuffer)                                 \

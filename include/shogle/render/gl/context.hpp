@@ -62,7 +62,7 @@ struct gl_indexed_draw_cmd {
   };
 
   ref_view<const gl_vertex_layout> vertex_layout;
-  ref_view<const gl_pipeline> pipeline;
+  ref_view<const gl_graphics_pipeline> pipeline;
   span<const gl_buffer_binding> vertex_buffers;
   span<const gl_shader_binding> shader_buffers;
   ref_view<const gl_buffer> index_buffer;
@@ -79,7 +79,7 @@ struct gl_indexed_draw_cmd {
 
 struct gl_array_draw_cmd {
   ref_view<const gl_vertex_layout> vertex_layout;
-  ref_view<const gl_pipeline> pipeline;
+  ref_view<const gl_graphics_pipeline> pipeline;
   span<const gl_buffer_binding> vertex_buffers;
   span<const gl_shader_binding> shader_buffers;
   span<const gl_texture_binding> textures;
@@ -97,8 +97,8 @@ struct gl_external_cmd {
   gl_stencil_test_props stencil_test;
   gl_blending_props blending;
   gl_culling_props culling;
-  gl_pipeline::primitive_mode primitive;
-  gl_pipeline::polygon_mode poly_mode;
+  gl_graphics_pipeline::primitive_mode primitive;
+  gl_graphics_pipeline::polygon_mode poly_mode;
   f32 poly_width;
   square_pos<u32> viewport;
   square_pos<u32> scissor;
@@ -147,7 +147,7 @@ public:
   void end_frame();
 
   template<typename F>
-  void scope_frame(const gl_frame_init&, F&& scope)
+  void scope_frame(const gl_frame_init& init, F&& scope)
   requires(_scope_frame_invocable<F>)
   {
     start_frame(init);

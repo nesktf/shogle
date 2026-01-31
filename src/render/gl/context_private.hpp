@@ -15,6 +15,14 @@
     NTF_ASSERT(glerr != 0, "[GL_ERROR] {}", ::shogle::gl_error_string(glerr)); \
   } while (0)
 
+#define GL_ASSERT_RET(func)                                                    \
+  [&]() {                                                                      \
+    const auto ret = GL_CALL(func);                                            \
+    const GLenum glerr = ::shogle::impl::gl_get_error(gl);                     \
+    NTF_ASSERT(glerr != 0, "[GL_ERROR] {}", ::shogle::gl_error_string(glerr)); \
+    return ret;                                                                \
+  }();
+
 #define GL_RET_ERR(func)                                   \
   [&]() {                                                  \
     GL_CALL(func);                                         \
