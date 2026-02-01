@@ -1,11 +1,7 @@
 #pragma once
 
-#include <shogle/util/memory.hpp>
-
 #include <shogle/render/gl/common.hpp>
 #include <shogle/render/gl/pipeline.hpp>
-
-#include <memory>
 
 namespace shogle {
 
@@ -265,7 +261,11 @@ private:
   static constexpr bool _scope_frame_invocable =
     std::is_invocable_v<F, gl_context&> || std::is_invocable_v<F>;
 
-  using context_data = std::unique_ptr<gl_private, ::shogle::typed_extern_deleter<gl_private>>;
+  struct context_deleter {
+    void operator()(gl_private* ptr) noexcept;
+  };
+
+  using context_data = std::unique_ptr<gl_private, context_deleter>;
 
 public:
   struct gl_version {
@@ -276,11 +276,10 @@ public:
 public:
   explicit gl_context(create_t, context_data&& ctx, gl_surface_provider& surf_prov) noexcept;
 
-  gl_context(gl_surface_provider& surf_prov, ptr_view<::shogle::mem_alloc_interface> alloc = {});
+  gl_context(gl_surface_provider& surf_prov);
 
 public:
-  static sv_expect<gl_context> create(gl_surface_provider& surf_prov,
-                                      ptr_view<::shogle::mem_alloc_interface> alloc = {}) noexcept;
+  static sv_expect<gl_context> create(gl_surface_provider& surf_prov) noexcept;
 
 public:
   void start_frame(const gl_frame_initializer& init);

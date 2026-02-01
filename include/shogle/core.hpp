@@ -2,8 +2,10 @@
 
 #include <ntfstl/expected.hpp>
 #include <ntfstl/function.hpp>
+#include <ntfstl/memory.hpp>
 #include <ntfstl/ptr.hpp>
 #include <ntfstl/span.hpp>
+#include <ntfstl/unique_array.hpp>
 
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
 #include <ntfstl/logger.hpp>
@@ -15,6 +17,11 @@
   if (cond_) {                         \
     SHOGLE_THROW(thing_);              \
   }
+
+#include <list>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
 
 // TODO: Move these to ntfstl?
 namespace ntf {
@@ -79,11 +86,8 @@ using namespace ntf::numdefs;
 
 using ntf::span;
 
-template<typename T>
-using ref_view = std::reference_wrapper<T>;
-
-template<typename T>
-using ptr_view = ntf::weak_ptr<T>;
+using ntf::ptr_view;
+using ntf::ref_view;
 
 template<typename T>
 using sv_expect = ntf::expected<T, std::string_view>;
@@ -168,5 +172,73 @@ struct vec_span {
     }
   }
 };
+
+template<typename T>
+using dynvec = std::vector<T, ::ntf::mem::default_pool::allocator<T>>;
+
+template<typename T>
+using linked_list = std::list<T, ::ntf::mem::default_pool::allocator<T>>;
+
+template<typename K, typename T, typename Hash = std::hash<K>, typename Pred = std::equal_to<K>>
+using linked_hashmap =
+  std::unordered_map<K, T, Hash, Pred, ::ntf::mem::default_pool::allocator<std::pair<K, T>>>;
+
+template<typename T, typename Hash = std::hash<T>, typename Pred = std::equal_to<T>>
+using linked_set = std::unordered_set<T, Hash, Pred, ::ntf::mem::default_pool::allocator<T>>;
+
+template<typename T>
+using unique_ptr = std::unique_ptr<T, ::ntf::mem::default_pool::deleter<T>>;
+
+template<typename T>
+using unique_array = ::ntf::unique_array<T, ::ntf::mem::default_pool::deleter<T>>;
+
+using scratch_arena = ::ntf::mem::growing_arena;
+
+template<typename T>
+using scratch_dynvec = std::vector<T, scratch_arena::allocator<T>>;
+
+template<typename T>
+scratch_dynvec<T> make_scratch_dynvec(scratch_arena& arena) {
+  return scratch_vec<T>(scratch_arena::allocator<T>{arena});
+}
+
+template<typename T>
+using scratch_list = std::list<T, scratch_arena::allocator<T>>;
+
+template<typename T>
+scratch_list<T> make_scratch_list(scratch_arena& arena) {
+  return scratch_list<T>(scratch_arena::allocator<T>{arena});
+}
+
+template<typename T>
+using scratch_unique = std::unique_ptr<T, scratch_arena::deleter<T>>;
+
+template<typename T, typename... Args>
+scratch_unique<T> make_scratch_unique(scratch_arena& arena, Args&&... args) {
+  return scratch_unique<T>(arena.construct<T>(std::forward<Args>(args)...));
+}
+
+template<typename T>
+using scratch_array = ::ntf::unique_array<T, scratch_arena::deleter<T>>;
+
+template<typename T>
+scratch_array<T> make_scratch_array(scratch_arena& arena, scratch_arena::size_type n) {
+  auto* ptr = arena.construct_n<T>(n);
+  return scratch_array<T>(ptr, n);
+}
+
+template<typename T>
+scratch_array<T> make_scratch_array(scratch_arena& arena, scratch_arena::size_type n,
+                                    const T& copy) {
+  auto* ptr = arena.construct_n<T>(n, copy);
+  return scratch_array<T>(ptr, n);
+}
+
+template<typename T>
+scratch_array<T> make_scratch_array(ntf::uninitialized_t tag, scratch_arena& arena,
+                                    scratch_arena::size_type n) {
+  auto* ptr = arena.construct_n<T>(tag, n);
+  return scratch_array<T>(ptr, n);
+}
 
 } // namespace shogle

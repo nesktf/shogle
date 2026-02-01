@@ -126,22 +126,23 @@ void run_demo(GLFWwindow* win, shogle::gl_context& gl) {
                             .build()
                             .value();
 
-  shogle::gl_pipeline pipeline(gl, shader_set, shogle::gl_pipeline::PRIMITIVE_TRIANGLES,
-                               shogle::gl_pipeline::POLY_MODE_FILL);
+  shogle::gl_graphics_pipeline pipeline(gl, shader_set,
+                                        shogle::gl_graphics_pipeline::PRIMITIVE_TRIANGLES,
+                                        shogle::gl_graphics_pipeline::POLY_MODE_FILL);
   const shogle::scope_end pipeline_end = [&]() {
-    shogle::gl_pipeline::destroy(gl, pipeline);
+    shogle::gl_graphics_pipeline::destroy(gl, pipeline);
   };
 
   const shogle::gl_buffer_binding vertex_bind{
     .buffer = quad_vbo,
     .location = 0,
   };
-  const shogle::gl_indexed_draw_cmd cmd{
+  const shogle::gl_indexed_cmd cmd{
     .vertex_layout = quad_layout,
     .pipeline = pipeline,
+    .index_buffer = quad_ebo,
     .vertex_buffers = {vertex_bind},
     .shader_buffers = {},
-    .index_buffer = quad_ebo,
     .textures = {},
     .uniforms = {},
     .viewport = {0, 0, 800, 600},
@@ -149,18 +150,17 @@ void run_demo(GLFWwindow* win, shogle::gl_context& gl) {
     .vertex_offset = 0,
     .vertex_count = 6,
     .index_count = static_cast<u32>(indices.size()),
-    .format = shogle::gl_indexed_draw_cmd::FORMAT_U32,
+    .format = shogle::gl_indexed_cmd::INDEX_FORMAT_U32,
     .instances = 1,
   };
 
-  const shogle::gl_frame_init frame_init{
+  const shogle::gl_frame_initializer frame_init{
     .clear_opt =
       {
         .color = {.3f, .3f, .3f, 1.f},
-        .flags = shogle::gl_clear_opt::CLEAR_COLOR,
+        .clear_flags = shogle::gl_clear_opt::CLEAR_COLOR,
       },
     .fbos = {},
-    .fbo_clear_opts = {},
   };
 
   while (!glfwWindowShouldClose(win)) {
