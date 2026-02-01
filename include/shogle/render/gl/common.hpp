@@ -38,6 +38,7 @@ class gl_texture;
 class gl_buffer;
 class gl_shader;
 class gl_graphics_pipeline;
+class gl_vertex_layout;
 class gl_framebuffer;
 
 namespace impl {
@@ -52,6 +53,15 @@ constexpr gldefs::GLhandle GL_DEFAULT_BINDING = 0;
 constexpr gldefs::GLhandle GL_NULL_HANDLE = std::numeric_limits<gldefs::GLhandle>::max();
 
 std::string_view gl_error_string(gldefs::GLenum err) noexcept;
+
+using PFN_glGetProcAddress = void* (*)(const char* name);
+
+struct gl_surface_provider {
+  virtual ~gl_surface_provider() = default;
+  virtual PFN_glGetProcAddress proc_loader() noexcept = 0;
+  virtual extent2d surface_extent() const noexcept = 0;
+  virtual void swap_buffers() noexcept = 0;
+};
 
 class gl_sv_error : public std::exception {
 public:

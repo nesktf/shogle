@@ -283,90 +283,90 @@ public:
     POLY_MODE_FILL = 0x1B02,  // GL_FILL
   };
 
-  enum uniform_type : gldefs::GLenum {
-    UNIFORM_NONE = 0x0000,
+  enum shader_attrib_type : gldefs::GLenum {
+    TYPE_NONE = 0x0000,
 
-    UNIFORM_F32 = 0x1406,       // GL_FLOAT
-    UNIFORM_F32VEC2 = 0x8B50,   // GL_FLOAT_VEC2
-    UNIFORM_F32VEC3 = 0x8B51,   // GL_FLOAT_VEC3
-    UNIFORM_F32VEC4 = 0x8B52,   // GL_FLOAT_VEC4
-    UNIFORM_F32MAT2 = 0x8B5A,   // GL_FLOAT_MAT2
-    UNIFORM_F32MAT3 = 0x8B5B,   // GL_FLOAT_MAT3
-    UNIFORM_F32MAT4 = 0x8B5C,   // GL_FLOAT_MAT4
-    UNIFORM_F32MAT2x3 = 0x8B65, // GL_FLOAT_MAT2x3
-    UNIFORM_F32MAT2x4 = 0x8B66, // GL_FLOAT_MAT2x4
-    UNIFORM_F32MAT3x2 = 0x8B67, // GL_FLOAT_MAT3x2
-    UNIFORM_F32MAT3x4 = 0x8B68, // GL_FLOAT_MAT3x4
-    UNIFORM_F32MAT4x2 = 0x8B69, // GL_FLOAT_MAT4x2
-    UNIFORM_F32MAT4x3 = 0x8B6A, // GL_FLOAT_MAT4x3
+    TYPE_F32 = 0x1406,       // GL_FLOAT
+    TYPE_F32VEC2 = 0x8B50,   // GL_FLOAT_VEC2
+    TYPE_F32VEC3 = 0x8B51,   // GL_FLOAT_VEC3
+    TYPE_F32VEC4 = 0x8B52,   // GL_FLOAT_VEC4
+    TYPE_F32MAT2 = 0x8B5A,   // GL_FLOAT_MAT2
+    TYPE_F32MAT3 = 0x8B5B,   // GL_FLOAT_MAT3
+    TYPE_F32MAT4 = 0x8B5C,   // GL_FLOAT_MAT4
+    TYPE_F32MAT2x3 = 0x8B65, // GL_FLOAT_MAT2x3
+    TYPE_F32MAT2x4 = 0x8B66, // GL_FLOAT_MAT2x4
+    TYPE_F32MAT3x2 = 0x8B67, // GL_FLOAT_MAT3x2
+    TYPE_F32MAT3x4 = 0x8B68, // GL_FLOAT_MAT3x4
+    TYPE_F32MAT4x2 = 0x8B69, // GL_FLOAT_MAT4x2
+    TYPE_F32MAT4x3 = 0x8B6A, // GL_FLOAT_MAT4x3
 
-    UNIFORM_F64 = 0x140A,       // GL_DOUBLE
-    UNIFORM_F64VEC2 = 0x8FFC,   // GL_DOUBLE_VEC2
-    UNIFORM_F64VEC3 = 0x8FFD,   // GL_DOUBLE_VEC3
-    UNIFORM_F64VEC4 = 0x8FFE,   // GL_DOUBLE_VEC4
-    UNIFORM_F64MAT2 = 0x8F46,   // GL_DOUBLE_MAT2
-    UNIFORM_F64MAT3 = 0x8F47,   // GL_DOUBLE_MAT3
-    UNIFORM_F64MAT4 = 0x8F48,   // GL_DOUBLE_MAT4
-    UNIFORM_F64MAT2x3 = 0x8F49, // GL_DOUBLE_MAT2x3
-    UNIFORM_F64MAT2x4 = 0x8F4A, // GL_DOUBLE_MAT2x4
-    UNIFORM_F64MAT3x2 = 0x8F4B, // GL_DOUBLE_MAT3x2
-    UNIFORM_F64MAT3x4 = 0x8F4C, // GL_DOUBLE_MAT3x4
-    UNIFORM_F64MAT4x2 = 0x8F4D, // GL_DOUBLE_MAT4x2
-    UNIFORM_F64MAT4x3 = 0x8F4E, // GL_DOUBLE_MAT4x3
+    TYPE_F64 = 0x140A,       // GL_DOUBLE
+    TYPE_F64VEC2 = 0x8FFC,   // GL_DOUBLE_VEC2
+    TYPE_F64VEC3 = 0x8FFD,   // GL_DOUBLE_VEC3
+    TYPE_F64VEC4 = 0x8FFE,   // GL_DOUBLE_VEC4
+    TYPE_F64MAT2 = 0x8F46,   // GL_DOUBLE_MAT2
+    TYPE_F64MAT3 = 0x8F47,   // GL_DOUBLE_MAT3
+    TYPE_F64MAT4 = 0x8F48,   // GL_DOUBLE_MAT4
+    TYPE_F64MAT2x3 = 0x8F49, // GL_DOUBLE_MAT2x3
+    TYPE_F64MAT2x4 = 0x8F4A, // GL_DOUBLE_MAT2x4
+    TYPE_F64MAT3x2 = 0x8F4B, // GL_DOUBLE_MAT3x2
+    TYPE_F64MAT3x4 = 0x8F4C, // GL_DOUBLE_MAT3x4
+    TYPE_F64MAT4x2 = 0x8F4D, // GL_DOUBLE_MAT4x2
+    TYPE_F64MAT4x3 = 0x8F4E, // GL_DOUBLE_MAT4x3
 
-    UNIFORM_I32 = 0x1404,     // GL_INT
-    UNIFORM_I32VEC2 = 0x8B53, // GL_INT_VEC2
-    UNIFORM_I32VEC3 = 0x8B54, // GL_INT_VEC3
-    UNIFORM_I32VEC4 = 0x8B55, // GL_INT_VEC4
+    TYPE_I32 = 0x1404,     // GL_INT
+    TYPE_I32VEC2 = 0x8B53, // GL_INT_VEC2
+    TYPE_I32VEC3 = 0x8B54, // GL_INT_VEC3
+    TYPE_I32VEC4 = 0x8B55, // GL_INT_VEC4
 
-    UNIFORM_U32 = 0x1405,     // GL_UNSIGNED_INT
-    UNIFORM_U32VEC2 = 0x8DC6, // GL_UNSIGNED_INT_VEC2
-    UNIFORM_U32VEC3 = 0x8DC7, // GL_UNSIGNED_INT_VEC3
-    UNIFORM_U32VEC4 = 0x8DC8, // GL_UNSIGNED_INT_VEC4
+    TYPE_U32 = 0x1405,     // GL_UNSIGNED_INT
+    TYPE_U32VEC2 = 0x8DC6, // GL_UNSIGNED_INT_VEC2
+    TYPE_U32VEC3 = 0x8DC7, // GL_UNSIGNED_INT_VEC3
+    TYPE_U32VEC4 = 0x8DC8, // GL_UNSIGNED_INT_VEC4
 
-    UNIFORM_BOOL = 0x8B56,     // GL_BOOL
-    UNIFORM_BOOLVEC2 = 0x8B57, // GL_BOOL_VEC2
-    UNIFORM_BOOLVEC3 = 0x8B58, // GL_BOOL_VEC3
-    UNIFORM_BOOLVEC4 = 0x8B59, // GL_BOOL_VEC4
+    TYPE_BOOL = 0x8B56,     // GL_BOOL
+    TYPE_BOOLVEC2 = 0x8B57, // GL_BOOL_VEC2
+    TYPE_BOOLVEC3 = 0x8B58, // GL_BOOL_VEC3
+    TYPE_BOOLVEC4 = 0x8B59, // GL_BOOL_VEC4
 
-    UNIFORM_SAMPLER1D = 0x8B5D,         // GL_SAMPLER_1D
-    UNIFORM_SAMPLER1D_ARRAY = 0x8DC0,   // GL_SAMPLER_1D_ARRAY
-    UNIFORM_SAMPLER2D = 0x8B5E,         // GL_SAMPLER_2D
-    UNIFORM_SAMPLER2D_ARRAY = 0x8DC1,   // GL_SAMPLER_2D_ARRAY
-    UNIFORM_SAMPLER2DMS = 0x9108,       // GL_SAMPLER_2D_MULTISAMPLE
-    UNIFORM_SAMPLER2DMS_ARRAY = 0x910B, // GL_SAMPLER_2D_MULTISAMPLE_ARRAY
-    UNIFORM_SAMPLER3D = 0x8B5F,         // GL_SAMPLER_3D
-    UNIFORM_SAMPLER_CUBE = 0x8B60,      // GL_SAMPLER_CUBE
-    UNIFORM_SAMPLER_BUFFER = 0x8DC2,    // GL_SAMPLER_BUFFER
+    TYPE_SAMPLER1D = 0x8B5D,         // GL_SAMPLER_1D
+    TYPE_SAMPLER1D_ARRAY = 0x8DC0,   // GL_SAMPLER_1D_ARRAY
+    TYPE_SAMPLER2D = 0x8B5E,         // GL_SAMPLER_2D
+    TYPE_SAMPLER2D_ARRAY = 0x8DC1,   // GL_SAMPLER_2D_ARRAY
+    TYPE_SAMPLER2DMS = 0x9108,       // GL_SAMPLER_2D_MULTISAMPLE
+    TYPE_SAMPLER2DMS_ARRAY = 0x910B, // GL_SAMPLER_2D_MULTISAMPLE_ARRAY
+    TYPE_SAMPLER3D = 0x8B5F,         // GL_SAMPLER_3D
+    TYPE_SAMPLER_CUBE = 0x8B60,      // GL_SAMPLER_CUBE
+    TYPE_SAMPLER_BUFFER = 0x8DC2,    // GL_SAMPLER_BUFFER
 
-    UNIFORM_ISAMPLER1D = 0x8DC9,         // GL_INT_SAMPLER_1D
-    UNIFORM_ISAMPLER1D_ARRAY = 0x8DCE,   // GL_INT_SAMPLER_1D_ARRAY
-    UNIFORM_ISAMPLER2D = 0x8DCA,         // GL_INT_SAMPLER_2D
-    UNIFORM_ISAMPLER2D_ARRAY = 0x8DCF,   // GL_INT_SAMPLER_2D_ARRAY
-    UNIFORM_ISAMPLER2DMS = 0x9109,       // GL_INT_SAMPLER_2D_MULTISAMPLE
-    UNIFORM_ISAMPLER2DMS_ARRAY = 0x910C, // GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY
-    UNIFORM_ISAMPLER3D = 0x8DCB,         // GL_INT_SAMPLER_3D
-    UNIFORM_ISAMPLER_CUBE = 0x8DCC,      // GL_INT_SAMPLER_CUBE
-    UNIFORM_ISAMPLER_BUFFER = 0x8DD0,    // GL_INT_SAMPLER_BUFFER
+    TYPE_ISAMPLER1D = 0x8DC9,         // GL_INT_SAMPLER_1D
+    TYPE_ISAMPLER1D_ARRAY = 0x8DCE,   // GL_INT_SAMPLER_1D_ARRAY
+    TYPE_ISAMPLER2D = 0x8DCA,         // GL_INT_SAMPLER_2D
+    TYPE_ISAMPLER2D_ARRAY = 0x8DCF,   // GL_INT_SAMPLER_2D_ARRAY
+    TYPE_ISAMPLER2DMS = 0x9109,       // GL_INT_SAMPLER_2D_MULTISAMPLE
+    TYPE_ISAMPLER2DMS_ARRAY = 0x910C, // GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY
+    TYPE_ISAMPLER3D = 0x8DCB,         // GL_INT_SAMPLER_3D
+    TYPE_ISAMPLER_CUBE = 0x8DCC,      // GL_INT_SAMPLER_CUBE
+    TYPE_ISAMPLER_BUFFER = 0x8DD0,    // GL_INT_SAMPLER_BUFFER
 
-    UNIFORM_USAMPLER1D = 0x8DD1,         // GL_UNSIGNED_INT_SAMPLER_1D
-    UNIFORM_USAMPLER1D_ARRAY = 0x8DD6,   // GL_UNSIGNED_INT_SAMPLER_1D_ARRAY
-    UNIFORM_USAMPLER2D = 0x8DD2,         // GL_UNSIGNED_INT_SAMPLER_2D
-    UNIFORM_USAMPLER2D_ARRAY = 0x8DD7,   // GL_UNSIGNED_INT_SAMPLER_2D_ARRAY
-    UNIFORM_USAMPLER2DMS = 0x910A,       // GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE
-    UNIFORM_USAMPLER2DMS_ARRAY = 0x910D, // GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY
-    UNIFORM_USAMPLER3D = 0x8DD3,         // GL_UNSIGNED_INT_SAMPLER_3D
-    UNIFORM_USAMPLER_CUBE = 0x8DD4,      // GL_UNSIGNED_INT_SAMPLER_CUBE
-    UNIFORM_USAMPLER_BUFFER = 0x8DD8,    // GL_UNSIGNED_INT_SAMPLER_BUFFER
+    TYPE_USAMPLER1D = 0x8DD1,         // GL_UNSIGNED_INT_SAMPLER_1D
+    TYPE_USAMPLER1D_ARRAY = 0x8DD6,   // GL_UNSIGNED_INT_SAMPLER_1D_ARRAY
+    TYPE_USAMPLER2D = 0x8DD2,         // GL_UNSIGNED_INT_SAMPLER_2D
+    TYPE_USAMPLER2D_ARRAY = 0x8DD7,   // GL_UNSIGNED_INT_SAMPLER_2D_ARRAY
+    TYPE_USAMPLER2DMS = 0x910A,       // GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE
+    TYPE_USAMPLER2DMS_ARRAY = 0x910D, // GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY
+    TYPE_USAMPLER3D = 0x8DD3,         // GL_UNSIGNED_INT_SAMPLER_3D
+    TYPE_USAMPLER_CUBE = 0x8DD4,      // GL_UNSIGNED_INT_SAMPLER_CUBE
+    TYPE_USAMPLER_BUFFER = 0x8DD8,    // GL_UNSIGNED_INT_SAMPLER_BUFFER
   };
 
-  static constexpr size_t MAX_UNIFORM_NAME_SIZE = 128;
+  static constexpr size_t MAX_NAME_SIZE = 128;
 
-  struct uniform_props {
-    char name[MAX_UNIFORM_NAME_SIZE];
+  struct shader_attrib_props {
+    char name[MAX_NAME_SIZE];
     size_t name_len;
     size_t size;
-    uniform_type type;
+    shader_attrib_type type;
   };
 
 private:
@@ -377,20 +377,27 @@ public:
                        primitive_mode primitive, polygon_mode poly_mode);
 
   gl_graphics_pipeline(gl_context& gl, const gl_shader::graphics_set& shaders,
-                       primitive_mode primitive, polygon_mode poly_mode);
+                       primitive_mode primitive = PRIMITIVE_TRIANGLES,
+                       polygon_mode poly_mode = POLY_MODE_FILL);
 
 public:
   static gl_s_expect<gl_graphics_pipeline> create(gl_context& gl,
                                                   const gl_shader::graphics_set& shaders,
-                                                  primitive_mode primitive,
-                                                  polygon_mode poly_mode);
+                                                  primitive_mode primitive = PRIMITIVE_TRIANGLES,
+                                                  polygon_mode poly_mode = POLY_MODE_FILL);
 
   static void destroy(gl_context& gl, gl_graphics_pipeline& pipeline) noexcept;
 
 public:
-  ntf::optional<u32> uniform_location(gl_context& gl, const char* name);
+  ntf::optional<u32> uniform_location(gl_context& gl, const char* name) const;
   u32 uniform_count(gl_context& gl) const;
-  uniform_type query_uniform_index(gl_context& gl, uniform_props& props, u32 idx);
+  shader_attrib_type query_uniform_index(gl_context& gl, shader_attrib_props& props,
+                                         u32 idx) const;
+
+  ntf::optional<u32> attribute_location(gl_context& gl, const char* name) const;
+  u32 attribute_count(gl_context& gl) const;
+  shader_attrib_type query_attribute_index(gl_context& gl, shader_attrib_props& props,
+                                           u32 idx) const;
 
 public:
   gl_graphics_pipeline& reset_props();

@@ -59,6 +59,7 @@ SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver
 #define GL_LINK_STATUS     0x8B82
 #define GL_INFO_LOG_LENGTH 0x8B84
 #define GL_ACTIVE_UNIFORMS 0x8B86
+#define GL_ACTIVE_ATTRIBUTES 0x8B89
 
 #define SHOGLE_GL_DOFUNCS(X)                                                                      \
   X(glGetString, const GLubyte*, GLenum name)                                                     \
@@ -120,7 +121,10 @@ SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver
   X(glDettachShader, void, GLuint program, GLuint shader)                                         \
   X(glGetProgramiv, void, GLuint program, GLenum pname, GLint* params)                            \
   X(glGetUniformLocation, GLint, GLuint program, const char* name)                                \
+  X(glGetAttribLocation, GLint, GLuint program, const char* name)                                \
   X(glGetActiveUniform, void, GLuint program, GLuint index, GLsizei bufSize, GLsizei* length,     \
+    GLint* size, GLenum* type, GLchar* name)                                                      \
+  X(glGetActiveAttrib, void, GLuint program, GLuint index, GLsizei bufSize, GLsizei* length,     \
     GLint* size, GLenum* type, GLchar* name)                                                      \
   X(glGetShaderiv, void, GLuint shader, GLenum pname, GLint* params)                              \
   X(glGetShaderInfoLog, void, GLuint shader, GLsizei bufSize, GLsizei* length, GLchar* infoLog)   \

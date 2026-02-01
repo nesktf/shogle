@@ -1,6 +1,7 @@
 #pragma once
 
 #include <shogle/render/gl/loader.h>
+#include <shogle/util/memory.hpp>
 
 #if defined(SHOGLE_USE_SYSTEM_GL) && SHOGLE_USE_SYSTEM_GL
 #define GL_CALL(func) (func)
@@ -34,6 +35,10 @@ namespace shogle {
 
 class gl_private {
 public:
+  gl_private(scratch_arena&& arena_) noexcept : arena(std::move(arena_)) {}
+
+public:
+  scratch_arena arena;
   const char* renderer_string;
   const char* vendor_string;
   const char* version_string;
@@ -41,6 +46,7 @@ public:
 #if !defined(SHOGLE_USE_SYSTEM_GL) || !SHOGLE_USE_SYSTEM_GL
   shogle_gl_functions funcs;
 #endif
+  void* surf_prov;
 };
 
 } // namespace shogle

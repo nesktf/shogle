@@ -181,7 +181,7 @@ void gl_graphics_pipeline::destroy(gl_context& gl, gl_graphics_pipeline& pipelin
   pipeline._program = GL_NULL_HANDLE;
 }
 
-ntf::optional<u32> gl_graphics_pipeline::uniform_location(gl_context& gl, const char* name) {
+ntf::optional<u32> gl_graphics_pipeline::uniform_location(gl_context& gl, const char* name) const {
   NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
   const gldefs::GLint loc = GL_ASSERT_RET(glGetUniformLocation(_program, name));
   if (loc == -1) {
@@ -198,19 +198,54 @@ u32 gl_graphics_pipeline::uniform_count(gl_context& gl) const {
   return static_cast<u32>(count);
 }
 
-auto gl_graphics_pipeline::query_uniform_index(gl_context& gl, uniform_props& props, u32 idx)
-  -> uniform_type {
+auto gl_graphics_pipeline::query_uniform_index(gl_context& gl, shader_attrib_props& props,
+                                               u32 idx) const -> shader_attrib_type {
   NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
   gldefs::GLint size;
   gldefs::GLsizei len;
   gldefs::GLenum type;
-  const auto err = GL_RET_ERR(glGetActiveUniform(
-    _program, static_cast<GLuint>(idx), MAX_UNIFORM_NAME_SIZE, &len, &size, &type, props.name));
+  const auto err = GL_RET_ERR(glGetActiveUniform(_program, static_cast<GLuint>(idx), MAX_NAME_SIZE,
+                                                 &len, &size, &type, props.name));
   if (err) {
-    return UNIFORM_NONE;
+    return TYPE_NONE;
   }
-  props.name_len = std::min(static_cast<size_t>(len), MAX_UNIFORM_NAME_SIZE);
-  props.type = static_cast<uniform_type>(type);
+  props.name_len = std::min(static_cast<size_t>(len), MAX_NAME_SIZE);
+  props.type = static_cast<shader_attrib_type>(type);
+  props.size = static_cast<size_t>(size);
+  return props.type;
+}
+
+ntf::optional<u32> gl_graphics_pipeline::attribute_location(gl_context& gl,
+                                                            const char* name) const {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  const gldefs::GLint loc = GL_ASSERT_RET(glGetAttribLocation(_program, name));
+  if (loc == -1) {
+    return {ntf::nullopt};
+  } else {
+    return {ntf::in_place, static_cast<u32>(loc)};
+  }
+}
+
+u32 gl_graphics_pipeline::attribute_count(gl_context& gl) const {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  gldefs::GLint count;
+  GL_ASSERT(glGetProgramiv(_program, GL_ACTIVE_ATTRIBUTES, &count));
+  return static_cast<u32>(count);
+}
+
+auto gl_graphics_pipeline::query_attribute_index(gl_context& gl, shader_attrib_props& props,
+                                                 u32 idx) const -> shader_attrib_type {
+  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  gldefs::GLint size;
+  gldefs::GLsizei len;
+  gldefs::GLenum type;
+  const auto err = GL_RET_ERR(glGetActiveAttrib(_program, static_cast<GLuint>(idx), MAX_NAME_SIZE,
+                                                &len, &size, &type, props.name));
+  if (err) {
+    return TYPE_NONE;
+  }
+  props.name_len = std::min(static_cast<size_t>(len), MAX_NAME_SIZE);
+  props.type = static_cast<shader_attrib_type>(type);
   props.size = static_cast<size_t>(size);
   return props.type;
 }

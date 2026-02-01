@@ -1,5 +1,6 @@
 #include "./context_private.hpp"
 #include <shogle/render/gl/context.hpp>
+#include <shogle/render/gl/framebuffer.hpp>
 
 namespace shogle {
 

@@ -1,18 +1,20 @@
 #pragma once
 
-#include <ntfstl/allocator.hpp>
 #include <ntfstl/expected.hpp>
 #include <ntfstl/function.hpp>
-#include <ntfstl/memory_pool.hpp>
 #include <ntfstl/ptr.hpp>
 #include <ntfstl/span.hpp>
 
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
 #include <ntfstl/logger.hpp>
-
-#include <algorithm>
-#include <string_view>
 #endif
+
+#define SHOGLE_THROW(thing_) throw thing_
+
+#define SHOGLE_THROW_IF(cond_, thing_) \
+  if (cond_) {                         \
+    SHOGLE_THROW(thing_);              \
+  }
 
 // TODO: Move these to ntfstl?
 namespace ntf {
@@ -88,19 +90,6 @@ using sv_expect = ntf::expected<T, std::string_view>;
 
 template<typename T>
 using s_expect = ntf::expected<T, std::string>;
-
-using scratch_arena = ntf::fixed_arena;
-
-template<typename T>
-using arena_alloc = ntf::allocator_adaptor<T, scratch_arena>;
-
-template<typename T>
-using scratch_vec = std::vector<T, arena_alloc<T>>;
-
-template<typename T>
-auto make_scratch_vec(scratch_arena& arena) -> scratch_vec<T> {
-  return scratch_vec<T>(arena_alloc<T>{arena});
-}
 
 template<typename F>
 class scope_end {

@@ -6,6 +6,11 @@
 
 #include <ntfstl/any.hpp>
 
+#ifndef SHOGLE_DISABLE_INTERNAL_LOGS
+#include <algorithm>
+#include <string_view>
+#endif
+
 namespace shogle {
 
 // clang-format off

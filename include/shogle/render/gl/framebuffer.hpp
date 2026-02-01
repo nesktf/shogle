@@ -20,28 +20,24 @@ private:
   struct create_t {};
 
 public:
-  gl_renderbuffer(create_t, gl_context& gl, gldefs::GLhandle id, buffer_format format,
-                  extent2d extent);
+  gl_renderbuffer(create_t, gldefs::GLhandle id, buffer_format format, extent2d extent);
   gl_renderbuffer(gl_context& gl, buffer_format format, extent2d extent);
 
 public:
   static gl_sv_expect<gl_renderbuffer> create(gl_context& gl, buffer_format format,
                                               extent2d extent);
 
-  void destroy();
-  void rebind_context(gl_context& gl_);
+  static void destroy(gl_context& gl, gl_renderbuffer& rbo);
 
 public:
   gldefs::GLhandle id() const;
   buffer_format format() const;
   extent2d extent() const;
-  gl_context& context() const;
 
 private:
-  ref_view<gl_context> _gl;
+  extent2d _extent;
   gldefs::GLhandle _id;
   buffer_format _format;
-  extent2d _extent;
 };
 
 class gl_framebuffer {
@@ -73,7 +69,7 @@ private:
   struct create_t {};
 
 public:
-  gl_framebuffer(create_t, gl_context& gl, gldefs::GLhandle fbo, u32 color_attachments,
+  gl_framebuffer(create_t, gldefs::GLhandle fbo, u32 color_attachments,
                  buffer_attachment attachment, extent2d extent);
 
   explicit gl_framebuffer(gl_context& gl, extent2d extent, span<const texture_attachment> color,
@@ -96,12 +92,12 @@ public:
   static gl_sv_expect<gl_framebuffer> from_color_only(gl_context& gl, extent2d extent,
                                                       span<const texture_attachment> color);
 
-  void destroy();
-  void rebind_context(gl_context& gl);
+  static void destroy(gl_context& gl);
 
 public:
-  static gl_expect<void> blit(const gl_framebuffer& source, const square_pos<u32>& source_area,
-                              const gl_framebuffer& dest, const square_pos<u32>& dest_area,
+  static gl_expect<void> blit(gl_context& gl, const gl_framebuffer& source,
+                              const square_pos<u32>& source_area, const gl_framebuffer& dest,
+                              const square_pos<u32>& dest_area,
                               gl_framebuffer::buffer_target target_mask,
                               gl_framebuffer::buffer_filter filter);
 
@@ -110,10 +106,8 @@ public:
   extent2d extent() const;
   buffer_attachment attachment_type() const;
   u32 color_attachment_count() const;
-  gl_context& context() const;
 
 private:
-  ref_view<gl_context> _gl;
   extent2d _extent;
   gldefs::GLhandle _id;
   buffer_attachment _buffer_attachment;
