@@ -96,8 +96,8 @@ public:
 
 public:
   static gl_expect<void> blit(gl_context& gl, const gl_framebuffer& source,
-                              const square_pos<u32>& source_area, const gl_framebuffer& dest,
-                              const square_pos<u32>& dest_area,
+                              const rectangle_pos<u32>& source_area, const gl_framebuffer& dest,
+                              const rectangle_pos<u32>& dest_area,
                               gl_framebuffer::buffer_target target_mask,
                               gl_framebuffer::buffer_filter filter);
 

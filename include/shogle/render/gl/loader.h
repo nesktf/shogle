@@ -55,11 +55,63 @@ SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver
 #define GL_DEPTH_ATTACHMENT         0x8D00
 #define GL_DEPTH_COMPONENT          0x1902
 
-#define GL_COMPILE_STATUS  0x8B81
-#define GL_LINK_STATUS     0x8B82
-#define GL_INFO_LOG_LENGTH 0x8B84
-#define GL_ACTIVE_UNIFORMS 0x8B86
+#define GL_COMPILE_STATUS    0x8B81
+#define GL_LINK_STATUS       0x8B82
+#define GL_INFO_LOG_LENGTH   0x8B84
+#define GL_ACTIVE_UNIFORMS   0x8B86
 #define GL_ACTIVE_ATTRIBUTES 0x8B89
+
+#define GL_SCISSOR_TEST   0x0C11
+#define GL_DEPTH_TEST     0x0B71
+#define GL_STENCIL_TEST   0x0B90
+#define GL_BLEND          0x0BE2
+#define GL_CULL_FACE      0x0B44
+#define GL_FRONT_AND_BACK 0x0408
+#define GL_LINE           0x1B01
+
+#define GL_FLOAT          0x1406
+#define GL_DOUBLE         0x140A
+#define GL_INT            0x1404
+#define GL_UNSIGNED_INT   0x1405
+#define GL_UNSIGNED_SHORT 0x1403
+#define GL_UNSIGNED_BYTE  0x1401
+
+#define GL_ARRAY_BUFFER         0x8892
+#define GL_ELEMENT_ARRAY_BUFFER 0x8893
+
+#define GL_FALSE 0
+#define GL_TRUE  1
+
+#define GL_DEBUG_SEVERITY_HIGH         0x9146
+#define GL_DEBUG_SEVERITY_MEDIUM       0x9147
+#define GL_DEBUG_SEVERITY_LOW          0x9148
+#define GL_DEBUG_SEVERITY_NOTIFICATION 0x826B
+
+#define GL_DEBUG_TYPE_ERROR               0x824C
+#define GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR 0x824D
+#define GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR  0x824E
+#define GL_DEBUG_TYPE_PORTABILITY         0x824F
+#define GL_DEBUG_TYPE_PERFORMANCE         0x8250
+#define GL_DEBUG_TYPE_OTHER               0x8251
+#define GL_DEBUG_TYPE_MARKER              0x8268
+#define GL_DEBUG_TYPE_PUSH_GROUP          0x8269
+#define GL_DEBUG_TYPE_POP_GROUP           0x826A
+
+#define GL_DEBUG_SOURCE_API             0x8246
+#define GL_DEBUG_SOURCE_WINDOW_SYSTEM   0x8247
+#define GL_DEBUG_SOURCE_SHADER_COMPILER 0x8248
+#define GL_DEBUG_SOURCE_THIRD_PARTY     0x8249
+#define GL_DEBUG_SOURCE_APPLICATION     0x824A
+#define GL_DEBUG_SOURCE_OTHER           0x824B
+
+#define GL_TEXTURE0 0x84C0
+
+#ifndef APIENTRY
+#define APIENTRY
+#endif
+
+typedef void(APIENTRY* GLDEBUGPROC)(GLenum source, GLenum type, GLuint id, GLenum severity,
+                                    GLsizei length, const GLchar* message, const void* userParam);
 
 #define SHOGLE_GL_DOFUNCS(X)                                                                      \
   X(glGetString, const GLubyte*, GLenum name)                                                     \
@@ -121,10 +173,10 @@ SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver
   X(glDettachShader, void, GLuint program, GLuint shader)                                         \
   X(glGetProgramiv, void, GLuint program, GLenum pname, GLint* params)                            \
   X(glGetUniformLocation, GLint, GLuint program, const char* name)                                \
-  X(glGetAttribLocation, GLint, GLuint program, const char* name)                                \
+  X(glGetAttribLocation, GLint, GLuint program, const char* name)                                 \
   X(glGetActiveUniform, void, GLuint program, GLuint index, GLsizei bufSize, GLsizei* length,     \
     GLint* size, GLenum* type, GLchar* name)                                                      \
-  X(glGetActiveAttrib, void, GLuint program, GLuint index, GLsizei bufSize, GLsizei* length,     \
+  X(glGetActiveAttrib, void, GLuint program, GLuint index, GLsizei bufSize, GLsizei* length,      \
     GLint* size, GLenum* type, GLchar* name)                                                      \
   X(glGetShaderiv, void, GLuint shader, GLenum pname, GLint* params)                              \
   X(glGetShaderInfoLog, void, GLuint shader, GLsizei bufSize, GLsizei* length, GLchar* infoLog)   \
@@ -149,6 +201,65 @@ SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver
     GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter)                        \
   X(glCreateVertexArrays, void, GLsizei n, GLuint* arrays)                                        \
   X(glDeleteVertexArrays, void, GLsizei n, const GLuint* arrays)                                  \
+  X(glViewport, void, GLint x, GLint y, GLsizei width, GLsizei height)                            \
+  X(glEnable, void, GLenum cap)                                                                   \
+  X(glDisable, void, GLenum cap)                                                                  \
+  X(glScissor, void, GLint x, GLint y, GLsizei width, GLsizei height)                             \
+  X(glPolygonMode, void, GLenum face, GLenum mode)                                                \
+  X(glLineWidth, void, GLfloat width)                                                             \
+  X(glPointSize, void, GLfloat size)                                                              \
+  X(glDepthFunc, void, GLenum func)                                                               \
+  X(glDepthRange, void, GLdouble n, GLdouble f)                                                   \
+  X(glDepthMask, void, GLboolean flag)                                                            \
+  X(glStencilFunc, void, GLenum func, GLint ref, GLuint mask)                                     \
+  X(glStencilOp, void, GLenum fail, GLenum zfail, GLenum zpass)                                   \
+  X(glStencilMask, void, GLuint mask)                                                             \
+  X(glBlendFuncSeparate, void, GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha,         \
+    GLenum dfactorAlpha)                                                                          \
+  X(glBlendEquation, void, GLenum mode)                                                           \
+  X(glBlendColor, void, GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)                  \
+  X(glCullFace, void, GLenum mode)                                                                \
+  X(glFrontFace, void, GLenum mode)                                                               \
+  X(glBindVertexArray, void, GLenum array)                                                        \
+  X(glEnableVertexAttribArray, void, GLenum index)                                                \
+  X(glVertexAttribPointer, void, GLuint index, GLint size, GLenum type, GLboolean normalized,     \
+    GLsizei stride, const void* pointer)                                                          \
+  X(glVertexAttribLPointer, void, GLuint index, GLint size, GLenum type, GLsizei stride,          \
+    const void* pointer)                                                                          \
+  X(glVertexAttribIPointer, void, GLuint index, GLint size, GLenum type, GLsizei stride,          \
+    const void* pointer)                                                                          \
+  X(glBindBufferRange, void, GLenum target, GLuint index, GLuint buffer, GLintptr offset,         \
+    GLsizeiptr size)                                                                              \
+  X(glDebugMessageCallback, void, GLDEBUGPROC callback, const void* userParam)                    \
+  X(glActiveTexture, void, GLenum texture)                                                        \
+  X(glUniform1f, void, GLint location, GLfloat v0)                                                \
+  X(glUniform2fv, void, GLint location, GLsizei count, const GLfloat* value)                      \
+  X(glUniform3fv, void, GLint location, GLsizei count, const GLfloat* value)                      \
+  X(glUniform4fv, void, GLint location, GLsizei count, const GLfloat* value)                      \
+  X(glUniformMatrix3fv, void, GLint location, GLsizei count, GLboolean transpose,                 \
+    const GLfloat* value)                                                                         \
+  X(glUniformMatrix4fv, void, GLint location, GLsizei count, GLboolean transpose,                 \
+    const GLfloat* value)                                                                         \
+  X(glUniform1d, void, GLint location, GLdouble x)                                                \
+  X(glUniform2dv, void, GLint location, GLsizei count, const GLdouble* value)                     \
+  X(glUniform3dv, void, GLint location, GLsizei count, const GLdouble* value)                     \
+  X(glUniform4dv, void, GLint location, GLsizei count, const GLdouble* value)                     \
+  X(glUniform1i, void, GLint location, GLint v0)                                                  \
+  X(glUniform2iv, void, GLint location, GLsizei count, const GLint* value)                        \
+  X(glUniform3iv, void, GLint location, GLsizei count, const GLint* value)                        \
+  X(glUniform4iv, void, GLint location, GLsizei count, const GLint* value)                        \
+  X(glUniform1ui, void, GLint location, GLuint v0)                                                \
+  X(glUniform2uiv, void, GLint location, GLsizei count, const GLuint* value)                      \
+  X(glUniform3uiv, void, GLint location, GLsizei count, const GLuint* value)                      \
+  X(glUniform4uiv, void, GLint location, GLsizei count, const GLuint* value)                      \
+  X(glClearColor, void, GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)                  \
+  X(glClear, void, GLbitfield mask)                                                               \
+  X(glDrawElementsInstancedBaseVertex, void, GLenum mode, GLsizei count, GLenum type,             \
+    const void* indices, GLsizei instancecount, GLint basevertex)                                 \
+  X(glDrawElementsBaseVertex, void, GLenum mode, GLsizei count, GLenum type, const void* indices, \
+    GLint basevertex)                                                                             \
+  X(glDrawArraysInstanced, void, GLenum mode, GLint first, GLsizei count, GLsizei instancecount)  \
+  X(glDrawArrays, void, GLenum mode, GLint first, GLsizei count)                                  \
   X(glPixelStorei, void, GLenum pname, GLint param)
 
 #define SHOGLE_GL_DECLPROC(name_, ret_, ...) \

@@ -11,7 +11,13 @@ struct gl_texture_binding {
 };
 
 struct gl_push_uniform {
-  attribute_union attrib;
+  template<meta::attribute_type T>
+  gl_push_uniform(u32 location_, const T& data_) :
+      data(std::in_place_type_t<T>{}, data_), type(meta::attribute_traits<T>::tag),
+      location(location_) {}
+
+  ntf::inplace_trivial<sizeof(mat4), alignof(mat4)> data;
+  attribute_type type;
   u32 location;
 };
 
@@ -92,9 +98,9 @@ public:
 public:
   Derived& set_vertex_layout(const gl_vertex_layout& layout);
   Derived& set_pipeline(const gl_graphics_pipeline& pipeline);
-  Derived& set_viewport(const square_pos<u32>& viewport);
+  Derived& set_viewport(const rectangle_pos<u32>& viewport);
   Derived& set_viewport(u32 x, u32 y, u32 width, u32 height);
-  Derived& set_scissor(const square_pos<u32>& viewport);
+  Derived& set_scissor(const rectangle_pos<u32>& viewport);
   Derived& set_scissor(u32 x, u32 y, u32 width, u32 height);
   Derived& set_instances(u32 instances);
 
@@ -119,8 +125,8 @@ protected:
   std::vector<gl_buffer_binding> _vertex_buffers;
   std::vector<gl_push_uniform> _unifs;
   std::vector<gl_texture_binding> _textures;
-  square_pos<u32> _viewport;
-  ntf::optional<square_pos<u32>> _scissor;
+  rectangle_pos<u32> _viewport;
+  ntf::optional<rectangle_pos<u32>> _scissor;
   u32 _instances;
   u32 _vertex_offset;
   u32 _vertex_count;
@@ -147,8 +153,8 @@ public:
   span<const gl_shader_binding> shader_buffers;
   span<const gl_texture_binding> textures;
   span<const gl_push_uniform> uniforms;
-  square_pos<u32> viewport;
-  square_pos<u32> scissor;
+  rectangle_pos<u32> viewport;
+  rectangle_pos<u32> scissor;
   u32 vertex_offset;
   u32 vertex_count;
   u32 index_count;
@@ -184,8 +190,8 @@ struct gl_array_cmd {
   span<const gl_shader_binding> shader_buffers;
   span<const gl_texture_binding> textures;
   span<const gl_push_uniform> uniforms;
-  square_pos<u32> viewport;
-  square_pos<u32> scissor;
+  rectangle_pos<u32> viewport;
+  rectangle_pos<u32> scissor;
   u32 vertex_offset;
   u32 vertex_count;
   u32 instances;
@@ -213,8 +219,8 @@ public:
   gl_graphics_pipeline::primitive_mode primitive;
   gl_graphics_pipeline::polygon_mode poly_mode;
   f32 poly_width;
-  square_pos<u32> viewport;
-  square_pos<u32> scissor;
+  rectangle_pos<u32> viewport;
+  rectangle_pos<u32> scissor;
 };
 
 class gl_external_command_builder {
@@ -231,9 +237,9 @@ public:
   gl_external_command_builder& set_primitive(gl_graphics_pipeline::primitive_mode primitive);
   gl_external_command_builder& set_poly_mode(gl_graphics_pipeline::polygon_mode poly_mode);
 
-  gl_external_command_builder& set_viewport(const square_pos<u32>& viewport);
+  gl_external_command_builder& set_viewport(const rectangle_pos<u32>& viewport);
   gl_external_command_builder& set_viewport(u32 x, u32 y, u32 width, u32 height);
-  gl_external_command_builder& set_scissor(const square_pos<u32>& scissor);
+  gl_external_command_builder& set_scissor(const rectangle_pos<u32>& scissor);
   gl_external_command_builder& set_scissor(u32 x, u32 y, u32 width, u32 height);
 
 public:
@@ -249,8 +255,8 @@ private:
   gl_graphics_pipeline::primitive_mode _primitive;
   gl_graphics_pipeline::polygon_mode _poly_mode;
   f32 _poly_width;
-  square_pos<u32> _viewport;
-  ntf::optional<square_pos<u32>> _scissor;
+  rectangle_pos<u32> _viewport;
+  ntf::optional<rectangle_pos<u32>> _scissor;
 };
 
 class gl_context {
@@ -274,7 +280,7 @@ public:
   };
 
 public:
-  explicit gl_context(create_t, context_data&& ctx, gl_surface_provider& surf_prov) noexcept;
+  explicit gl_context(create_t, context_data&& ctx) noexcept;
 
   gl_context(gl_surface_provider& surf_prov);
 
@@ -305,10 +311,13 @@ public:
 
 private:
   context_data _ctx;
+
+private:
+  friend gl_private& impl::gl_get_private(gl_context& gl);
 };
 
 } // namespace shogle
 
-#ifndef SHOGLE_RENDER_GL_CONTEXT
+#ifndef SHOGLE_RENDER_GL_CONTEXT_INL
 #include <shogle/render/gl/context.inl>
 #endif

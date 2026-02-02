@@ -1,6 +1,6 @@
-#define SHOGLE_RENDER_GL_CONTEXT
+#define SHOGLE_RENDER_GL_CONTEXT_INL
 #include <shogle/render/gl/context.hpp>
-#undef SHOGLE_RENDER_GL_CONTEXT
+#undef SHOGLE_RENDER_GL_CONTEXT_INL
 
 namespace shogle {
 
@@ -94,7 +94,7 @@ Derived& gl_basic_command_builder<Derived>::set_pipeline(const gl_graphics_pipel
 }
 
 template<typename Derived>
-Derived& gl_basic_command_builder<Derived>::set_viewport(const square_pos<u32>& viewport) {
+Derived& gl_basic_command_builder<Derived>::set_viewport(const rectangle_pos<u32>& viewport) {
   return this->set_viewport(viewport.x, viewport.y, viewport.width, viewport.height);
 }
 
@@ -108,7 +108,7 @@ Derived& gl_basic_command_builder<Derived>::set_viewport(u32 x, u32 y, u32 width
 }
 
 template<typename Derived>
-Derived& gl_basic_command_builder<Derived>::set_scissor(const square_pos<u32>& viewport) {
+Derived& gl_basic_command_builder<Derived>::set_scissor(const rectangle_pos<u32>& viewport) {
   return this->set_viewport(viewport.x, viewport.y, viewport.width, viewport.height);
 }
 
@@ -167,7 +167,7 @@ Derived& gl_basic_command_builder<Derived>::add_texture(u32 index, const gl_text
 template<typename Derived>
 template<::shogle::meta::attribute_type T>
 Derived& gl_basic_command_builder<Derived>::add_uniform(u32 location, const T& value) {
-  _unifs.emplace_back(attribute_union{value}, location);
+  _unifs.emplace_back(location, value);
   return static_cast<Derived&>(*this);
 }
 
@@ -302,7 +302,7 @@ gl_external_command_builder::set_poly_mode(gl_graphics_pipeline::polygon_mode po
 }
 
 inline gl_external_command_builder&
-gl_external_command_builder::set_viewport(const square_pos<u32>& viewport) {
+gl_external_command_builder::set_viewport(const rectangle_pos<u32>& viewport) {
   return this->set_viewport(viewport.x, viewport.y, viewport.width, viewport.height);
 }
 
@@ -316,7 +316,7 @@ gl_external_command_builder::set_viewport(u32 x, u32 y, u32 width, u32 height) {
 }
 
 inline gl_external_command_builder&
-gl_external_command_builder::set_scissor(const square_pos<u32>& scissor) {
+gl_external_command_builder::set_scissor(const rectangle_pos<u32>& scissor) {
   return this->set_scissor(scissor.x, scissor.y, scissor.width, scissor.height);
 }
 

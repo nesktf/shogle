@@ -179,16 +179,6 @@ consteval std::string_view render_parse_src_str(std::string_view file_str) {
 
 } // namespace meta
 
-// For uniforms (who cares about double precision matrices??? Use an uniform buffer!!!!!)
-struct attribute_union {
-  template<meta::attribute_type T>
-  attribute_union(const T& data_) :
-      data(std::in_place_type_t<T>{}, data_), type(meta::attribute_traits<T>::tag) {}
-
-  ntf::inplace_trivial<sizeof(mat4), alignof(mat4)> data;
-  attribute_type type;
-};
-
 struct vertex_attribute {
   u32 location;
   attribute_type type;

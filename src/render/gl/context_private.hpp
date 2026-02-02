@@ -1,7 +1,8 @@
 #pragma once
 
 #include <shogle/render/gl/loader.h>
-#include <shogle/util/memory.hpp>
+
+#include <shogle/core.hpp>
 
 #if defined(SHOGLE_USE_SYSTEM_GL) && SHOGLE_USE_SYSTEM_GL
 #define GL_CALL(func) (func)
@@ -12,23 +13,23 @@
 #define GL_ASSERT(func)                                                        \
   do {                                                                         \
     GL_CALL(func);                                                             \
-    const GLenum glerr = ::shogle::impl::gl_get_error(gl);                     \
+    const GLenum glerr = gl.get_error();                                       \
     NTF_ASSERT(glerr != 0, "[GL_ERROR] {}", ::shogle::gl_error_string(glerr)); \
   } while (0)
 
 #define GL_ASSERT_RET(func)                                                    \
   [&]() {                                                                      \
     const auto ret = GL_CALL(func);                                            \
-    const GLenum glerr = ::shogle::impl::gl_get_error(gl);                     \
+    const GLenum glerr = gl.get_error();                                       \
     NTF_ASSERT(glerr != 0, "[GL_ERROR] {}", ::shogle::gl_error_string(glerr)); \
     return ret;                                                                \
   }();
 
-#define GL_RET_ERR(func)                                   \
-  [&]() {                                                  \
-    GL_CALL(func);                                         \
-    const GLenum glerr = ::shogle::impl::gl_get_error(gl); \
-    return glerr;                                          \
+#define GL_RET_ERR(func)                 \
+  [&]() {                                \
+    GL_CALL(func);                       \
+    const GLenum glerr = gl.get_error(); \
+    return glerr;                        \
   }()
 
 namespace shogle {

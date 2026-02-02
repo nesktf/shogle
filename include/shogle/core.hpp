@@ -125,7 +125,7 @@ struct extent2d {
 };
 
 template<typename T>
-struct square_pos {
+struct rectangle_pos {
   T x, y;
   T width, height;
 };
