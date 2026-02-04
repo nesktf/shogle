@@ -63,6 +63,11 @@ struct gl_surface_provider {
   virtual void swap_buffers() noexcept = 0;
 };
 
+struct gl_version {
+  u32 major;
+  u32 minor;
+};
+
 class gl_sv_error : public std::exception {
 public:
   gl_sv_error(const char* msg, gldefs::GLenum err) noexcept : _msg(msg), _err(err) {}

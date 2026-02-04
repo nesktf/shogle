@@ -1,231 +1,234 @@
 #pragma once
 
-#include <shogle/render/common.hpp>
+#include <shogle/render/gl/common.hpp>
+
+#ifndef SHOGLE_DISABLE_GLFW
+#include <GLFW/glfw3.h>
+#endif
 
 namespace shogle {
 
-enum class win_attrib {
-  none = 0,
-  decorate = 1 << 1,
-  resizable = 1 << 2,
-  floating = 1 << 3,
-  show_focus = 1 << 4,
-};
-NTF_DEFINE_ENUM_CLASS_FLAG_OPS(win_attrib);
+#ifndef SHOGLE_DISABLE_GLFW
+using glfw_enum = int;
 
-struct win_x11_params {
-  const char* class_name;
-  const char* instance_name;
+struct glfw_key_data {
+  glfw_enum key;
+  glfw_enum scancode;
+  glfw_enum action;
+  glfw_enum modifiers;
 };
 
-struct win_gl_params {
-  u32 ver_major;
-  u32 ver_minor;
-  u32 swap_interval;
-  u32 fb_msaa_level;
-  shogle::fbo_buffer fb_buffer;
-  bool fb_use_alpha;
+struct glfw_button_data {
+  glfw_enum button;
+  glfw_enum action;
+  glfw_enum modifiers;
 };
 
-struct win_params {
-  u32 width;
-  u32 height;
-  const char* title;
-  win_attrib attrib;
-  context_api renderer_api;
-  const void* platform_params;
-  const void* renderer_params;
-};
+namespace impl {
 
-// clang-format off
-enum class win_key : int16 { // Follows GLFW key values
-  unknown = -1,
-  space = 32, apostrophe = 39,
-
-  comma = 44, minus, period, slash,
-  k0, k1, k2, k3, k4, k5, k6, k7, k8, k9,
-
-  semicolon = 59, equal = 61,
-
-  a = 65, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z,
-  lbracket, backslash, rbracket,
-
-  grave = 96,
-
-  world1 = 161, world2, // ?
-
-  escape = 256, enter, tab, backspace, insert, del, right, left, down, up,
-  pgup, pgdown, home, end,
-
-  capslock = 280, scrolllock, numlock, printscr, pause,
-
-  f1 = 290, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12,
-  f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25,
-
-  kp0 = 320, kp1, kp2, kp3, kp4, kp5, kp6, kp7, kp8, kp9,
-  kpdec, kpdiv, kpmul, kpsub, kpadd, kpenter, kpequal,
-
-  lshift = 340, lctrl, lalt, lsuper, rshift, rctrl, ralt, rsuper, menu,
-};
-
-using win_keyscancode = int32;
-
-enum class win_button : uint8 { // Follows GLFW button values
-  m1 = 0, m2, m3, m4, m5, m6, m7, m8,
-};
-// clang-format on
-
-enum class win_action : uint8 { // Follows GLFW action values
-  release = 0,
-  press,
-  repeat,
-};
-
-enum class win_keymod : uint8 { // Follows GLFW mod values
-  none = 0x00,
-  shift = 0x01,
-  ctrl = 0x02,
-  alt = 0x04,
-  super = 0x08,
-  capslock = 0x10,
-  numlock = 0x20,
-};
-NTF_DEFINE_ENUM_CLASS_FLAG_OPS(win_keymod);
-
-enum class win_mouse_state : int8 {
-  normal = 0,
-  hidden,
-  disabled,
-};
-
-struct win_key_data {
-  win_key key;
-  win_keyscancode scancode;
-  win_action action;
-  win_keymod mod;
-};
-
-struct win_button_data {
-  win_button button;
-  win_action action;
-  win_keymod mod;
-};
-
-class window {
-private:
-  struct callback_handler_t;
-  friend callback_handler_t;
-
+template<typename T>
+struct glfw_context {
+public:
   template<typename Signature>
-  using fun_t = std::function<Signature>;
+  using callback_type = std::function<Signature>;
+
+  using viewport_fun = callback_type<void(T&, extent2d)>;
+  using key_input_fun = callback_type<void(T&, glfw_key_data)>;
+  using cursor_pos_fun = callback_type<void(T&, f64, f64)>;
+  using cursor_enter_fun = callback_type<void(T&, bool)>;
+  using scroll_fun = callback_type<void(T&, f64, f64)>;
+  using mouse_input_fun = callback_type<void(T&, glfw_button_data)>;
+  using char_input_fun = callback_type<void(T&, u32)>;
 
 public:
-  using viewport_fun = fun_t<void(window&, extent2d)>;
-  using key_fun = fun_t<void(window&, win_key_data)>;
-  using cursorp_fun = fun_t<void(window&, dvec2)>;
-  using cursore_fun = fun_t<void(window&, bool)>;
-  using scroll_fun = fun_t<void(window&, dvec2)>;
-  using mouse_fun = fun_t<void(window&, win_button_data)>;
-  using char_fun = fun_t<void(window&, u32)>;
+  glfw_context(GLFWwindow* win);
+
+  NTF_DECLARE_NO_MOVE_NO_COPY(glfw_context);
 
 public:
-  window(window_t handle, context_api ctx_api, win_attrib attrib) noexcept;
-
-public:
-  [[nodiscard]] static win_expect<window> create(const win_params& params);
-
-  static context_gl_params make_gl_params(window_t handle) noexcept;
-  static context_gl_params make_gl_params(const window& win) noexcept;
-
-public:
-  template<typename F>
-  requires(std::invocable<F, window&, extent2d>)
-  window& set_viewport_callback(F&& fun) {
-    _callbacks.viewport = std::forward<F>(fun);
-    return *this;
-  }
-
-  template<typename F>
-  requires(std::invocable<F, window&, win_key_data>)
-  window& set_key_press_callback(F&& fun) {
-    _callbacks.keypress = std::forward<F>(fun);
-    return *this;
-  }
-
-  template<typename F>
-  requires(std::invocable<F, window&, win_button_data>)
-  window& set_button_press_callback(F&& fun) {
-    _callbacks.buttpress = std::forward<F>(fun);
-    return *this;
-  }
-
-  template<typename F>
-  requires(std::invocable<F, window&, dvec2>)
-  window& set_cursor_pos_callback(F&& fun) {
-    _callbacks.cursorpos = std::forward<F>(fun);
-    return *this;
-  }
-
-  template<typename F>
-  requires(std::invocable<F, window&, bool>)
-  window& set_cursor_enter_callback(F&& fun) {
-    _callbacks.cursorenter = std::forward<F>(fun);
-    return *this;
-  }
-
-  template<typename F>
-  requires(std::invocable<F, window&, dvec2>)
-  window& set_scroll_callback(F&& fun) {
-    _callbacks.scroll = std::forward<F>(fun);
-    return *this;
-  }
-
-  template<typename F>
-  requires(std::invocable<F, window&, u32>)
-  window& set_char_input_callback(F&& fun) {
-    _callbacks.char_input = std::forward<F>(fun);
-    return *this;
-  }
-
-  void title(const std::string& title);
-  void close();
-  void poll_events();
-  void set_mouse_state(win_mouse_state state);
-  void attribs(win_attrib attrib);
-
-public:
-  window_t get() const { return _handle; }
-
-  context_api renderer() const { return _ctx_api; }
-
-  win_attrib attribs() const { return _attrib; }
-
-  bool should_close() const;
-  win_action poll_key(win_key key) const;
-  win_action poll_button(win_button button) const;
-  extent2d win_size() const;
-  extent2d fb_size() const;
-
-private:
-  void _destroy();
-
-private:
-  window_t _handle;
-  context_api _ctx_api;
-  win_attrib _attrib;
-
-  struct {
-    viewport_fun viewport;
-    key_fun keypress;
-    mouse_fun buttpress;
-    cursorp_fun cursorpos;
-    cursore_fun cursorenter;
-    scroll_fun scroll;
-    char_fun char_input;
-  } _callbacks;
-
-public:
-  NTF_DECLARE_MOVE_ONLY(window);
+  GLFWwindow* win;
+  viewport_fun on_viewport;
+  key_input_fun on_key_input;
+  cursor_pos_fun on_cursor_pos;
+  cursor_enter_fun on_cursor_enter;
+  scroll_fun on_scroll;
+  mouse_input_fun on_mouse_input;
+  char_input_fun on_char_input;
 };
+
+} // namespace impl
+
+class glfw_gl_context : public gl_surface_provider {
+private:
+  using ctx_t = ::shogle::impl::glfw_context<glfw_gl_context>;
+
+  struct create_t {};
+
+public:
+  enum depth_bits {
+    DEPTH_BITS_NONE = 0,
+    DEPTH_BITS_24U = 24,
+    DEPTH_BITS_32F = 32,
+  };
+
+  enum stencil_bits {
+    STENCIL_BITS_NONE = 0,
+    STENCIL_BITS_8U = 8,
+  };
+
+  enum alpha_mode {
+    ALPHA_DISABLE = 0,
+    ALPHA_ENABLE = 1,
+  };
+
+  struct x11_hints {
+    const char* class_name;
+    const char* instance_name;
+  };
+
+  struct window_hints {
+    ::shogle::gl_version gl_ver;
+    depth_bits depth_buffer;
+    stencil_bits stencil_buffer;
+    alpha_mode window_alpha;
+    u32 msaa_samples;
+    ntf::optional<x11_hints> x11;
+  };
+
+public:
+  glfw_gl_context(create_t, unique_ptr<ctx_t>&& ctx) noexcept;
+
+  glfw_gl_context(const window_hints& hints, extent2d window_size, const char* window_name,
+                  GLFWmonitor* monitor = nullptr, GLFWwindow* share = nullptr);
+
+public:
+  static sv_expect<glfw_gl_context> create(const window_hints& hints, extent2d window_size,
+                                           const char* name, GLFWmonitor* monitor = nullptr,
+                                           GLFWwindow* share = nullptr);
+
+public:
+  shogle::PFN_glGetProcAddress proc_loader() noexcept override {
+    return reinterpret_cast<shogle::PFN_glGetProcAddress>(glfwGetProcAddress);
+  }
+
+  shogle::extent2d surface_extent() const noexcept override {
+    if (NTF_UNLIKELY(!_ctx)) {
+      return {.width = 0, .height = 0};
+    }
+    int w, h;
+    glfwGetFramebufferSize(_ctx->win, &w, &h);
+    return {.width = (u32)w, .height = (u32)h};
+  }
+
+  void swap_buffers() noexcept override {
+    if (NTF_UNLIKELY(!_ctx)) {
+      return;
+    }
+    glfwSwapBuffers(_ctx->win);
+  }
+
+public:
+  void destroy() {
+    NTF_ASSERT(_ctx);
+    _ctx.reset();
+  }
+
+  GLFWwindow* get() const {
+    NTF_ASSERT(_ctx);
+    return _ctx->win;
+  }
+
+public:
+  operator GLFWwindow*() const { return get(); }
+
+public:
+  template<typename F>
+  glfw_gl_context& set_viewport_callback(F&& func) {
+    NTF_ASSERT(_ctx);
+    _ctx->on_viewport = std::forward<F>(func);
+    return *this;
+  }
+
+  void remove_viewport_callback() {
+    NTF_ASSERT(this->_ctx);
+    this->_ctx->on_viewport = {};
+  }
+
+  template<typename F>
+  glfw_gl_context& set_key_input_callback(F&& func) {
+    NTF_ASSERT(_ctx);
+    _ctx->on_key_input = std::forward<F>(func);
+    return *this;
+  }
+
+  void remove_key_input_callback() {
+    NTF_ASSERT(_ctx);
+    _ctx->on_viewport = {};
+  }
+
+  template<typename F>
+  glfw_gl_context& set_cursor_pos_callback(F&& func) {
+    NTF_ASSERT(_ctx);
+    _ctx->on_cursor_pos = std::forward<F>(func);
+    return *this;
+  }
+
+  void remove_cursor_pos_callback() {
+    NTF_ASSERT(_ctx);
+    _ctx->on_cursor_pos = {};
+  }
+
+  template<typename F>
+  glfw_gl_context& set_cursor_enter_callback(F&& func) {
+    NTF_ASSERT(_ctx);
+    _ctx->on_cursor_enter = std::forward<F>(func);
+    return *this;
+  }
+
+  void remove_cursor_enter_callback() {
+    NTF_ASSERT(this->_ctx);
+    _ctx->on_cursor_enter = {};
+  }
+
+  template<typename F>
+  glfw_gl_context& set_scroll_callback(F&& func) {
+    NTF_ASSERT(_ctx);
+    _ctx->on_scroll = std::forward<F>(func);
+    return *this;
+  }
+
+  void remove_scroll_callback() {
+    NTF_ASSERT(this->_ctx);
+    _ctx->on_scroll = {};
+  }
+
+  template<typename F>
+  glfw_gl_context& set_mouse_input_callback(F&& func) {
+    NTF_ASSERT(_ctx);
+    _ctx->on_mouse_input = std::forward<F>(func);
+    return *this;
+  }
+
+  void remove_mouse_input_callback() {
+    NTF_ASSERT(_ctx);
+    _ctx->on_mouse_input = {};
+  }
+
+  template<typename F>
+  glfw_gl_context& set_char_input_callback(F&& func) {
+    NTF_ASSERT(_ctx);
+    _ctx->on_mouse_input = std::forward<F>(func);
+    return *this;
+  }
+
+  void remove_char_input_callback() {
+    NTF_ASSERT(_ctx);
+    _ctx->on_char_input = {};
+  }
+
+private:
+  unique_ptr<ctx_t> _ctx;
+};
+#endif
 
 } // namespace shogle
