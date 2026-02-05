@@ -7,7 +7,7 @@
 #include <cmath>
 #include <complex>
 
-namespace shogle {
+namespace shogle::math {
 
 template<typename T>
 constexpr T rad(T deg) {
@@ -41,4 +41,4 @@ constexpr T epserr(const T& a, const T& b) {
   return std::abs((b - a) / b);
 }
 
-} // namespace shogle
+} // namespace shogle::math

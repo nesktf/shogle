@@ -2,7 +2,7 @@
 
 #include <shogle/math/vector.hpp>
 
-namespace shogle {
+namespace shogle::math {
 
 // TODO: integrator traits?
 template<typename Fun, typename T>
@@ -101,4 +101,4 @@ struct ode_euler {
     return y + h * f(x, y);
   }
 };
-} // namespace shogle
+} // namespace shogle::math

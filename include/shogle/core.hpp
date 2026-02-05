@@ -174,7 +174,7 @@ struct vec_span {
 };
 
 template<typename T>
-using dynvec = std::vector<T, ::ntf::mem::default_pool::allocator<T>>;
+using vec = std::vector<T, ::ntf::mem::default_pool::allocator<T>>;
 
 template<typename T>
 using linked_list = std::list<T, ::ntf::mem::default_pool::allocator<T>>;
@@ -195,10 +195,10 @@ using unique_array = ::ntf::unique_array<T, ::ntf::mem::default_pool::deleter<T>
 using scratch_arena = ::ntf::mem::growing_arena;
 
 template<typename T>
-using scratch_dynvec = std::vector<T, scratch_arena::allocator<T>>;
+using scratch_vec = std::vector<T, scratch_arena::allocator<T>>;
 
 template<typename T>
-scratch_dynvec<T> make_scratch_dynvec(scratch_arena& arena) {
+scratch_vec<T> make_scratch_vec(scratch_arena& arena) {
   return scratch_vec<T>(scratch_arena::allocator<T>{arena});
 }
 

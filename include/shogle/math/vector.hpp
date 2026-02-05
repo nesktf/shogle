@@ -6,26 +6,26 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-namespace shogle {
+namespace shogle::math {
 
 template<u32 N, typename T>
 using vec = glm::vec<N, T>;
 
-using vec2 = vec<2, f32>;
-using vec3 = vec<3, f32>;
-using vec4 = vec<4, f32>;
+using vec2 = ::shogle::math::vec<2, f32>;
+using vec3 = ::shogle::math::vec<3, f32>;
+using vec4 = ::shogle::math::vec<4, f32>;
 
-using dvec2 = vec<2, f64>;
-using dvec3 = vec<3, f64>;
-using dvec4 = vec<4, f64>;
+using dvec2 = ::shogle::math::vec<2, f64>;
+using dvec3 = ::shogle::math::vec<3, f64>;
+using dvec4 = ::shogle::math::vec<4, f64>;
 
-using ivec2 = vec<2, i32>;
-using ivec3 = vec<3, i32>;
-using ivec4 = vec<4, i32>;
+using ivec2 = ::shogle::math::vec<2, i32>;
+using ivec3 = ::shogle::math::vec<3, i32>;
+using ivec4 = ::shogle::math::vec<4, i32>;
 
-using uvec2 = vec<2, u32>;
-using uvec3 = vec<3, u32>;
-using uvec4 = vec<4, u32>;
+using uvec2 = ::shogle::math::vec<2, u32>;
+using uvec3 = ::shogle::math::vec<3, u32>;
+using uvec4 = ::shogle::math::vec<4, u32>;
 
 template<typename T>
 constexpr auto vec_ptr(T& vec) {
@@ -78,121 +78,136 @@ using dmat3 = mat<3, 3, f64>;
 using dmat4 = mat<4, 4, f64>;
 
 template<typename T>
-mat<4, 4, T> build_trs_matrix(const vec<2, T>& pos, const vec<2, T>& scale,
-                              const vec<3, T>& rot) noexcept {
+mat<4, 4, T> build_trs_matrix(const ::shogle::math::vec<2, T>& pos,
+                              const ::shogle::math::vec<2, T>& scale,
+                              const ::shogle::math::vec<3, T>& rot) noexcept {
   mat<4, 4, T> m{T{1}};
-  m = glm::translate(m, vec<3, T>{pos, T{0}});
-  m = glm::rotate(m, rot.z, vec<3, T>{T{0}, T{0}, T{1}});
-  m = glm::rotate(m, rot.y, vec<3, T>{T{0}, T{1}, T{0}});
-  m = glm::rotate(m, rot.x, vec<3, T>{T{1}, T{0}, T{0}});
-  m = glm::scale(m, vec<3, T>{scale, T{1}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{pos, T{0}});
+  m = glm::rotate(m, rot.z, ::shogle::math::vec<3, T>{T{0}, T{0}, T{1}});
+  m = glm::rotate(m, rot.y, ::shogle::math::vec<3, T>{T{0}, T{1}, T{0}});
+  m = glm::rotate(m, rot.x, ::shogle::math::vec<3, T>{T{1}, T{0}, T{0}});
+  m = glm::scale(m, ::shogle::math::vec<3, T>{scale, T{1}});
   return m;
 }
 
 template<typename T>
-mat<4, 4, T> build_trs_matrix(const vec<3, T>& pos, const vec<3, T>& scale,
-                              const vec<3, T>& rot) noexcept {
+mat<4, 4, T> build_trs_matrix(const ::shogle::math::vec<3, T>& pos,
+                              const ::shogle::math::vec<3, T>& scale,
+                              const ::shogle::math::vec<3, T>& rot) noexcept {
   mat<4, 4, T> m{T{1}};
   m = glm::translate(m, pos);
-  m = glm::rotate(m, rot.z, vec<3, T>{T{0}, T{0}, T{1}});
-  m = glm::rotate(m, rot.y, vec<3, T>{T{0}, T{1}, T{0}});
-  m = glm::rotate(m, rot.x, vec<3, T>{T{1}, T{0}, T{0}});
+  m = glm::rotate(m, rot.z, ::shogle::math::vec<3, T>{T{0}, T{0}, T{1}});
+  m = glm::rotate(m, rot.y, ::shogle::math::vec<3, T>{T{0}, T{1}, T{0}});
+  m = glm::rotate(m, rot.x, ::shogle::math::vec<3, T>{T{1}, T{0}, T{0}});
   m = glm::scale(m, scale);
   return m;
 }
 
 template<typename T>
-mat<4, 4, T> build_trs_matrix(const vec<2, T>& pos, const vec<2, T>& scale, const vec<2, T>& pivot,
-                              const vec<3, T>& rot) noexcept {
+mat<4, 4, T> build_trs_matrix(const ::shogle::math::vec<2, T>& pos,
+                              const ::shogle::math::vec<2, T>& scale,
+                              const ::shogle::math::vec<2, T>& pivot,
+                              const ::shogle::math::vec<3, T>& rot) noexcept {
   mat<4, 4, T> m{T{1}};
-  m = glm::translate(m, vec<3, T>{pos.x + pivot.x, pos.y + pivot.y, T{0}});
-  m = glm::rotate(m, rot.z, vec<3, T>{T{0}, T{0}, T{1}});
-  m = glm::rotate(m, rot.y, vec<3, T>{T{0}, T{1}, T{0}});
-  m = glm::rotate(m, rot.x, vec<3, T>{T{1}, T{0}, T{0}});
-  m = glm::translate(m, vec<3, T>{-pivot.x, -pivot.y, T{0}});
-  m = glm::scale(m, vec<3, T>{scale.x, scale.y, T{1}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{pos.x + pivot.x, pos.y + pivot.y, T{0}});
+  m = glm::rotate(m, rot.z, ::shogle::math::vec<3, T>{T{0}, T{0}, T{1}});
+  m = glm::rotate(m, rot.y, ::shogle::math::vec<3, T>{T{0}, T{1}, T{0}});
+  m = glm::rotate(m, rot.x, ::shogle::math::vec<3, T>{T{1}, T{0}, T{0}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{-pivot.x, -pivot.y, T{0}});
+  m = glm::scale(m, ::shogle::math::vec<3, T>{scale.x, scale.y, T{1}});
   return m;
 }
 
 template<typename T>
-mat<4, 4, T> build_trs_matrix(const vec<3, T>& pos, const vec<3, T>& scale, const vec<3, T>& pivot,
-                              const vec<3, T>& rot) noexcept {
+mat<4, 4, T> build_trs_matrix(const ::shogle::math::vec<3, T>& pos,
+                              const ::shogle::math::vec<3, T>& scale,
+                              const ::shogle::math::vec<3, T>& pivot,
+                              const ::shogle::math::vec<3, T>& rot) noexcept {
   mat<4, 4, T> m{T{1}};
   m = glm::translate(m, pos + pivot);
-  m = glm::rotate(m, rot.z, vec<3, T>{T{0}, T{0}, T{1}});
-  m = glm::rotate(m, rot.y, vec<3, T>{T{0}, T{1}, T{0}});
-  m = glm::rotate(m, rot.x, vec<3, T>{T{1}, T{0}, T{0}});
+  m = glm::rotate(m, rot.z, ::shogle::math::vec<3, T>{T{0}, T{0}, T{1}});
+  m = glm::rotate(m, rot.y, ::shogle::math::vec<3, T>{T{0}, T{1}, T{0}});
+  m = glm::rotate(m, rot.x, ::shogle::math::vec<3, T>{T{1}, T{0}, T{0}});
   m = glm::translate(m, -pivot);
   m = glm::scale(m, scale);
   return m;
 }
 
 template<typename T>
-mat<4, 4, T> build_trs_matrix(const vec<2, T>& pos, const vec<2, T>& scale, const vec<2, T>& pivot,
-                              const vec<2, T>& offset, const vec<3, T>& rot) noexcept {
+mat<4, 4, T>
+build_trs_matrix(const ::shogle::math::vec<2, T>& pos, const ::shogle::math::vec<2, T>& scale,
+                 const ::shogle::math::vec<2, T>& pivot, const ::shogle::math::vec<2, T>& offset,
+                 const ::shogle::math::vec<3, T>& rot) noexcept {
   mat<4, 4, T> m{T{1}};
-  m = glm::translate(m, vec<3, T>{pos.x + pivot.x, pos.y + pivot.y, T{0}});
-  m = glm::rotate(m, rot.z, vec<3, T>{T{0}, T{0}, T{1}});
-  m = glm::rotate(m, rot.y, vec<3, T>{T{0}, T{1}, T{0}});
-  m = glm::rotate(m, rot.x, vec<3, T>{T{1}, T{0}, T{0}});
-  m = glm::translate(m, vec<3, T>{offset.x - pivot.x, offset.x - pivot.y, T{0}});
-  m = glm::scale(m, vec<3, T>{scale.x, scale.y, T{1}});
-  m = glm::translate(m, vec<3, T>{-offset.x, -offset.y, T{0}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{pos.x + pivot.x, pos.y + pivot.y, T{0}});
+  m = glm::rotate(m, rot.z, ::shogle::math::vec<3, T>{T{0}, T{0}, T{1}});
+  m = glm::rotate(m, rot.y, ::shogle::math::vec<3, T>{T{0}, T{1}, T{0}});
+  m = glm::rotate(m, rot.x, ::shogle::math::vec<3, T>{T{1}, T{0}, T{0}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{offset.x - pivot.x, offset.x - pivot.y, T{0}});
+  m = glm::scale(m, ::shogle::math::vec<3, T>{scale.x, scale.y, T{1}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{-offset.x, -offset.y, T{0}});
   return m;
 }
 
 template<typename T>
-mat<4, 4, T> build_trs_matrix(const vec<3, T>& pos, const vec<3, T>& scale, const vec<3, T>& pivot,
-                              const vec<3, T>& offset, const vec<3, T>& rot) noexcept {
+mat<4, 4, T>
+build_trs_matrix(const ::shogle::math::vec<3, T>& pos, const ::shogle::math::vec<3, T>& scale,
+                 const ::shogle::math::vec<3, T>& pivot, const ::shogle::math::vec<3, T>& offset,
+                 const ::shogle::math::vec<3, T>& rot) noexcept {
   mat<4, 4, T> m{T{1}};
   m = glm::translate(m, pos + pivot);
-  m = glm::rotate(m, rot.z, vec<3, T>{T{0}, T{0}, T{1}});
-  m = glm::rotate(m, rot.y, vec<3, T>{T{0}, T{1}, T{0}});
-  m = glm::rotate(m, rot.x, vec<3, T>{T{1}, T{0}, T{0}});
+  m = glm::rotate(m, rot.z, ::shogle::math::vec<3, T>{T{0}, T{0}, T{1}});
+  m = glm::rotate(m, rot.y, ::shogle::math::vec<3, T>{T{0}, T{1}, T{0}});
+  m = glm::rotate(m, rot.x, ::shogle::math::vec<3, T>{T{1}, T{0}, T{0}});
   m = glm::translate(m, offset - pivot);
   m = glm::scale(m, scale);
   return m;
 }
 
 template<typename T>
-mat<4, 4, T> build_view_matrix(const vec<2, T>& pos, const vec<2, T>& origin,
-                               const vec<2, T>& zoom, const vec<3, T>& rot) noexcept {
+mat<4, 4, T> build_view_matrix(const ::shogle::math::vec<2, T>& pos,
+                               const ::shogle::math::vec<2, T>& origin,
+                               const ::shogle::math::vec<2, T>& zoom,
+                               const ::shogle::math::vec<3, T>& rot) noexcept {
   mat<4, 4, T> m{T{1}};
-  m = glm::translate(m, vec<3, T>{origin.x, origin.y, T{0}});
-  m = glm::rotate(m, rot.z, vec<3, T>{T{0}, T{0}, T{1}});
-  m = glm::rotate(m, rot.y, vec<3, T>{T{0}, T{1}, T{0}});
-  m = glm::rotate(m, rot.x, vec<3, T>{T{1}, T{0}, T{0}});
-  m = glm::scale(m, vec<3, T>{zoom.x, zoom.y, T{1}});
-  m = glm::translate(m, vec<3, T>{-pos.x, -pos.y, T{0}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{origin.x, origin.y, T{0}});
+  m = glm::rotate(m, rot.z, ::shogle::math::vec<3, T>{T{0}, T{0}, T{1}});
+  m = glm::rotate(m, rot.y, ::shogle::math::vec<3, T>{T{0}, T{1}, T{0}});
+  m = glm::rotate(m, rot.x, ::shogle::math::vec<3, T>{T{1}, T{0}, T{0}});
+  m = glm::scale(m, ::shogle::math::vec<3, T>{zoom.x, zoom.y, T{1}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{-pos.x, -pos.y, T{0}});
   return m;
 }
 
 template<typename T>
-mat<4, 4, T> build_view_matrix(const vec<2, T>& pos, const vec<2, T>& origin,
-                               const vec<2, T>& zoom, const T& rot,
-                               const vec<3, T>& axis) noexcept {
+mat<4, 4, T> build_view_matrix(const ::shogle::math::vec<2, T>& pos,
+                               const ::shogle::math::vec<2, T>& origin,
+                               const ::shogle::math::vec<2, T>& zoom, const T& rot,
+                               const ::shogle::math::vec<3, T>& axis) noexcept {
   mat<4, 4, T> m{T{1}};
-  m = glm::translate(m, vec<3, T>{origin.x, origin.y, T{0}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{origin.x, origin.y, T{0}});
   m = glm::rotate(m, rot, axis);
-  m = glm::scale(m, vec<3, T>{zoom.x, zoom.y, T{1}});
-  m = glm::translate(m, vec<3, T>{-pos.x, -pos.y, T{0}});
+  m = glm::scale(m, ::shogle::math::vec<3, T>{zoom.x, zoom.y, T{1}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{-pos.x, -pos.y, T{0}});
   return m;
 }
 
 template<typename T>
-mat<4, 4, T> build_view_matrix(const vec<3, T>& pos, const vec<3, T>& dir,
-                               const vec<3, T>& up) noexcept {
+mat<4, 4, T> build_view_matrix(const ::shogle::math::vec<3, T>& pos,
+                               const ::shogle::math::vec<3, T>& dir,
+                               const ::shogle::math::vec<3, T>& up) noexcept {
   return glm::lookAt(pos, pos + dir, up);
 }
 
 template<typename T>
-mat<4, 4, T> build_proj_matrix(const vec<2, T>& viewport, const T& znear, const T& zfar) noexcept {
+mat<4, 4, T> build_proj_matrix(const ::shogle::math::vec<2, T>& viewport, const T& znear,
+                               const T& zfar) noexcept {
   return glm::ortho(T{0}, viewport.x, viewport.y, T{0}, znear, zfar);
 }
 
 template<typename T>
-mat<4, 4, T> build_proj_matrix(const vec<2, T>& viewport, const T& znear, const T& zfar,
-                               const T& fov) noexcept {
+mat<4, 4, T> build_proj_matrix(const ::shogle::math::vec<2, T>& viewport, const T& znear,
+                               const T& zfar, const T& fov) noexcept {
   return glm::perspective(fov, viewport.x / viewport.y, znear, zfar);
 }
 
@@ -235,16 +250,16 @@ using quat = qua<f32>;
 using dquat = qua<f64>;
 
 template<typename T>
-constexpr qua<T> axisquat(const T& ang, const vec<3, T>& axis) {
+constexpr qua<T> axisquat(const T& ang, const ::shogle::math::vec<3, T>& axis) {
   return qua<T>{glm::cos(ang * T{0.5}), glm::sin(ang * T{0.5}) * axis};
 }
 
 template<typename T>
-constexpr qua<T> eulerquat(const vec<3, T>& rot) {
+constexpr qua<T> eulerquat(const ::shogle::math::vec<3, T>& rot) {
   // return
-  //   axisquat(rot.x, vec<3, T>{T{1}, T{0}, T{0}}) *
-  //   axisquat(rot.y, vec<3, T>{T{0}, T{1}, T{0}}) *
-  //   axisquat(rot.z, vec<3, T>{T{0}, T{0}, T{1}});
+  //   axisquat(rot.x, ::shogle::math::vec<3, T>{T{1}, T{0}, T{0}}) *
+  //   axisquat(rot.y, ::shogle::math::vec<3, T>{T{0}, T{1}, T{0}}) *
+  //   axisquat(rot.z, ::shogle::math::vec<3, T>{T{0}, T{0}, T{1}});
 
   const T cp = glm::cos(rot.x * T{0.5});
   const T sp = glm::sin(rot.x * T{0.5});
@@ -264,8 +279,8 @@ constexpr qua<T> eulerquat(const vec<3, T>& rot) {
 }
 
 template<typename T>
-constexpr vec<3, T> eulerquat(const qua<T>& q) noexcept {
-  vec<3, T> euler;
+constexpr ::shogle::math::vec<3, T> eulerquat(const qua<T>& q) noexcept {
+  ::shogle::math::vec<3, T> euler;
 
   // Pitch
   const T sinr_cosp = T{2} * (q.w * q.x + q.y * q.z);
@@ -286,8 +301,9 @@ constexpr vec<3, T> eulerquat(const qua<T>& q) noexcept {
 }
 
 template<typename T>
-mat<4, 4, T> build_trs_matrix(const vec<3, T>& pos, const vec<3, T>& scale, const vec<3, T>& pivot,
-                              const qua<T>& rot) noexcept {
+mat<4, 4, T> build_trs_matrix(const ::shogle::math::vec<3, T>& pos,
+                              const ::shogle::math::vec<3, T>& scale,
+                              const ::shogle::math::vec<3, T>& pivot, const qua<T>& rot) noexcept {
   mat<4, 4, T> m{T{1}};
   m = glm::translate(m, pos + pivot);
   m *= glm::mat4_cast(rot);
@@ -297,19 +313,22 @@ mat<4, 4, T> build_trs_matrix(const vec<3, T>& pos, const vec<3, T>& scale, cons
 }
 
 template<typename T>
-mat<4, 4, T> build_trs_matrix(const vec<2, T>& pos, const vec<2, T>& scale, const vec<2, T>& pivot,
-                              const qua<T>& rot) noexcept {
+mat<4, 4, T> build_trs_matrix(const ::shogle::math::vec<2, T>& pos,
+                              const ::shogle::math::vec<2, T>& scale,
+                              const ::shogle::math::vec<2, T>& pivot, const qua<T>& rot) noexcept {
   mat<4, 4, T> m{T{1}};
-  m = glm::translate(m, vec<3, T>{pos.x + pivot.x, pos.y + pivot.y, T{0}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{pos.x + pivot.x, pos.y + pivot.y, T{0}});
   m *= glm::mat4_cast(rot);
-  m = glm::translate(m, vec<3, T>{-pivot.x, -pivot.y, T{0}});
-  m = glm::scale(m, vec<3, T>{scale.x, scale.y, T{1}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{-pivot.x, -pivot.y, T{0}});
+  m = glm::scale(m, ::shogle::math::vec<3, T>{scale.x, scale.y, T{1}});
   return m;
 }
 
 template<typename T>
-mat<4, 4, T> build_trs_matrix(const vec<3, T>& pos, const vec<3, T>& scale, const vec<3, T>& pivot,
-                              const vec<3, T>& offset, const qua<T>& rot) noexcept {
+mat<4, 4, T>
+build_trs_matrix(const ::shogle::math::vec<3, T>& pos, const ::shogle::math::vec<3, T>& scale,
+                 const ::shogle::math::vec<3, T>& pivot, const ::shogle::math::vec<3, T>& offset,
+                 const qua<T>& rot) noexcept {
   mat<4, 4, T> m{T{1}};
   m = glm::translate(m, pos + pivot);
   m *= glm::mat4_cast(rot);
@@ -320,15 +339,17 @@ mat<4, 4, T> build_trs_matrix(const vec<3, T>& pos, const vec<3, T>& scale, cons
 }
 
 template<typename T>
-mat<4, 4, T> build_trs_matrix(const vec<2, T>& pos, const vec<2, T>& scale, const vec<2, T>& pivot,
-                              const vec<2, T>& offset, const qua<T>& rot) noexcept {
+mat<4, 4, T>
+build_trs_matrix(const ::shogle::math::vec<2, T>& pos, const ::shogle::math::vec<2, T>& scale,
+                 const ::shogle::math::vec<2, T>& pivot, const ::shogle::math::vec<2, T>& offset,
+                 const qua<T>& rot) noexcept {
   mat<4, 4, T> m{T{1}};
-  m = glm::translate(m, vec<3, T>{pos.x + pivot.x, pos.y + pivot.y, T{0}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{pos.x + pivot.x, pos.y + pivot.y, T{0}});
   m *= glm::mat4_cast(rot);
-  m = glm::translate(m, vec<3, T>{offset.x - pivot.x, offset.x - pivot.y, T{0}});
-  m = glm::scale(m, vec<3, T>{scale.x, scale.y, T{1}});
-  m = glm::translate(m, vec<3, T>{-offset.x, -offset.y, T{0}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{offset.x - pivot.x, offset.x - pivot.y, T{0}});
+  m = glm::scale(m, ::shogle::math::vec<3, T>{scale.x, scale.y, T{1}});
+  m = glm::translate(m, ::shogle::math::vec<3, T>{-offset.x, -offset.y, T{0}});
   return m;
 }
 
-} // namespace shogle
+} // namespace shogle::math

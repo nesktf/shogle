@@ -13,14 +13,45 @@
 
 namespace shogle {
 
-// clang-format off
-
 enum class render_context_tag {
   none = 0,
   opengl,
   vulkan,
   software,
 };
+
+using PFN_glGetProcAddress = void* (*)(const char* name);
+
+struct gl_surface_provider {
+  virtual ~gl_surface_provider() = default;
+  virtual PFN_glGetProcAddress gl_proc_loader() noexcept = 0;
+  virtual extent2d gl_surface_extent() const noexcept = 0;
+  virtual void gl_swap_buffers() noexcept = 0;
+};
+
+struct gl_version {
+  u32 major;
+  u32 minor;
+};
+
+// Placeholders
+namespace vkdefs {
+
+using VkInstance = void*;
+using VkSurfaceKHR = void*;
+using VkAllocationCallbacksPtr = void*;
+
+} // namespace vkdefs
+
+struct vk_surface_provider {
+  virtual ~vk_surface_provider() = default;
+  virtual u32 vk_surface_extensions(scratch_vec<const char*>& extensions) = 0;
+  virtual bool vk_create_surface(vkdefs::VkInstance vk, vkdefs::VkSurfaceKHR& surface,
+                                 vkdefs::VkAllocationCallbacksPtr vkalloc) noexcept = 0;
+  virtual extent2d vk_surface_extent() const noexcept;
+};
+
+// clang-format off
 
 enum class attribute_type : u32 {
   f32 = 0, vec2,  vec3,  vec4,  mat3,  mat4,
@@ -131,28 +162,28 @@ struct attribute_traits<type_> { \
 }
 
 SHOGLE_DECLARE_ATTRIB_TRAIT(f32, shogle::attribute_type::f32, f32);
-SHOGLE_DECLARE_ATTRIB_TRAIT(vec2, shogle::attribute_type::vec2, f32);
-SHOGLE_DECLARE_ATTRIB_TRAIT(vec3, shogle::attribute_type::vec3, f32);
-SHOGLE_DECLARE_ATTRIB_TRAIT(vec4, shogle::attribute_type::vec4, f32);
-SHOGLE_DECLARE_ATTRIB_TRAIT(mat3, shogle::attribute_type::mat3, f32);
-SHOGLE_DECLARE_ATTRIB_TRAIT(mat4, shogle::attribute_type::mat4, f32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::vec2, shogle::attribute_type::vec2, f32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::vec3, shogle::attribute_type::vec3, f32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::vec4, shogle::attribute_type::vec4, f32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::mat3, shogle::attribute_type::mat3, f32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::mat4, shogle::attribute_type::mat4, f32);
 
 SHOGLE_DECLARE_ATTRIB_TRAIT(f64, shogle::attribute_type::f64, f64);
-SHOGLE_DECLARE_ATTRIB_TRAIT(dvec2, shogle::attribute_type::dvec2, f64);
-SHOGLE_DECLARE_ATTRIB_TRAIT(dvec3, shogle::attribute_type::dvec3, f64);
-SHOGLE_DECLARE_ATTRIB_TRAIT(dvec4, shogle::attribute_type::dvec4, f64);
-// SHOGLE_DECLARE_ATTRIB_TRAIT(dmat3, shogle::attribute_type::dmat3, f64);
-// SHOGLE_DECLARE_ATTRIB_TRAIT(dmat4, shogle::attribute_type::dmat4, f64);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::dvec2, shogle::attribute_type::dvec2, f64);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::dvec3, shogle::attribute_type::dvec3, f64);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::dvec4, shogle::attribute_type::dvec4, f64);
+// SHOGLE_DECLARE_ATTRIB_TRAIT(math::dmat3, shogle::attribute_type::dmat3, f64);
+// SHOGLE_DECLARE_ATTRIB_TRAIT(math::dmat4, shogle::attribute_type::dmat4, f64);
 
 SHOGLE_DECLARE_ATTRIB_TRAIT(i32, shogle::attribute_type::i32, i32);
-SHOGLE_DECLARE_ATTRIB_TRAIT(ivec2, shogle::attribute_type::ivec2, i32);
-SHOGLE_DECLARE_ATTRIB_TRAIT(ivec3, shogle::attribute_type::ivec3, i32);
-SHOGLE_DECLARE_ATTRIB_TRAIT(ivec4, shogle::attribute_type::ivec4, i32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::ivec2, shogle::attribute_type::ivec2, i32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::ivec3, shogle::attribute_type::ivec3, i32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::ivec4, shogle::attribute_type::ivec4, i32);
 
 SHOGLE_DECLARE_ATTRIB_TRAIT(u32, shogle::attribute_type::u32, u32);
-SHOGLE_DECLARE_ATTRIB_TRAIT(uvec2, shogle::attribute_type::uvec2, u32);
-SHOGLE_DECLARE_ATTRIB_TRAIT(uvec3, shogle::attribute_type::uvec3, u32);
-SHOGLE_DECLARE_ATTRIB_TRAIT(uvec4, shogle::attribute_type::uvec4, u32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::uvec2, shogle::attribute_type::uvec2, u32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::uvec3, shogle::attribute_type::uvec3, u32);
+SHOGLE_DECLARE_ATTRIB_TRAIT(math::uvec4, shogle::attribute_type::uvec4, u32);
 
 #undef SHOGLE_DECLARE_ATTRIB_TRAIT
 

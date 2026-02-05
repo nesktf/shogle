@@ -16,7 +16,7 @@ struct gl_push_uniform {
       data(std::in_place_type_t<T>{}, data_), type(meta::attribute_traits<T>::tag),
       location(location_) {}
 
-  ntf::inplace_trivial<sizeof(mat4), alignof(mat4)> data;
+  ntf::inplace_trivial<sizeof(math::mat4), alignof(math::mat4)> data;
   attribute_type type;
   u32 location;
 };

@@ -1,53 +1,11 @@
 #include <shogle/render/data.hpp>
 #include <shogle/render/opengl.hpp>
 
-#include <GLFW/glfw3.h>
+#include <shogle/render/window.hpp>
 
 namespace {
 
 using namespace ntf::numdefs;
-
-class glfw_surface : public shogle::gl_surface_provider {
-public:
-  glfw_surface(GLFWwindow* win) : _win(win) {}
-
-public:
-  shogle::PFN_glGetProcAddress proc_loader() noexcept override {
-    return reinterpret_cast<shogle::PFN_glGetProcAddress>(glfwGetProcAddress);
-  }
-
-  shogle::extent2d surface_extent() const noexcept override {
-    int w, h;
-    glfwGetFramebufferSize(_win, &w, &h);
-    return {.width = (u32)w, .height = (u32)h};
-  }
-
-  void swap_buffers() noexcept override { glfwSwapBuffers(_win); }
-
-private:
-  GLFWwindow* _win;
-};
-
-GLFWwindow* init_window(u32 width, u32 height) {
-  if (!glfwInit()) {
-    return nullptr;
-  }
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  GLFWwindow* win = glfwCreateWindow(width, height, "test", nullptr, nullptr);
-  if (!win) {
-    glfwTerminate();
-    return win;
-  }
-  glfwMakeContextCurrent(win);
-  return win;
-}
-
-void destroy_window(GLFWwindow* win) {
-  glfwDestroyWindow(win);
-  glfwTerminate();
-}
 
 constexpr std::string_view vert_src = R"glsl(
 #version 460 core
@@ -90,7 +48,14 @@ constexpr auto indices = std::to_array<u16>({
 });
 // clang-format on
 
-void run_demo(GLFWwindow* win, shogle::gl_context& gl) {
+} // namespace
+
+int main() {
+  const auto glfw = shogle::glfw_win::initialize_lib();
+  const auto hints = shogle::glfw_gl_hints::make_default(4, 6);
+  shogle::glfw_win win(800, 600, "test", hints);
+  shogle::gl_context gl(win);
+
   shogle::gl_vertex_layout quad_layout(gl, shogle::aos_vertex_arg<shogle::pc_vertex>{});
   const shogle::scope_end layout_end = [&]() {
     shogle::gl_vertex_layout::destroy(gl, quad_layout);
@@ -133,70 +98,29 @@ void run_demo(GLFWwindow* win, shogle::gl_context& gl) {
     shogle::gl_graphics_pipeline::destroy(gl, pipeline);
   };
 
-  const shogle::gl_buffer_binding vertex_bind{
-    .buffer = quad_vbo,
-    .location = 0,
-  };
-  const shogle::gl_indexed_cmd cmd{
-    .vertex_layout = quad_layout,
-    .pipeline = pipeline,
-    .index_buffer = quad_ebo,
-    .vertex_buffers = {vertex_bind},
-    .shader_buffers = {},
-    .textures = {},
-    .uniforms = {},
-    .viewport = {0, 0, 800, 600},
-    .scissor = {0, 0, 800, 600},
-    .vertex_offset = 0,
-    .vertex_count = 6,
-    .index_count = static_cast<u32>(indices.size()),
-    .format = shogle::gl_indexed_cmd::INDEX_FORMAT_U32,
-    .instances = 1,
-  };
+  shogle::gl_indexed_command_builder cmd_builder(quad_layout, pipeline, quad_ebo,
+                                                 shogle::gl_indexed_cmd::INDEX_FORMAT_U16);
+  const auto cmd = cmd_builder.add_vertex_buffer(0, quad_vbo)
+                     .set_viewport(0, 0, 800, 600)
+                     .set_index_format(shogle::gl_indexed_cmd::INDEX_FORMAT_U16)
+                     .set_index_count((u32)indices.size())
+                     .set_instances(1)
+                     .build();
 
-  const shogle::gl_frame_initializer frame_init{
-    .clear_opt =
-      {
-        .color = {.3f, .3f, .3f, 1.f},
-        .clear_flags = shogle::gl_clear_opt::CLEAR_COLOR,
-      },
-    .fbos = {},
-  };
+  shogle::gl_frame_init_builder frame_builder;
+  const auto frame_init = frame_builder.set_clear_color(.3f, .3f, .3f, 1.f)
+                            .set_clear_flag(shogle::gl_clear_opt::CLEAR_COLOR)
+                            .build();
 
-  while (!glfwWindowShouldClose(win)) {
-    glfwPollEvents();
-    if (glfwGetKey(win, GLFW_KEY_ESCAPE)) {
-      glfwSetWindowShouldClose(win, 1);
+  while (!win.should_close()) {
+    win.poll_events();
+    if (win.poll_key(GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+      win.close();
     }
 
     gl.start_frame(frame_init);
     gl.submit_indexed_draw_command(cmd);
     gl.end_frame(); // implicitly swaps buffers
   }
-}
-
-} // namespace
-
-int main() {
-  auto win = init_window(800, 600);
-  if (!win) {
-    const char* err;
-    auto code = glfwGetError(&err);
-    ntf::logger::error("Failed to initialize GLFW window: ({}) {}", code, code ? err : "");
-    return EXIT_FAILURE;
-  }
-  const shogle::scope_end clean_win = [&]() {
-    destroy_window(win);
-  };
-
-  glfw_surface glfw_gl(win);
-  auto ctx = shogle::gl_context::create(glfw_gl);
-  if (!ctx) {
-    ntf::logger::error("Failed to create OpenGL context: {}", ctx.error());
-    return EXIT_FAILURE;
-  }
-  // gl_context's destructor frees the OpenGL context
-
-  run_demo(win, *ctx);
   return EXIT_SUCCESS;
 }

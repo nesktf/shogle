@@ -54,20 +54,6 @@ constexpr gldefs::GLhandle GL_NULL_HANDLE = std::numeric_limits<gldefs::GLhandle
 
 std::string_view gl_error_string(gldefs::GLenum err) noexcept;
 
-using PFN_glGetProcAddress = void* (*)(const char* name);
-
-struct gl_surface_provider {
-  virtual ~gl_surface_provider() = default;
-  virtual PFN_glGetProcAddress proc_loader() noexcept = 0;
-  virtual extent2d surface_extent() const noexcept = 0;
-  virtual void swap_buffers() noexcept = 0;
-};
-
-struct gl_version {
-  u32 major;
-  u32 minor;
-};
-
 class gl_sv_error : public std::exception {
 public:
   gl_sv_error(const char* msg, gldefs::GLenum err) noexcept : _msg(msg), _err(err) {}

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <shogle/math/vector.hpp>
+#include <shogle/math/common.hpp>
 
-namespace shogle {
+namespace shogle::math {
 
 // clang-format off
 template<typename T>
@@ -55,4 +55,4 @@ constexpr bool collision_aabb(const circle_pos<T>& a, const circle_pos<T>& b) {
   return sq_len < sq_sum;
 }
 
-} // namespace shogle
+} // namespace shogle::math
