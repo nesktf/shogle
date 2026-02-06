@@ -5,7 +5,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -Wall -Wextra -Wpedantic -O0 -g2 -ggdb
 set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -Wall -Wextra -Wpedantic -O3 -Wno-psabi")
 
 set(DEMO_DIRS)
-set(DEMO_DIRS hello_quad hello_cirno)
+set(DEMO_DIRS hello_quad)
 
 foreach(DEMO_NAME ${DEMO_DIRS})
   #get_filename_component(DEMO_NAME ${DEMO_DIR} NAME_WE)

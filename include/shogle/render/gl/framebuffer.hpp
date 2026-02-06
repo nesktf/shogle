@@ -27,7 +27,7 @@ public:
   static gl_sv_expect<gl_renderbuffer> create(gl_context& gl, buffer_format format,
                                               extent2d extent);
 
-  static void destroy(gl_context& gl, gl_renderbuffer& rbo);
+  static void destroy(gl_context& gl, gl_renderbuffer& rbo) noexcept;
 
 public:
   gldefs::GLhandle id() const;
@@ -92,7 +92,7 @@ public:
   static gl_sv_expect<gl_framebuffer> from_color_only(gl_context& gl, extent2d extent,
                                                       span<const texture_attachment> color);
 
-  static void destroy(gl_context& gl);
+  static void destroy(gl_context& gl, gl_framebuffer& fbo) noexcept;
 
 public:
   static gl_expect<void> blit(gl_context& gl, const gl_framebuffer& source,

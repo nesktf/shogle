@@ -5,6 +5,25 @@
 
 namespace shogle {
 
+namespace {
+std::string_view buffer_type_name(gl_buffer::buffer_type type) {
+#define STR(enum_)                \
+  case gl_buffer::BUFFER_##enum_: \
+    return #enum_
+  switch (type) {
+    STR(VERTEX);
+    STR(INDEX);
+    STR(SHADER);
+    STR(UNIFORM);
+    STR(TEXTURE);
+    default:
+      "UNKNOWN";
+  }
+  NTF_UNREACHABLE();
+#undef STR
+}
+} // namespace
+
 gl_buffer::gl_buffer(create_t, gldefs::GLhandle id, buffer_type type, size_t size,
                      buffer_bits usage) : _size(size), _id(id), _type(type), _flags(usage) {}
 
@@ -27,6 +46,8 @@ auto gl_buffer::_allocate_span(gl_context& gl, gldefs::GLhandle* buffs, u32 coun
       GL_ASSERT(glDeleteBuffers(count - i - 1, buffs + i));
       return {i, err};
     }
+    SHOGLE_GL_LOG(verbose, "BUFFER_ALLOC ({}) (sz: {}B, type: {})", buffs[i], size,
+                  buffer_type_name(type));
   }
   // GL_ASSERT(glBindBuffer(type, buff))
   GL_ASSERT(glBindBuffer(type, GL_DEFAULT_BINDING));
@@ -50,6 +71,8 @@ void gl_buffer::deallocate(gl_context& gl, gl_buffer& buff) {
   GL_ASSERT(glBindBuffer(buff.type(), buff.id()));
   GL_ASSERT(glDeleteBuffers(1, &buff._id));
   GL_ASSERT(glBindBuffer(buff.type(), GL_DEFAULT_BINDING));
+  SHOGLE_GL_LOG(verbose, "BUFFER_DEALLOC ({}) (sz: {}B, type: {})", buff._id, buff._size,
+                buffer_type_name(buff._type));
   buff._id = GL_NULL_HANDLE;
 }
 
@@ -88,6 +111,8 @@ gl_expect<void> gl_buffer::upload_data(gl_context& gl, const void* data, size_t 
   if (err) {
     return {ntf::unexpect, err};
   } else {
+    SHOGLE_GL_LOG(verbose, "BUFFER_WRITE ({}), (ptr: {}, sz: {}B/{}B, off: {}B)", _id,
+                  fmt::ptr(data), size, _size, offset);
     return {};
   }
 }
@@ -103,6 +128,8 @@ gl_expect<void> gl_buffer::read_data(gl_context& gl, void* data, size_t size, si
   if (err) {
     return {ntf::unexpect, err};
   } else {
+    SHOGLE_GL_LOG(verbose, "BUFFER_READ ({}) (ptr: {}, sz: {}B/{}B, off: {}B)", _id,
+                  fmt::ptr(data), size, _size, offset);
     return {};
   }
 }
@@ -112,7 +139,7 @@ gl_expect<void*> gl_buffer::map_range(gl_context& gl, size_t size, size_t offset
   NTF_ASSERT(!invalidated(), "gl_buffer use after free");
   GL_ASSERT(glBindBuffer(_type, _id));
   void* ptr = GL_CALL(glMapBufferRange((GLenum)_type, offset, size, (GLbitfield)access_flags));
-  const auto err = ::shogle::impl::gl_get_error(gl);
+  const auto err = gl.get_error();
   GL_ASSERT(glBindBuffer(_type, GL_DEFAULT_BINDING));
   if (err != GL_NO_ERROR) {
     return {ntf::unexpect, err};
@@ -125,7 +152,7 @@ gl_expect<void*> gl_buffer::map(gl_context& gl, gl_buffer::mapping_access access
   NTF_ASSERT(!invalidated(), "gl_buffer use after free");
   GL_ASSERT(glBindBuffer(_type, _id));
   void* ptr = GL_CALL(glMapBuffer(_type, access));
-  const auto err = ::shogle::impl::gl_get_error(gl);
+  const auto err = gl.get_error();
   if (err != GL_NO_ERROR) {
     return {ntf::unexpect, err};
   }

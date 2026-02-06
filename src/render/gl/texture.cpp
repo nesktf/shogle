@@ -1,8 +1,7 @@
 #include "./context_private.hpp"
 #include <shogle/render/gl/buffer.hpp>
+#include <shogle/render/gl/context.hpp>
 #include <shogle/render/gl/texture.hpp>
-
-#include <ntfstl/logger.hpp>
 
 namespace shogle {
 
@@ -152,7 +151,7 @@ auto allocate_textures(gl_context& gl, const gldefs::GLenum* texes, u32 count,
         allocate3d(args.type, args.extent.width, args.extent.height, args.extent.depth, no_ms);
     } break;
     default: {
-      NTF_ASSERT(false, "Unknown texture type {}", args.type);
+      NTF_ASSERT(false, "Unknown texture type {}", (u32)args.type);
       NTF_UNREACHABLE();
     };
   }
@@ -226,7 +225,8 @@ void log_allocation([[maybe_unused]] gl_context& gl, gldefs::GLhandle tex,
   NTF_ASSERT(args.multisampling <= gl_texture::MULTISAMPLE_FIXED);
   static constexpr auto ms_str = std::to_array<std::string_view>({"NONE", "NOT_FIXED", "FIXED"});
 
-  OPENGL_ALLOC_LOG(
+  SHOGLE_GL_LOG(
+    verbose,
     "Texture allocated ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}, ms: {}]", tex,
     tex_type_string(args.type), tex_format_string(args.format), args.extent.width,
     args.extent.height, args.extent.depth, args.levels, args.layers, ms_str[args.multisampling]);
@@ -235,7 +235,8 @@ void log_allocation([[maybe_unused]] gl_context& gl, gldefs::GLhandle tex,
 #if 0
 void log_binding([[maybe_unused]] gl_context& gl, gldefs::GLhandle tex, const gl_buffer& buffer,
                  gl_texture::texture_format format, size_t size, size_t offset) {
-  OPENGL_ALLOC_LOG("Texture bound to buffer ({}) [buff: {}, format: {}, size: {}, offset: {}]",
+  SHOGLE_GL_LOG(verbose,
+"Texture bound to buffer ({}) [buff: {}, format: {}, size: {}, offset: {}]",
                    tex, buffer.id(), tex_format_string(format), size, offset);
 }
 #endif
@@ -282,7 +283,8 @@ void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
 
   const auto [w, h, d] = tex.extent();
   const auto [ow, oh, od] = offset;
-  OPENGL_ACTION_LOG(
+  SHOGLE_GL_LOG(
+    verbose,
     "Texture upload ({}) [type: {}, extent: {}x{}x{}, ptr: {}, sz: {}x{}x{}, align: {}, "
     "pixel_type: {}, pixel_format: {}, off: {}x{}x{}, lyr: {}, lvl: {}]",
     tex.id(), tex_type_string(tex.type()), w, h, d, fmt::ptr(image.data), image.extent.width,
@@ -292,15 +294,15 @@ void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
 
 void log_destroy([[maybe_unused]] gl_context& gl, const gl_texture& tex) {
   if (tex.type() == gl_texture::TEX_TYPE_BUFFER) {
-    OPENGL_ALLOC_LOG("Texture unbound from buffer ({}) [format: {}, size: {}, offset: {}]",
-                     tex.id(), tex_format_string(tex.format()), tex.buffer_size(),
-                     tex.buffer_offset());
+    SHOGLE_GL_LOG(verbose, "Texture unbound from buffer ({}) [format: {}, size: {}, offset: {}]",
+                  tex.id(), tex_format_string(tex.format()), tex.buffer_size(),
+                  tex.buffer_offset());
   } else {
     const auto [w, h, d] = tex.extent();
-    OPENGL_ALLOC_LOG(
-      "Texture deallocated ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}]", tex.id(),
-      tex_type_string(tex.type()), tex_format_string(tex.format()), w, h, d, tex.levels(),
-      tex.layers());
+    SHOGLE_GL_LOG(
+      verbose, "Texture deallocated ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}]",
+      tex.id(), tex_type_string(tex.type()), tex_format_string(tex.format()), w, h, d,
+      tex.levels(), tex.layers());
   }
 }
 #endif
@@ -576,10 +578,8 @@ gl_expect<void> gl_texture::upload_image(gl_context& gl, const image_data& image
 
   const auto [count, err] = do_upload_images(gl, id(), type(), &image, 1, offset, level);
   if (err) {
-#ifndef SHOGLE_DISABLE_INTERNAL_LOGS
-    OPENGL_ERR_LOG("Texture upload failed ({}) [type: {}, ptr: {}, err: {}]", id(),
-                   tex_type_string(type()), fmt::ptr(&image), ::shogle::gl_error_string(err));
-#endif
+    SHOGLE_GL_LOG(error, "Texture upload failed ({}) [type: {}, ptr: {}, err: {}]", id(),
+                  tex_type_string(type()), fmt::ptr(&image), ::shogle::gl_error_string(err));
     return {ntf::unexpect, err};
   }
   NTF_UNUSED(count);
@@ -600,9 +600,9 @@ auto gl_texture::upload_image_layers(gl_context& gl, const image_data* layers, u
   NTF_UNUSED(err);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
   if (err) {
-    OPENGL_ERR_LOG(
-      "Texture layer upload failure ({}) [type: {}, ptr: {}, uploaded: {}/{}, err: {}]", id(),
-      tex_type_string(type()), count, fmt::ptr(layers), layer_count,
+    SHOGLE_GL_LOG(
+      error, "Texture layer upload failure ({}) [type: {}, ptr: {}, uploaded: {}/{}, err: {}]",
+      id(), tex_type_string(type()), count, fmt::ptr(layers), layer_count,
       ::shogle::gl_error_string(err));
   }
   for (u32 i = 0; i < count; ++i) {
@@ -622,9 +622,10 @@ auto gl_texture::upload_image_layers(gl_context& gl, span<const image_data> laye
     do_upload_images(gl, id(), type(), layers.data(), layer_count, offset, level);
   NTF_UNUSED(err);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
-  OPENGL_ERR_LOG("Texture layer upload failure ({}) [type: {}, ptr:{}, uploaded: {}/{}, err: {}]",
-                 id(), tex_type_string(type()), count, fmt::ptr(layers.data()), layer_count,
-                 ::shogle::gl_error_string(err));
+  SHOGLE_GL_LOG(error,
+                "Texture layer upload failure ({}) [type: {}, ptr:{}, uploaded: {}/{}, err: {}]",
+                id(), tex_type_string(type()), count, fmt::ptr(layers.data()), layer_count,
+                ::shogle::gl_error_string(err));
   for (u32 i = 0; i < count; ++i) {
     log_upload(gl, *this, layers[i], offset, i, level);
   }

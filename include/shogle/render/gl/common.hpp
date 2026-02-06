@@ -7,20 +7,7 @@
 
 #include <string>
 
-#ifndef SHOGLE_DISABLE_INTERNAL_LOGS
-
-#define OPENGL_ALLOC_LOG(fmt_, ...)  SHOGLE_RENDER_LOG(verbose, "OpenGL", fmt_, __VA_ARGS__)
-#define OPENGL_PROP_LOG(fmt_, ...)   SHOGLE_RENDER_LOG(verbose, "OpenGL", fmt_, __VA_ARGS__)
-#define OPENGL_ACTION_LOG(fmt_, ...) SHOGLE_RENDER_LOG(verbose, "OpenGL", fmt_, __VA_ARGS__)
-#define OPENGL_ERR_LOG(fmt_, ...)    SHOGLE_RENDER_LOG(error, "OpenGL", fmt_, __VA_ARGS__)
-#define OPENGL_WARN_LOG(fmt_, ...)   SHOGLE_RENDER_LOG(warning, "OpenGL", fmt_, __VA_ARGS__)
-#else
-#define OPENGL_ALLOC_LOG(...)
-#define OPENGL_PROP_LOG(...)
-#define OPENGL_ACTION_LOG(...)
-#define OPENGL_ERR_LOG(...)
-#define OPENGL_WARN_LOG(...)
-#endif
+#define SHOGLE_GL_LOG(level_, fmt_, ...) SHOGLE_RENDER_LOG(level_, "OpenGL", fmt_, __VA_ARGS__)
 
 namespace shogle {
 
@@ -45,7 +32,6 @@ namespace impl {
 
 scratch_arena& gl_get_scratch_arena(gl_context& gl);
 gl_private& gl_get_private(gl_context& gl);
-gldefs::GLenum gl_get_error(gl_context& gl);
 
 } // namespace impl
 

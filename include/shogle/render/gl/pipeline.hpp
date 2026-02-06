@@ -10,7 +10,7 @@ public:
 
 public:
   enum shader_stage : gldefs::GLenum {
-    STAGE_VERTEX = 0x8B32,    // GL_VERTEX_SHADER
+    STAGE_VERTEX = 0x8B31,    // GL_VERTEX_SHADER
     STAGE_FRAGMENT = 0x8B30,  // GL_FRAGMENT_SHADER
     STAGE_GEOMETRY = 0x8DD9,  // GL_GEOMETRY_SHADER
     STAGE_TESS_EVAL = 0x8E87, // GL_TESS_EVALUATION_SHADER
@@ -72,7 +72,7 @@ static_assert(::shogle::meta::renderer_object_type<gl_shader>);
 
 class gl_shader_builder {
 public:
-  static constexpr u32 MAP_SIZE = 10;
+  static constexpr u32 MAP_SIZE = 12;
   using shader_map = std::array<gldefs::GLhandle, MAP_SIZE>;
 
 public:

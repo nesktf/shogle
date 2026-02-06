@@ -48,7 +48,7 @@ struct vk_surface_provider {
   virtual u32 vk_surface_extensions(scratch_vec<const char*>& extensions) = 0;
   virtual bool vk_create_surface(vkdefs::VkInstance vk, vkdefs::VkSurfaceKHR& surface,
                                  vkdefs::VkAllocationCallbacksPtr vkalloc) noexcept = 0;
-  virtual extent2d vk_surface_extent() const noexcept;
+  virtual extent2d vk_surface_extent() const noexcept = 0;
 };
 
 // clang-format off

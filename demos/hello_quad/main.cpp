@@ -51,6 +51,7 @@ constexpr auto indices = std::to_array<u16>({
 } // namespace
 
 int main() {
+  ntf::logger::set_level(ntf::log_level::verbose);
   const auto glfw = shogle::glfw_win::initialize_lib();
   const auto hints = shogle::glfw_gl_hints::make_default(4, 6);
   shogle::glfw_win win(800, 600, "test", hints);

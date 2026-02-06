@@ -29,7 +29,7 @@ gl_s_expect<gl_shader> gl_shader::create(gl_context& gl, std::string_view src,
     GL_ASSERT(glGetShaderInfoLog(shader, 1024, &err_len, &log_buffer[0]));
     GL_ASSERT(glDeleteShader(shader));
     std::string_view buffer_view(log_buffer, std::min(err_len, 1024));
-    OPENGL_ERR_LOG("Shader compilation failed: {}", buffer_view);
+    SHOGLE_GL_LOG(error, "Shader compilation failed: {}", buffer_view);
     return {ntf::unexpect, fmt::format("Shader compilation failed: {}", buffer_view)};
   }
   return {ntf::in_place, create_t{}, shader, stage};
@@ -60,16 +60,16 @@ constexpr u32 map_shader(gl_shader::shader_stage stage) noexcept {
 }
 
 // Make sure everything has an unique index
-static_assert(map_shader(gl_shader::STAGE_FRAGMENT) == 2);
-static_assert(map_shader(gl_shader::STAGE_GEOMETRY) == 3);
-static_assert(map_shader(gl_shader::STAGE_VERTEX) == 4);
+static_assert(map_shader(gl_shader::STAGE_FRAGMENT) == 4);
+static_assert(map_shader(gl_shader::STAGE_GEOMETRY) == 1);
+static_assert(map_shader(gl_shader::STAGE_VERTEX) == 5);
 static_assert(map_shader(gl_shader::STAGE_TESS_EVAL) == 7);
 static_assert(map_shader(gl_shader::STAGE_TESS_CTRL) == 8);
 
 } // namespace
 
 gl_shader_builder::gl_shader_builder() noexcept {
-  std::memset(_shaders.data(), 0, sizeof(_shaders[0]));
+  std::memset(_shaders.data(), 0, MAP_SIZE * sizeof(_shaders[0]));
 }
 
 gl_shader_builder& gl_shader_builder::add_shader(const gl_shader& shader) {
@@ -163,7 +163,7 @@ gl_graphics_pipeline::create(gl_context& gl, const gl_shader::graphics_set& shad
     GL_ASSERT(glGetShaderInfoLog(shader_span[0], 1024, &err_len, &log_buffer[0]));
     GL_ASSERT(glDeleteProgram(program));
     std::string_view buffer_view(log_buffer, std::min(err_len, 1024));
-    OPENGL_ERR_LOG("Program linking failed: {}", buffer_view);
+    SHOGLE_GL_LOG(error, "Program linking failed: {}", buffer_view);
     return {ntf::unexpect, fmt::format("Program linking failed: {}", buffer_view)};
   }
 

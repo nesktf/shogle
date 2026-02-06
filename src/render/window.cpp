@@ -4,12 +4,17 @@ namespace shogle {
 
 #ifndef SHOGLE_DISABLE_GLFW
 
+#define WIN_LOG(level_, fmt_, ...) SHOGLE_RENDER_LOG(level_, "GLFW", fmt_, __VA_ARGS__)
+
 struct glfw_win::window_data {
   window_data(GLFWwindow* win_, shogle::render_context_tag ctx_tag_) noexcept :
       win(win_), ctx_tag(ctx_tag_), on_viewport(), on_key_input(), on_cursor_pos(),
       on_cursor_enter(), on_scroll(), on_button_input(), on_char_input() {}
 
-  ~window_data() noexcept { glfwDestroyWindow(win); }
+  ~window_data() noexcept {
+    WIN_LOG(debug, "Window destroyed (ptr: {})", fmt::ptr(win));
+    glfwDestroyWindow(win);
+  }
 
   GLFWwindow* win;
   shogle::render_context_tag ctx_tag;
@@ -101,7 +106,7 @@ void glfw_win::glfw_lib::terminate() const noexcept {
   glfwTerminate();
 }
 
-glfw_win::glfw_win(create_t, unique_ptr<window_data>&& ctx) noexcept : _ctx(std::move(ctx)) {}
+glfw_win::glfw_win(create_t, window_data_ptr&& ctx) noexcept : _ctx(std::move(ctx)) {}
 
 glfw_win::glfw_win(u32 width, u32 height, const char* name, const glfw_gl_hints& hints,
                    GLFWmonitor* monitor, GLFWwindow* share) :
@@ -167,11 +172,11 @@ sv_expect<glfw_win> glfw_win::create(u32 width, u32 height, const char* title,
   if (!win) {
     const char* err;
     glfwGetError(&err);
+    WIN_LOG(error, "Failed to create window: {}", err);
     return {ntf::unexpect, err};
   }
 
-  auto* data_ptr = ::ntf::mem::default_pool::instance().construct<glfw_win::window_data>(
-    win, shogle::render_context_tag::opengl);
+  auto* data_ptr = ntf::alloc_construct<glfw_win::window_data>(win, render_context_tag::opengl);
 
   glfwSetFramebufferSizeCallback(win, fb_callback);
   glfwSetKeyCallback(win, key_callback);
@@ -183,9 +188,17 @@ sv_expect<glfw_win> glfw_win::create(u32 width, u32 height, const char* title,
   glfwSetWindowUserPointer(win, data_ptr);
 
   glfwMakeContextCurrent(win);
+  WIN_LOG(verbose, "Current OpenGL window context: {}", fmt::ptr(win));
   glfwSwapInterval(hints.swap_interval);
 
-  return {ntf::in_place, create_t{}, unique_ptr<window_data>(data_ptr)};
+  WIN_LOG(debug, "OpenGL window created (w: {}, h: {}, title: \"{}\", ptr: {})", width, height,
+          title, fmt::ptr(win));
+
+  return {ntf::in_place, create_t{}, window_data_ptr(data_ptr)};
+}
+
+void glfw_win::window_deleter::operator()(window_data* data) noexcept {
+  ntf::alloc_destroy(data);
 }
 
 void glfw_win::destroy() noexcept {
@@ -248,6 +261,13 @@ void glfw_win::set_attrib(glfw_enum attrib, glfw_enum value) const {
 glfw_enum glfw_win::poll_key(glfw_enum key) const {
   NTF_ASSERT(_ctx);
   return (glfw_enum)glfwGetKey(_ctx->win, key);
+}
+
+shogle::render_context_tag glfw_win::context_type() const noexcept {
+  if (NTF_UNLIKELY(!_ctx)) {
+    return ::shogle::render_context_tag::none;
+  }
+  return _ctx->ctx_tag;
 }
 
 PFN_glGetProcAddress glfw_win::gl_proc_loader() noexcept {

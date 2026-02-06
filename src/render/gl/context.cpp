@@ -79,9 +79,11 @@ APIENTRY void debug_callback(GLenum src, GLenum type, GLenum id, GLenum severity
   }();
 
   if (type == GL_DEBUG_TYPE_ERROR) {
-    OPENGL_ERR_LOG("Debug ({})({})({})({}) {}", severity_msg, type_msg, src_msg, id, message);
+    SHOGLE_GL_LOG(error, "Debug ({})({})({})({}) {}", severity_msg, type_msg, src_msg, id,
+                  message);
   } else {
-    OPENGL_ACTION_LOG("Debug ({})({})({})({}) {}", severity_msg, type_msg, src_msg, id, message);
+    SHOGLE_GL_LOG(verbose, "Debug ({})({})({})({}) {}", severity_msg, type_msg, src_msg, id,
+                  message);
   }
 }
 
@@ -110,7 +112,7 @@ sv_expect<gl_context> gl_context::create(gl_surface_provider& surf_prov) noexcep
     ctx->renderer_string = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
     glDebugMessageCallback((GLDEBUGPROC)debug_callback, ctx.get());
 #else
-    const auto proc = surf_prov.proc_loader();
+    const auto proc = surf_prov.gl_proc_loader();
     if (!proc) {
       return {ntf::unexpect, "Invalid glGetProcAddress function"};
     }
@@ -128,7 +130,8 @@ sv_expect<gl_context> gl_context::create(gl_surface_provider& surf_prov) noexcep
     NTF_ASSERT(ctx->version_string);
     NTF_ASSERT(ctx->vendor_string);
     NTF_ASSERT(ctx->renderer_string);
-
+    SHOGLE_GL_LOG(debug, "OpenGL context created [{} - {} - {}]", ctx->version_string,
+                  ctx->vendor_string, ctx->renderer_string);
     return {ntf::in_place, create_t{}, std::move(ctx)};
   } catch (...) {
     return {ntf::unexpect, "Failed to allocate OpenGL context"};
@@ -136,7 +139,7 @@ sv_expect<gl_context> gl_context::create(gl_surface_provider& surf_prov) noexcep
 }
 
 void gl_context::context_deleter::operator()(gl_private* ptr) noexcept {
-  ntf::mem::default_pool::instance().destroy(ptr);
+  ntf::alloc_destroy(ptr);
 }
 
 gl_context::gl_context(create_t, context_data&& ctx) noexcept : _ctx(std::move(ctx)) {}
@@ -298,8 +301,9 @@ auto setup_vertex_attributes(gl_context& gl, const gl_vertex_layout& layout,
       return {ntf::unexpect, "Vertex buffer binding out of range"};
     }
     if (buffer.type() != gl_buffer::BUFFER_VERTEX) {
-      OPENGL_WARN_LOG("Binding non vertex buffer with id {} on vertex attribute {} of VAO {}",
-                      buffer.id(), location, layout.vao());
+      SHOGLE_GL_LOG(warning,
+                    "Binding non vertex buffer with id {} on vertex attribute {} of VAO {}",
+                    buffer.id(), location, layout.vao());
     }
     binds[location] = buffer.id();
   }
@@ -373,23 +377,23 @@ void upload_uniforms(gl_context& gl, span<const gl_push_uniform> uniforms) {
         GL_ASSERT(glUniform1f(location, val));
       } break;
       case attribute_type::vec2: {
-        const f32* ptr = ::shogle::vec_ptr(data.get<vec2>());
+        const f32* ptr = ::shogle::math::vec_ptr(data.get<math::vec2>());
         GL_ASSERT(glUniform2fv(location, 1, ptr));
       } break;
       case attribute_type::vec3: {
-        const f32* ptr = ::shogle::vec_ptr(data.get<vec3>());
+        const f32* ptr = ::shogle::math::vec_ptr(data.get<math::vec3>());
         GL_ASSERT(glUniform3fv(location, 1, ptr));
       } break;
       case attribute_type::vec4: {
-        const f32* ptr = ::shogle::vec_ptr(data.get<vec4>());
+        const f32* ptr = ::shogle::math::vec_ptr(data.get<math::vec4>());
         GL_ASSERT(glUniform4fv(location, 1, ptr));
       } break;
       case attribute_type::mat3: {
-        const f32* ptr = ::shogle::vec_ptr(data.get<mat3>());
+        const f32* ptr = ::shogle::math::vec_ptr(data.get<math::mat3>());
         GL_ASSERT(glUniformMatrix3fv(location, 1, GL_FALSE, ptr));
       } break;
       case attribute_type::mat4: {
-        const f32* ptr = ::shogle::vec_ptr(data.get<mat4>());
+        const f32* ptr = ::shogle::math::vec_ptr(data.get<math::mat4>());
         GL_ASSERT(glUniformMatrix4fv(location, 1, GL_FALSE, ptr));
       } break;
       case attribute_type::f64: {
@@ -397,15 +401,15 @@ void upload_uniforms(gl_context& gl, span<const gl_push_uniform> uniforms) {
         GL_ASSERT(glUniform1d(location, val));
       } break;
       case attribute_type::dvec2: {
-        const f64* ptr = ::shogle::vec_ptr(data.get<dvec2>());
+        const f64* ptr = ::shogle::math::vec_ptr(data.get<math::dvec2>());
         GL_ASSERT(glUniform2dv(location, 1, ptr));
       } break;
       case attribute_type::dvec3: {
-        const f64* ptr = ::shogle::vec_ptr(data.get<dvec3>());
+        const f64* ptr = ::shogle::math::vec_ptr(data.get<math::dvec3>());
         GL_ASSERT(glUniform3dv(location, 1, ptr));
       } break;
       case attribute_type::dvec4: {
-        const f64* ptr = ::shogle::vec_ptr(data.get<dvec4>());
+        const f64* ptr = ::shogle::math::vec_ptr(data.get<math::dvec4>());
         GL_ASSERT(glUniform4dv(location, 1, ptr));
       } break;
       case attribute_type::i32: {
@@ -413,15 +417,15 @@ void upload_uniforms(gl_context& gl, span<const gl_push_uniform> uniforms) {
         GL_ASSERT(glUniform1i(location, val));
       } break;
       case attribute_type::ivec2: {
-        const i32* ptr = ::shogle::vec_ptr(data.get<ivec2>());
+        const i32* ptr = ::shogle::math::vec_ptr(data.get<math::ivec2>());
         GL_ASSERT(glUniform2iv(location, 1, ptr));
       } break;
       case attribute_type::ivec3: {
-        const i32* ptr = ::shogle::vec_ptr(data.get<ivec3>());
+        const i32* ptr = ::shogle::math::vec_ptr(data.get<math::ivec3>());
         GL_ASSERT(glUniform3iv(location, 1, ptr));
       } break;
       case attribute_type::ivec4: {
-        const i32* ptr = ::shogle::vec_ptr(data.get<ivec3>());
+        const i32* ptr = ::shogle::math::vec_ptr(data.get<math::ivec3>());
         GL_ASSERT(glUniform4iv(location, 1, ptr));
       } break;
       case attribute_type::u32: {
@@ -429,15 +433,15 @@ void upload_uniforms(gl_context& gl, span<const gl_push_uniform> uniforms) {
         GL_ASSERT(glUniform1ui(location, val));
       } break;
       case attribute_type::uvec2: {
-        const u32* ptr = ::shogle::vec_ptr(data.get<uvec2>());
+        const u32* ptr = ::shogle::math::vec_ptr(data.get<math::uvec2>());
         GL_ASSERT(glUniform2uiv(location, 1, ptr));
       } break;
       case attribute_type::uvec3: {
-        const u32* ptr = ::shogle::vec_ptr(data.get<uvec3>());
+        const u32* ptr = ::shogle::math::vec_ptr(data.get<math::uvec3>());
         GL_ASSERT(glUniform3uiv(location, 1, ptr));
       } break;
       case attribute_type::uvec4: {
-        const u32* ptr = ::shogle::vec_ptr(data.get<uvec3>());
+        const u32* ptr = ::shogle::math::vec_ptr(data.get<math::uvec3>());
         GL_ASSERT(glUniform4uiv(location, 1, ptr));
       } break;
     };
@@ -554,7 +558,7 @@ void gl_context::submit_external_command(const gl_external_cmd& cmd,
 }
 
 void gl_context::end_frame() {
-  provider().swap_buffers();
+  provider().gl_swap_buffers();
 }
 
 std::string_view gl_error_string(GLenum err) noexcept {
