@@ -134,7 +134,7 @@ protected:
 
 } // namespace impl
 
-struct gl_indexed_cmd {
+struct gl_indexed_command {
 public:
   enum index_format : gldefs::GLenum {
     INDEX_FORMAT_I8 = 0x1400,  // GL_BYTE
@@ -167,23 +167,23 @@ class gl_indexed_command_builder :
 public:
   gl_indexed_command_builder(const gl_vertex_layout& layout, const gl_graphics_pipeline& pipeline,
                              const gl_buffer& index_buffer,
-                             const gl_indexed_cmd::index_format format) noexcept;
+                             const gl_indexed_command::index_format format) noexcept;
 
 public:
-  gl_indexed_command_builder& set_index_format(gl_indexed_cmd::index_format format);
+  gl_indexed_command_builder& set_index_format(gl_indexed_command::index_format format);
   gl_indexed_command_builder& set_index_count(u32 index_count);
 
 public:
   void reset();
-  gl_indexed_cmd build() const;
+  gl_indexed_command build() const;
 
 private:
   ref_view<const gl_buffer> _index_buffer;
-  gl_indexed_cmd::index_format _index_format;
+  gl_indexed_command::index_format _index_format;
   u32 _index_count;
 };
 
-struct gl_array_cmd {
+struct gl_array_command {
   ref_view<const gl_vertex_layout> vertex_layout;
   ref_view<const gl_graphics_pipeline> pipeline;
   span<const gl_buffer_binding> vertex_buffers;
@@ -203,10 +203,10 @@ public:
 
 public:
   void reset();
-  gl_array_cmd build() const;
+  gl_array_command build() const;
 };
 
-struct gl_external_cmd {
+struct gl_external_command {
 public:
   using callback_type = ntf::function_view<void(gl_context& gl, gldefs::GLhandle fbo)>;
 
@@ -225,10 +225,10 @@ public:
 
 class gl_external_command_builder {
 public:
-  gl_external_command_builder(gl_external_cmd::callback_type callback);
+  gl_external_command_builder(gl_external_command::callback_type callback);
 
 public:
-  gl_external_command_builder& set_callback(gl_external_cmd::callback_type callback);
+  gl_external_command_builder& set_callback(gl_external_command::callback_type callback);
 
   gl_external_command_builder& set_depth_test(const gl_depth_test_props& depth);
   gl_external_command_builder& set_stencil_test(const gl_stencil_test_props& stencil);
@@ -244,10 +244,10 @@ public:
 
 public:
   void reset();
-  gl_external_cmd build() const;
+  gl_external_command build() const;
 
 private:
-  gl_external_cmd::callback_type _callback;
+  gl_external_command::callback_type _callback;
   gl_stencil_test_props _stencil;
   gl_depth_test_props _depth;
   gl_blending_props _blending;
@@ -289,17 +289,19 @@ public:
 
 public:
   void start_frame(const gl_frame_initializer& init);
-  gl_sv_expect<void> submit_indexed_draw_command(const gl_indexed_cmd& cmd,
-                                                 ptr_view<const gl_framebuffer> target = {});
-  gl_sv_expect<void> submit_draw_command(const gl_array_cmd& cmd,
-                                         ptr_view<const gl_framebuffer> target = {});
-  void submit_external_command(const gl_external_cmd& cmd,
-                               ptr_view<const gl_framebuffer> target = {});
+  gl_sv_expect<void> submit_command(const gl_indexed_command& cmd,
+                                    ptr_view<const gl_framebuffer> target = {});
+  gl_sv_expect<void> submit_command(const gl_array_command& cmd,
+                                    ptr_view<const gl_framebuffer> target = {});
+  void submit_command(const gl_external_command& cmd, ptr_view<const gl_framebuffer> target = {});
   void end_frame();
 
   template<typename F>
   void scope_frame(const gl_frame_initializer& init, F&& scope)
   requires(_scope_frame_invocable<F>);
+
+public:
+  void destroy() noexcept;
 
 public:
   gl_surface_provider& provider() const;

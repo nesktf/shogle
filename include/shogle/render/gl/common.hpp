@@ -86,51 +86,63 @@ template<typename T>
 using gl_expect = ntf::expected<T, gldefs::GLenum>;
 
 template<typename T>
-class gl_raii_wrapper {
+struct gl_deleter;
+
+template<typename T>
+class gl_scoped_resource {
 public:
-  gl_raii_wrapper(gl_context& gl, T&& obj) : _gl(&gl), _obj(std::move(obj)) {}
+  gl_scoped_resource(gl_context& gl, T& obj) noexcept :
+      _gl(&gl), _obj(std::addressof(obj)), _count(1u) {}
 
-  ~gl_raii_wrapper() { reset(); }
+  gl_scoped_resource(gl_context& gl, T* obj, u32 count) noexcept :
+      _gl(&gl), _obj(obj), _count(count) {}
 
-  gl_raii_wrapper(gl_raii_wrapper&& other) noexcept = default;
-  gl_raii_wrapper(const gl_raii_wrapper& other) noexcept = delete;
+  gl_scoped_resource(gl_context& gl, span<T> objs) noexcept :
+      _gl(&gl), _obj(objs.data()), _count(objs.size()) {}
+
+  gl_scoped_resource(const gl_scoped_resource&) = delete;
+  gl_scoped_resource(gl_scoped_resource&&) = delete;
+
+  ~gl_scoped_resource() noexcept { destroy(); }
 
 public:
-  [[nodiscard]] T release() {
-    NTF_ASSERT(!empty());
-    auto obj = *std::move(_obj);
-    _obj.reset();
-    return obj;
+  void disengage() noexcept { _obj = nullptr; }
+
+  void rebind(T& obj) noexcept {
+    _obj = std::addressof(obj);
+    _count = 1;
   }
 
-  void reset() {
-    if (!empty()) {
-      _obj->destroy(*_gl);
-      _obj.reset();
+  void rebind(T* obj, u32 count) noexcept {
+    _obj = std::addressof(obj);
+    _count = count;
+  }
+
+  void rebind(span<T> objs) noexcept {
+    _obj = objs.data();
+    _count = objs.size();
+  }
+
+  void destroy() noexcept {
+    if (_obj) {
+      (gl_deleter<T>{})(*_gl, _obj, _count);
+      disengage();
     }
   }
 
-  bool empty() const { return !_obj.has_value(); }
+public:
+  bool is_active() const noexcept { return _obj != nullptr; }
 
 public:
-  operator T&() { return **this; }
+  gl_scoped_resource& operator=(const gl_scoped_resource&) = delete;
+  gl_scoped_resource& operator=(gl_scoped_resource&&) = delete;
 
-  operator const T&() { return **this; }
-
-  T* operator->() { return &*_obj; }
-
-  const T* operator->() const { return &*_obj; }
-
-  T& operator*() { return *_obj; }
-
-  const T& operator*() const { return *_obj; }
-
-  gl_raii_wrapper& operator=(gl_raii_wrapper&& other) noexcept = default;
-  gl_raii_wrapper& operator=(const gl_raii_wrapper&& other) noexcept = delete;
+  operator bool() const noexcept { return is_active(); }
 
 private:
   gl_context* _gl;
-  ntf::nullable<T> _obj;
+  T* _obj;
+  size_t _count;
 };
 
 namespace meta {

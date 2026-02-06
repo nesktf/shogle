@@ -125,6 +125,17 @@ private:
   buffer_bits _flags;
 };
 
+template<>
+struct gl_deleter<gl_buffer> {
+  void operator()(gl_context& gl, gl_buffer* buffers, u32 count) noexcept {
+    gl_buffer::deallocate_n(gl, buffers, count);
+  }
+
+  void operator()(gl_context& gl, gl_buffer& buffer) noexcept {
+    gl_buffer::deallocate(gl, buffer);
+  }
+};
+
 } // namespace shogle
 
 #ifndef SHOGLE_RENDER_GL_BUFFER_INL

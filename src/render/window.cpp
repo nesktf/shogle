@@ -1,5 +1,12 @@
 #include <shogle/render/window.hpp>
 
+#ifdef SHOGLE_ENABLE_IMGUI
+#ifndef SHOGLE_DISABLE_GLFW
+#include <imgui_impl_glfw.h>
+#endif
+#include <imgui_impl_opengl3.h>
+#endif
+
 namespace shogle {
 
 #ifndef SHOGLE_DISABLE_GLFW
@@ -378,6 +385,108 @@ void glfw_win::remove_char_input_callback() {
   NTF_ASSERT(_ctx);
   _ctx->on_char_input = {};
 }
+
+#ifdef SHOGLE_ENABLE_IMGUI
+glfw_imgui::glfw_imgui(create_t, GLFWwindow* win, shogle::render_context_tag ctx_type) noexcept :
+    _win(win), _ctx_type(ctx_type) {}
+
+glfw_imgui::glfw_imgui(GLFWwindow* win, shogle::render_context_tag ctx_type,
+                       ImGuiConfigFlags flags, callback_flags callbacks) :
+    glfw_imgui(::shogle::glfw_imgui::create(win, ctx_type, flags, callbacks).value()) {}
+
+glfw_imgui::glfw_imgui(const glfw_win& win, ImGuiConfigFlags flags, callback_flags callbacks) :
+    glfw_imgui(::shogle::glfw_imgui::create(win, flags, callbacks).value()) {}
+
+sv_expect<glfw_imgui> glfw_imgui::create(const glfw_win& win, ImGuiConfigFlags flags,
+                                         callback_flags callbacks) noexcept {
+  return ::shogle::glfw_imgui::create(win.get(), win.context_type(), flags, callbacks);
+}
+
+sv_expect<glfw_imgui> glfw_imgui::create(GLFWwindow* win, shogle::render_context_tag ctx_type,
+                                         ImGuiConfigFlags flags,
+                                         callback_flags callbacks) noexcept {
+  if (!win) {
+    return {ntf::unexpect, "Invalid GLFW window"};
+  }
+
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO& io = ImGui::GetIO();
+  io.ConfigFlags = flags;
+  ImGui::StyleColorsDark();
+  switch (ctx_type) {
+    case render_context_tag::opengl: {
+      ImGui_ImplGlfw_InitForOpenGL(win, (bool)callbacks);
+      ImGui_ImplOpenGL3_Init("#version 150");
+    } break;
+    default:
+      NTF_ASSERT(false, "TODO");
+  }
+
+  return {ntf::in_place, create_t{}, win, ctx_type};
+}
+
+void glfw_imgui::start_frame() {
+  NTF_ASSERT(_win);
+  switch (_ctx_type) {
+    case render_context_tag::opengl: {
+      ImGui_ImplGlfw_NewFrame();
+      ImGui_ImplOpenGL3_NewFrame();
+    } break;
+    default:
+      NTF_ASSERT(false, "TODO");
+  }
+  ImGui::NewFrame();
+}
+
+void glfw_imgui::end_frame() {
+  NTF_ASSERT(_win);
+  auto* draw_data = ImGui::GetDrawData();
+  switch (_ctx_type) {
+    case render_context_tag::opengl: {
+      ImGui_ImplOpenGL3_RenderDrawData(draw_data);
+    } break;
+    default:
+      NTF_ASSERT(false, "TODO");
+  }
+}
+
+void glfw_imgui::destroy() noexcept {
+  if (_win) {
+    switch (_ctx_type) {
+      case render_context_tag::opengl: {
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+      } break;
+      default:
+        NTF_ASSERT(false, "TODO");
+    }
+    ImGui::DestroyContext();
+    _win = nullptr;
+  }
+}
+
+glfw_imgui::~glfw_imgui() noexcept {
+  destroy();
+}
+
+glfw_imgui::glfw_imgui(glfw_imgui&& other) noexcept :
+    _win(other._win), _ctx_type(other._ctx_type) {
+  other._win = nullptr;
+}
+
+glfw_imgui& glfw_imgui::operator=(glfw_imgui&& other) noexcept {
+  destroy();
+
+  _win = other._win;
+  _ctx_type = other._ctx_type;
+
+  other._win = nullptr;
+
+  return *this;
+}
+#endif
+
 #endif
 
 } // namespace shogle

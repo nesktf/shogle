@@ -1,52 +1,16 @@
 #pragma once
 
-#include <shogle/render/gl/context.hpp>
+#include <shogle/render/common.hpp>
 
 #ifndef SHOGLE_DISABLE_GLFW
 #include <GLFW/glfw3.h>
 #endif
 
-#include <chrono>
+#ifdef SHOGLE_ENABLE_IMGUI
+#include <imgui.h>
+#endif
 
 namespace shogle {
-
-namespace meta {
-
-template<typename F>
-concept delta_render_func = std::invocable<F, f64>; // f(dt) -> void
-
-template<typename T>
-concept delta_render_object = requires(T obj, f64 delta_time) {
-  { obj.on_render(delta_time) } -> std::same_as<void>;
-};
-
-template<typename F>
-concept fixed_render_func = std::invocable<F, f64, f64>; // f(dt, alpha) -> void
-
-template<typename F, u32 UPS>
-concept fixed_update_func =
-  std::invocable<F, u32> || std::invocable<F, std::integral_constant<u32, UPS>>; // f(ups) -> void
-
-template<typename T>
-concept fixed_render_object = requires(T obj, f64 delta_time, f64 alpha) {
-  { obj.on_render(delta_time, alpha) } -> std::convertible_to<void>;
-};
-
-template<typename T, u32 UPS>
-concept fixed_update_object = requires(T obj, u32 fixed_delta) {
-  { obj.on_fixed_update(fixed_delta) } -> std::same_as<void>;
-} || requires(T obj) {
-  { obj.on_fixed_update(std::integral_constant<u32, UPS>{}) } -> std::same_as<void>;
-};
-
-template<typename T, u32 UPS>
-concept fixed_loop_object = (fixed_render_func<T> && fixed_update_func<T, UPS>) ||
-                            (fixed_render_object<T> && fixed_update_object<T, UPS>);
-
-template<typename T>
-concept delta_loop_object = delta_render_func<T> || delta_render_object<T>;
-
-} // namespace meta
 
 #ifndef SHOGLE_DISABLE_GLFW
 using glfw_enum = int;
@@ -200,78 +164,64 @@ private:
   window_data_ptr _ctx;
 };
 
-template<::shogle::meta::delta_loop_object LoopObj>
-void glfw_render_loop(glfw_win& win, gl_context& gl, const gl_frame_initializer& frame_init,
-                      LoopObj&& obj) {
-  NTF_ASSERT(win.context_type() == ::shogle::render_context_tag::opengl);
-  using namespace std::literals;
+#ifdef SHOGLE_ENABLE_IMGUI
+class glfw_imgui {
+public:
+  static constexpr ImGuiConfigFlags DEFAULT_FLAGS =
+    ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 
-  using clock = std::chrono::steady_clock;
-  using duration = clock::duration;
-  using time_point = std::chrono::time_point<clock, duration>;
+  enum callback_flags {
+    CALLBACKS_DONT_INSTALL,
+    CALLBACKS_INSTALL = 1,
+  };
 
-  time_point last_time = clock::now();
-  while (!win.should_close()) {
-    const time_point start_time = clock::now();
-    const auto elapsed_time = start_time - last_time;
-    last_time = start_time;
-    const f64 dt = (std::chrono::duration<f64>(elapsed_time) / 1s);
+private:
+  struct create_t {};
 
-    win.poll_events();
-    gl.start_frame(frame_init);
-    if constexpr (::shogle::meta::delta_render_object<LoopObj>) {
-      obj.on_render(dt);
-    } else {
-      obj(dt);
-    }
-    gl.end_frame();
+public:
+  glfw_imgui(create_t, GLFWwindow* win, shogle::render_context_tag ctx_type) noexcept;
+
+  glfw_imgui(GLFWwindow* win, shogle::render_context_tag ctx_type,
+             ImGuiConfigFlags flags = DEFAULT_FLAGS, callback_flags callbacks = CALLBACKS_INSTALL);
+
+  glfw_imgui(const glfw_win& win, ImGuiConfigFlags flags = DEFAULT_FLAGS,
+             callback_flags callbacks = CALLBACKS_INSTALL);
+
+  glfw_imgui(const glfw_imgui&) = delete;
+  glfw_imgui(glfw_imgui&& other) noexcept;
+  ~glfw_imgui() noexcept;
+
+public:
+  static sv_expect<glfw_imgui> create(const glfw_win& win, ImGuiConfigFlags flags = DEFAULT_FLAGS,
+                                      callback_flags callbacks = CALLBACKS_INSTALL) noexcept;
+
+  static sv_expect<glfw_imgui> create(GLFWwindow* win, shogle::render_context_tag ctx_type,
+                                      ImGuiConfigFlags flags = DEFAULT_FLAGS,
+                                      callback_flags callbacks = CALLBACKS_INSTALL) noexcept;
+  void destroy() noexcept;
+
+public:
+  void start_frame();
+  void end_frame();
+
+  template<typename F>
+  requires(std::invocable<F>)
+  void scoped_frame(F&& func) {
+    start_frame();
+    std::invoke(func);
+    end_frame();
   }
+
+public:
+  glfw_imgui& operator=(const glfw_imgui&) = delete;
+  glfw_imgui& operator=(glfw_imgui&&) noexcept;
+
+private:
+  GLFWwindow* _win;
+  ::shogle::render_context_tag _ctx_type;
 };
+#endif
 
-template<u32 UPS, ::shogle::meta::fixed_loop_object<UPS> LoopObj>
-void glfw_render_loop(glfw_win& win, gl_context& gl, const gl_frame_initializer& frame_init,
-                      LoopObj&& obj) {
-  NTF_ASSERT(win.context_type() == ::shogle::render_context_tag::opengl);
-  using namespace std::literals;
-
-  static constexpr std::chrono::duration<f64> fixed_elapsed_time =
-    std::chrono::microseconds(1000000 / UPS);
-
-  using clock = std::chrono::steady_clock;
-  using duration = decltype(clock::duration{} + fixed_elapsed_time);
-  using time_point = std::chrono::time_point<clock, duration>;
-
-  time_point last_time = clock::now();
-  duration lag = 0s;
-  while (!win.should_close()) {
-    const time_point start_time = clock::now();
-    const auto elapsed_time = start_time - last_time;
-    last_time = start_time;
-    lag += elapsed_time;
-
-    const f64 dt = (std::chrono::duration<f64>(elapsed_time) / 1s);
-    const f64 alpha = (std::chrono::duration<f64>(lag) / fixed_elapsed_time);
-
-    win.poll_events();
-
-    gl.start_frame(frame_init);
-    while (lag >= fixed_elapsed_time) {
-      if constexpr (::shogle::meta::fixed_update_object<LoopObj, UPS>) {
-        obj.on_fixed_update(std::integral_constant<u32, UPS>{});
-      } else {
-        obj(std::integral_constant<u32, UPS>{});
-      }
-      lag -= fixed_elapsed_time;
-    }
-
-    if constexpr (::shogle::meta::fixed_render_object<LoopObj>) {
-      obj.on_render(dt, alpha);
-    } else {
-      obj(dt, alpha);
-    }
-    gl.end_frame();
-  }
-}
 #endif
 
 } // namespace shogle

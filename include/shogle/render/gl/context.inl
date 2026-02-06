@@ -191,12 +191,12 @@ void gl_basic_command_builder<Derived>::_reset() {
 
 inline gl_indexed_command_builder::gl_indexed_command_builder(
   const gl_vertex_layout& layout, const gl_graphics_pipeline& pipeline,
-  const gl_buffer& index_buffer, gl_indexed_cmd::index_format format) noexcept :
+  const gl_buffer& index_buffer, gl_indexed_command::index_format format) noexcept :
     impl::gl_basic_command_builder<gl_indexed_command_builder>(layout, pipeline),
     _index_buffer(index_buffer), _index_format(format), _index_count(0u) {}
 
 inline gl_indexed_command_builder&
-gl_indexed_command_builder::set_index_format(gl_indexed_cmd::index_format format) {
+gl_indexed_command_builder::set_index_format(gl_indexed_command::index_format format) {
   _index_format = format;
   return *this;
 }
@@ -211,7 +211,7 @@ inline void gl_indexed_command_builder::reset() {
   _index_count = 0;
 }
 
-inline gl_indexed_cmd gl_indexed_command_builder::build() const {
+inline gl_indexed_command gl_indexed_command_builder::build() const {
   return {
     .vertex_layout = this->_vertex_layout,
     .pipeline = this->_pipeline,
@@ -234,7 +234,7 @@ inline void gl_array_command_builder::reset() {
   impl::gl_basic_command_builder<gl_array_command_builder>::_reset();
 }
 
-inline gl_array_cmd gl_array_command_builder::build() const {
+inline gl_array_command gl_array_command_builder::build() const {
   return {
     .vertex_layout = this->_vertex_layout,
     .pipeline = this->_pipeline,
@@ -251,7 +251,7 @@ inline gl_array_cmd gl_array_command_builder::build() const {
 }
 
 inline gl_external_command_builder::gl_external_command_builder(
-  gl_external_cmd::callback_type callback) :
+  gl_external_command::callback_type callback) :
     _callback(callback), _stencil(::shogle::gl_stencil_test_props::make_default(false)),
     _depth(::shogle::gl_depth_test_props::make_default(false)),
     _blending(::shogle::gl_blending_props::make_default(false)),
@@ -260,7 +260,7 @@ inline gl_external_command_builder::gl_external_command_builder(
     _poly_mode(gl_graphics_pipeline::POLY_MODE_FILL), _poly_width(1.f), _viewport(), _scissor() {}
 
 inline gl_external_command_builder&
-gl_external_command_builder::set_callback(gl_external_cmd::callback_type callback) {
+gl_external_command_builder::set_callback(gl_external_command::callback_type callback) {
   _callback = callback;
   return *this;
 }
@@ -348,7 +348,7 @@ inline void gl_external_command_builder::reset() {
   _scissor.reset();
 }
 
-inline gl_external_cmd gl_external_command_builder::build() const {
+inline gl_external_command gl_external_command_builder::build() const {
   return {
     .callback = _callback,
     .depth_test = _depth,

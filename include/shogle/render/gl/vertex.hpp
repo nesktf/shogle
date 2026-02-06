@@ -58,7 +58,11 @@ public:
   static gl_expect<gl_vertex_layout> from_aos_vertex(gl_context& gl)
   requires(T::attribute_count <= MAX_ATTRIBUTE_BINDINGS);
 
-  static void destroy(gl_context& gl, gl_vertex_layout& layout);
+  static void destroy(gl_context& gl, gl_vertex_layout& layout) noexcept;
+
+  static void destroy_n(gl_context& gl, gl_vertex_layout* layouts, size_t count) noexcept;
+
+  static void destroy_n(gl_context& gl, span<gl_vertex_layout> layouts) noexcept;
 
 public:
   gldefs::GLhandle vao() const;
@@ -74,6 +78,17 @@ private:
   size_t _stride;
   gldefs::GLhandle _vao;
   u32 _attribute_count;
+};
+
+template<>
+struct gl_deleter<gl_vertex_layout> {
+  void operator()(gl_context& gl, gl_vertex_layout* layouts, size_t count) noexcept {
+    gl_vertex_layout::destroy_n(gl, layouts, count);
+  }
+
+  void operator()(gl_context& gl, gl_vertex_layout& layout) noexcept {
+    gl_vertex_layout::destroy(gl, layout);
+  }
 };
 
 } // namespace shogle

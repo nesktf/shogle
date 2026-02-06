@@ -94,6 +94,10 @@ public:
 
   static void destroy(gl_context& gl, gl_framebuffer& fbo) noexcept;
 
+  static void destroy_n(gl_context& gl, gl_framebuffer* fbos, size_t count) noexcept;
+
+  static void destroy_n(gl_context& gl, span<gl_framebuffer> fbos) noexcept;
+
 public:
   static gl_expect<void> blit(gl_context& gl, const gl_framebuffer& source,
                               const rectangle_pos<u32>& source_area, const gl_framebuffer& dest,
@@ -112,6 +116,17 @@ private:
   gldefs::GLhandle _id;
   buffer_attachment _buffer_attachment;
   u32 _color_count;
+};
+
+template<>
+struct gl_deleter<gl_framebuffer> {
+  void operator()(gl_context& gl, gl_framebuffer* fbos, size_t count) noexcept {
+    gl_framebuffer::destroy_n(gl, fbos, count);
+  }
+
+  void operator()(gl_context& gl, gl_framebuffer& fbo) noexcept {
+    gl_framebuffer::destroy(gl, fbo);
+  }
 };
 
 } // namespace shogle
