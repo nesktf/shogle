@@ -725,8 +725,8 @@ size_t gl_texture::buffer_offset() const {
   return (static_cast<size_t>(_levels) << 32) | static_cast<size_t>(_layers);
 }
 
-bool gl_texture::invalidated() const {
-  return _id != GL_NULL_HANDLE;
+bool gl_texture::invalidated() const noexcept {
+  return _id == GL_NULL_HANDLE;
 }
 
 } // namespace shogle

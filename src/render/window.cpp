@@ -299,6 +299,7 @@ extent2d glfw_win::vk_surface_extent() const noexcept {
 u32 glfw_win::vk_surface_extensions(scratch_vec<const char*>& extensions) {
   NTF_UNUSED(extensions);
   NTF_ASSERT(false, "TODO");
+  return 0;
 }
 
 bool glfw_win::vk_create_surface(vkdefs::VkInstance vk, vkdefs::VkSurfaceKHR& surface,
@@ -307,6 +308,7 @@ bool glfw_win::vk_create_surface(vkdefs::VkInstance vk, vkdefs::VkSurfaceKHR& su
   NTF_UNUSED(surface);
   NTF_UNUSED(vkalloc);
   NTF_ASSERT(false, "TODO");
+  return true;
 }
 
 glfw_win& glfw_win::set_viewport_callback(viewport_fun func) {

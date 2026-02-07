@@ -24,15 +24,58 @@ gl_expect<gl_vertex_layout> gl_vertex_layout::create(gl_context& gl, size_t stri
 
   attribute_array attributes;
   std::memcpy(attributes.data(), attribs, attrib_count * sizeof(attributes[0]));
+#ifndef SHOGLE_DISABLE_INTERNAL_LOGS
+  SHOGLE_GL_LOG(verbose, "Vertex layout created ({}) (stride: {}B, type: {})", vao, stride,
+                stride ? "AOS" : "SOA");
+  for (u32 i = 0; i < attrib_count; ++i) {
+    auto attrib = attributes[i];
+    SHOGLE_GL_LOG(verbose, "- (loc: {}, off: {}, type: {})", attrib.location, attrib.offset,
+                  ::shogle::meta::attribute_name(attrib.type));
+  }
+#endif
   return {ntf::in_place, create_t{}, vao, std::move(attributes), attrib_count, stride};
 }
 
-void gl_vertex_layout::destroy(gl_context& gl, gl_vertex_layout& layout) {
-  if (layout.invalidated()) {
+void gl_vertex_layout::destroy(gl_context& gl, gl_vertex_layout& layout) noexcept {
+  if (NTF_UNLIKELY(layout.invalidated())) {
     return;
   }
+#ifndef SHOGLE_DISABLE_INTERNAL_LOGS
+  SHOGLE_GL_LOG(verbose, "Vertex layout destroyed ({}) (stride: {}B, type: {})", layout._vao,
+                layout._stride, layout._stride ? "AOS" : "SOA");
+  for (const auto& attrib : layout.attributes()) {
+    SHOGLE_GL_LOG(verbose, "- (loc: {}, off: {}, type: {})", attrib.location, attrib.offset,
+                  ::shogle::meta::attribute_name(attrib.type));
+  }
+#endif
   GL_CALL(glDeleteVertexArrays(1, &layout._vao));
   layout._vao = GL_NULL_HANDLE;
+}
+
+void gl_vertex_layout::destroy_n(gl_context& gl, gl_vertex_layout* layouts,
+                                 size_t count) noexcept {
+  if (NTF_UNLIKELY(!layouts)) {
+    return;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    if (NTF_UNLIKELY(layouts[i].invalidated())) {
+      continue;
+    }
+#ifndef SHOGLE_DISABLE_INTERNAL_LOGS
+    SHOGLE_GL_LOG(verbose, "Vertex layout destroyed ({}) (stride: {}, type: {})", layouts[i]._vao,
+                  layouts[i]._stride, layouts[i]._stride ? "AOS" : "SOA");
+    for (const auto& attrib : layouts[i].attributes()) {
+      SHOGLE_GL_LOG(verbose, "- (loc: {}, off: {}, type: {})", attrib.location, attrib.offset,
+                    ::shogle::meta::attribute_name(attrib.type));
+    }
+#endif
+    GL_CALL(glDeleteVertexArrays(1, &layouts[i]._vao));
+    layouts[i]._vao = GL_NULL_HANDLE;
+  }
+}
+
+void gl_vertex_layout::destroy_n(gl_context& gl, span<gl_vertex_layout> layouts) noexcept {
+  destroy_n(gl, layouts.data(), layouts.size());
 }
 
 gldefs::GLhandle gl_vertex_layout::vao() const {
@@ -48,6 +91,11 @@ span<const vertex_attribute> gl_vertex_layout::attributes() const {
 size_t gl_vertex_layout::stride() const {
   NTF_ASSERT(_vao != GL_NULL_HANDLE, "gl_vertex_layout use after free");
   return _stride;
+}
+
+auto gl_vertex_layout::type() const -> layout_type {
+  NTF_ASSERT(_vao != GL_NULL_HANDLE, "gl_vertex_layout use after free");
+  return _stride ? TYPE_AOS_LAYOUT : TYPE_SOA_LAYOUT;
 }
 
 bool gl_vertex_layout::invalidated() const noexcept {

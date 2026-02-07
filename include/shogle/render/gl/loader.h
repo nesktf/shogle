@@ -260,6 +260,7 @@ typedef void(APIENTRY* GLDEBUGPROC)(GLenum source, GLenum type, GLuint id, GLenu
     GLint basevertex)                                                                             \
   X(glDrawArraysInstanced, void, GLenum mode, GLint first, GLsizei count, GLsizei instancecount)  \
   X(glDrawArrays, void, GLenum mode, GLint first, GLsizei count)                                  \
+  X(glUseProgram, void, GLenum program)                                                           \
   X(glPixelStorei, void, GLenum pname, GLint param)
 
 #define SHOGLE_GL_DECLPROC(name_, ret_, ...) \

@@ -7,6 +7,7 @@ namespace shogle {
 class gl_shader {
 public:
   using context_type = gl_context;
+  using deleter_type = gl_deleter<gl_shader>;
 
 public:
   enum shader_stage : gldefs::GLenum {
@@ -18,7 +19,8 @@ public:
     STAGE_COMPUTE = 0x91B9,   // GL_COMPUTE_SHADER
   };
 
-  enum stages_bits : gldefs::GLenum {
+  enum stages_bits : gldefs::GLbitfield {
+    STAGE_NO_BITS = 0x00000000,       // GL_NONE
     STAGE_VERTEX_BIT = 0x00000001,    // GL_VERTEX_SHADER_BIT
     STAGE_FRAGMENT_BIT = 0x00000002,  // GL_FRAGMENT_SHADER_BIT
     STAGE_GEOMETRY_BIT = 0x00000004,  // GL_GEOMETRY_SHADER_BIT
@@ -31,7 +33,7 @@ public:
   struct graphics_set {
   public:
     graphics_set(std::array<gldefs::GLhandle, 5u> shader_set, u32 shader_count,
-                 gl_shader::stages_bits active_stages) noexcept :
+                 gldefs::GLbitfield active_stages) noexcept :
         _shader_set(shader_set), _shader_count(shader_count), _active_stages(active_stages) {}
 
   public:
@@ -39,12 +41,12 @@ public:
       return {_shader_set.data(), _shader_count};
     }
 
-    gl_shader::stages_bits active_stages() const noexcept { return _active_stages; }
+    gldefs::GLbitfield active_stages() const noexcept { return _active_stages; }
 
   private:
     std::array<gldefs::GLhandle, 5u> _shader_set;
     u32 _shader_count;
-    gl_shader::stages_bits _active_stages;
+    gldefs::GLbitfield _active_stages;
   };
 
 private:
@@ -64,6 +66,10 @@ public:
 public:
   gldefs::GLhandle id() const;
   shader_stage stage() const;
+  bool invalidated() const noexcept;
+
+public:
+  explicit operator bool() const noexcept { return !invalidated(); }
 
 private:
   gldefs::GLhandle _id;
@@ -283,6 +289,7 @@ public:
 class gl_graphics_pipeline {
 public:
   using context_type = gl_context;
+  using deleter_type = gl_deleter<gl_graphics_pipeline>;
 
 public:
   enum primitive_mode : gldefs::GLenum {
@@ -391,8 +398,7 @@ private:
   struct create_t {};
 
 public:
-  gl_graphics_pipeline(create_t, gldefs::GLhandle program, gl_shader::stages_bits stages,
-                       primitive_mode primitive, polygon_mode poly_mode);
+  gl_graphics_pipeline(create_t, gldefs::GLhandle program, gldefs::GLbitfield stages);
 
   gl_graphics_pipeline(gl_context& gl, const gl_shader::graphics_set& shaders);
 
@@ -430,7 +436,7 @@ public:
 
 public:
   gldefs::GLhandle program() const;
-  gl_shader::stages_bits stages() const;
+  gldefs::GLbitfield stages() const;
 
   primitive_mode primitive() const;
   polygon_mode poly_mode() const;
@@ -441,12 +447,17 @@ public:
   const gl_blending_props& blending() const;
   const gl_culling_props& culling() const;
 
+  bool invalidated() const noexcept;
+
+public:
+  explicit operator bool() const noexcept { return !invalidated(); }
+
 private:
   gl_stencil_test_props _stencil;
   gl_depth_test_props _depth;
   gl_blending_props _blending;
   gl_culling_props _culling;
-  gl_shader::stages_bits _stages;
+  gldefs::GLbitfield _stages;
   gldefs::GLhandle _program;
   primitive_mode _primitive;
   polygon_mode _poly_mode;

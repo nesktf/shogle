@@ -6,6 +6,10 @@ namespace shogle {
 
 class gl_renderbuffer {
 public:
+  using context_type = gl_context;
+  using deleter_type = gl_deleter<gl_renderbuffer>;
+
+public:
   enum buffer_format : gldefs::GLenum {
     FORMAT_D24u_S8u = 0x88F0, // GL_DEPTH24_STENCIL8,
     FORMAT_D32f_S8u = 0x8CAD, // GL_DEPTH32F_STENCIL8,
@@ -28,16 +32,41 @@ public:
                                               extent2d extent);
 
   static void destroy(gl_context& gl, gl_renderbuffer& rbo) noexcept;
+  static void destroy_n(gl_context& gl, gl_renderbuffer* rbos, size_t count) noexcept;
+  static void destroy_n(gl_context& gl, span<gl_renderbuffer> rbos) noexcept;
 
 public:
   gldefs::GLhandle id() const;
   buffer_format format() const;
   extent2d extent() const;
 
+  bool invalidated() const noexcept;
+
+public:
+  explicit operator bool() const noexcept { return !invalidated(); }
+
 private:
   extent2d _extent;
   gldefs::GLhandle _id;
   buffer_format _format;
+};
+
+static_assert(::shogle::meta::renderer_object_type<gl_renderbuffer>);
+
+template<>
+struct gl_deleter<gl_renderbuffer> {
+public:
+  gl_deleter(gl_context& gl) noexcept : _gl(&gl) {}
+
+public:
+  void operator()(gl_renderbuffer* rbos, size_t count) const noexcept {
+    gl_renderbuffer::destroy_n(*_gl, rbos, count);
+  }
+
+  void operator()(gl_renderbuffer& rbo) const noexcept { gl_renderbuffer::destroy(*_gl, rbo); }
+
+private:
+  gl_context* _gl;
 };
 
 class gl_framebuffer {
@@ -110,6 +139,11 @@ public:
   extent2d extent() const;
   buffer_attachment attachment_type() const;
   u32 color_attachment_count() const;
+
+  bool invalidated() const noexcept;
+
+public:
+  explicit operator bool() const noexcept { return !invalidated(); }
 
 private:
   extent2d _extent;

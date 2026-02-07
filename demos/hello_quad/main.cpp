@@ -1,3 +1,4 @@
+#include <shogle/math/transform.hpp>
 #include <shogle/render/data.hpp>
 #include <shogle/render/opengl.hpp>
 #include <shogle/render/window.hpp>
@@ -13,9 +14,11 @@ layout (location = 0) in vec3 att_pos;
 layout (location = 1) in vec4 att_color;
 
 layout (location = 0) out vec4 frag_color;
-  
+
+uniform mat4 u_model;
+
 void main() {
-  gl_Position = vec4(att_pos, 1.0f);
+  gl_Position = u_model*vec4(att_pos, 1.0f);
   frag_color = att_color;
 }  
 )glsl";
@@ -44,7 +47,7 @@ constexpr size_t vbo_size = vertices.size() * sizeof(vertices[0]);
 
 constexpr auto indices = std::to_array<u16>({
   0, 1, 2,
-	2, 3, 0,
+  2, 3, 0,
 });
 constexpr size_t ebo_size = indices.size() * sizeof(indices[0]);
 // clang-format on
@@ -81,33 +84,36 @@ int main() {
 
   shogle::gl_graphics_pipeline pipeline(gl, pipeline_shaders);
   const shogle::gl_scoped_resource pipeline_scope(gl, pipeline);
+  const auto u_model = pipeline.uniform_location(gl, "u_model").value();
 
-  shogle::gl_command_builder cmd_builder;
-  const auto cmd =
-    cmd_builder.set_vertex_layout(quad_layout)
-      .set_pipeline(pipeline)
-      .set_index_buffer(quad_ebo, shogle::gl_draw_command::INDEX_FORMAT_U16, (u32)indices.size())
-      .add_vertex_buffer(0, quad_vbo)
-      .set_viewport(0, 0, 800, 600)
-      .set_instances(1)
-      .build();
-
-  shogle::gl_clear_builder frame_builder;
-  const auto frame_clear = frame_builder.set_clear_color(.3f, .3f, .3f, 1.f)
+  shogle::gl_clear_builder clear_builder;
+  const auto frame_clear = clear_builder.set_clear_color(.3f, .3f, .3f, 1.f)
                              .set_clear_flag(shogle::gl_clear_opts::CLEAR_COLOR)
                              .build();
 
-  while (!win.should_close()) {
-    win.poll_events();
+  shogle::gl_command_builder cmd_builder;
+  f32 t = 0.f;
+  shogle::render_loop(win, [&](f64 dt) {
     if (win.poll_key(GLFW_KEY_ESCAPE) == GLFW_PRESS) {
       win.close();
     }
 
     gl.start_frame(frame_clear);
+    t += (f32)dt;
+    auto transf = shogle::math::transform2d<f32>().roll(t * M_PIf);
+    const auto mat = transf.world();
+
+    cmd_builder.reset();
+    const auto cmd = cmd_builder.set_vertex_layout(quad_layout)
+                       .set_pipeline(pipeline)
+                       .set_index_buffer(quad_ebo, shogle::gl_draw_command::INDEX_FORMAT_U16)
+                       .set_draw_count(indices.size())
+                       .add_uniform(mat, u_model)
+                       .add_vertex_buffer(quad_vbo)
+                       .build();
     gl.submit_command(cmd);
     gl.end_frame();
+  });
 
-    win.swap_buffers();
-  }
   return EXIT_SUCCESS;
 }

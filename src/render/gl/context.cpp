@@ -9,6 +9,20 @@ namespace shogle {
 
 gl_clear_builder::gl_clear_builder() noexcept : _color(), _viewport(), _clear_flags(), _fbos() {}
 
+gl_clear_builder& gl_clear_builder::set_viewport(u32 x, u32 y, u32 width, u32 height) {
+  const rectangle_pos<u32> viewport(x, y, width, height);
+  return set_viewport(viewport);
+}
+
+gl_clear_builder& gl_clear_builder::set_viewport(const rectangle_pos<u32>& viewport) {
+  if (_viewport.has_value()) {
+    *_viewport = viewport;
+  } else {
+    _viewport.emplace(viewport);
+  }
+  return *this;
+}
+
 gl_clear_builder& gl_clear_builder::set_clear_color(const color4& color) {
   return this->set_clear_color(color.r, color.g, color.b, color.a);
 }
@@ -48,6 +62,9 @@ void gl_clear_builder::reset() {
   _color.b = 0.f;
   _color.a = 0.f;
   _clear_flags = 0;
+  if (_viewport.has_value()) {
+    _viewport.reset();
+  }
   _fbos.clear();
 }
 
@@ -62,7 +79,7 @@ gl_clear_opts gl_clear_builder::build() const {
 
 gl_command_builder::gl_command_builder() noexcept :
     _vertex_layout(), _pipeline(), _vertex_binds(), _shader_binds(), _texture_binds(), _uniforms(),
-    _index(), _viewport(), _scissor(), _instances(1u) {}
+    _index(), _viewport(), _scissor(), _vertex_offset(), _draw_count(), _instances(1u) {}
 
 void gl_command_builder::reset() {
   _vertex_layout = nullptr;
@@ -74,13 +91,14 @@ void gl_command_builder::reset() {
   if (_index.has_value()) {
     _index.reset();
   }
-  _viewport.x = 0;
-  _viewport.y = 0;
-  _viewport.width = 0;
-  _viewport.height = 0;
+  if (_viewport.has_value()) {
+    _viewport.reset();
+  }
   if (_scissor.has_value()) {
     _scissor.reset();
   }
+  _vertex_offset = 0;
+  _draw_count = 0;
   _instances = 1;
 }
 
@@ -95,7 +113,11 @@ gl_command_builder& gl_command_builder::set_pipeline(const gl_graphics_pipeline&
 }
 
 gl_command_builder& gl_command_builder::set_viewport(const rectangle_pos<u32>& viewport) {
-  _viewport = viewport;
+  if (_viewport.has_value()) {
+    *_viewport = viewport;
+  } else {
+    _viewport.emplace(viewport);
+  }
   return *this;
 }
 
@@ -128,26 +150,26 @@ gl_command_builder& gl_command_builder::set_vertex_offset(size_t offset) {
   return *this;
 }
 
-gl_command_builder& gl_command_builder::set_vertex_count(u32 count) {
-  _vertex_count = count;
+gl_command_builder& gl_command_builder::set_draw_count(u32 count) {
+  _draw_count = count;
   return *this;
 }
 
 gl_command_builder& gl_command_builder::set_index_buffer(const gl_buffer& buffer,
                                                          gl_draw_command::index_format format,
-                                                         u32 index_count) {
+                                                         size_t index_offset) {
   NTF_ASSERT(buffer.type() == gl_buffer::TYPE_INDEX, "Binding non index buffer for indices");
   if (_index.has_value()) {
     _index->buffer = buffer.id();
     _index->format = format;
-    _index->index_count = index_count;
+    _index->index_offset = index_offset;
   } else {
-    _index.emplace(buffer.id(), format, index_count);
+    _index.emplace(buffer.id(), format, index_offset);
   }
   return *this;
 }
 
-gl_command_builder& gl_command_builder::add_vertex_buffer(u32 location, const gl_buffer& buffer) {
+gl_command_builder& gl_command_builder::add_vertex_buffer(const gl_buffer& buffer, u32 location) {
   NTF_ASSERT(buffer.type() == gl_buffer::TYPE_VERTEX, "Binding non vertex buffer for vertices");
   _vertex_binds.emplace_back(buffer.id(), location);
   return *this;
@@ -157,12 +179,13 @@ gl_command_builder& gl_command_builder::add_shader_buffer(u32 location, const gl
                                                           size_t size, size_t offset) {
   NTF_ASSERT(buffer.type() == gl_buffer::TYPE_SHADER || buffer.type() == gl_buffer::TYPE_UNIFORM,
              "Binding non shader buffer to shader");
+  NTF_ASSERT(offset + size <= buffer.size(), "Shader binding out of buffer range");
   _shader_binds.emplace_back(buffer.id(), (gldefs::GLenum)buffer.type(), size, offset, location);
   return *this;
 }
 
-gl_command_builder& gl_command_builder::add_texture(u32 index, const gl_texture& texture) {
-  _texture_binds.emplace_back(texture.id(), index);
+gl_command_builder& gl_command_builder::add_texture(const gl_texture& texture, u32 index) {
+  _texture_binds.emplace_back(texture.id(), texture.type(), index);
   return *this;
 }
 
@@ -180,7 +203,7 @@ gl_draw_command gl_command_builder::build() const {
     .viewport = _viewport,
     .scissor = _scissor.has_value() ? *_scissor : _viewport,
     .vertex_offset = _vertex_offset,
-    .vertex_count = _vertex_count,
+    .draw_count = _draw_count,
     .instances = std::max(_instances, 1u),
   };
 }
@@ -299,7 +322,7 @@ gl_external_command gl_external_command_builder::build() const {
 
 namespace {
 
-APIENTRY void debug_callback(GLenum src, GLenum type, GLenum id, GLenum severity, GLsizei,
+APIENTRY void debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity, GLsizei,
                              const char* message, const void* user) {
   NTF_UNUSED(user);
 
@@ -420,8 +443,9 @@ sv_expect<gl_context> gl_context::create(gl_surface_provider& surf_prov) noexcep
     NTF_ASSERT(ctx->version_string);
     NTF_ASSERT(ctx->vendor_string);
     NTF_ASSERT(ctx->renderer_string);
-    SHOGLE_GL_LOG(debug, "OpenGL context created [{} - {} - {}]", ctx->version_string,
-                  ctx->vendor_string, ctx->renderer_string);
+    SHOGLE_GL_LOG(debug, "OpenGL context created (ptr: {})", fmt::ptr(ctx.get()));
+    SHOGLE_GL_LOG(debug, "{}, {}, {}", ctx->version_string, ctx->vendor_string,
+                  ctx->renderer_string);
     return {ntf::in_place, create_t{}, std::move(ctx)};
   } catch (...) {
     return {ntf::unexpect, "Failed to allocate OpenGL context"};
@@ -429,6 +453,7 @@ sv_expect<gl_context> gl_context::create(gl_surface_provider& surf_prov) noexcep
 }
 
 void gl_context::context_deleter::operator()(gl_private* ptr) noexcept {
+  SHOGLE_GL_LOG(debug, "OpenGL context destroyed (ptr: {})", fmt::ptr(ptr));
   ntf::alloc_destroy(ptr);
 }
 
@@ -438,7 +463,7 @@ gl_context::gl_context(gl_surface_provider& surf_prov) :
     gl_context(::shogle::gl_context::create(surf_prov).value()) {}
 
 gl_private& impl::gl_get_private(gl_context& gl) {
-  NTF_ASSERT(gl._ctx, "gl_context use after move");
+  NTF_ASSERT(gl._ctx, "gl_context use after free");
   return *gl._ctx;
 }
 
@@ -447,12 +472,12 @@ scratch_arena& impl::gl_get_scratch_arena(gl_context& gl) {
 }
 
 gl_surface_provider& gl_context::provider() const {
-  NTF_ASSERT(_ctx, "gl_context use after move");
+  NTF_ASSERT(_ctx, "gl_context use after free");
   return *static_cast<gl_surface_provider*>(_ctx->surf_prov);
 }
 
 gldefs::GLenum gl_context::get_error() const {
-  NTF_ASSERT(_ctx, "gl_context use after move");
+  NTF_ASSERT(_ctx, "gl_context use after free");
   gldefs::GLenum out = 0;
   gldefs::GLenum err;
   const auto& funcs = _ctx->funcs;
@@ -463,23 +488,23 @@ gldefs::GLenum gl_context::get_error() const {
 }
 
 gl_context::gl_version gl_context::version() const {
-  NTF_ASSERT(_ctx, "gl_context use after move");
+  NTF_ASSERT(_ctx, "gl_context use after free");
   return gl_version{.major = static_cast<u32>(_ctx->ver.maj),
                     .minor = static_cast<u32>(_ctx->ver.min)};
 }
 
 std::string_view gl_context::renderer_string() const {
-  NTF_ASSERT(_ctx, "gl_context use after move");
+  NTF_ASSERT(_ctx, "gl_context use after free");
   return _ctx->renderer_string;
 }
 
 std::string_view gl_context::vendor_string() const {
-  NTF_ASSERT(_ctx, "gl_context use after move");
+  NTF_ASSERT(_ctx, "gl_context use after free");
   return _ctx->vendor_string;
 }
 
 std::string_view gl_context::version_string() const {
-  NTF_ASSERT(_ctx, "gl_context use after move");
+  NTF_ASSERT(_ctx, "gl_context use after free");
   return _ctx->version_string;
 }
 
@@ -574,45 +599,16 @@ u32 attribute_dimension(attribute_type attrib) {
   return ::shogle::meta::attribute_dim(attrib);
 }
 
-auto setup_vertex_attributes(gl_context& gl, const gl_vertex_layout& layout,
-                             span<const gl_buffer_binding> vertex_buffers) -> gl_sv_expect<void> {
+void setup_vertex_attributes(gl_context& gl, const gl_vertex_layout& layout,
+                             span<const gl_draw_command::vertex_binding> vertex_buffers) {
   const auto attribs = layout.attributes();
-  if (vertex_buffers.size() == attribs.size()) {
-    return {ntf::unexpect, "Invalid vertex buffer count for attributes"};
-  }
-  if (vertex_buffers.size() < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS) {
-    return {ntf::unexpect, "Vertex buffer bindings out of range"};
-  }
+  NTF_ASSERT(!attribs.empty());
 
-  std::array<GLuint, gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS> binds{};
-  for (const auto& [buff, location] : vertex_buffers) {
-    const auto& buffer = buff.get();
-    if (location >= binds.size()) {
-      return {ntf::unexpect, "Vertex buffer binding out of range"};
-    }
-    if (buffer.type() != gl_buffer::BUFFER_VERTEX) {
-      SHOGLE_GL_LOG(warning,
-                    "Binding non vertex buffer with id {} on vertex attribute {} of VAO {}",
-                    buffer.id(), location, layout.vao());
-    }
-    binds[location] = buffer.id();
-  }
+  const auto bind_attrib_pointer = [&](shogle::attribute_type type, u32 location, size_t offset_) {
+    void* offset = reinterpret_cast<void*>(offset_);
+    const u32 dimension = attribute_dimension(type);
+    const auto underlying = underlying_attribute_type(type);
 
-  GL_ASSERT(glBindVertexArray(layout.vao()));
-  for (const auto& attrib : attribs) {
-    const u32 location = attrib.location;
-    NTF_ASSERT(location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
-               "Attribute location out of range");
-    const GLuint buffer = binds[location];
-    if (buffer == 0) {
-      continue;
-    }
-
-    void* offset = reinterpret_cast<void*>(attrib.offset);
-    const u32 dimension = attribute_dimension(attrib.type);
-    const auto underlying = underlying_attribute_type(attrib.type);
-
-    GL_ASSERT(glBindBuffer(GL_ARRAY_BUFFER, buffer));
     GL_ASSERT(glEnableVertexAttribArray(location));
     switch (underlying) {
       case GL_FLOAT: {
@@ -630,36 +626,43 @@ auto setup_vertex_attributes(gl_context& gl, const gl_vertex_layout& layout,
       default:
         NTF_UNREACHABLE();
     }
-  }
+  };
 
-  return {};
+  GL_ASSERT(glBindVertexArray(layout.vao()));
+  if (layout.type() == gl_vertex_layout::TYPE_AOS_LAYOUT) {
+    NTF_ASSERT(vertex_buffers.size() == 1, "AOS vertex layouts uses only a single vertex buffer");
+    GL_ASSERT(glBindBuffer(GL_ARRAY_BUFFER, vertex_buffers[0].buffer));
+    for (const auto& attrib : attribs) {
+      NTF_ASSERT(attrib.location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+                 "Attribute location out of range");
+      bind_attrib_pointer(attrib.type, attrib.location, attrib.offset);
+    }
+  } else {
+    NTF_ASSERT(vertex_buffers.size() == attribs.size(),
+               "SOA vertex layout needs equal number of vertex buffers and attributes");
+    NTF_ASSERT(vertex_buffers.size() >= gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+               "Vertex buffer count out ofr attribute range");
+
+    std::array<GLuint, gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS> bind_map{};
+    for (const auto [buffer, location] : vertex_buffers) {
+      NTF_ASSERT(location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+                 "Vertex buffer binding out of range");
+      bind_map[location] = buffer;
+    }
+    for (const auto& attrib : attribs) {
+      NTF_ASSERT(attrib.location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+                 "Attribute location out of range");
+      const GLuint buffer = bind_map[attrib.location];
+      if (buffer == 0) {
+        continue;
+      }
+      GL_ASSERT(glBindBuffer(GL_ARRAY_BUFFER, buffer));
+      bind_attrib_pointer(attrib.type, attrib.location, attrib.offset);
+    }
+  }
 }
 
-gl_sv_expect<void> bind_shader_buffers(gl_context& gl,
-                                       span<const gl_shader_binding> shader_buffers) {
-  // TODO: Check if the buffer location is bindable?
-  for (const auto& [buff, location, offset, size] : shader_buffers) {
-    const gl_buffer& buffer = buff.get();
-    NTF_ASSERT(buffer.type() == gl_buffer::BUFFER_SHADER ||
-                 buffer.type() == gl_buffer::BUFFER_UNIFORM,
-               "Invalid shader buffer type");
-    NTF_ASSERT(offset + size <= buffer.size(), "Shader binding out of buffer range");
-    GL_ASSERT(glBindBufferRange(buffer.type(), location, buffer.id(), offset, size));
-  }
-  return {};
-}
-
-gl_sv_expect<void> bind_textures(gl_context& gl, span<const gl_texture_binding> textures) {
-  // TODO: Check if the selected texture index is available
-  for (const auto& [tex, index] : textures) {
-    const gl_texture& texture = tex.get();
-    GL_ASSERT(glActiveTexture(GL_TEXTURE0 + index));
-    GL_ASSERT(glBindTexture(texture.type(), texture.id()));
-  }
-  return {};
-}
-
-void upload_uniforms(gl_context& gl, span<const gl_push_uniform> uniforms) {
+void upload_uniforms(gl_context& gl, span<const gl_draw_command::push_uniform> uniforms) {
   for (const auto& [data, type, location] : uniforms) {
     switch (type) {
       case attribute_type::f32: {
@@ -740,105 +743,124 @@ void upload_uniforms(gl_context& gl, span<const gl_push_uniform> uniforms) {
 
 } // namespace
 
-void gl_context::start_frame(const gl_frame_initializer& init) {
+void gl_context::start_frame(const gl_clear_opts& clear) {
+  NTF_ASSERT(_ctx, "gl_context use after free");
   auto& gl = *this;
 
-  const auto clear_framebuffer = [&](GLuint fbo, const color4& color, GLbitfield clear_flags) {
+  const auto clear_framebuffer = [&](GLuint fbo, const color4& color, GLbitfield clear_flags,
+                                     const rectangle_pos<u32>& viewport) {
     GL_ASSERT(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo));
+    GL_ASSERT(glViewport(viewport.x, viewport.y, viewport.width, viewport.height));
     GL_ASSERT(glClearColor(color.r, color.g, color.b, color.a));
     GL_ASSERT(glClear(clear_flags));
   };
+  const auto viewport = [&]() -> rectangle_pos<u32> {
+    if (clear.viewport) {
+      return *clear.viewport;
+    } else {
+      const auto [w, h] = provider().gl_surface_extent();
+      return {0, 0, w, h};
+    }
+  }();
 
-  clear_framebuffer(DEFAULT_FRAMEBUFFER, init.clear_opt.color, init.clear_opt.clear_flags);
-  for (const auto& [fbo, clear_opt] : init.fbos) {
-    clear_framebuffer(fbo->id(), clear_opt.color, clear_opt.clear_flags);
+  clear_framebuffer(DEFAULT_FRAMEBUFFER, clear.clear_color, clear.clear_flags, viewport);
+  for (const auto& [clear_color, viewport, clear_flags, fbo] : clear.fbos) {
+    clear_framebuffer(fbo, clear_color, clear_flags, viewport);
   }
 }
 
-gl_sv_expect<void> gl_context::submit_indexed_draw_command(const gl_indexed_cmd& cmd,
-                                                           ptr_view<const gl_framebuffer> target) {
+void gl_context::submit_command(const gl_draw_command& cmd,
+                                ptr_view<const gl_framebuffer> target) {
+  NTF_ASSERT(_ctx, "gl_context use after free");
   auto& gl = *this;
   const gl_graphics_pipeline& pipeline = *cmd.pipeline;
+  const auto primitive = pipeline.primitive();
 
-  const auto bind_index_buffer = [&]() {
-    // bind index buffer, has to be done after the vertex layout is set
-    NTF_ASSERT(cmd.index_buffer.get().type() == gl_buffer::BUFFER_INDEX, "Invalid index buffer");
-    GL_ASSERT(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cmd.index_buffer.get().id()));
+  const auto bind_shader_buffers = [&]() {
+    for (const auto [buffer, type, offset, size, location] : cmd.shader_bindings) {
+      GL_ASSERT(glBindBufferRange(type, location, buffer, offset, size));
+    }
   };
-  const auto do_draw = [&]() {
-    const auto idx_size = [&]() -> size_t {
-      switch (cmd.format) {
-        case gl_indexed_cmd::INDEX_FORMAT_U32:
-          return sizeof(u32);
-        case gl_indexed_cmd::INDEX_FORMAT_U16:
-          return sizeof(u16);
-        case gl_indexed_cmd::INDEX_FORMAT_U8:
-          return sizeof(u8);
-        case gl_indexed_cmd::INDEX_FORMAT_I32:
-          return sizeof(i32);
-        case gl_indexed_cmd::INDEX_FORMAT_I16:
-          return sizeof(i16);
-        case gl_indexed_cmd::INDEX_FORMAT_I8:
-          return sizeof(i8);
-        default:
-          return 0;
-      }
-    }();
-    const auto primitive = pipeline.primitive();
-    const void* idx_offset = reinterpret_cast<const void*>(cmd.index_count * idx_size);
-
-    if (cmd.instances > 1) {
-      GL_CALL(glDrawElementsInstancedBaseVertex(primitive, cmd.vertex_count, cmd.format,
-                                                idx_offset, cmd.instances, cmd.vertex_offset));
-
-    } else {
-      GL_CALL(glDrawElementsBaseVertex(primitive, cmd.vertex_count, cmd.format, idx_offset,
-                                       cmd.vertex_offset));
+  const auto bind_textures = [&]() {
+    for (const auto& [texture, type, index] : cmd.texture_bindings) {
+      GL_ASSERT(glActiveTexture(GL_TEXTURE0 + index));
+      GL_ASSERT(glBindTexture(type, texture));
     }
   };
 
-  setup_framebuffer(gl, target.empty() ? DEFAULT_FRAMEBUFFER : target->id(), cmd.viewport,
-                    cmd.scissor);
-  setup_render_state(gl, pipeline.depth_test(), pipeline.stencil_test(), pipeline.blending(),
-                     pipeline.culling(), pipeline.poly_mode(), pipeline.poly_width());
-
-  return setup_vertex_attributes(gl, cmd.vertex_layout, cmd.vertex_buffers)
-    .and_then([&]() { return bind_shader_buffers(gl, cmd.shader_buffers); })
-    .and_then([&]() { return bind_textures(gl, cmd.textures); })
-    .transform([&]() { bind_index_buffer(); })
-    .transform([&]() { upload_uniforms(gl, cmd.uniforms); })
-    .transform([&]() { do_draw(); });
-}
-
-gl_sv_expect<void> gl_context::submit_draw_command(const gl_array_cmd& cmd,
-                                                   ptr_view<const gl_framebuffer> target) {
-  auto& gl = *this;
-  const gl_graphics_pipeline& pipeline = *cmd.pipeline;
-
-  const auto do_draw = [&]() {
-    const auto primitive = pipeline.primitive();
+  const auto draw_arrays = [&]() {
+    GL_ASSERT(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_DEFAULT_BINDING));
     if (cmd.instances > 1) {
       GL_ASSERT(
-        glDrawArraysInstanced(primitive, cmd.vertex_offset, cmd.vertex_count, cmd.instances));
+        glDrawArraysInstanced(primitive, cmd.vertex_offset, cmd.draw_count, cmd.instances));
     } else {
-      GL_ASSERT(glDrawArrays(primitive, cmd.vertex_offset, cmd.vertex_count));
+      GL_ASSERT(glDrawArrays(primitive, cmd.vertex_offset, cmd.draw_count));
     }
   };
 
-  setup_framebuffer(gl, target.empty() ? DEFAULT_FRAMEBUFFER : target->id(), cmd.viewport,
-                    cmd.scissor);
+  const auto draw_indexed = [&]() {
+    NTF_ASSERT(cmd.index_bind.has_value())
+    static constexpr auto idx_formats = std::to_array<gldefs::GLenum>({
+      0x1400, // GL_BYTE
+      0x1401, // GL_UNSIGNED_BYTE
+      0x1402, // GL_SHORT
+      0x1403, // GL_UNSIGNED_SHORT
+      0x1404, // GL_INT
+      0x1405, // GL_UNSIGNED_INT
+    });
+    static constexpr auto idx_sizes = std::to_array<size_t>({
+      sizeof(i8),  // GL_BYTE
+      sizeof(u8),  // GL_UNSIGNED_BYTE
+      sizeof(i16), // GL_SHORT
+      sizeof(u16), // GL_UNSIGNED_SHORT
+      sizeof(i32), // GL_INT
+      sizeof(u32), // GL_UNSIGNED_INT
+    });
+    NTF_ASSERT(cmd.index_bind->format < idx_formats.size(), "Invalid index buffer format");
+    const u32 format_idx = cmd.index_bind->format;
+    GL_ASSERT(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cmd.index_bind->buffer));
+
+    const void* idx_offset =
+      reinterpret_cast<const void*>(cmd.index_bind->index_offset * idx_sizes[format_idx]);
+    const gldefs::GLenum format = idx_formats[format_idx];
+    if (cmd.instances > 1) {
+      GL_ASSERT(glDrawElementsInstancedBaseVertex(primitive, cmd.draw_count, format, idx_offset,
+                                                  cmd.instances, cmd.vertex_offset));
+
+    } else {
+      GL_ASSERT(glDrawElementsBaseVertex(primitive, cmd.draw_count, format, idx_offset,
+                                         cmd.vertex_offset));
+    }
+  };
+
+  const auto viewport = [&]() -> rectangle_pos<u32> {
+    if (cmd.viewport.has_value()) {
+      return *cmd.viewport;
+    } else {
+      const auto [w, h] = provider().gl_surface_extent();
+      return {0, 0, w, h};
+    }
+  }();
+  const auto scissor = cmd.scissor ? *cmd.scissor : viewport;
+  setup_framebuffer(gl, target.empty() ? DEFAULT_FRAMEBUFFER : target->id(), viewport, scissor);
+  GL_ASSERT(glUseProgram(pipeline.program()));
   setup_render_state(gl, pipeline.depth_test(), pipeline.stencil_test(), pipeline.blending(),
                      pipeline.culling(), pipeline.poly_mode(), pipeline.poly_width());
 
-  return setup_vertex_attributes(gl, cmd.vertex_layout, cmd.vertex_buffers)
-    .and_then([&]() { return bind_shader_buffers(gl, cmd.shader_buffers); })
-    .and_then([&]() { return bind_textures(gl, cmd.textures); })
-    .transform([&]() { upload_uniforms(gl, cmd.uniforms); })
-    .transform([&]() { do_draw(); });
+  setup_vertex_attributes(gl, cmd.vertex_layout, cmd.vertex_bindings);
+  bind_shader_buffers();
+  bind_textures();
+  upload_uniforms(gl, cmd.uniforms);
+  if (cmd.index_bind.has_value()) {
+    draw_indexed();
+  } else {
+    draw_arrays();
+  }
 }
 
-void gl_context::submit_external_command(const gl_external_cmd& cmd,
-                                         ptr_view<const gl_framebuffer> target) {
+void gl_context::submit_command(const gl_external_command& cmd,
+                                ptr_view<const gl_framebuffer> target) {
+  NTF_ASSERT(_ctx, "gl_context use after free");
   NTF_ASSERT(!cmd.callback.is_empty(), "Empty external command callback");
   const GLuint fbo = target.empty() ? DEFAULT_FRAMEBUFFER : target->id();
   setup_framebuffer(*this, fbo, cmd.viewport, cmd.scissor);
@@ -849,6 +871,13 @@ void gl_context::submit_external_command(const gl_external_cmd& cmd,
 
 void gl_context::end_frame() {
   // No-op
+}
+
+void gl_context::destroy() noexcept {
+  if (NTF_UNLIKELY(!_ctx)) {
+    return;
+  }
+  _ctx.reset();
 }
 
 std::string_view gl_error_string(GLenum err) noexcept {

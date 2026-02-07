@@ -149,6 +149,18 @@ constexpr inline u32 attribute_dim(::shogle::attribute_type type) noexcept {
 	return idx > ATTRIBUTE_COUNT ? 0 : dim_arr[idx];
 }
 
+constexpr inline std::string_view attribute_name(::shogle::attribute_type type) noexcept {
+  constexpr auto name_arr = std::to_array<const char*>({
+		"f32",  "vec2",  "vec3",  "vec4", "mat3", "mat4",
+		"f64", "dvec2", "dvec3", "dvec4",
+		"i32", "ivec2", "ivec3", "ivec4",
+		"u32", "uvec2", "uvec3", "uvec4",
+  });
+	static_assert(name_arr.size() == ATTRIBUTE_COUNT);
+	const u32 idx = static_cast<u32>(type);
+	return idx > ATTRIBUTE_COUNT ? "Unknown" : name_arr[idx];
+};
+
 #define SHOGLE_DECLARE_ATTRIB_TRAIT(type_, tag_, underlying_) \
 static_assert(std::is_trivial_v<type_>, NTF_STRINGIFY(type_) " is not trivial!!!"); \
 template<> \

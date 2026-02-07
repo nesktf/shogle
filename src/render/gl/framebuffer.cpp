@@ -26,27 +26,47 @@ gl_renderbuffer::gl_renderbuffer(gl_context& gl, buffer_format format, extent2d 
     gl_renderbuffer(::shogle::gl_renderbuffer::create(gl, format, extent).value()) {}
 
 void gl_renderbuffer::destroy(gl_context& gl, gl_renderbuffer& rbo) noexcept {
-  if (NTF_UNLIKELY(rbo._id == GL_NULL_HANDLE)) {
+  if (NTF_UNLIKELY(rbo.invalidated())) {
     return;
   }
-  NTF_ASSERT(rbo._id != GL_NULL_HANDLE, "gl_renderbuffer use after free");
   GL_ASSERT(glDeleteRenderbuffers(1, &rbo._id));
   rbo._id = GL_NULL_HANDLE;
 }
 
+void gl_renderbuffer::destroy_n(gl_context& gl, gl_renderbuffer* rbos, size_t count) noexcept {
+  if (NTF_UNLIKELY(!rbos)) {
+    return;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    if (NTF_UNLIKELY(rbos[i].invalidated())) {
+      continue;
+    }
+    GL_CALL(glDeleteRenderbuffers(1, &rbos[i]._id));
+    rbos[i]._id = GL_NULL_HANDLE;
+  }
+}
+
+void gl_renderbuffer::destroy_n(gl_context& gl, span<gl_renderbuffer> rbos) noexcept {
+  destroy_n(gl, rbos.data(), rbos.size());
+}
+
 gldefs::GLhandle gl_renderbuffer::id() const {
-  NTF_ASSERT(_id != GL_NULL_HANDLE, "gl_renderbuffer use after free");
+  NTF_ASSERT(!invalidated(), "gl_renderbuffer use after free");
   return _id;
 }
 
 gl_renderbuffer::buffer_format gl_renderbuffer::format() const {
-  NTF_ASSERT(_id != GL_NULL_HANDLE, "gl_renderbuffer use after free");
+  NTF_ASSERT(!invalidated(), "gl_renderbuffer use after free");
   return _format;
 }
 
 extent2d gl_renderbuffer::extent() const {
-  NTF_ASSERT(_id != GL_NULL_HANDLE, "gl_renderbuffer use after free");
+  NTF_ASSERT(!invalidated(), "gl_renderbuffer use after free");
   return _extent;
+}
+
+bool gl_renderbuffer::invalidated() const noexcept {
+  return _id == GL_NULL_HANDLE;
 }
 
 namespace {
@@ -244,11 +264,28 @@ gl_framebuffer::gl_framebuffer(gl_context& gl, extent2d extent,
     gl_framebuffer(::shogle::gl_framebuffer::from_color_only(gl, extent, color).value()) {}
 
 void gl_framebuffer::destroy(gl_context& gl, gl_framebuffer& fbo) noexcept {
-  if (NTF_UNLIKELY(fbo._id == GL_NULL_HANDLE)) {
+  if (NTF_UNLIKELY(fbo.invalidated())) {
     return;
   }
-  GL_ASSERT(glDeleteFramebuffers(1, &fbo._id));
+  GL_CALL(glDeleteFramebuffers(1, &fbo._id));
   fbo._id = GL_NULL_HANDLE;
+}
+
+void gl_framebuffer::destroy_n(gl_context& gl, gl_framebuffer* fbos, size_t count) noexcept {
+  if (NTF_UNLIKELY(!fbos)) {
+    return;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    if (NTF_UNLIKELY(fbos[i].invalidated())) {
+      continue;
+    }
+    GL_CALL(glDeleteFramebuffers(1, &fbos[i]._id));
+    fbos[i]._id = GL_NULL_HANDLE;
+  }
+}
+
+void gl_framebuffer::destroy_n(gl_context& gl, span<gl_framebuffer> fbos) noexcept {
+  destroy_n(gl, fbos.data(), fbos.size());
 }
 
 gl_expect<void> gl_framebuffer::blit(gl_context& gl, const gl_framebuffer& source,
@@ -272,23 +309,27 @@ gl_expect<void> gl_framebuffer::blit(gl_context& gl, const gl_framebuffer& sourc
 }
 
 gldefs::GLhandle gl_framebuffer::id() const {
-  NTF_ASSERT(_id != GL_NULL_HANDLE, "gl_framebuffer use after free");
+  NTF_ASSERT(!invalidated(), "gl_framebuffer use after free");
   return _id;
 }
 
 extent2d gl_framebuffer::extent() const {
-  NTF_ASSERT(_id != GL_NULL_HANDLE, "gl_framebuffer use after free");
+  NTF_ASSERT(!invalidated(), "gl_framebuffer use after free");
   return _extent;
 }
 
 gl_framebuffer::buffer_attachment gl_framebuffer::attachment_type() const {
-  NTF_ASSERT(_id != GL_NULL_HANDLE, "gl_framebuffer use after free");
+  NTF_ASSERT(!invalidated(), "gl_framebuffer use after free");
   return _buffer_attachment;
 }
 
 u32 gl_framebuffer::color_attachment_count() const {
-  NTF_ASSERT(_id != GL_NULL_HANDLE, "gl_framebuffer use after free");
+  NTF_ASSERT(!invalidated(), "gl_framebuffer use after free");
   return _color_count;
+}
+
+bool gl_framebuffer::invalidated() const noexcept {
+  return _id == GL_NULL_HANDLE;
 }
 
 } // namespace shogle

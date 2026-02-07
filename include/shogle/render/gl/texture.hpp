@@ -7,6 +7,7 @@ namespace shogle {
 class gl_texture {
 public:
   using context_type = gl_context;
+  using deleter_type = gl_deleter<gl_texture>;
 
   enum texture_type : gldefs::GLenum {
     TEX_TYPE_1D = 0x0DE0,                   // GL_TEXTURE_1D
@@ -332,10 +333,11 @@ public:
   u32 levels() const;
   size_t buffer_size() const;
   size_t buffer_offset() const;
-  bool invalidated() const;
+
+  bool invalidated() const noexcept;
 
 public:
-  explicit operator bool() const { return !invalidated(); }
+  explicit operator bool() const noexcept { return !invalidated(); }
 
 private:
   extent3d _extent;
@@ -346,7 +348,7 @@ private:
   texture_format _format;
 };
 
-static_assert(meta::renderer_object_type<gl_texture>);
+static_assert(::shogle::meta::renderer_object_type<gl_texture>);
 
 template<>
 struct gl_deleter<gl_texture> {

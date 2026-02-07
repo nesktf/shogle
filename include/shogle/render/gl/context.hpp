@@ -23,7 +23,7 @@ public:
 
 public:
   color4 clear_color;
-  rectangle_pos<u32> viewport;
+  ntf::optional<rectangle_pos<u32>> viewport;
   gldefs::GLenum clear_flags;
   span<const fbo_initializer> fbos;
 };
@@ -34,6 +34,7 @@ public:
 
 public:
   gl_clear_builder& set_viewport(const rectangle_pos<u32>& viewport);
+  gl_clear_builder& set_viewport(u32 x, u32 y, u32 width, u32 height);
   gl_clear_builder& set_clear_color(const color4& color);
   gl_clear_builder& set_clear_color(f32 r, f32 g, f32 b, f32 a = 1.f);
   gl_clear_builder& set_clear_flag(gl_clear_opts::clear_flag flag);
@@ -49,7 +50,7 @@ public:
 
 private:
   color4 _color;
-  rectangle_pos<u32> _viewport;
+  ntf::optional<rectangle_pos<u32>> _viewport;
   gldefs::GLenum _clear_flags;
   std::vector<gl_clear_opts::fbo_initializer> _fbos;
 };
@@ -57,22 +58,23 @@ private:
 struct gl_draw_command {
 public:
   enum index_format : gldefs::GLenum {
-    INDEX_FORMAT_I8 = 0x1400,  // GL_BYTE
-    INDEX_FORMAT_U8 = 0x1401,  // GL_UNSIGNED_BYTE
-    INDEX_FORMAT_I16 = 0x402,  // GL_SHORT
-    INDEX_FORMAT_U16 = 0x1403, // GL_UNSIGNED_SHORT
-    INDEX_FORMAT_I32 = 0x1404, // GL_INT
-    INDEX_FORMAT_U32 = 0x1405, // GL_UNSIGNED_INT
+    INDEX_FORMAT_I8 = 0, // GL_BYTE
+    INDEX_FORMAT_U8,     // GL_UNSIGNED_BYTE
+    INDEX_FORMAT_I16,    // GL_SHORT
+    INDEX_FORMAT_U16,    // GL_UNSIGNED_SHORT
+    INDEX_FORMAT_I32,    // GL_INT
+    INDEX_FORMAT_U32,    // GL_UNSIGNED_INT
   };
 
   struct index_binding {
     gldefs::GLhandle buffer;
     index_format format;
-    u32 index_count;
+    size_t index_offset;
   };
 
   struct texture_binding {
     gldefs::GLhandle texture;
+    gldefs::GLenum type;
     u32 index;
   };
 
@@ -108,10 +110,10 @@ public:
   span<const texture_binding> texture_bindings;
   span<const push_uniform> uniforms;
   ntf::optional<index_binding> index_bind;
-  rectangle_pos<u32> viewport;
-  rectangle_pos<u32> scissor;
+  ntf::optional<rectangle_pos<u32>> viewport;
+  ntf::optional<rectangle_pos<u32>> scissor;
   size_t vertex_offset;
-  u32 vertex_count;
+  u32 draw_count;
   u32 instances;
 };
 
@@ -130,18 +132,20 @@ public:
 
   gl_command_builder& set_instances(u32 instances);
   gl_command_builder& set_vertex_offset(size_t offset);
-  gl_command_builder& set_vertex_count(u32 count);
+  gl_command_builder& set_draw_count(u32 count);
   gl_command_builder& set_index_buffer(const gl_buffer& buffer,
-                                       gl_draw_command::index_format format, u32 index_count);
+                                       gl_draw_command::index_format format,
+                                       size_t index_offset = 0);
 
-  gl_command_builder& add_vertex_buffer(u32 location, const gl_buffer& buffer);
+  gl_command_builder& add_vertex_buffer(const gl_buffer& buffer, u32 location = 0);
   gl_command_builder& add_shader_buffer(u32 location, const gl_buffer& buffer, size_t size = 0,
                                         size_t offset = 0);
-  gl_command_builder& add_texture(u32 index, const gl_texture& texture);
+  gl_command_builder& add_texture(const gl_texture& texture, u32 location);
 
   template<::shogle::meta::attribute_type T>
-  gl_command_builder& add_uniform(u32 location, const T& value) {
+  gl_command_builder& add_uniform(const T& value, u32 location) {
     _uniforms.emplace_back(location, value);
+    return *this;
   }
 
 public:
@@ -156,10 +160,10 @@ private:
   std::vector<gl_draw_command::texture_binding> _texture_binds;
   std::vector<gl_draw_command::push_uniform> _uniforms;
   ntf::optional<gl_draw_command::index_binding> _index;
-  rectangle_pos<u32> _viewport;
+  ntf::optional<rectangle_pos<u32>> _viewport;
   ntf::optional<rectangle_pos<u32>> _scissor;
   size_t _vertex_offset;
-  u32 _vertex_count;
+  u32 _draw_count;
   u32 _instances;
 };
 
@@ -246,8 +250,7 @@ public:
 
 public:
   void start_frame(const gl_clear_opts& clear);
-  gl_sv_expect<void> submit_command(const gl_draw_command& cmd,
-                                    ptr_view<const gl_framebuffer> target = {});
+  void submit_command(const gl_draw_command& cmd, ptr_view<const gl_framebuffer> target = {});
   void submit_command(const gl_external_command& cmd, ptr_view<const gl_framebuffer> target = {});
   void end_frame();
 
