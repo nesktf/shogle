@@ -285,7 +285,7 @@ extent2d glfw_win::gl_surface_extent() const noexcept {
   return surface_extent();
 }
 
-void glfw_win::gl_swap_buffers() noexcept {
+void glfw_win::swap_buffers() noexcept {
   if (NTF_UNLIKELY(!_ctx)) {
     return;
   }

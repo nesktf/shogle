@@ -89,16 +89,16 @@ template<typename T>
 struct gl_deleter;
 
 template<typename T>
-class gl_scoped_resource {
+class gl_scoped_resource : public gl_deleter<T> {
 public:
   gl_scoped_resource(gl_context& gl, T& obj) noexcept :
-      _gl(&gl), _obj(std::addressof(obj)), _count(1u) {}
+      gl_deleter<T>(gl), _obj(std::addressof(obj)), _count(1u) {}
 
   gl_scoped_resource(gl_context& gl, T* obj, u32 count) noexcept :
-      _gl(&gl), _obj(obj), _count(count) {}
+      gl_deleter<T>(gl), _obj(obj), _count(count) {}
 
   gl_scoped_resource(gl_context& gl, span<T> objs) noexcept :
-      _gl(&gl), _obj(objs.data()), _count(objs.size()) {}
+      gl_deleter<T>(gl), _obj(objs.data()), _count(objs.size()) {}
 
   gl_scoped_resource(const gl_scoped_resource&) = delete;
   gl_scoped_resource(gl_scoped_resource&&) = delete;
@@ -125,7 +125,8 @@ public:
 
   void destroy() noexcept {
     if (_obj) {
-      (gl_deleter<T>{})(*_gl, _obj, _count);
+      auto& self = static_cast<gl_deleter<T>&>(*this);
+      _count > 1 ? std::invoke(self, _obj, _count) : std::invoke(self, *_obj);
       disengage();
     }
   }
@@ -140,7 +141,6 @@ public:
   operator bool() const noexcept { return is_active(); }
 
 private:
-  gl_context* _gl;
   T* _obj;
   size_t _count;
 };

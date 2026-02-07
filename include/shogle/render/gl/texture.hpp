@@ -348,6 +348,22 @@ private:
 
 static_assert(meta::renderer_object_type<gl_texture>);
 
+template<>
+struct gl_deleter<gl_texture> {
+public:
+  gl_deleter(gl_context& gl) noexcept : _gl(&gl) {}
+
+public:
+  void operator()(gl_texture* textures, size_t count) const noexcept {
+    gl_texture::deallocate_n(*_gl, textures, count);
+  }
+
+  void operator()(gl_texture& texture) const noexcept { gl_texture::deallocate(*_gl, texture); }
+
+private:
+  gl_context* _gl;
+};
+
 } // namespace shogle
 
 #ifndef SHOGLE_GL_TEXTURE_INL

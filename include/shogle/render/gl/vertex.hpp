@@ -82,13 +82,18 @@ private:
 
 template<>
 struct gl_deleter<gl_vertex_layout> {
-  void operator()(gl_context& gl, gl_vertex_layout* layouts, size_t count) noexcept {
-    gl_vertex_layout::destroy_n(gl, layouts, count);
+public:
+  gl_deleter(gl_context& gl) noexcept : _gl(&gl) {}
+
+public:
+  void operator()(gl_vertex_layout* layouts, size_t count) noexcept {
+    gl_vertex_layout::destroy_n(*_gl, layouts, count);
   }
 
-  void operator()(gl_context& gl, gl_vertex_layout& layout) noexcept {
-    gl_vertex_layout::destroy(gl, layout);
-  }
+  void operator()(gl_vertex_layout& layout) noexcept { gl_vertex_layout::destroy(*_gl, layout); }
+
+private:
+  gl_context* _gl;
 };
 
 } // namespace shogle

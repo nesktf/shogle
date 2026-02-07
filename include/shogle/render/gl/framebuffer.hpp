@@ -120,13 +120,18 @@ private:
 
 template<>
 struct gl_deleter<gl_framebuffer> {
-  void operator()(gl_context& gl, gl_framebuffer* fbos, size_t count) noexcept {
-    gl_framebuffer::destroy_n(gl, fbos, count);
+public:
+  gl_deleter(gl_context& gl) noexcept : _gl(&gl) {}
+
+public:
+  void operator()(gl_framebuffer* fbos, size_t count) const noexcept {
+    gl_framebuffer::destroy_n(*_gl, fbos, count);
   }
 
-  void operator()(gl_context& gl, gl_framebuffer& fbo) noexcept {
-    gl_framebuffer::destroy(gl, fbo);
-  }
+  void operator()(gl_framebuffer& fbo) const noexcept { gl_framebuffer::destroy(*_gl, fbo); }
+
+private:
+  gl_context* _gl;
 };
 
 } // namespace shogle

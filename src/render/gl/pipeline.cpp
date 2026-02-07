@@ -83,15 +83,12 @@ gldefs::GLhandle gl_shader_builder::get_shader(gl_shader::shader_stage stage) {
   return _shaders[map_shader(stage)];
 }
 
-ntf::optional<gl_shader::graphics_set> gl_shader_builder::build() {
+gl_shader::graphics_set gl_shader_builder::build() const {
   const auto vert = _shaders[map_shader(gl_shader::STAGE_VERTEX)];
-  if (!vert) {
-    return {ntf::nullopt};
-  }
+  NTF_ASSERT(vert, "No vertex shader");
+
   const auto frag = _shaders[map_shader(gl_shader::STAGE_FRAGMENT)];
-  if (!frag) {
-    return {ntf::nullopt};
-  }
+  NTF_ASSERT(frag, "No fragment shaer");
 
   std::array<gldefs::GLhandle, 5u> shader_set;
   u32 shader_count = 0;
@@ -111,18 +108,15 @@ ntf::optional<gl_shader::graphics_set> gl_shader_builder::build() {
   // and the control stage is optional
   const auto eval = _shaders[map_shader(gl_shader::STAGE_TESS_EVAL)];
   const auto ctrl = _shaders[map_shader(gl_shader::STAGE_TESS_CTRL)];
-  if (ctrl && !eval) {
-    return {ntf::nullopt};
-  }
-  if (eval) {
-    add_shader(eval, gl_shader::STAGE_TESS_EVAL_BIT);
-  }
   if (ctrl) {
     add_shader(ctrl, gl_shader::STAGE_TESS_CTRL_BIT);
+    if (eval) {
+      add_shader(eval, gl_shader::STAGE_TESS_EVAL_BIT);
+    }
   }
 
   NTF_ASSERT(shader_count >= 2 && shader_count <= 5);
-  return {ntf::in_place, shader_set, shader_count, (gl_shader::stages_bits)stages};
+  return {shader_set, shader_count, (gl_shader::stages_bits)stages};
 }
 
 gl_graphics_pipeline::gl_graphics_pipeline(create_t, gldefs::GLhandle program,

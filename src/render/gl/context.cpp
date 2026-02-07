@@ -7,6 +7,296 @@
 
 namespace shogle {
 
+gl_clear_builder::gl_clear_builder() noexcept : _color(), _viewport(), _clear_flags(), _fbos() {}
+
+gl_clear_builder& gl_clear_builder::set_clear_color(const color4& color) {
+  return this->set_clear_color(color.r, color.g, color.b, color.a);
+}
+
+gl_clear_builder& gl_clear_builder::set_clear_color(f32 r, f32 g, f32 b, f32 a) {
+  _color.r = r;
+  _color.g = g;
+  _color.b = b;
+  _color.a = a;
+  return *this;
+}
+
+gl_clear_builder& gl_clear_builder::set_clear_flag(gl_clear_opts::clear_flag clear_flag) {
+  _clear_flags |= (gldefs::GLenum)clear_flag;
+  return *this;
+}
+
+gl_clear_builder& gl_clear_builder::add_framebuffer(const gl_framebuffer& fbo,
+                                                    const rectangle_pos<u32>& viewport,
+                                                    gldefs::GLenum clear_flags,
+                                                    const color4& clear_color) {
+  _fbos.emplace_back(clear_color, viewport, clear_flags, fbo.id());
+  return *this;
+}
+
+gl_clear_builder& gl_clear_builder::add_framebuffer(const gl_framebuffer& fbo,
+                                                    const rectangle_pos<u32>& viewport,
+                                                    gldefs::GLenum clear_flags, f32 r, f32 g,
+                                                    f32 b, f32 a) {
+  const color4 clear_color(r, g, b, a);
+  return this->add_framebuffer(fbo, viewport, clear_flags, clear_color);
+}
+
+void gl_clear_builder::reset() {
+  _color.r = 0.f;
+  _color.g = 0.f;
+  _color.b = 0.f;
+  _color.a = 0.f;
+  _clear_flags = 0;
+  _fbos.clear();
+}
+
+gl_clear_opts gl_clear_builder::build() const {
+  return {
+    .clear_color = _color,
+    .viewport = _viewport,
+    .clear_flags = _clear_flags,
+    .fbos = {_fbos.data(), _fbos.size()},
+  };
+}
+
+gl_command_builder::gl_command_builder() noexcept :
+    _vertex_layout(), _pipeline(), _vertex_binds(), _shader_binds(), _texture_binds(), _uniforms(),
+    _index(), _viewport(), _scissor(), _instances(1u) {}
+
+void gl_command_builder::reset() {
+  _vertex_layout = nullptr;
+  _pipeline = nullptr;
+  _vertex_binds.clear();
+  _shader_binds.clear();
+  _texture_binds.clear();
+  _uniforms.clear();
+  if (_index.has_value()) {
+    _index.reset();
+  }
+  _viewport.x = 0;
+  _viewport.y = 0;
+  _viewport.width = 0;
+  _viewport.height = 0;
+  if (_scissor.has_value()) {
+    _scissor.reset();
+  }
+  _instances = 1;
+}
+
+gl_command_builder& gl_command_builder::set_vertex_layout(const gl_vertex_layout& layout) {
+  _vertex_layout = layout;
+  return *this;
+}
+
+gl_command_builder& gl_command_builder::set_pipeline(const gl_graphics_pipeline& pipeline) {
+  _pipeline = pipeline;
+  return *this;
+}
+
+gl_command_builder& gl_command_builder::set_viewport(const rectangle_pos<u32>& viewport) {
+  _viewport = viewport;
+  return *this;
+}
+
+gl_command_builder& gl_command_builder::set_viewport(u32 x, u32 y, u32 width, u32 height) {
+  const rectangle_pos<u32> viewport(x, y, width, height);
+  return set_viewport(viewport);
+}
+
+gl_command_builder& gl_command_builder::set_scissor(const rectangle_pos<u32>& scissor) {
+  if (_scissor.has_value()) {
+    *_scissor = scissor;
+  } else {
+    _scissor.emplace(scissor);
+  }
+  return *this;
+}
+
+gl_command_builder& gl_command_builder::set_scissor(u32 x, u32 y, u32 width, u32 height) {
+  const rectangle_pos<u32> scissor(x, y, width, height);
+  return set_scissor(scissor);
+}
+
+gl_command_builder& gl_command_builder::set_instances(u32 instances) {
+  _instances = instances;
+  return *this;
+}
+
+gl_command_builder& gl_command_builder::set_vertex_offset(size_t offset) {
+  _vertex_offset = offset;
+  return *this;
+}
+
+gl_command_builder& gl_command_builder::set_vertex_count(u32 count) {
+  _vertex_count = count;
+  return *this;
+}
+
+gl_command_builder& gl_command_builder::set_index_buffer(const gl_buffer& buffer,
+                                                         gl_draw_command::index_format format,
+                                                         u32 index_count) {
+  NTF_ASSERT(buffer.type() == gl_buffer::TYPE_INDEX, "Binding non index buffer for indices");
+  if (_index.has_value()) {
+    _index->buffer = buffer.id();
+    _index->format = format;
+    _index->index_count = index_count;
+  } else {
+    _index.emplace(buffer.id(), format, index_count);
+  }
+  return *this;
+}
+
+gl_command_builder& gl_command_builder::add_vertex_buffer(u32 location, const gl_buffer& buffer) {
+  NTF_ASSERT(buffer.type() == gl_buffer::TYPE_VERTEX, "Binding non vertex buffer for vertices");
+  _vertex_binds.emplace_back(buffer.id(), location);
+  return *this;
+}
+
+gl_command_builder& gl_command_builder::add_shader_buffer(u32 location, const gl_buffer& buffer,
+                                                          size_t size, size_t offset) {
+  NTF_ASSERT(buffer.type() == gl_buffer::TYPE_SHADER || buffer.type() == gl_buffer::TYPE_UNIFORM,
+             "Binding non shader buffer to shader");
+  _shader_binds.emplace_back(buffer.id(), (gldefs::GLenum)buffer.type(), size, offset, location);
+  return *this;
+}
+
+gl_command_builder& gl_command_builder::add_texture(u32 index, const gl_texture& texture) {
+  _texture_binds.emplace_back(texture.id(), index);
+  return *this;
+}
+
+gl_draw_command gl_command_builder::build() const {
+  NTF_ASSERT(!_vertex_layout.empty(), "No vertex layout provided in builder");
+  NTF_ASSERT(!_pipeline.empty(), "No pipeline provided in builder");
+  return {
+    .vertex_layout = *_vertex_layout,
+    .pipeline = *_pipeline,
+    .vertex_bindings = {_vertex_binds.data(), _vertex_binds.size()},
+    .shader_bindings = {_shader_binds.data(), _shader_binds.size()},
+    .texture_bindings = {_texture_binds.data(), _texture_binds.size()},
+    .uniforms = {_uniforms.data(), _uniforms.size()},
+    .index_bind = _index,
+    .viewport = _viewport,
+    .scissor = _scissor.has_value() ? *_scissor : _viewport,
+    .vertex_offset = _vertex_offset,
+    .vertex_count = _vertex_count,
+    .instances = std::max(_instances, 1u),
+  };
+}
+
+gl_external_command_builder::gl_external_command_builder() noexcept :
+    _callback(), _stencil(::shogle::gl_stencil_test_props::make_default(false)),
+    _depth(::shogle::gl_depth_test_props::make_default(false)),
+    _blending(::shogle::gl_blending_props::make_default(false)),
+    _culling(::shogle::gl_culling_props::make_default(false)),
+    _primitive(gl_graphics_pipeline::PRIMITIVE_TRIANGLES),
+    _poly_mode(gl_graphics_pipeline::POLY_MODE_FILL), _poly_width(1.f), _viewport(), _scissor() {}
+
+gl_external_command_builder&
+gl_external_command_builder::set_callback(gl_external_command::callback_type callback) {
+  _callback = callback;
+  return *this;
+}
+
+gl_external_command_builder&
+gl_external_command_builder::set_depth_test(const gl_depth_test_props& depth) {
+  _depth = depth;
+  return *this;
+}
+
+gl_external_command_builder&
+gl_external_command_builder::set_stencil_test(const gl_stencil_test_props& stencil) {
+  _stencil = stencil;
+  return *this;
+}
+
+gl_external_command_builder&
+gl_external_command_builder::set_blending(const gl_blending_props& blending) {
+  _blending = blending;
+  return *this;
+}
+
+gl_external_command_builder&
+gl_external_command_builder::set_culling(const gl_culling_props& culling) {
+  _culling = culling;
+  return *this;
+}
+
+gl_external_command_builder&
+gl_external_command_builder::set_primitive(gl_graphics_pipeline::primitive_mode primitive) {
+  _primitive = primitive;
+  return *this;
+}
+
+gl_external_command_builder&
+gl_external_command_builder::set_poly_mode(gl_graphics_pipeline::polygon_mode poly_mode) {
+  _poly_mode = poly_mode;
+  return *this;
+}
+
+gl_external_command_builder&
+gl_external_command_builder::set_viewport(const rectangle_pos<u32>& viewport) {
+  _viewport = viewport;
+  return *this;
+}
+
+gl_external_command_builder& gl_external_command_builder::set_viewport(u32 x, u32 y, u32 width,
+                                                                       u32 height) {
+  const rectangle_pos<u32> viewport(x, y, width, height);
+  return set_viewport(viewport);
+}
+
+gl_external_command_builder&
+gl_external_command_builder::set_scissor(const rectangle_pos<u32>& scissor) {
+  return this->set_scissor(scissor.x, scissor.y, scissor.width, scissor.height);
+}
+
+gl_external_command_builder& gl_external_command_builder::set_scissor(u32 x, u32 y, u32 width,
+                                                                      u32 height) {
+  if (_scissor.has_value()) {
+    _scissor->x = x;
+    _scissor->y = y;
+    _scissor->width = width;
+    _scissor->height = height;
+  } else {
+    _scissor.emplace(x, y, width, height);
+  }
+  return *this;
+}
+
+void gl_external_command_builder::reset() {
+  _callback = nullptr;
+  _stencil = gl_stencil_test_props::make_default(false);
+  _depth = gl_depth_test_props::make_default(false);
+  _blending = gl_blending_props::make_default(false);
+  _culling = gl_culling_props::make_default(false);
+  _primitive = gl_graphics_pipeline::PRIMITIVE_TRIANGLES;
+  _poly_mode = gl_graphics_pipeline::POLY_MODE_FILL;
+  _poly_width = 1.f;
+  _viewport.x = 0;
+  _viewport.y = 0;
+  _viewport.width = 0;
+  _viewport.height = 0;
+  _scissor.reset();
+}
+
+gl_external_command gl_external_command_builder::build() const {
+  NTF_ASSERT(!_callback.is_empty(), "Callback not bound to external command");
+  return {
+    .callback = _callback,
+    .depth_test = _depth,
+    .stencil_test = _stencil,
+    .blending = _blending,
+    .culling = _culling,
+    .primitive = _primitive,
+    .poly_mode = _poly_mode,
+    .poly_width = _poly_width,
+    .viewport = _viewport,
+    .scissor = this->_scissor.has_value() ? *this->_scissor : this->_viewport,
+  };
+}
+
 namespace {
 
 APIENTRY void debug_callback(GLenum src, GLenum type, GLenum id, GLenum severity, GLsizei,
@@ -558,7 +848,7 @@ void gl_context::submit_external_command(const gl_external_cmd& cmd,
 }
 
 void gl_context::end_frame() {
-  provider().gl_swap_buffers();
+  // No-op
 }
 
 std::string_view gl_error_string(GLenum err) noexcept {

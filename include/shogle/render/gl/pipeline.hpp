@@ -58,6 +58,8 @@ public:
   static gl_s_expect<gl_shader> create(gl_context& gl, std::string_view src, shader_stage stage);
 
   static void destroy(gl_context& gl, gl_shader& shader) noexcept;
+  static void destroy_n(gl_context& gl, gl_shader* shaders, size_t count) noexcept;
+  static void destroy_n(gl_context& gl, span<gl_shader> shaders) noexcept;
 
 public:
   gldefs::GLhandle id() const;
@@ -70,6 +72,22 @@ private:
 
 static_assert(::shogle::meta::renderer_object_type<gl_shader>);
 
+template<>
+struct gl_deleter<gl_shader> {
+public:
+  gl_deleter(gl_context& gl) noexcept : _gl(&gl) {}
+
+public:
+  void operator()(gl_shader* shaders, size_t count) const noexcept {
+    gl_shader::destroy_n(*_gl, shaders, count);
+  }
+
+  void operator()(gl_shader& shader) const noexcept { gl_shader::destroy(*_gl, shader); }
+
+private:
+  gl_context* _gl;
+};
+
 class gl_shader_builder {
 public:
   static constexpr u32 MAP_SIZE = 12;
@@ -81,7 +99,7 @@ public:
 public:
   gl_shader_builder& add_shader(const gl_shader& shader);
   gldefs::GLhandle get_shader(gl_shader::shader_stage stage);
-  ntf::optional<gl_shader::graphics_set> build();
+  gl_shader::graphics_set build() const;
 
 private:
   shader_map _shaders;
@@ -376,17 +394,16 @@ public:
   gl_graphics_pipeline(create_t, gldefs::GLhandle program, gl_shader::stages_bits stages,
                        primitive_mode primitive, polygon_mode poly_mode);
 
-  gl_graphics_pipeline(gl_context& gl, const gl_shader::graphics_set& shaders,
-                       primitive_mode primitive = PRIMITIVE_TRIANGLES,
-                       polygon_mode poly_mode = POLY_MODE_FILL);
+  gl_graphics_pipeline(gl_context& gl, const gl_shader::graphics_set& shaders);
 
 public:
   static gl_s_expect<gl_graphics_pipeline> create(gl_context& gl,
-                                                  const gl_shader::graphics_set& shaders,
-                                                  primitive_mode primitive = PRIMITIVE_TRIANGLES,
-                                                  polygon_mode poly_mode = POLY_MODE_FILL);
+                                                  const gl_shader::graphics_set& shaders);
 
   static void destroy(gl_context& gl, gl_graphics_pipeline& pipeline) noexcept;
+
+  static void destroy_n(gl_context& gl, gl_graphics_pipeline* pipelines, size_t count) noexcept;
+  static void destroy_n(gl_context& gl, span<gl_graphics_pipeline> pipelines) noexcept;
 
 public:
   ntf::optional<u32> uniform_location(gl_context& gl, const char* name) const;
@@ -437,5 +454,23 @@ private:
 };
 
 static_assert(::shogle::meta::renderer_object_type<gl_graphics_pipeline>);
+
+template<>
+struct gl_deleter<gl_graphics_pipeline> {
+public:
+  gl_deleter(gl_context& gl) noexcept : _gl(&gl) {}
+
+public:
+  void operator()(gl_graphics_pipeline* pipelines, size_t count) const noexcept {
+    gl_graphics_pipeline::destroy_n(*_gl, pipelines, count);
+  }
+
+  void operator()(gl_graphics_pipeline& pipeline) const noexcept {
+    gl_graphics_pipeline::destroy(*_gl, pipeline);
+  }
+
+private:
+  gl_context* _gl;
+};
 
 } // namespace shogle

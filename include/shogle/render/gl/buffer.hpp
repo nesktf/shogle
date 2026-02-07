@@ -9,11 +9,11 @@ public:
   using context_type = gl_context;
 
   enum buffer_type : gldefs::GLenum {
-    BUFFER_VERTEX = 0x8892,  // GL_ARRAY_BUFFER,
-    BUFFER_INDEX = 0x8893,   // GL_ELEMENT_ARRAY_BUFFER,
-    BUFFER_UNIFORM = 0x8A11, // GL_UNIFORM_BUFFER,
-    BUFFER_SHADER = 0x90D2,  // GL_SHADER_STORAGE_BUFFER,
-    BUFFER_TEXTURE = 0x8C2A, // GL_TEXTURE_BUFFER
+    TYPE_VERTEX = 0x8892,  // GL_ARRAY_BUFFER,
+    TYPE_INDEX = 0x8893,   // GL_ELEMENT_ARRAY_BUFFER,
+    TYPE_UNIFORM = 0x8A11, // GL_UNIFORM_BUFFER,
+    TYPE_SHADER = 0x90D2,  // GL_SHADER_STORAGE_BUFFER,
+    TYPE_TEXTURE = 0x8C2A, // GL_TEXTURE_BUFFER
   };
 
   enum buffer_bits : gldefs::GLbitfield {
@@ -127,13 +127,18 @@ private:
 
 template<>
 struct gl_deleter<gl_buffer> {
-  void operator()(gl_context& gl, gl_buffer* buffers, u32 count) noexcept {
-    gl_buffer::deallocate_n(gl, buffers, count);
+public:
+  gl_deleter(gl_context& gl) noexcept : _gl(&gl) {}
+
+public:
+  void operator()(gl_buffer* buffers, size_t count) const noexcept {
+    gl_buffer::deallocate_n(*_gl, buffers, count);
   }
 
-  void operator()(gl_context& gl, gl_buffer& buffer) noexcept {
-    gl_buffer::deallocate(gl, buffer);
-  }
+  void operator()(gl_buffer& buffer) const noexcept { gl_buffer::deallocate(*_gl, buffer); }
+
+private:
+  gl_context* _gl;
 };
 
 } // namespace shogle

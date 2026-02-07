@@ -26,7 +26,6 @@ struct gl_surface_provider {
   virtual ~gl_surface_provider() = default;
   virtual PFN_glGetProcAddress gl_proc_loader() noexcept = 0;
   virtual extent2d gl_surface_extent() const noexcept = 0;
-  virtual void gl_swap_buffers() noexcept = 0;
 };
 
 struct gl_version {

@@ -5,35 +5,7 @@
 
 namespace shogle {
 
-struct gl_texture_binding {
-  ref_view<const gl_texture> texture;
-  u32 index;
-};
-
-struct gl_push_uniform {
-  template<meta::attribute_type T>
-  gl_push_uniform(u32 location_, const T& data_) :
-      data(std::in_place_type_t<T>{}, data_), type(meta::attribute_traits<T>::tag),
-      location(location_) {}
-
-  ntf::inplace_trivial<sizeof(math::mat4), alignof(math::mat4)> data;
-  attribute_type type;
-  u32 location;
-};
-
-struct gl_buffer_binding {
-  ref_view<const gl_buffer> buffer;
-  u32 location;
-};
-
-struct gl_shader_binding {
-  ref_view<const gl_buffer> buffer;
-  u32 location;
-  size_t offset;
-  size_t size;
-};
-
-struct gl_clear_opt {
+struct gl_clear_opts {
 public:
   enum clear_flag : gldefs::GLenum {
     CLEAR_NONE = 0x00000000,    // GL_NONE
@@ -42,99 +14,47 @@ public:
     CLEAR_STENCIL = 0x00000400, // GL_STENCIL_BUFFER_BIT
   };
 
-public:
-  color4 color;
-  clear_flag clear_flags;
-};
-
-struct gl_frame_initializer {
-public:
   struct fbo_initializer {
-    ref_view<const gl_framebuffer> fbo;
-    gl_clear_opt clear_opts;
+    color4 clear_color;
+    rectangle_pos<u32> viewport;
+    gldefs::GLenum clear_flags;
+    gldefs::GLhandle fbo;
   };
 
 public:
-  gl_clear_opt clear_opt;
+  color4 clear_color;
+  rectangle_pos<u32> viewport;
+  gldefs::GLenum clear_flags;
   span<const fbo_initializer> fbos;
 };
 
-class gl_frame_init_builder {
+class gl_clear_builder {
 public:
-  gl_frame_init_builder() noexcept;
+  gl_clear_builder() noexcept;
 
 public:
-  gl_frame_init_builder& set_clear_color(const color4& color);
-  gl_frame_init_builder& set_clear_color(f32 r, f32 g, f32 b, f32 a = 1.f);
+  gl_clear_builder& set_viewport(const rectangle_pos<u32>& viewport);
+  gl_clear_builder& set_clear_color(const color4& color);
+  gl_clear_builder& set_clear_color(f32 r, f32 g, f32 b, f32 a = 1.f);
+  gl_clear_builder& set_clear_flag(gl_clear_opts::clear_flag flag);
 
-  gl_frame_init_builder& set_clear_flag(gldefs::GLenum clear_flag);
-  gl_frame_init_builder& clear_color();
-  gl_frame_init_builder& clear_depth();
-  gl_frame_init_builder& clear_stencil();
-
-  gl_frame_init_builder& add_framebuffer(const gl_framebuffer& fbo, gldefs::GLenum clear_flags,
-                                         const color4& color);
-  gl_frame_init_builder& add_framebuffer(const gl_framebuffer& fbo, gldefs::GLenum clear_flags,
-                                         f32 r, f32 g, f32 b, f32 a = 1.f);
+  gl_clear_builder& add_framebuffer(const gl_framebuffer& fbo, const rectangle_pos<u32>& viewport,
+                                    gldefs::GLenum clear_flags, const color4& color);
+  gl_clear_builder& add_framebuffer(const gl_framebuffer& fbo, const rectangle_pos<u32>& viewport,
+                                    gldefs::GLenum clear_flags, f32 r, f32 g, f32 b, f32 a = 1.f);
 
 public:
   void reset();
-  gl_frame_initializer build() const;
+  gl_clear_opts build() const;
 
 private:
   color4 _color;
-  gldefs::GLenum _clear_flags;
-  std::vector<gl_frame_initializer::fbo_initializer> _fbos;
-};
-
-namespace impl {
-
-template<typename Derived>
-class gl_basic_command_builder {
-public:
-  gl_basic_command_builder(const gl_vertex_layout& layout,
-                           const gl_graphics_pipeline& pipeline) noexcept;
-
-public:
-  Derived& set_vertex_layout(const gl_vertex_layout& layout);
-  Derived& set_pipeline(const gl_graphics_pipeline& pipeline);
-  Derived& set_viewport(const rectangle_pos<u32>& viewport);
-  Derived& set_viewport(u32 x, u32 y, u32 width, u32 height);
-  Derived& set_scissor(const rectangle_pos<u32>& viewport);
-  Derived& set_scissor(u32 x, u32 y, u32 width, u32 height);
-  Derived& set_instances(u32 instances);
-
-  Derived& set_vertex_offset(u32 offset);
-  Derived& set_vertex_count(u32 count);
-
-  Derived& add_vertex_buffer(u32 location, const gl_buffer& buffer);
-  Derived& add_shader_buffer(u32 location, const gl_buffer& buffer, size_t size = 0,
-                             size_t offset = 0);
-  Derived& add_texture(u32 index, const gl_texture& texture);
-
-  template<::shogle::meta::attribute_type T>
-  Derived& add_uniform(u32 location, const T& value);
-
-protected:
-  void _reset();
-
-protected:
-  ref_view<const gl_vertex_layout> _vertex_layout;
-  ref_view<const gl_graphics_pipeline> _pipeline;
-  std::vector<gl_shader_binding> _shader_binds;
-  std::vector<gl_buffer_binding> _vertex_buffers;
-  std::vector<gl_push_uniform> _unifs;
-  std::vector<gl_texture_binding> _textures;
   rectangle_pos<u32> _viewport;
-  ntf::optional<rectangle_pos<u32>> _scissor;
-  u32 _instances;
-  u32 _vertex_offset;
-  u32 _vertex_count;
+  gldefs::GLenum _clear_flags;
+  std::vector<gl_clear_opts::fbo_initializer> _fbos;
 };
 
-} // namespace impl
-
-struct gl_indexed_command {
+struct gl_draw_command {
 public:
   enum index_format : gldefs::GLenum {
     INDEX_FORMAT_I8 = 0x1400,  // GL_BYTE
@@ -145,65 +65,102 @@ public:
     INDEX_FORMAT_U32 = 0x1405, // GL_UNSIGNED_INT
   };
 
+  struct index_binding {
+    gldefs::GLhandle buffer;
+    index_format format;
+    u32 index_count;
+  };
+
+  struct texture_binding {
+    gldefs::GLhandle texture;
+    u32 index;
+  };
+
+  struct vertex_binding {
+    gldefs::GLhandle buffer;
+    u32 location;
+  };
+
+  struct shader_binding {
+    gldefs::GLhandle buffer;
+    gldefs::GLenum type;
+    size_t size;
+    size_t offset;
+    u32 location;
+  };
+
+  struct push_uniform {
+    template<::shogle::meta::attribute_type T>
+    push_uniform(u32 location_, const T& data_) :
+        data(std::in_place_type_t<T>{}, data_), type(meta::attribute_traits<T>::tag),
+        location(location_) {}
+
+    ntf::inplace_trivial<sizeof(math::mat4), alignof(math::mat4)> data;
+    attribute_type type;
+    u32 location;
+  };
+
 public:
   ref_view<const gl_vertex_layout> vertex_layout;
   ref_view<const gl_graphics_pipeline> pipeline;
-  ref_view<const gl_buffer> index_buffer;
-  span<const gl_buffer_binding> vertex_buffers;
-  span<const gl_shader_binding> shader_buffers;
-  span<const gl_texture_binding> textures;
-  span<const gl_push_uniform> uniforms;
+  span<const vertex_binding> vertex_bindings;
+  span<const shader_binding> shader_bindings;
+  span<const texture_binding> texture_bindings;
+  span<const push_uniform> uniforms;
+  ntf::optional<index_binding> index_bind;
   rectangle_pos<u32> viewport;
   rectangle_pos<u32> scissor;
-  u32 vertex_offset;
+  size_t vertex_offset;
   u32 vertex_count;
-  u32 index_count;
-  index_format format;
   u32 instances;
 };
 
-class gl_indexed_command_builder :
-    public impl::gl_basic_command_builder<gl_indexed_command_builder> {
+class gl_command_builder {
 public:
-  gl_indexed_command_builder(const gl_vertex_layout& layout, const gl_graphics_pipeline& pipeline,
-                             const gl_buffer& index_buffer,
-                             const gl_indexed_command::index_format format) noexcept;
+  gl_command_builder() noexcept;
 
 public:
-  gl_indexed_command_builder& set_index_format(gl_indexed_command::index_format format);
-  gl_indexed_command_builder& set_index_count(u32 index_count);
+  gl_command_builder& set_vertex_layout(const gl_vertex_layout& layout);
+  gl_command_builder& set_pipeline(const gl_graphics_pipeline& pipeline);
+
+  gl_command_builder& set_viewport(const rectangle_pos<u32>& viewport);
+  gl_command_builder& set_viewport(u32 x, u32 y, u32 width, u32 height);
+  gl_command_builder& set_scissor(const rectangle_pos<u32>& scissor);
+  gl_command_builder& set_scissor(u32 x, u32 y, u32 width, u32 height);
+
+  gl_command_builder& set_instances(u32 instances);
+  gl_command_builder& set_vertex_offset(size_t offset);
+  gl_command_builder& set_vertex_count(u32 count);
+  gl_command_builder& set_index_buffer(const gl_buffer& buffer,
+                                       gl_draw_command::index_format format, u32 index_count);
+
+  gl_command_builder& add_vertex_buffer(u32 location, const gl_buffer& buffer);
+  gl_command_builder& add_shader_buffer(u32 location, const gl_buffer& buffer, size_t size = 0,
+                                        size_t offset = 0);
+  gl_command_builder& add_texture(u32 index, const gl_texture& texture);
+
+  template<::shogle::meta::attribute_type T>
+  gl_command_builder& add_uniform(u32 location, const T& value) {
+    _uniforms.emplace_back(location, value);
+  }
 
 public:
   void reset();
-  gl_indexed_command build() const;
+  gl_draw_command build() const;
 
 private:
-  ref_view<const gl_buffer> _index_buffer;
-  gl_indexed_command::index_format _index_format;
-  u32 _index_count;
-};
-
-struct gl_array_command {
-  ref_view<const gl_vertex_layout> vertex_layout;
-  ref_view<const gl_graphics_pipeline> pipeline;
-  span<const gl_buffer_binding> vertex_buffers;
-  span<const gl_shader_binding> shader_buffers;
-  span<const gl_texture_binding> textures;
-  span<const gl_push_uniform> uniforms;
-  rectangle_pos<u32> viewport;
-  rectangle_pos<u32> scissor;
-  u32 vertex_offset;
-  u32 vertex_count;
-  u32 instances;
-};
-
-class gl_array_command_builder : public impl::gl_basic_command_builder<gl_array_command_builder> {
-public:
-  using impl::gl_basic_command_builder<gl_array_command_builder>::gl_basic_command_builder;
-
-public:
-  void reset();
-  gl_array_command build() const;
+  ptr_view<const gl_vertex_layout> _vertex_layout;
+  ptr_view<const gl_graphics_pipeline> _pipeline;
+  std::vector<gl_draw_command::vertex_binding> _vertex_binds;
+  std::vector<gl_draw_command::shader_binding> _shader_binds;
+  std::vector<gl_draw_command::texture_binding> _texture_binds;
+  std::vector<gl_draw_command::push_uniform> _uniforms;
+  ntf::optional<gl_draw_command::index_binding> _index;
+  rectangle_pos<u32> _viewport;
+  ntf::optional<rectangle_pos<u32>> _scissor;
+  size_t _vertex_offset;
+  u32 _vertex_count;
+  u32 _instances;
 };
 
 struct gl_external_command {
@@ -225,7 +182,7 @@ public:
 
 class gl_external_command_builder {
 public:
-  gl_external_command_builder(gl_external_command::callback_type callback);
+  gl_external_command_builder() noexcept;
 
 public:
   gl_external_command_builder& set_callback(gl_external_command::callback_type callback);
@@ -288,17 +245,24 @@ public:
   static sv_expect<gl_context> create(gl_surface_provider& surf_prov) noexcept;
 
 public:
-  void start_frame(const gl_frame_initializer& init);
-  gl_sv_expect<void> submit_command(const gl_indexed_command& cmd,
-                                    ptr_view<const gl_framebuffer> target = {});
-  gl_sv_expect<void> submit_command(const gl_array_command& cmd,
+  void start_frame(const gl_clear_opts& clear);
+  gl_sv_expect<void> submit_command(const gl_draw_command& cmd,
                                     ptr_view<const gl_framebuffer> target = {});
   void submit_command(const gl_external_command& cmd, ptr_view<const gl_framebuffer> target = {});
   void end_frame();
 
   template<typename F>
-  void scope_frame(const gl_frame_initializer& init, F&& scope)
-  requires(_scope_frame_invocable<F>);
+  void scope_frame(const gl_clear_opts& clear, F&& scope)
+  requires(_scope_frame_invocable<F>)
+  {
+    start_frame(clear);
+    if constexpr (std::is_invocable_v<F, gl_context&>) {
+      std::invoke(scope, *this);
+    } else {
+      std::invoke(scope);
+    }
+    end_frame();
+  }
 
 public:
   void destroy() noexcept;
@@ -319,7 +283,3 @@ private:
 };
 
 } // namespace shogle
-
-#ifndef SHOGLE_RENDER_GL_CONTEXT_INL
-#include <shogle/render/gl/context.inl>
-#endif

@@ -124,11 +124,11 @@ public:
   void set_attrib(glfw_enum attrib, glfw_enum value) const;
   glfw_enum poll_key(glfw_enum key) const;
   shogle::render_context_tag context_type() const noexcept;
+  void swap_buffers() noexcept;
 
 public:
   PFN_glGetProcAddress gl_proc_loader() noexcept override;
   extent2d gl_surface_extent() const noexcept override;
-  void gl_swap_buffers() noexcept override;
 
   extent2d vk_surface_extent() const noexcept override;
   u32 vk_surface_extensions(scratch_vec<const char*>& extensions) override;

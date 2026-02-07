@@ -48,8 +48,7 @@ concept delta_loop_object = delta_render_func<T> || delta_render_object<T>;
 #ifndef SHOGLE_DISABLE_GLFW
 
 template<::shogle::meta::delta_loop_object LoopObj>
-void render_loop(glfw_win& win, gl_context& gl, const gl_frame_initializer& frame_init,
-                 LoopObj&& obj) {
+void render_loop(glfw_win& win, gl_context& gl, const gl_clear_opts& clear, LoopObj&& obj) {
   NTF_ASSERT(win.context_type() == ::shogle::render_context_tag::opengl);
   using namespace std::literals;
 
@@ -65,19 +64,19 @@ void render_loop(glfw_win& win, gl_context& gl, const gl_frame_initializer& fram
     const f64 dt = (std::chrono::duration<f64>(elapsed_time) / 1s);
 
     win.poll_events();
-    gl.start_frame(frame_init);
+    gl.start_frame(clear);
     if constexpr (::shogle::meta::delta_render_object<LoopObj>) {
       obj.on_render(dt);
     } else {
       obj(dt);
     }
     gl.end_frame();
+    win.swap_buffers();
   }
 };
 
 template<u32 UPS, ::shogle::meta::fixed_loop_object<UPS> LoopObj>
-void render_loop(glfw_win& win, gl_context& gl, const gl_frame_initializer& frame_init,
-                 LoopObj&& obj) {
+void render_loop(glfw_win& win, gl_context& gl, const gl_clear_opts& clear, LoopObj&& obj) {
   NTF_ASSERT(win.context_type() == ::shogle::render_context_tag::opengl);
   using namespace std::literals;
 
@@ -101,7 +100,7 @@ void render_loop(glfw_win& win, gl_context& gl, const gl_frame_initializer& fram
 
     win.poll_events();
 
-    gl.start_frame(frame_init);
+    gl.start_frame(clear);
     while (lag >= fixed_elapsed_time) {
       if constexpr (::shogle::meta::fixed_update_object<LoopObj, UPS>) {
         obj.on_fixed_update(std::integral_constant<u32, UPS>{});
@@ -117,6 +116,7 @@ void render_loop(glfw_win& win, gl_context& gl, const gl_frame_initializer& fram
       obj(dt, alpha);
     }
     gl.end_frame();
+    win.swap_buffers();
   }
 }
 #endif

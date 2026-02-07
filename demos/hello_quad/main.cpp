@@ -57,7 +57,6 @@ int main() {
   const auto glfw = shogle::glfw_win::initialize_lib();
   const auto hints = shogle::glfw_gl_hints::make_default(4, 6);
   shogle::glfw_win win(800, 600, "test", hints);
-  shogle::glfw_imgui imgui(win);
   shogle::gl_context gl(win);
 
   shogle::gl_vertex_layout quad_layout(gl, shogle::aos_vertex_arg<shogle::pc_vertex>{});
@@ -72,32 +71,31 @@ int main() {
   quad_ebo.upload_data(gl, indices.data(), ebo_size, 0).value();
 
   shogle::gl_shader vertex_shader(gl, vert_src, shogle::gl_shader::STAGE_VERTEX);
+  const shogle::gl_scoped_resource vshader_scope(gl, vertex_shader);
   shogle::gl_shader fragment_shader(gl, frag_src, shogle::gl_shader::STAGE_FRAGMENT);
+  const shogle::gl_scoped_resource fshader_scope(gl, fragment_shader);
 
   shogle::gl_shader_builder shader_builder;
   const auto pipeline_shaders =
     shader_builder.add_shader(vertex_shader).add_shader(fragment_shader).build();
 
-  shogle::gl_graphics_pipeline pipeline(gl, pipeline_shaders,
-                                        shogle::gl_graphics_pipeline::PRIMITIVE_TRIANGLES,
-                                        shogle::gl_graphics_pipeline::POLY_MODE_FILL);
+  shogle::gl_graphics_pipeline pipeline(gl, pipeline_shaders);
   const shogle::gl_scoped_resource pipeline_scope(gl, pipeline);
 
-  shogle::gl_indexed_command_builder cmd_builder;
-  const auto cmd = cmd_builder.add_vertex_buffer(0, quad_vbo)
-                     .set_vertex_layout(quad_layout)
-                     .set_pipeline(pipeline)
-                     .set_index_buffer(quad_ebo)
-                     .set_index_format(shogle::gl_indexed_command::INDEX_FORMAT_U16)
-                     .set_index_count(indices.size())
-                     .set_viewport(0, 0, 800, 600)
-                     .set_instances(1)
-                     .build();
+  shogle::gl_command_builder cmd_builder;
+  const auto cmd =
+    cmd_builder.set_vertex_layout(quad_layout)
+      .set_pipeline(pipeline)
+      .set_index_buffer(quad_ebo, shogle::gl_draw_command::INDEX_FORMAT_U16, (u32)indices.size())
+      .add_vertex_buffer(0, quad_vbo)
+      .set_viewport(0, 0, 800, 600)
+      .set_instances(1)
+      .build();
 
-  shogle::gl_frame_init_builder frame_builder;
-  const auto frame_init = frame_builder.set_clear_color(.3f, .3f, .3f, 1.f)
-                            .set_clear_flag(shogle::gl_clear_opt::CLEAR_COLOR)
-                            .build();
+  shogle::gl_clear_builder frame_builder;
+  const auto frame_clear = frame_builder.set_clear_color(.3f, .3f, .3f, 1.f)
+                             .set_clear_flag(shogle::gl_clear_opts::CLEAR_COLOR)
+                             .build();
 
   while (!win.should_close()) {
     win.poll_events();
@@ -105,13 +103,11 @@ int main() {
       win.close();
     }
 
-    gl.start_frame(frame_init);
-    imgui.start_frame();
-
+    gl.start_frame(frame_clear);
     gl.submit_command(cmd);
+    gl.end_frame();
 
-    imgui.end_frame();
-    gl.end_frame(); // implicitly swaps buffers
+    win.swap_buffers();
   }
   return EXIT_SUCCESS;
 }
