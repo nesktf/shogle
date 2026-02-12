@@ -21,7 +21,7 @@ gl_texture::gl_texture(create_t, gldefs::GLhandle id, texture_format format, siz
 // TEX_TYPE_2D[_MULTISAMPLE/_ARRAY] constructor
 gl_texture::gl_texture(gl_context& gl, texture_format format, const extent2d& extent, u32 layers,
                        u32 levels, multisample_opt multisampling) :
-    gl_texture(::shogle::gl_texture::allocate2d(gl, format, extent, layers, levels, multisampling)
+    gl_texture(::shogle::gl_texture::allocate2d(gl, format, extent, levels, layers, multisampling)
                  .value()) {}
 
 // TEX_TYPE_CUBEMAP constructor
@@ -47,7 +47,7 @@ namespace {
 auto allocate_textures(gl_context& gl, const gldefs::GLenum* texes, u32 count,
                        const gl_texture::allocate_args& args) -> gl_texture::n_err_return {
   NTF_ASSERT(texes != nullptr && count > 0);
-  NTF_ASSERT(args.levels < gl_texture::MAX_MIPMAP_LEVEL);
+  NTF_ASSERT(args.levels <= gl_texture::MAX_MIPMAP_LEVEL);
 
   gldefs::GLenum err = 0;
   const auto allocate1d = [&](u32 width) -> u32 {
@@ -167,6 +167,77 @@ std::string_view tex_format_string(gl_texture::texture_format format) {
     return #enum_
 
   switch (format) {
+    STR(R);
+    STR(RG);
+    STR(RGB);
+    STR(RGBA);
+    STR(DEPTH_COMPONENT);
+
+    STR(R8);
+    STR(RG8);
+    STR(RGB8);
+    STR(RGBA8);
+
+    STR(R16);
+    STR(RG16);
+    STR(RGB16);
+    STR(RGBA16);
+
+    STR(R8_SNORM);
+    STR(RG8_SNORM);
+    STR(RGB8_SNORM);
+    STR(RGBA8_SNORM);
+
+    STR(R8U);
+    STR(RG8U);
+    STR(RGB8U);
+    STR(RGBA8U);
+
+    STR(R16U);
+    STR(RG16U);
+    STR(RGB16U);
+    STR(RGBA16U);
+
+    STR(R32U);
+    STR(RG32U);
+    STR(RGB32U);
+    STR(RGBA32U);
+
+    STR(R8I);
+    STR(RG8I);
+    STR(RGB8I);
+    STR(RGBA8I);
+
+    STR(R16I);
+    STR(RG16I);
+    STR(RGB16I);
+    STR(RGBA16I);
+
+    STR(R32I);
+    STR(RG32I);
+    STR(RGB32I);
+    STR(RGBA32I);
+
+    STR(R16F);
+    STR(RG16F);
+    STR(RGB16F);
+    STR(RGBA16F);
+
+    STR(R32F);
+    STR(RG32F);
+    STR(RGB32F);
+    STR(RGBA32F);
+
+    STR(D16);
+    STR(D24);
+    STR(D32);
+    STR(D32F);
+    STR(D24_S8);
+    STR(D32F_S8);
+
+    STR(SRGB8);
+    STR(SRGB8_AL8);
+
     default:
       NTF_UNREACHABLE();
   }
@@ -226,9 +297,8 @@ void log_allocation([[maybe_unused]] gl_context& gl, gldefs::GLhandle tex,
   static constexpr auto ms_str = std::to_array<std::string_view>({"NONE", "NOT_FIXED", "FIXED"});
 
   SHOGLE_GL_LOG(
-    verbose,
-    "Texture allocated ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}, ms: {}]", tex,
-    tex_type_string(args.type), tex_format_string(args.format), args.extent.width,
+    verbose, "TEXTURE_ALLOC ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}, ms: {}]",
+    tex, tex_type_string(args.type), tex_format_string(args.format), args.extent.width,
     args.extent.height, args.extent.depth, args.levels, args.layers, ms_str[args.multisampling]);
 }
 
@@ -244,19 +314,19 @@ void log_binding([[maybe_unused]] gl_context& gl, gldefs::GLhandle tex, const gl
 void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
                 const gl_texture::image_data& image, const extent3d& offset, u32 lyr, u32 lvl) {
   const auto pixel_type_string = [](gl_texture::pixel_data_type type) -> std::string_view {
-#define STR(enum_)                \
-  case gl_texture::PIXEL_##enum_: \
+#define STR(enum_)                     \
+  case gl_texture::PIXEL_TYPE_##enum_: \
     return #enum_
     switch (type) {
-      STR(TYPE_I8);
-      STR(TYPE_U8);
-      STR(TYPE_I16);
-      STR(TYPE_U16);
-      STR(TYPE_I32);
-      STR(TYPE_U32);
-      STR(TYPE_F32);
-      STR(TYPE_F16);
-      STR(TYPE_U32D24S8);
+      STR(I8);
+      STR(U8);
+      STR(I16);
+      STR(U16);
+      STR(I32);
+      STR(U32);
+      STR(F32);
+      STR(F16);
+      STR(U32D24S8);
       default:
         NTF_UNREACHABLE();
     }
@@ -267,12 +337,12 @@ void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
   case gl_texture::PIXEL_FORMAT_##enum_: \
     return #enum_
     switch (format) {
-      STR(R_NORM);
-      STR(RG_NORM);
-      STR(RGB_NORM);
-      STR(BGR_NORM);
-      STR(RGBA_NORM);
-      STR(BGRA_NORM);
+      STR(R);
+      STR(RG);
+      STR(RGB);
+      STR(BGR);
+      STR(RGBA);
+      STR(BGRA);
       STR(DEPTH);
       STR(DEPTH_STENCIL);
       default:
@@ -285,7 +355,7 @@ void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
   const auto [ow, oh, od] = offset;
   SHOGLE_GL_LOG(
     verbose,
-    "Texture upload ({}) [type: {}, extent: {}x{}x{}, ptr: {}, sz: {}x{}x{}, align: {}, "
+    "TEXTURE_WRITE ({}) [type: {}, extent: {}x{}x{}, ptr: {}, sz: {}x{}x{}, align: {}, "
     "pixel_type: {}, pixel_format: {}, off: {}x{}x{}, lyr: {}, lvl: {}]",
     tex.id(), tex_type_string(tex.type()), w, h, d, fmt::ptr(image.data), image.extent.width,
     image.extent.height, image.extent.depth, (u32)image.alignment,
@@ -294,15 +364,15 @@ void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
 
 void log_destroy([[maybe_unused]] gl_context& gl, const gl_texture& tex) {
   if (tex.type() == gl_texture::TEX_TYPE_BUFFER) {
-    SHOGLE_GL_LOG(verbose, "Texture unbound from buffer ({}) [format: {}, size: {}, offset: {}]",
+    SHOGLE_GL_LOG(verbose, "TEXTURE_BUFF_UNBOUND ({}) [format: {}, size: {}, offset: {}]",
                   tex.id(), tex_format_string(tex.format()), tex.buffer_size(),
                   tex.buffer_offset());
   } else {
     const auto [w, h, d] = tex.extent();
-    SHOGLE_GL_LOG(
-      verbose, "Texture deallocated ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}]",
-      tex.id(), tex_type_string(tex.type()), tex_format_string(tex.format()), w, h, d,
-      tex.levels(), tex.layers());
+    SHOGLE_GL_LOG(verbose,
+                  "TEXTURE_DEALLOC ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}]",
+                  tex.id(), tex_type_string(tex.type()), tex_format_string(tex.format()), w, h, d,
+                  tex.levels(), tex.layers());
   }
 }
 #endif
@@ -503,6 +573,7 @@ auto do_upload_images(gl_context& gl, gldefs::GLhandle tex, gl_texture::texture_
     u32 i = 0;
     for (; i < image_count; ++i) {
       const auto& image = images[i];
+      GL_ASSERT(glPixelStorei(GL_UNPACK_ALIGNMENT, image.alignment));
       err = GL_RET_ERR(glTexSubImage1D(type, level, xoff, image.extent.width, image.format,
                                        image.datatype, image.data));
       if (err) {
@@ -514,10 +585,11 @@ auto do_upload_images(gl_context& gl, gldefs::GLhandle tex, gl_texture::texture_
   const auto upload2d = [&](u32 yoff) {
     u32 i = 0;
     for (; i < image_count; ++i) {
-      const auto image = images[i];
-      err = GL_RET_ERR(glTexSubImage2D(
-        type, level, offset.width, yoff ? yoff : i, image.extent.width,
-        yoff ? image.extent.height : image_count, image.format, image.datatype, image.data));
+      const auto& image = images[i];
+      GL_ASSERT(glPixelStorei(GL_UNPACK_ALIGNMENT, image.alignment));
+      err =
+        GL_RET_ERR(glTexSubImage2D(type, level, offset.width, yoff ? yoff : i, image.extent.width,
+                                   image.extent.height, image.format, image.datatype, image.data));
       if (err) {
         return i;
       }
@@ -528,10 +600,10 @@ auto do_upload_images(gl_context& gl, gldefs::GLhandle tex, gl_texture::texture_
     u32 i = 0;
     for (; i < image_count; ++i) {
       const auto image = images[i];
+      GL_ASSERT(glPixelStorei(GL_UNPACK_ALIGNMENT, image.alignment));
       err = GL_RET_ERR(glTexSubImage3D(type, level, offset.width, offset.height, zoff ? zoff : i,
-                                       image.extent.width, image.extent.height,
-                                       zoff ? image.extent.depth : i, image.format, image.datatype,
-                                       image.data));
+                                       image.extent.width, image.extent.height, image.extent.depth,
+                                       image.format, image.datatype, image.data));
       if (err) {
         return i;
       }
@@ -641,7 +713,8 @@ void gl_texture::generate_mipmaps(gl_context& gl) {
   GL_ASSERT(glBindTexture(type(), id()));
   GL_ASSERT(glGenerateMipmap(type()));
   GL_ASSERT(glBindTexture(type(), GL_DEFAULT_BINDING));
-  // TODO: Add logger here
+  SHOGLE_GL_LOG(verbose, "TEXTURE_GENMIPS ({}) [type: {}, lvls: {}, lyrs: {}]", _id,
+                tex_type_string(_type), _levels, _layers);
 }
 
 gl_texture& gl_texture::set_swizzle(gl_context& gl, swizzle_target target, swizzle_mask mask) {

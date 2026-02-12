@@ -103,15 +103,15 @@ struct glfw_button_data {
 class glfw_win : public gl_surface_provider, public vk_surface_provider {
 private:
   template<typename Signature>
-  using callback_type = ntf::inplace_function<Signature, 8 * sizeof(void*)>;
+  using callback_type = std::function<Signature>;
 
-  using viewport_fun = callback_type<void(glfw_win&, extent2d)>;
-  using key_input_fun = callback_type<void(glfw_win&, const glfw_key_data&)>;
-  using cursor_pos_fun = callback_type<void(glfw_win&, f64, f64)>;
-  using cursor_enter_fun = callback_type<void(glfw_win&, bool)>;
-  using scroll_fun = callback_type<void(glfw_win&, f64, f64)>;
-  using button_input_fun = callback_type<void(glfw_win&, const glfw_button_data&)>;
-  using char_input_fun = callback_type<void(glfw_win&, u32)>;
+  using viewport_fun = callback_type<void(GLFWwindow*, extent2d)>;
+  using key_input_fun = callback_type<void(GLFWwindow*, const glfw_key_data&)>;
+  using cursor_pos_fun = callback_type<void(GLFWwindow*, f64, f64)>;
+  using cursor_enter_fun = callback_type<void(GLFWwindow*, bool)>;
+  using scroll_fun = callback_type<void(GLFWwindow*, f64, f64)>;
+  using button_input_fun = callback_type<void(GLFWwindow*, const glfw_button_data&)>;
+  using char_input_fun = callback_type<void(GLFWwindow*, u32)>;
 
   static void fb_callback(GLFWwindow* win, int w, int h);
   static void key_callback(GLFWwindow* win, int key, int scan, int action, int mod);

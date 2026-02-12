@@ -12,8 +12,8 @@ foreach(DEMO_NAME ${DEMO_DIRS})
   project(${DEMO_NAME} CXX)
   message(STATUS "ShOGLE: Setting up demo \"${DEMO_NAME}\"...")
 
-  file(GLOB DEMO_SOURCES "${SHOGLE_DEMOS_DIR}/${DEMO_NAME}/**.cpp")
-  file(GLOB DEMO_INCLUDES "${SHOGLE_DEMOS_DIR}/${DEMO_NAME}/**.hpp")
+  file(GLOB DEMO_SOURCES "${SHOGLE_DEMOS_DIR}/${DEMO_NAME}*.cpp")
+  file(GLOB DEMO_INCLUDES "${SHOGLE_DEMOS_DIR}/${DEMO_NAME}*.hpp")
 
   add_executable(${DEMO_NAME} ${DEMO_SOURCES} ${DEMO_INCLUDES})
   target_include_directories(${DEMO_NAME} PRIVATE ${SHOGLE_INCLUDE_DIR} ${SHOGLE_EXTERN_INCLUDE})

@@ -92,6 +92,10 @@ struct extent_traits<u32> {
 	static constexpr extent3d extent_clamp3d(u32 ext) {
 		return {std::max(ext, 1u), 1u, 1u};
   }
+  template<typename T>
+  static constexpr size_t stride_of(u32 ext) noexcept {
+    return ext*sizeof(T);
+  }
 };
 
 template<>
@@ -104,6 +108,10 @@ struct extent_traits<extent2d> {
 	static constexpr extent3d extent_clamp3d(const extent2d& ext) {
 		return {std::max(ext.width, 1u), std::max(ext.height, 1u), 1u};
   }
+  template<typename T>
+  static constexpr size_t stride_of(const extent2d& ext) noexcept {
+    return ext.height*ext.width*sizeof(T);
+  }
 };
 
 template<>
@@ -113,6 +121,10 @@ struct extent_traits<extent3d> {
 	static constexpr extent3d offset_cast3d(const extent3d& ext) { return ext; }
 	static constexpr extent3d extent_clamp3d(const extent3d& ext) {
 		return {std::max(ext.width, 1u), std::max(ext.height, 1u), std::max(ext.width, 1u)};
+  }
+  template<typename T>
+  static constexpr size_t stride_of(const extent3d& ext) noexcept {
+    return ext.width*ext.height*ext.depth*sizeof(T);
   }
 };
 

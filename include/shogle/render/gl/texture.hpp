@@ -107,12 +107,12 @@ public:
   };
 
   enum pixel_format : gldefs::GLenum {
-    PIXEL_FORMAT_R_NORM = 0x1903,        // GL_RED
-    PIXEL_FORMAT_RG_NORM = 0x8227,       // GL_RG
-    PIXEL_FORMAT_RGB_NORM = 0x1907,      // GL_RGB
-    PIXEL_FORMAT_BGR_NORM = 0x80E0,      // GL_BGR
-    PIXEL_FORMAT_RGBA_NORM = 0x1908,     // GL_RGBA
-    PIXEL_FORMAT_BGRA_NORM = 0x80E1,     // GL_BGRA
+    PIXEL_FORMAT_R = 0x1903,             // GL_RED
+    PIXEL_FORMAT_RG = 0x8227,            // GL_RG
+    PIXEL_FORMAT_RGB = 0x1907,           // GL_RGB
+    PIXEL_FORMAT_BGR = 0x80E0,           // GL_BGR
+    PIXEL_FORMAT_RGBA = 0x1908,          // GL_RGBA
+    PIXEL_FORMAT_BGRA = 0x80E1,          // GL_BGRA
     PIXEL_FORMAT_DEPTH = 0x1902,         // GL_DEPTH_COMPONENT
     PIXEL_FORMAT_DEPTH_STENCIL = 0x84F9, // GL_DEPTH_STENCIL
   };

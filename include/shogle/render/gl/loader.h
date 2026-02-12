@@ -104,7 +104,8 @@ SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver
 #define GL_DEBUG_SOURCE_APPLICATION     0x824A
 #define GL_DEBUG_SOURCE_OTHER           0x824B
 
-#define GL_TEXTURE0 0x84C0
+#define GL_TEXTURE0         0x84C0
+#define GL_UNPACK_ALIGNMENT 0x0CF5
 
 #ifndef APIENTRY
 #define APIENTRY

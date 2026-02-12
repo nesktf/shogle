@@ -120,16 +120,16 @@ gl_expect<void> gl_texture::upload_image(gl_context& gl, span<const T> data, con
                                          u32 level, pixel_alignment alignment) {
   const image_data image{
     .data = static_cast<const void*>(data.data()),
-    .extent = extent,
+    .extent = ::shogle::meta::extent_traits<Ext>::extent_clamp3d(extent),
     .format = format,
     .datatype = static_cast<pixel_data_type>(::shogle::meta::gl_data_traits<T>::gl_tag),
     .alignment = alignment,
   };
-  const auto stride = extent.width * extent.height * extent.depth * sizeof(T);
+  const auto stride = ::shogle::meta::extent_traits<Ext>::template stride_of<T>(extent);
   NTF_ASSERT(stride <= data.size_bytes(), "Image stride out of span range");
   if (stride < data.size_bytes()) {
-    OPENGL_WARN_LOG("Image stride is smaller than span range ({} < {})", stride,
-                    data.size_bytes());
+    SHOGLE_GL_LOG(warning, "Image stride is smaller than span range ({} < {})", stride,
+                  data.size_bytes());
   }
   return this->upload_image(gl, image, ::shogle::meta::extent_traits<Ext>::offset_cast3d(offset),
                             level, layer);

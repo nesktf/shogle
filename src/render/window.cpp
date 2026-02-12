@@ -35,61 +35,61 @@ struct glfw_win::window_data {
 };
 
 void glfw_win::fb_callback(GLFWwindow* win, int w, int h) {
-  auto& window = *static_cast<glfw_win*>(glfwGetWindowUserPointer(win));
-  if (window._ctx && window._ctx->on_viewport) {
+  auto& data = *static_cast<glfw_win::window_data*>(glfwGetWindowUserPointer(win));
+  if (data.on_viewport) {
     extent2d ext{.width = (u32)w, .height = (u32)h};
-    std::invoke(window._ctx->on_viewport, window, ext);
+    std::invoke(data.on_viewport, data.win, ext);
   }
 }
 
 void glfw_win::key_callback(GLFWwindow* win, int key, int scan, int action, int mod) {
-  auto& window = *static_cast<glfw_win*>(glfwGetWindowUserPointer(win));
-  if (window._ctx && window._ctx->on_key_input) {
+  auto& data = *static_cast<glfw_win::window_data*>(glfwGetWindowUserPointer(win));
+  if (data.on_key_input) {
     const glfw_key_data keys{.key = (glfw_enum)key,
                              .scancode = (glfw_enum)scan,
                              .action = (glfw_enum)action,
                              .modifiers = (glfw_enum)mod};
-    std::invoke(window._ctx->on_key_input, window, keys);
+    std::invoke(data.on_key_input, data.win, keys);
   }
 }
 
 void glfw_win::cursorp_callback(GLFWwindow* win, double xpos, double ypos) {
-  auto& window = *static_cast<glfw_win*>(glfwGetWindowUserPointer(win));
-  if (window._ctx && window._ctx->on_cursor_pos) {
-    std::invoke(window._ctx->on_cursor_pos, window, (f64)xpos, (f64)ypos);
+  auto& data = *static_cast<glfw_win::window_data*>(glfwGetWindowUserPointer(win));
+  if (data.on_cursor_pos) {
+    std::invoke(data.on_cursor_pos, data.win, (f64)xpos, (f64)ypos);
   }
 }
 
 void glfw_win::cursore_callback(GLFWwindow* win, int enters) {
-  auto& window = *static_cast<glfw_win*>(glfwGetWindowUserPointer(win));
-  if (window._ctx && window._ctx->on_cursor_enter) {
-    std::invoke(window._ctx->on_cursor_enter, window, (bool)enters);
+  auto& data = *static_cast<glfw_win::window_data*>(glfwGetWindowUserPointer(win));
+  if (data.on_cursor_enter) {
+    std::invoke(data.on_cursor_enter, data.win, (bool)enters);
   }
 }
 
 void glfw_win::scroll_callback(GLFWwindow* win, double xoff, double yoff) {
-  auto& window = *static_cast<glfw_win*>(glfwGetWindowUserPointer(win));
-  if (window._ctx && window._ctx->on_scroll) {
-    std::invoke(window._ctx->on_scroll, window, (f64)xoff, (f64)yoff);
+  auto& data = *static_cast<glfw_win::window_data*>(glfwGetWindowUserPointer(win));
+  if (data.on_scroll) {
+    std::invoke(data.on_scroll, data.win, (f64)xoff, (f64)yoff);
   }
 }
 
 void glfw_win::char_callback(GLFWwindow* win, unsigned int codepoint) {
-  auto& window = *static_cast<glfw_win*>(glfwGetWindowUserPointer(win));
-  if (window._ctx && window._ctx->on_char_input) {
-    std::invoke(window._ctx->on_char_input, window, (u32)codepoint);
+  auto& data = *static_cast<glfw_win::window_data*>(glfwGetWindowUserPointer(win));
+  if (data.on_char_input) {
+    std::invoke(data.on_char_input, data.win, (u32)codepoint);
   }
 }
 
 void glfw_win::button_callback(GLFWwindow* win, int button, int action, int mod) {
-  auto& window = *static_cast<glfw_win*>(glfwGetWindowUserPointer(win));
-  if (window._ctx && window._ctx->on_button_input) {
+  auto& data = *static_cast<glfw_win::window_data*>(glfwGetWindowUserPointer(win));
+  if (data.on_button_input) {
     const glfw_button_data butt{
       .button = (glfw_enum)button,
       .action = (glfw_enum)action,
       .modifiers = (glfw_enum)mod,
     };
-    std::invoke(window._ctx->on_button_input, window, butt);
+    std::invoke(data.on_button_input, data.win, butt);
   }
 }
 

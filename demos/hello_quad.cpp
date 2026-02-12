@@ -3,6 +3,8 @@
 #include <shogle/render/opengl.hpp>
 #include <shogle/render/window.hpp>
 
+#include <chimatools/chimatools.hpp>
+
 namespace {
 
 using namespace ntf::numdefs;
@@ -12,14 +14,17 @@ constexpr std::string_view vert_src = R"glsl(
 
 layout (location = 0) in vec3 att_pos;
 layout (location = 1) in vec4 att_color;
+layout (location = 2) in vec2 att_uvs;
 
 layout (location = 0) out vec4 frag_color;
+layout (location = 1) out vec2 frag_uvs;
 
 uniform mat4 u_model;
 
 void main() {
   gl_Position = u_model*vec4(att_pos, 1.0f);
   frag_color = att_color;
+  frag_uvs = att_uvs;
 }  
 )glsl";
 
@@ -27,27 +32,51 @@ constexpr std::string_view frag_src = R"glsl(
 #version 460 core
 
 layout (location = 0) in vec4 frag_color;
+layout (location = 1) in vec2 frag_uvs;
 
 layout (location = 0) out vec4 out_color;
+
+uniform sampler2D u_tex;
   
 void main() {
-  out_color = frag_color;
+  out_color = frag_color*texture(u_tex, frag_uvs);
 }
 )glsl";
 
+struct pct_vertex {
+public:
+  static constexpr u32 attribute_count = 3u;
+  static constexpr inline auto attributes() noexcept;
+
+public:
+  shogle::math::vec3 pos;
+  shogle::math::vec4 color;
+  shogle::math::vec2 uvs;
+};
+
+constexpr inline auto pct_vertex::attributes() noexcept {
+  return std::to_array<shogle::vertex_attribute>({
+    {.location = 0, .type = shogle::attribute_type::vec3, .offset = offsetof(pct_vertex, pos)},
+    {.location = 1, .type = shogle::attribute_type::vec4, .offset = offsetof(pct_vertex, color)},
+    {.location = 2, .type = shogle::attribute_type::vec2, .offset = offsetof(pct_vertex, uvs)},
+  });
+}
+
+static_assert(shogle::meta::vertex_type<pct_vertex>);
+
 // clang-format off
-constexpr auto vertices = std::to_array<shogle::pc_vertex>({
-  // pos               // color
-  {{-.5f, -.5f,  0.f}, {1.f, 0.f, 0.f, 1.f}},
-  {{ .5f, -.5f,  0.f}, {0.f, 1.f, 0.f, 1.f}},
-  {{ .5f,  .5f,  0.f}, {0.f, 0.f, 1.f, 1.f}},
-  {{-.5f,  .5f,  0.f}, {1.f, 1.f, 1.f, 1.f}},
+constexpr auto vertices = std::to_array<pct_vertex>({
+  // pos               // color              // tex
+  {{-.5f, -.5f,  0.f}, {1.f, 0.f, 0.f, 1.f}, {0.f, 1.f}},
+  {{ .5f, -.5f,  0.f}, {0.f, 1.f, 0.f, 1.f}, {1.f, 1.f}},
+  {{ .5f,  .5f,  0.f}, {0.f, 0.f, 1.f, 1.f}, {1.f, 0.f}},
+  {{-.5f,  .5f,  0.f}, {1.f, 1.f, 1.f, 1.f}, {0.f, 0.f}},
 });
 constexpr size_t vbo_size = vertices.size() * sizeof(vertices[0]);
 
 constexpr auto indices = std::to_array<u16>({
-  0, 1, 2,
-  2, 3, 0,
+  0, 1, 2, // bottom right triangle
+  2, 3, 0, // top left triangle
 });
 constexpr size_t ebo_size = indices.size() * sizeof(indices[0]);
 // clang-format on
@@ -62,7 +91,7 @@ int main() {
   shogle::glfw_win win(800, 600, "test", hints);
   shogle::gl_context gl(win);
 
-  shogle::gl_vertex_layout quad_layout(gl, shogle::aos_vertex_arg<shogle::pc_vertex>{});
+  shogle::gl_vertex_layout quad_layout(gl, shogle::aos_vertex_arg<pct_vertex>{});
   const shogle::gl_scoped_resource layout_scope(gl, quad_layout);
 
   shogle::gl_buffer quad_vbo(gl, shogle::gl_buffer::TYPE_VERTEX, vbo_size);
@@ -85,21 +114,47 @@ int main() {
   shogle::gl_graphics_pipeline pipeline(gl, pipeline_shaders);
   const shogle::gl_scoped_resource pipeline_scope(gl, pipeline);
   const auto u_model = pipeline.uniform_location(gl, "u_model").value();
+  const auto u_tex = pipeline.uniform_location(gl, "u_tex").value();
 
   shogle::gl_clear_builder clear_builder;
   const auto frame_clear = clear_builder.set_clear_color(.3f, .3f, .3f, 1.f)
                              .set_clear_flag(shogle::gl_clear_opts::CLEAR_COLOR)
                              .build();
 
+  chima::context chima;
+  chima::image cirno(chima, "./demos/res/cirno_cpp.jpg");
+  const auto [w, h] = cirno.extent();
+
+  shogle::gl_texture tex(gl, shogle::gl_texture::TEX_FORMAT_RGB8, shogle::extent2d{w, h});
+  shogle::gl_scoped_resource tex_scope(gl, tex);
+  const shogle::gl_texture::image_data d{
+    .data = cirno.get().data,
+    .extent = {w, h, 1},
+    .format = shogle::gl_texture::PIXEL_FORMAT_RGB,
+    .datatype = shogle::gl_texture::PIXEL_TYPE_U8,
+    .alignment = shogle::gl_texture::ALIGN_4BYTES,
+  };
+  tex.upload_image(gl, d).value();
+  tex.generate_mipmaps(gl);
+
   shogle::gl_command_builder cmd_builder;
   f32 t = 0.f;
+  bool pause = false;
+  win.set_key_input_callback([&](auto, const shogle::glfw_key_data& key) {
+    if (key.key == GLFW_KEY_SPACE && key.action == GLFW_PRESS) {
+      pause = !pause;
+    }
+  });
+
   shogle::render_loop(win, [&](f64 dt) {
     if (win.poll_key(GLFW_KEY_ESCAPE) == GLFW_PRESS) {
       win.close();
     }
 
     gl.start_frame(frame_clear);
-    t += (f32)dt;
+    if (!pause) {
+      t += (f32)dt;
+    }
     auto transf = shogle::math::transform2d<f32>().roll(t * M_PIf);
     const auto mat = transf.world();
 
@@ -108,7 +163,9 @@ int main() {
                        .set_pipeline(pipeline)
                        .set_index_buffer(quad_ebo, shogle::gl_draw_command::INDEX_FORMAT_U16)
                        .set_draw_count(indices.size())
+                       .add_texture(tex, 0)
                        .add_uniform(mat, u_model)
+                       .add_uniform(0, u_tex)
                        .add_vertex_buffer(quad_vbo)
                        .build();
     gl.submit_command(cmd);
