@@ -18,6 +18,20 @@
     SHOGLE_THROW(thing_);              \
   }
 
+#if defined(_MSC_VER)
+#define SHOGLE_INLINE    __forceinline
+#define SHOGLE_NO_INLINE __declspec((noinline))
+#elif defined(__GNUC__) || defined(__MINGW32__)
+#define SHOGLE_INLINE    inline __attribute__((__always_inline__))
+#define SHOGLE_NO_INLINE __attribute__((__noinline__))
+#elif defined(__clang__)
+#define SHOGLE_INLINE    __forceinline__
+#define SHOGLE_NO_INLINE __noinline__
+#else
+#define SHOGLE_INLINE inline
+#define SHOGLE_NO_INLINE
+#endif
+
 #include <list>
 #include <memory>
 #include <unordered_map>

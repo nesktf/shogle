@@ -6,70 +6,16 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <shogle/math/vector2.hpp>
+#include <shogle/math/vector3.hpp>
+#include <shogle/math/vector4.hpp>
+
+#include <shogle/math/matrix3x3.hpp>
+#include <shogle/math/matrix4x4.hpp>
+
+#include <shogle/math/quaternion.hpp>
+
 namespace shogle::math {
-
-template<u32 N, typename T>
-using vec = glm::vec<N, T>;
-
-using vec2 = ::shogle::math::vec<2, f32>;
-using vec3 = ::shogle::math::vec<3, f32>;
-using vec4 = ::shogle::math::vec<4, f32>;
-
-using dvec2 = ::shogle::math::vec<2, f64>;
-using dvec3 = ::shogle::math::vec<3, f64>;
-using dvec4 = ::shogle::math::vec<4, f64>;
-
-using ivec2 = ::shogle::math::vec<2, i32>;
-using ivec3 = ::shogle::math::vec<3, i32>;
-using ivec4 = ::shogle::math::vec<4, i32>;
-
-using uvec2 = ::shogle::math::vec<2, u32>;
-using uvec3 = ::shogle::math::vec<3, u32>;
-using uvec4 = ::shogle::math::vec<4, u32>;
-
-template<typename T>
-constexpr auto vec_ptr(T& vec) {
-  return glm::value_ptr(vec);
-}
-
-constexpr inline f32 norm2(vec2 v) {
-  return v.x * v.x + v.y * v.y;
-}
-
-constexpr inline f32 norm(vec2 v) {
-  return glm::sqrt(norm2(v));
-}
-
-constexpr inline vec2 normalize(vec2 v) {
-  return v / glm::sqrt(norm2(v));
-}
-
-constexpr inline vec3 carcoord(vec3 v) {
-  return {v.z, v.x, v.y};
-}
-
-constexpr inline vec3 glcoord(vec3 v) {
-  return {v.y, v.z, v.x};
-}
-
-constexpr inline vec3 carcoord(f32 rho, f32 theta, f32 phi) {
-  return rho *
-         vec3{glm::sin(theta) * glm::cos(phi), glm::sin(theta) * glm::sin(phi), glm::cos(theta)};
-}
-
-constexpr inline vec3 glcoord(f32 rho, f32 theta, f32 phi) {
-  return glcoord(carcoord(rho, theta, phi));
-}
-
-constexpr inline vec2 expiv(f32 theta) {
-  return vec2{glm::cos(theta), glm::sin(theta)};
-}
-
-template<typename T>
-concept vertex_type = (ntf::meta::same_as_any<T, vec2, vec3, vec4>);
-
-template<u32 N, u32 M, typename T>
-using mat = glm::mat<N, M, T>;
 
 using mat3 = mat<3, 3, f32>;
 using mat4 = mat<4, 4, f32>;
