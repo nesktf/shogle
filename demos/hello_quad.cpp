@@ -49,9 +49,9 @@ public:
   static constexpr inline auto attributes() noexcept;
 
 public:
-  shogle::math::vec3 pos;
-  shogle::math::vec4 color;
-  shogle::math::vec2 uvs;
+  shogle::vec3 pos;
+  shogle::vec4 color;
+  shogle::vec2 uvs;
 };
 
 constexpr inline auto pct_vertex::attributes() noexcept {
@@ -155,8 +155,9 @@ int main() {
     if (!pause) {
       t += (f32)dt;
     }
-    auto transf = shogle::math::transform2d<f32>().roll(t * M_PIf);
-    const auto mat = transf.world();
+    shogle::math::transform2d<f32> transf;
+    transf.rot = t * shogle::math::pi<f32>;
+    const auto mat = transf.matrix();
 
     cmd_builder.reset();
     const auto cmd = cmd_builder.set_vertex_layout(quad_layout)

@@ -207,6 +207,60 @@ SHOGLE_MATH_DEF nummat<4, 4, T> to_mat4(const nummat<3, 3, T>& m) noexcept {
   return out;
 }
 
+template<typename T>
+SHOGLE_MATH_DEF nummat<4, 4, T> lookat_rh(const numvec<3, T>& pos, const numvec<3, T>& center,
+                                          const numvec<3, T>& up) noexcept {
+  const numvec<3, T> row3 = ::shogle::math::normalize(center - pos);
+  const numvec<3, T> row1 = ::shogle::math::normalize(::shogle::math::cross(row3, up));
+  const numvec<3, T> row2 = ::shogle::math::cross(row1, row3);
+
+  nummat<4, 4, T> out;
+  out.x1 = row1.x;
+  out.x2 = row1.y;
+  out.x3 = row1.z;
+  out.x4 = -::shogle::math::dot(row1, pos);
+  out.y1 = row2.x;
+  out.y2 = row2.y;
+  out.y3 = row2.z;
+  out.y4 = -shogle::math::dot(row2, pos);
+  out.z1 = -row3.x;
+  out.z2 = -row3.y;
+  out.z3 = -row3.z;
+  out.z4 = ::shogle::math::dot(row3, pos);
+  out.w1 = T(0);
+  out.w2 = T(0);
+  out.w3 = T(0);
+  out.w4 = T(1);
+  return out;
+}
+
+template<typename T>
+SHOGLE_MATH_DEF nummat<4, 4, T> lookat_lh(const numvec<3, T>& pos, const numvec<3, T>& center,
+                                          const numvec<3, T>& up) noexcept {
+  const numvec<3, T> row3 = ::shogle::math::normalize(center - pos);
+  const numvec<3, T> row1 = ::shogle::math::normalize(::shogle::math::cross(row3, up));
+  const numvec<3, T> row2 = ::shogle::math::cross(row1, row3);
+
+  nummat<4, 4, T> out;
+  out.x1 = row1.x;
+  out.x2 = row1.y;
+  out.x3 = row1.z;
+  out.x4 = -::shogle::math::dot(row1, pos);
+  out.y1 = row2.x;
+  out.y2 = row2.y;
+  out.y3 = row2.z;
+  out.y4 = -shogle::math::dot(row2, pos);
+  out.z1 = row3.x;
+  out.z2 = row3.y;
+  out.z3 = row3.z;
+  out.z4 = -::shogle::math::dot(row3, pos);
+  out.w1 = T(0);
+  out.w2 = T(0);
+  out.w3 = T(0);
+  out.w4 = T(1);
+  return out;
+}
+
 } // namespace shogle::math
 
 namespace shogle {

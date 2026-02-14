@@ -94,10 +94,18 @@ public:
   struct push_uniform {
     template<::shogle::meta::attribute_type T>
     push_uniform(u32 location_, const T& data_) :
-        data(std::in_place_type_t<T>{}, data_), type(meta::attribute_traits<T>::tag),
-        location(location_) {}
+        type(meta::attribute_traits<T>::tag), location(location_) {
+      std::memcpy(&data[0], &data_, sizeof(T));
+    }
 
-    ntf::inplace_trivial<sizeof(math::mat4), alignof(math::mat4)> data;
+    template<typename T>
+    requires(std::is_trivially_copyable_v<T>)
+    push_uniform(u32 location_, const T& data_, attribute_type type_) :
+        type(type_), location(location_) {
+      std::memcpy(&data[0], &data_, sizeof(T));
+    }
+
+    alignas(::shogle::mat4) u8 data[sizeof(::shogle::mat4)];
     attribute_type type;
     u32 location;
   };
@@ -145,6 +153,13 @@ public:
   template<::shogle::meta::attribute_type T>
   gl_command_builder& add_uniform(const T& value, u32 location) {
     _uniforms.emplace_back(location, value);
+    return *this;
+  }
+
+  template<typename T>
+  requires(std::is_trivially_copyable_v<T>)
+  gl_command_builder& add_uniform(const T& value, u32 location, attribute_type tag) {
+    _uniforms.emplace_back(location, value, tag);
     return *this;
   }
 

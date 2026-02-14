@@ -84,9 +84,10 @@ SHOGLE_MATH_DEF nummat<3, 3, T> rotate(const nummat<3, 3, T>& m, U angle) noexce
   return m * other;
 }
 
-template<typename T, numeric_convertible<T> U, bool is_right>
-SHOGLE_MATH_DEF nummat<3, 3, T> lookat(const numvec<3, T>& dir, const numvec<3, U>& up) noexcept {
-  const numvec<3, T> col3 = is_right ? -dir : dir;
+template<typename T, numeric_convertible<T> U>
+SHOGLE_MATH_DEF nummat<3, 3, T> lookat_rh(const numvec<3, T>& dir,
+                                          const numvec<3, U>& up) noexcept {
+  const numvec<3, T> col3 = -dir;
   const numvec<3, T> right = ::shogle::math::cross(::shogle::vec_cast<T>(up), col3);
   const T r2 = ::shogle::math::length2(right);
   const numvec<3, T> col1 = right * ::shogle::math::rsqrt(::shogle::math::max(T(0.000001), r2));
@@ -106,15 +107,25 @@ SHOGLE_MATH_DEF nummat<3, 3, T> lookat(const numvec<3, T>& dir, const numvec<3, 
 }
 
 template<typename T, numeric_convertible<T> U>
-SHOGLE_MATH_DEF nummat<3, 3, T> lookat_rh(const numvec<3, T>& dir,
-                                          const numvec<3, U>& up) noexcept {
-  return ::shogle::math::lookat<T, U, true>(dir, up);
-}
-
-template<typename T, numeric_convertible<T> U>
 SHOGLE_MATH_DEF nummat<3, 3, T> lookat_lh(const numvec<3, T>& dir,
                                           const numvec<3, U>& up) noexcept {
-  return ::shogle::math::lookat<T, U, false>(dir, up);
+  const numvec<3, T> col3 = dir;
+  const numvec<3, T> right = ::shogle::math::cross(::shogle::vec_cast<T>(up), col3);
+  const T r2 = ::shogle::math::length2(right);
+  const numvec<3, T> col1 = right * ::shogle::math::rsqrt(::shogle::math::max(T(0.000001), r2));
+  const numvec<3, T> col2 = ::shogle::math::cross(col3, col1);
+
+  nummat<3, 3, T> out;
+  out.x1 = col1.x;
+  out.y1 = col1.y;
+  out.z1 = col1.z;
+  out.x2 = col2.x;
+  out.y2 = col2.y;
+  out.z2 = col2.z;
+  out.x3 = col3.x;
+  out.y3 = col3.y;
+  out.z3 = col3.z;
+  return out;
 }
 
 } // namespace shogle::math

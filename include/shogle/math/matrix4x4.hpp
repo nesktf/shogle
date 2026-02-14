@@ -249,6 +249,14 @@ SHOGLE_MATH_DECL nummat<3, 3, T> to_mat3(const nummat<4, 4, T>& m) noexcept;
 template<typename T>
 SHOGLE_MATH_DECL nummat<4, 4, T> to_mat4(const nummat<3, 3, T>& m) noexcept;
 
+template<typename T>
+SHOGLE_MATH_DECL nummat<4, 4, T> lookat_rh(const numvec<3, T>& pos, const numvec<3, T>& center,
+                                           const numvec<3, T>& up) noexcept;
+
+template<typename T>
+SHOGLE_MATH_DECL nummat<4, 4, T> lookat_lh(const numvec<3, T>& pos, const numvec<3, T>& center,
+                                           const numvec<3, T>& up) noexcept;
+
 } // namespace shogle::math
 
 #ifndef SHOGLE_MATH_MATRIX4x4_INL

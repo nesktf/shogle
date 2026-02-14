@@ -29,11 +29,6 @@ if (SHOGLE_ENABLE_IMGUI)
   list(APPEND EXTERN_INCLUDE "${IMGUI_DIR}" "${IMGUI_BACK}")
 endif()
 
-# glm
-find_package(glm CONFIG REQUIRED)
-list(APPEND EXTERN_INCLUDE ${GLM_INCLUDE_DIRS})
-# list(APPEND EXTERN_LINK glm)
-
 # assimp
 find_package(assimp REQUIRED)
 list(APPEND EXTERN_INCLUDE ${ASSIMP_INCLUDE_DIRS})

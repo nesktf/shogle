@@ -666,75 +666,79 @@ void upload_uniforms(gl_context& gl, span<const gl_draw_command::push_uniform> u
   for (const auto& [data, type, location] : uniforms) {
     switch (type) {
       case attribute_type::f32: {
-        const f32& val = data.get<f32>();
+        f32 val;
+        std::memcpy(&val, &data[0], sizeof(f32));
         GL_ASSERT(glUniform1f(location, val));
       } break;
       case attribute_type::vec2: {
-        const f32* ptr = ::shogle::math::vec_ptr(data.get<math::vec2>());
+        const f32* ptr = reinterpret_cast<const f32*>(&data[0]);
         GL_ASSERT(glUniform2fv(location, 1, ptr));
       } break;
       case attribute_type::vec3: {
-        const f32* ptr = ::shogle::math::vec_ptr(data.get<math::vec3>());
+        const f32* ptr = reinterpret_cast<const f32*>(&data[0]);
         GL_ASSERT(glUniform3fv(location, 1, ptr));
       } break;
       case attribute_type::vec4: {
-        const f32* ptr = ::shogle::math::vec_ptr(data.get<math::vec4>());
+        const f32* ptr = reinterpret_cast<const f32*>(&data[0]);
         GL_ASSERT(glUniform4fv(location, 1, ptr));
       } break;
       case attribute_type::mat3: {
-        const f32* ptr = ::shogle::math::vec_ptr(data.get<math::mat3>());
+        const f32* ptr = reinterpret_cast<const f32*>(&data[0]);
         GL_ASSERT(glUniformMatrix3fv(location, 1, GL_FALSE, ptr));
       } break;
       case attribute_type::mat4: {
-        const f32* ptr = ::shogle::math::vec_ptr(data.get<math::mat4>());
+        const f32* ptr = reinterpret_cast<const f32*>(&data[0]);
         GL_ASSERT(glUniformMatrix4fv(location, 1, GL_FALSE, ptr));
       } break;
       case attribute_type::f64: {
-        const f64& val = data.get<f64>();
+        f64 val;
+        std::memcpy(&val, &data[0], sizeof(f64));
         GL_ASSERT(glUniform1d(location, val));
       } break;
       case attribute_type::dvec2: {
-        const f64* ptr = ::shogle::math::vec_ptr(data.get<math::dvec2>());
+        const f64* ptr = reinterpret_cast<const f64*>(&data[0]);
         GL_ASSERT(glUniform2dv(location, 1, ptr));
       } break;
       case attribute_type::dvec3: {
-        const f64* ptr = ::shogle::math::vec_ptr(data.get<math::dvec3>());
+        const f64* ptr = reinterpret_cast<const f64*>(&data[0]);
         GL_ASSERT(glUniform3dv(location, 1, ptr));
       } break;
       case attribute_type::dvec4: {
-        const f64* ptr = ::shogle::math::vec_ptr(data.get<math::dvec4>());
+        const f64* ptr = reinterpret_cast<const f64*>(&data[0]);
         GL_ASSERT(glUniform4dv(location, 1, ptr));
       } break;
       case attribute_type::i32: {
-        const i32& val = data.get<i32>();
+        i32 val;
+        std::memcpy(&val, &data[0], sizeof(i32));
         GL_ASSERT(glUniform1i(location, val));
       } break;
       case attribute_type::ivec2: {
-        const i32* ptr = ::shogle::math::vec_ptr(data.get<math::ivec2>());
+        const i32* ptr = reinterpret_cast<const i32*>(&data[0]);
         GL_ASSERT(glUniform2iv(location, 1, ptr));
       } break;
       case attribute_type::ivec3: {
-        const i32* ptr = ::shogle::math::vec_ptr(data.get<math::ivec3>());
+        const i32* ptr = reinterpret_cast<const i32*>(&data[0]);
         GL_ASSERT(glUniform3iv(location, 1, ptr));
       } break;
       case attribute_type::ivec4: {
-        const i32* ptr = ::shogle::math::vec_ptr(data.get<math::ivec3>());
+        const i32* ptr = reinterpret_cast<const i32*>(&data[0]);
         GL_ASSERT(glUniform4iv(location, 1, ptr));
       } break;
       case attribute_type::u32: {
-        const u32& val = data.get<u32>();
+        u32 val;
+        std::memcpy(&val, &data[0], sizeof(u32));
         GL_ASSERT(glUniform1ui(location, val));
       } break;
       case attribute_type::uvec2: {
-        const u32* ptr = ::shogle::math::vec_ptr(data.get<math::uvec2>());
+        const u32* ptr = reinterpret_cast<const u32*>(&data[0]);
         GL_ASSERT(glUniform2uiv(location, 1, ptr));
       } break;
       case attribute_type::uvec3: {
-        const u32* ptr = ::shogle::math::vec_ptr(data.get<math::uvec3>());
+        const u32* ptr = reinterpret_cast<const u32*>(&data[0]);
         GL_ASSERT(glUniform3uiv(location, 1, ptr));
       } break;
       case attribute_type::uvec4: {
-        const u32* ptr = ::shogle::math::vec_ptr(data.get<math::uvec3>());
+        const u32* ptr = reinterpret_cast<const u32*>(&data[0]);
         GL_ASSERT(glUniform4uiv(location, 1, ptr));
       } break;
     };

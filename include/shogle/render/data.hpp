@@ -11,9 +11,9 @@ public:
 	static constexpr inline auto attributes() noexcept;
 
 public:
-	math::vec3 pos;
-	math::vec3 normal;
-	math::vec2 uv;
+	vec3 pos;
+	vec3 normal;
+	vec2 uv;
 };
 
 constexpr inline auto pnt_vertex::attributes() noexcept {
@@ -32,8 +32,8 @@ public:
 	static constexpr inline auto attributes() noexcept;
 
 public:
-	math::vec3 pos;
-	math::vec3 normal;
+	vec3 pos;
+	vec3 normal;
 };
 
 constexpr inline auto pn_vertex::attributes() noexcept{
@@ -51,8 +51,8 @@ public:
 	static constexpr inline auto attributes() noexcept;
 
 public:
-	math::vec3 pos;
-	math::vec4 color;
+	vec3 pos;
+	vec4 color;
 };
 
 constexpr inline auto pc_vertex::attributes() noexcept{
