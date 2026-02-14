@@ -155,9 +155,8 @@ int main() {
     if (!pause) {
       t += (f32)dt;
     }
-    shogle::math::transform2d<f32> transf;
-    transf.rot = t * shogle::math::pi<f32>;
-    const auto mat = transf.matrix();
+    const f32 rot = t * shogle::math::pi<f32>;
+    const auto mat = shogle::math::rotate(shogle::mat4(1.f), rot, shogle::vec3(0.f, 0.f, 1.f));
 
     cmd_builder.reset();
     const auto cmd = cmd_builder.set_vertex_layout(quad_layout)

@@ -160,9 +160,9 @@ SHOGLE_MATH_DEF nummat<4, 4, T> rotate(const nummat<4, 4, T>& m, U angle,
   out.x2 = (m.x1 * rot.x2) + (m.x2 * rot.y2) + (m.x3 * rot.z2);
   out.y2 = (m.y1 * rot.x2) + (m.y2 * rot.y2) + (m.y3 * rot.z2);
   out.z2 = (m.z1 * rot.x2) + (m.z2 * rot.y2) + (m.z3 * rot.z2);
-  out.x2 = (m.x1 * rot.x3) + (m.x2 * rot.y3) + (m.x3 * rot.z3);
-  out.y2 = (m.y1 * rot.x3) + (m.y2 * rot.y3) + (m.y3 * rot.z3);
-  out.z2 = (m.z1 * rot.x3) + (m.z2 * rot.y3) + (m.z3 * rot.z3);
+  out.x3 = (m.x1 * rot.x3) + (m.x2 * rot.y3) + (m.x3 * rot.z3);
+  out.y3 = (m.y1 * rot.x3) + (m.y2 * rot.y3) + (m.y3 * rot.z3);
+  out.z3 = (m.z1 * rot.x3) + (m.z2 * rot.y3) + (m.z3 * rot.z3);
   out.x4 = m.x4;
   out.y4 = m.y4;
   out.z4 = m.z4;
