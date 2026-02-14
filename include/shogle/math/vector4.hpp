@@ -133,6 +133,10 @@ SHOGLE_MATH_DECL numvec<4, T> operator/(const numvec<4, T>& vec, U scalar) noexc
 template<typename T, math::numeric_convertible<T> U>
 SHOGLE_MATH_DECL numvec<4, T> operator/(U scalar, const numvec<4, T>& vec) noexcept;
 
+template<typename U, typename T>
+requires(math::numeric_convertible<U, T>)
+SHOGLE_MATH_DECL numvec<4, U> vec_cast(const numvec<4, T>& vec) noexcept;
+
 } // namespace shogle
 
 namespace shogle::math {

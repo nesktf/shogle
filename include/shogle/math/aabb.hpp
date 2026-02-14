@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/math/common.hpp>
+#include "./common.hpp"
 
 namespace shogle::math {
 

@@ -1,6 +1,9 @@
 #pragma once
 
+#include "./vector3.hpp"
 #include "./vector4.hpp"
+
+#include "./matrix3x3.hpp"
 
 namespace shogle {
 
@@ -8,10 +11,12 @@ template<math::numeric_type T>
 struct nummat<4, 4, T> {
 public:
   using value_type = T;
-  static constexpr u32 component_count = 9;
+  static constexpr u32 component_count = 16;
 
   using row_type = numvec<4, T>;
   using col_type = numvec<4, T>;
+
+  SHOGLE_SELF_STATIC_CONST_MEMBER nummat identity = T(1);
 
 public:
   SHOGLE_MATH_DECLARE_VECTOR_SPECIAL_MEMBERS(nummat);
@@ -230,6 +235,19 @@ SHOGLE_MATH_DECL nummat<4, 4, T> transpose(const nummat<4, 4, T>& m) noexcept;
 template<typename T, numeric_convertible<T> U>
 SHOGLE_MATH_DECL nummat<4, 4, T> translate(const nummat<4, 4, T>& m,
                                            const numvec<3, U>& v) noexcept;
+
+template<typename T, numeric_convertible<T> U>
+SHOGLE_MATH_DECL nummat<4, 4, T> scale(const nummat<4, 4, T>& m, const numvec<3, U>& v) noexcept;
+
+template<typename T, numeric_convertible<T> U, numeric_convertible<T> V>
+SHOGLE_MATH_DECL nummat<4, 4, T> rotate(const nummat<4, 4, T>& m, U angle,
+                                        const numvec<3, V>& axis) noexcept;
+
+template<typename T>
+SHOGLE_MATH_DECL nummat<3, 3, T> to_mat3(const nummat<4, 4, T>& m) noexcept;
+
+template<typename T>
+SHOGLE_MATH_DECL nummat<4, 4, T> to_mat4(const nummat<3, 3, T>& m) noexcept;
 
 } // namespace shogle::math
 

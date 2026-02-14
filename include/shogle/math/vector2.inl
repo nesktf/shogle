@@ -206,6 +206,12 @@ SHOGLE_MATH_DEF numvec<2, T> operator/(U scalar, const numvec<2, T>& vec) noexce
   return out;
 }
 
+template<typename U, typename T>
+requires(math::numeric_convertible<U, T>)
+SHOGLE_MATH_DEF numvec<2, U> vec_cast(const numvec<2, T>& vec) noexcept {
+  return {static_cast<U>(vec.x), static_cast<U>(vec.y)};
+}
+
 } // namespace shogle
 
 namespace shogle::math {

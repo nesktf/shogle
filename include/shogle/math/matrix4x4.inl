@@ -29,48 +29,48 @@ SHOGLE_MATH_DEF nummat<4, 4, T> inverse(const nummat<4, 4, T>& m) noexcept {
                   m.w1 * (m.y2 * m.z3 - m.y3 * m.z2));
 
   const T invdet = static_cast<T>(1) / (m.x1 * c01 + m.x2 * c02 + m.x3 * c03 + m.x4 * c04);
-  nummat<4, 4, T> res;
-  res.x1 = c01 * invdet;
-  res.y1 = c02 * invdet;
-  res.z1 = c03 * invdet;
-  res.w1 = c04 * invdet;
-  res.x2 = -(m.x2 * (m.z3 * m.w4 - m.z4 * m.w3) - m.z2 * (m.x3 * m.w4 - m.x4 * m.w3) +
+  nummat<4, 4, T> out;
+  out.x1 = c01 * invdet;
+  out.y1 = c02 * invdet;
+  out.z1 = c03 * invdet;
+  out.w1 = c04 * invdet;
+  out.x2 = -(m.x2 * (m.z3 * m.w4 - m.z4 * m.w3) - m.z2 * (m.x3 * m.w4 - m.x4 * m.w3) +
              m.w2 * (m.x3 * m.z4 - m.x4 * m.z3)) *
            invdet;
-  res.y2 = (m.x1 * (m.z3 * m.w4 - m.z4 * m.w3) - m.z1 * (m.x3 * m.w4 - m.x4 * m.w3) +
+  out.y2 = (m.x1 * (m.z3 * m.w4 - m.z4 * m.w3) - m.z1 * (m.x3 * m.w4 - m.x4 * m.w3) +
             m.w1 * (m.x3 * m.z4 - m.x4 * m.z3)) *
            invdet;
-  res.z2 = -(m.x1 * (m.z2 * m.w4 - m.z4 * m.w2) - m.z1 * (m.x2 * m.w4 - m.x4 * m.w2) +
+  out.z2 = -(m.x1 * (m.z2 * m.w4 - m.z4 * m.w2) - m.z1 * (m.x2 * m.w4 - m.x4 * m.w2) +
              m.w1 * (m.x2 * m.z4 - m.x4 * m.z2)) *
            invdet;
-  res.w2 = (m.x1 * (m.z2 * m.w3 - m.z3 * m.w2) - m.z1 * (m.x2 * m.w3 - m.x3 * m.w2) +
+  out.w2 = (m.x1 * (m.z2 * m.w3 - m.z3 * m.w2) - m.z1 * (m.x2 * m.w3 - m.x3 * m.w2) +
             m.w1 * (m.x2 * m.z3 - m.x3 * m.z2)) *
            invdet;
-  res.x3 = (m.x2 * (m.y3 * m.w4 - m.y4 * m.w3) - m.y2 * (m.x3 * m.w4 - m.x4 * m.w3) +
+  out.x3 = (m.x2 * (m.y3 * m.w4 - m.y4 * m.w3) - m.y2 * (m.x3 * m.w4 - m.x4 * m.w3) +
             m.w2 * (m.x3 * m.y4 - m.x4 * m.y3)) *
            invdet;
-  res.y3 = -(m.x1 * (m.y3 * m.w4 - m.y4 * m.w3) - m.y1 * (m.x3 * m.w4 - m.x4 * m.w3) +
+  out.y3 = -(m.x1 * (m.y3 * m.w4 - m.y4 * m.w3) - m.y1 * (m.x3 * m.w4 - m.x4 * m.w3) +
              m.w1 * (m.x3 * m.y4 - m.x4 * m.y3)) *
            invdet;
-  res.z3 = (m.x1 * (m.y2 * m.w4 - m.y4 * m.w2) - m.y1 * (m.x2 * m.w4 - m.x4 * m.w2) +
+  out.z3 = (m.x1 * (m.y2 * m.w4 - m.y4 * m.w2) - m.y1 * (m.x2 * m.w4 - m.x4 * m.w2) +
             m.w1 * (m.x2 * m.y4 - m.x4 * m.y2)) *
            invdet;
-  res.w3 = -(m.x1 * (m.y2 * m.w3 - m.y3 * m.w2) - m.y1 * (m.x2 * m.w3 - m.x3 * m.y2) +
+  out.w3 = -(m.x1 * (m.y2 * m.w3 - m.y3 * m.w2) - m.y1 * (m.x2 * m.w3 - m.x3 * m.y2) +
              m.w1 * (m.x2 * m.y3 - m.x3 * m.y2)) *
            invdet;
-  res.x4 = -(m.x2 * (m.y3 * m.z4 - m.y4 * m.z3) - m.y2 * (m.x3 * m.z4 - m.x4 * m.z3) +
+  out.x4 = -(m.x2 * (m.y3 * m.z4 - m.y4 * m.z3) - m.y2 * (m.x3 * m.z4 - m.x4 * m.z3) +
              m.z2 * (m.x3 * m.y4 - m.x4 * m.y3)) *
            invdet;
-  res.y4 = (m.x1 * (m.y3 * m.z4 - m.y4 * m.z3) - m.y1 * (m.x3 * m.z4 - m.x4 * m.z3) +
+  out.y4 = (m.x1 * (m.y3 * m.z4 - m.y4 * m.z3) - m.y1 * (m.x3 * m.z4 - m.x4 * m.z3) +
             m.z1 * (m.x3 * m.y4 - m.x4 * m.y3)) *
            invdet;
-  res.z4 = -(m.x1 * (m.y2 * m.z4 - m.y4 * m.z2) - m.y1 * (m.x2 * m.z4 - m.x4 * m.z2) +
+  out.z4 = -(m.x1 * (m.y2 * m.z4 - m.y4 * m.z2) - m.y1 * (m.x2 * m.z4 - m.x4 * m.z2) +
              m.z1 * (m.x2 * m.y4 - m.x4 * m.y2)) *
            invdet;
-  res.w4 = (m.x1 * (m.y2 * m.z3 - m.y3 * m.z2) - m.y1 * (m.x2 * m.z3 - m.x3 * m.z2) +
+  out.w4 = (m.x1 * (m.y2 * m.z3 - m.y3 * m.z2) - m.y1 * (m.x2 * m.z3 - m.x3 * m.z2) +
             m.z1 * (m.x2 * m.y3 - m.x3 * m.y2)) *
            invdet;
-  return res;
+  return out;
 }
 
 template<typename T>
@@ -107,6 +107,103 @@ SHOGLE_MATH_DEF nummat<4, 4, T> translate(const nummat<4, 4, T>& m,
            (m.z3 * static_cast<T>(v.z)) + m.z4;
   out.w4 = (m.w1 * static_cast<T>(v.x)) + (m.w2 * static_cast<T>(v.y)) +
            (m.w3 * static_cast<T>(v.z)) + m.w4;
+  return out;
+}
+
+template<typename T, numeric_convertible<T> U>
+SHOGLE_MATH_DEF nummat<4, 4, T> scale(const nummat<4, 4, T>& m, const numvec<3, U>& v) noexcept {
+  nummat<4, 4, T> out;
+  out.x1 = m.x1 * static_cast<T>(v.x);
+  out.y1 = m.y1 * static_cast<T>(v.x);
+  out.z1 = m.z1 * static_cast<T>(v.x);
+  out.x2 = m.x2 * static_cast<T>(v.y);
+  out.y2 = m.y2 * static_cast<T>(v.y);
+  out.z2 = m.z2 * static_cast<T>(v.y);
+  out.x3 = m.x3 * static_cast<T>(v.z);
+  out.y3 = m.y3 * static_cast<T>(v.z);
+  out.z3 = m.z3 * static_cast<T>(v.z);
+  out.x4 = m.x4;
+  out.y4 = m.y4;
+  out.z4 = m.z4;
+  return out;
+}
+
+template<typename T, numeric_convertible<T> U, numeric_convertible<T> V>
+SHOGLE_MATH_DEF nummat<4, 4, T> rotate(const nummat<4, 4, T>& m, U angle,
+                                       const numvec<3, V>& axis) noexcept {
+  const T c = static_cast<T>(std::cos(angle));
+  const T s = static_cast<T>(std::sin(angle));
+
+  const auto ax = ::shogle::vec_cast<T>(::shogle::math::normalize(axis));
+  const auto inv_c = (ax * (T(1) - c));
+
+  struct {
+    T x1, y1, z1;
+    T x2, y2, z2;
+    T x3, y3, z3;
+  } rot; // temporary matrix, just to avoid including matrix3x3
+
+  rot.x1 = c + (inv_c.x * ax.x);
+  rot.y1 = (inv_c.x * ax.y) + (s * ax.z);
+  rot.z1 = (inv_c.x * ax.z) - (s * ax.y);
+  rot.x2 = (inv_c.y * ax.x) - (s * ax.z);
+  rot.y2 = c + (inv_c.y * ax.y);
+  rot.z2 = (inv_c.y * ax.z) + (s * ax.x);
+  rot.x3 = (inv_c.z * ax.x) + (s * ax.y);
+  rot.y3 = (inv_c.z * ax.y) - (s * ax.x);
+  rot.z3 = c + (inv_c.z * ax.z);
+
+  nummat<4, 4, T> out;
+  out.x1 = (m.x1 * rot.x1) + (m.x2 * rot.y1) + (m.x3 * rot.z1);
+  out.y1 = (m.y1 * rot.x1) + (m.y2 * rot.y1) + (m.y3 * rot.z1);
+  out.z1 = (m.z1 * rot.x1) + (m.z2 * rot.y1) + (m.z3 * rot.z1);
+  out.x2 = (m.x1 * rot.x2) + (m.x2 * rot.y2) + (m.x3 * rot.z2);
+  out.y2 = (m.y1 * rot.x2) + (m.y2 * rot.y2) + (m.y3 * rot.z2);
+  out.z2 = (m.z1 * rot.x2) + (m.z2 * rot.y2) + (m.z3 * rot.z2);
+  out.x2 = (m.x1 * rot.x3) + (m.x2 * rot.y3) + (m.x3 * rot.z3);
+  out.y2 = (m.y1 * rot.x3) + (m.y2 * rot.y3) + (m.y3 * rot.z3);
+  out.z2 = (m.z1 * rot.x3) + (m.z2 * rot.y3) + (m.z3 * rot.z3);
+  out.x4 = m.x4;
+  out.y4 = m.y4;
+  out.z4 = m.z4;
+  out.w4 = m.w4;
+  return out;
+}
+
+template<typename T>
+SHOGLE_MATH_DEF nummat<3, 3, T> to_mat3(const nummat<4, 4, T>& m) noexcept {
+  nummat<3, 3, T> out;
+  out.x1 = m.x1;
+  out.y1 = m.y1;
+  out.z1 = m.z1;
+  out.x2 = m.x2;
+  out.y2 = m.y2;
+  out.z2 = m.z2;
+  out.x3 = m.x3;
+  out.y3 = m.y3;
+  out.z3 = m.z3;
+  return out;
+}
+
+template<typename T>
+SHOGLE_MATH_DEF nummat<4, 4, T> to_mat4(const nummat<3, 3, T>& m) noexcept {
+  nummat<4, 4, T> out;
+  out.x1 = m.x1;
+  out.y1 = m.y1;
+  out.z1 = m.z1;
+  out.w1 = T(0);
+  out.x2 = m.x2;
+  out.y2 = m.y2;
+  out.z2 = m.z2;
+  out.w2 = T(0);
+  out.x3 = m.x3;
+  out.y3 = m.y3;
+  out.z3 = m.z3;
+  out.w3 = T(0);
+  out.x4 = T(0);
+  out.y4 = T(0);
+  out.z4 = T(0);
+  out.w4 = T(1);
   return out;
 }
 

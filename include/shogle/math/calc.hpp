@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/math/vector.hpp>
+#include "./common.hpp"
 
 namespace shogle::math {
 

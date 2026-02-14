@@ -14,6 +14,8 @@ public:
   using row_type = numvec<3, T>;
   using col_type = numvec<3, T>;
 
+  SHOGLE_SELF_STATIC_CONST_MEMBER nummat identity = T(1);
+
 public:
   SHOGLE_MATH_DECLARE_VECTOR_SPECIAL_MEMBERS(nummat);
 
@@ -231,13 +233,18 @@ template<typename T, numeric_convertible<T> U>
 SHOGLE_MATH_DECL nummat<3, 3, T> scale(const nummat<3, 3, T>& m, const numvec<2, U>& v) noexcept;
 
 template<typename T, numeric_convertible<T> U>
-SHOGLE_MATH_DECL nummat<3, 3, T> scale(const nummat<3, 3, T>& m, const numvec<3, U>& v) noexcept;
+SHOGLE_MATH_DECL nummat<3, 3, T> rotate(const nummat<3, 3, T>& m, U ang) noexcept;
+
+template<typename T, numeric_convertible<T> U, bool is_right = true>
+SHOGLE_MATH_DECL nummat<3, 3, T> lookat(const numvec<3, T>& dir, const numvec<3, U>& up) noexcept;
 
 template<typename T, numeric_convertible<T> U>
-SHOGLE_MATH_DECL nummat<3, 3, T> scale(const nummat<3, 3, T>& m, U angle) noexcept;
+SHOGLE_MATH_DECL nummat<3, 3, T> lookat_rh(const numvec<3, T>& dir,
+                                           const numvec<3, U>& up) noexcept;
 
 template<typename T, numeric_convertible<T> U>
-SHOGLE_MATH_DECL nummat<3, 3, T> rotate(const nummat<3, 3, T>& m, U angle) noexcept;
+SHOGLE_MATH_DECL nummat<3, 3, T> lookat_lh(const numvec<3, T>& dir,
+                                           const numvec<3, U>& up) noexcept;
 
 } // namespace shogle::math
 

@@ -32,6 +32,13 @@
 #define SHOGLE_NO_INLINE
 #endif
 
+// clang shits itself with self referential static constexpr member constants for some reason
+#if defined(__clang__)
+#define SHOGLE_SELF_STATIC_CONST_MEMBER static const inline
+#else
+#define SHOGLE_SELF_STATIC_CONST_MEMBER static constexpr
+#endif
+
 #include <list>
 #include <memory>
 #include <unordered_map>

@@ -24,10 +24,63 @@ template<typename From, typename To>
 concept numeric_convertible = numeric_type<From> && std::convertible_to<From, To>;
 
 template<numeric_type T>
-SHOGLE_MATH_DECL T radians(T deg) noexcept;
+static constexpr T pi = static_cast<T>(3.14159265358979323846);
 
 template<numeric_type T>
-SHOGLE_MATH_DECL T degrees(T deg) noexcept;
+static constexpr T e = static_cast<T>(2.7182818284590452354);
+
+template<std::floating_point T>
+static constexpr T epsilon = std::numeric_limits<T>::epsilon();
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T sqrt(T x) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T rsqrt(T x) noexcept;
+
+SHOGLE_MATH_DECL f32 qrsqrt(float x) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T cos(T x) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T sin(T x) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T tan(T x) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T acos(T x) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T asin(T x) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T atan(T x) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T atan2(T y, T x) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T rad(T degs) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T deg(T rads) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T epsilon_err(T a, T b) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T abs(T x) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T clamp(T x, T min, T max) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T max(T a, T b) noexcept;
+
+template<numeric_type T>
+SHOGLE_MATH_DECL T min(T a, T b) noexcept;
 
 template<numeric_type TL, numeric_type TR>
 SHOGLE_MATH_DECL auto periodic_add(const TL& a, const TR& b, decltype(a + b) min,
@@ -35,9 +88,6 @@ SHOGLE_MATH_DECL auto periodic_add(const TL& a, const TR& b, decltype(a + b) min
 
 template<std::floating_point T>
 SHOGLE_MATH_DECL bool fequal(T a, T b) noexcept;
-
-template<numeric_type T>
-SHOGLE_MATH_DECL T epsilon_err(T a, T b) noexcept;
 
 } // namespace shogle::math
 
@@ -97,9 +147,9 @@ using dmat3 = nummat<3, 3, f64>;
 using m3f64 = nummat<3, 3, f64>;
 
 using quat = numquat<f32>;
-using quf32 = numquat<f32>;
+using qf32 = numquat<f32>;
 using dquat = numquat<f64>;
-using quf64 = numquat<f64>;
+using qf64 = numquat<f64>;
 
 } // namespace shogle
 

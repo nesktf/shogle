@@ -54,34 +54,17 @@ SHOGLE_MATH_DECL nummat<3, 3, T> translate(const nummat<3, 3, T>& m,
 
 template<typename T, numeric_convertible<T> U>
 SHOGLE_MATH_DEF nummat<3, 3, T> scale(const nummat<3, 3, T>& m, const numvec<2, U>& v) noexcept {
-  nummat<3, 3, T> out = m;
-  out.x1 *= static_cast<T>(v.x);
-  out.y1 *= static_cast<T>(v.x);
-  out.z1 *= static_cast<T>(v.x);
-  out.x2 *= static_cast<T>(v.y);
-  out.y2 *= static_cast<T>(v.y);
-  out.z2 *= static_cast<T>(v.y);
+  nummat<3, 3, T> out;
+  out.x1 = m.x1 * static_cast<T>(v.x);
+  out.y1 = m.y1 * static_cast<T>(v.x);
+  out.z1 = m.z1 * static_cast<T>(v.x);
+  out.x2 = m.x2 * static_cast<T>(v.y);
+  out.y2 = m.y2 * static_cast<T>(v.y);
+  out.z2 = m.z2 * static_cast<T>(v.y);
+  out.x3 = m.x3;
+  out.y3 = m.y3;
+  out.z3 = m.z3;
   return out;
-}
-
-template<typename T, numeric_convertible<T> U>
-SHOGLE_MATH_DEF nummat<3, 3, T> scale(const nummat<3, 3, T>& m, const numvec<3, U>& v) noexcept {
-  nummat<3, 3, T> out = m;
-  out.x1 *= static_cast<T>(v.x);
-  out.y1 *= static_cast<T>(v.x);
-  out.z1 *= static_cast<T>(v.x);
-  out.x2 *= static_cast<T>(v.y);
-  out.y2 *= static_cast<T>(v.y);
-  out.z2 *= static_cast<T>(v.y);
-  out.x3 *= static_cast<T>(v.z);
-  out.y3 *= static_cast<T>(v.z);
-  out.z3 *= static_cast<T>(v.z);
-  return out;
-}
-
-template<typename T, numeric_convertible<T> U>
-SHOGLE_MATH_DEF nummat<3, 3, T> scale(const nummat<3, 3, T>& m, U scalar) noexcept {
-  return m * scalar;
 }
 
 template<typename T, numeric_convertible<T> U>
@@ -91,14 +74,47 @@ SHOGLE_MATH_DEF nummat<3, 3, T> rotate(const nummat<3, 3, T>& m, U angle) noexce
   nummat<3, 3, T> other;
   other.x1 = static_cast<T>(c);
   other.y1 = static_cast<T>(s);
-  other.z1 = static_cast<T>(0);
+  other.z1 = T(0);
   other.x2 = -static_cast<T>(s);
   other.y2 = static_cast<T>(c);
-  other.z2 = static_cast<T>(0);
-  other.x3 = static_cast<T>(0);
-  other.y3 = static_cast<T>(0);
-  other.z3 = static_cast<T>(1);
+  other.z2 = T(0);
+  other.x3 = T(0);
+  other.y3 = T(0);
+  other.z3 = T(1);
   return m * other;
+}
+
+template<typename T, numeric_convertible<T> U, bool is_right>
+SHOGLE_MATH_DEF nummat<3, 3, T> lookat(const numvec<3, T>& dir, const numvec<3, U>& up) noexcept {
+  const numvec<3, T> col3 = is_right ? -dir : dir;
+  const numvec<3, T> right = ::shogle::math::cross(::shogle::vec_cast<T>(up), col3);
+  const T r2 = ::shogle::math::length2(right);
+  const numvec<3, T> col1 = right * ::shogle::math::rsqrt(::shogle::math::max(T(0.000001), r2));
+  const numvec<3, T> col2 = ::shogle::math::cross(col3, col1);
+
+  nummat<3, 3, T> out;
+  out.x1 = col1.x;
+  out.y1 = col1.y;
+  out.z1 = col1.z;
+  out.x2 = col2.x;
+  out.y2 = col2.y;
+  out.z2 = col2.z;
+  out.x3 = col3.x;
+  out.y3 = col3.y;
+  out.z3 = col3.z;
+  return out;
+}
+
+template<typename T, numeric_convertible<T> U>
+SHOGLE_MATH_DEF nummat<3, 3, T> lookat_rh(const numvec<3, T>& dir,
+                                          const numvec<3, U>& up) noexcept {
+  return ::shogle::math::lookat<T, U, true>(dir, up);
+}
+
+template<typename T, numeric_convertible<T> U>
+SHOGLE_MATH_DEF nummat<3, 3, T> lookat_lh(const numvec<3, T>& dir,
+                                          const numvec<3, U>& up) noexcept {
+  return ::shogle::math::lookat<T, U, false>(dir, up);
 }
 
 } // namespace shogle::math
