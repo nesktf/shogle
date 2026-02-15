@@ -21,7 +21,6 @@ option(SHOGLE_EMBED_GIT "Embed git info in version string" ON)
 option(SHOGLE_DISABLE_INTERNAL_LOGS "Disable internal logs" OFF)
 option(SHOGLE_DISABLE_GLFW "Don't use glfw as the windowing system" ON)
 option(SHOGLE_ENABLE_IMGUI "Enable imgui support" ON)
-option(SHOGLE_ENABLE_GLAD "Enable glad OpenGL loader" off)
 
 if (SHOGLE_EMBED_GIT)
   execute_process(COMMAND git rev-parse --short HEAD
