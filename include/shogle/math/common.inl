@@ -3,6 +3,7 @@
 #undef SHOGLE_MATH_COMMON_INL
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 
 namespace shogle::math {

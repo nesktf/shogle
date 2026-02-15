@@ -13,7 +13,7 @@ shogle::logger::log_level level = logger::LEVEL_INFO;
 } // namespace
 
 void logger::set_level(log_level level_) noexcept {
-  level_ = level_;
+  level = level_;
 }
 
 logger::log_level logger::get_level() noexcept {
