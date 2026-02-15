@@ -35,7 +35,7 @@ public:
   template<size_t AttribCount>
   gl_vertex_layout(gl_context& gl, size_t stride,
                    span<const ::shogle::vertex_attribute, AttribCount> attribs)
-  requires(AttribCount != ntf::dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS);
+  requires(AttribCount != dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS);
 
   template<typename T>
   gl_vertex_layout(gl_context& gl, soa_vertex_arg<T>)
@@ -57,7 +57,7 @@ public:
   static gl_expect<gl_vertex_layout>
   create(gl_context& gl, size_t stride,
          span<const ::shogle::vertex_attribute, AttribCount> attribs)
-  requires(AttribCount != ntf::dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS);
+  requires(AttribCount != dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS);
 
   template<::shogle::meta::vertex_type T>
   static gl_expect<gl_vertex_layout> from_soa_vertex(gl_context& gl)

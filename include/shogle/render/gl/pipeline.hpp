@@ -412,12 +412,12 @@ public:
   static void destroy_n(gl_context& gl, span<gl_graphics_pipeline> pipelines) noexcept;
 
 public:
-  ntf::optional<u32> uniform_location(gl_context& gl, const char* name) const;
+  optional<u32> uniform_location(gl_context& gl, const char* name) const;
   u32 uniform_count(gl_context& gl) const;
   shader_attrib_type query_uniform_index(gl_context& gl, shader_attrib_props& props,
                                          u32 idx) const;
 
-  ntf::optional<u32> attribute_location(gl_context& gl, const char* name) const;
+  optional<u32> attribute_location(gl_context& gl, const char* name) const;
   u32 attribute_count(gl_context& gl) const;
   shader_attrib_type query_attribute_index(gl_context& gl, shader_attrib_props& props,
                                            u32 idx) const;

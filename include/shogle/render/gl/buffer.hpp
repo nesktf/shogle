@@ -2,6 +2,8 @@
 
 #include <shogle/render/gl/common.hpp>
 
+#include <shogle/util/concepts.hpp>
+
 namespace shogle {
 
 class gl_buffer {
@@ -65,12 +67,12 @@ private:
 
   template<typename Cont>
   static constexpr bool emplace_buff_container =
-    ntf::meta::growable_emplace_container_of<std::decay_t<Cont>, gl_texture, create_t,
-                                             gldefs::GLhandle, buffer_type, size_t, buffer_bits>;
+    meta::growable_emplace_container_of<std::decay_t<Cont>, gl_texture, create_t, gldefs::GLhandle,
+                                        buffer_type, size_t, buffer_bits>;
 
   template<typename Cont>
   static constexpr bool growable_buff_container =
-    ntf::meta::growable_push_container_of<std::decay_t<Cont>, gl_buffer> ||
+    meta::growable_push_container_of<std::decay_t<Cont>, gl_buffer> ||
     emplace_buff_container<Cont>;
 
 public:

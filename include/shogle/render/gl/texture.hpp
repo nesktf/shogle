@@ -2,6 +2,8 @@
 
 #include <shogle/render/gl/common.hpp>
 
+#include <shogle/util/concepts.hpp>
+
 namespace shogle {
 
 class gl_texture {
@@ -218,12 +220,12 @@ private:
 
   template<typename Cont>
   static constexpr bool emplace_tex_container =
-    ntf::meta::growable_emplace_container_of<std::decay_t<Cont>, gl_texture, create_t,
-                                             gldefs::GLhandle, const allocate_args&>;
+    meta::growable_emplace_container_of<std::decay_t<Cont>, gl_texture, create_t, gldefs::GLhandle,
+                                        const allocate_args&>;
 
   template<typename Cont>
   static constexpr bool growable_tex_container =
-    ntf::meta::growable_push_container_of<std::decay_t<Cont>, gl_texture> ||
+    meta::growable_push_container_of<std::decay_t<Cont>, gl_texture> ||
     emplace_tex_container<Cont>;
 
 public:

@@ -1,15 +1,17 @@
-#include <shogle/render/window.hpp>
+#include <shogle/core.hpp>
 
 #ifdef SHOGLE_ENABLE_IMGUI
-#ifndef SHOGLE_DISABLE_GLFW
+#ifdef SHOGLE_ENABLE_GLFW
 #include <imgui_impl_glfw.h>
 #endif
 #include <imgui_impl_opengl3.h>
 #endif
 
+#include <shogle/render/window.hpp>
+
 namespace shogle {
 
-#ifndef SHOGLE_DISABLE_GLFW
+#ifdef SHOGLE_ENABLE_GLFW
 
 #define WIN_LOG(level_, fmt_, ...) SHOGLE_RENDER_LOG(level_, "GLFW", fmt_, __VA_ARGS__)
 
@@ -123,10 +125,10 @@ sv_expect<glfw_win> glfw_win::create(u32 width, u32 height, const char* title,
                                      const glfw_gl_hints& hints, GLFWmonitor* monitor,
                                      GLFWwindow* share) {
   if (!title) {
-    return {ntf::unexpect, "No window title provided"};
+    return {unexpect, "No window title provided"};
   }
   if (!width || !height) {
-    return {ntf::unexpect, "Invalid window extent"};
+    return {unexpect, "Invalid window extent"};
   }
 
   const auto round_pow2 = [](u32 x) -> u32 {
@@ -180,10 +182,10 @@ sv_expect<glfw_win> glfw_win::create(u32 width, u32 height, const char* title,
     const char* err;
     glfwGetError(&err);
     WIN_LOG(error, "Failed to create window: {}", err);
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
 
-  auto* data_ptr = ntf::alloc_construct<glfw_win::window_data>(win, render_context_tag::opengl);
+  auto* data_ptr = new glfw_win::window_data(win, render_context_tag::opengl);
 
   glfwSetFramebufferSizeCallback(win, fb_callback);
   glfwSetKeyCallback(win, key_callback);
@@ -201,11 +203,11 @@ sv_expect<glfw_win> glfw_win::create(u32 width, u32 height, const char* title,
   WIN_LOG(debug, "OpenGL window created (w: {}, h: {}, title: \"{}\", ptr: {})", width, height,
           title, fmt::ptr(win));
 
-  return {ntf::in_place, create_t{}, window_data_ptr(data_ptr)};
+  return {in_place, create_t{}, window_data_ptr(data_ptr)};
 }
 
 void glfw_win::window_deleter::operator()(window_data* data) noexcept {
-  ntf::alloc_destroy(data);
+  delete data;
 }
 
 void glfw_win::destroy() noexcept {
@@ -213,17 +215,17 @@ void glfw_win::destroy() noexcept {
 }
 
 GLFWwindow* glfw_win::get() const {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   return _ctx->win;
 }
 
 bool glfw_win::should_close() const {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   return glfwWindowShouldClose(_ctx->win);
 }
 
 void glfw_win::close() const {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   glfwSetWindowShouldClose(_ctx->win, 1);
 }
 
@@ -232,12 +234,12 @@ void glfw_win::poll_events() const {
 }
 
 void glfw_win::set_title(const char* title) const {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   glfwSetWindowTitle(_ctx->win, title);
 }
 
 extent2d glfw_win::window_extent() const noexcept {
-  if (NTF_UNLIKELY(!_ctx)) {
+  if (SHOGLE_UNLIKELY(!_ctx)) {
     return {.width = 0, .height = 0};
   }
   int w, h;
@@ -246,7 +248,7 @@ extent2d glfw_win::window_extent() const noexcept {
 }
 
 extent2d glfw_win::surface_extent() const noexcept {
-  if (NTF_UNLIKELY(!_ctx)) {
+  if (SHOGLE_UNLIKELY(!_ctx)) {
     return {.width = 0, .height = 0};
   }
   int w, h;
@@ -261,17 +263,17 @@ void glfw_win::set_swap_interval(u32 interval) const noexcept {
 }
 
 void glfw_win::set_attrib(glfw_enum attrib, glfw_enum value) const {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   glfwSetWindowAttrib(_ctx->win, (int)attrib, (int)value);
 }
 
 glfw_enum glfw_win::poll_key(glfw_enum key) const {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   return (glfw_enum)glfwGetKey(_ctx->win, key);
 }
 
 shogle::render_context_tag glfw_win::context_type() const noexcept {
-  if (NTF_UNLIKELY(!_ctx)) {
+  if (SHOGLE_UNLIKELY(!_ctx)) {
     return ::shogle::render_context_tag::none;
   }
   return _ctx->ctx_tag;
@@ -286,7 +288,7 @@ extent2d glfw_win::gl_surface_extent() const noexcept {
 }
 
 void glfw_win::swap_buffers() noexcept {
-  if (NTF_UNLIKELY(!_ctx)) {
+  if (SHOGLE_UNLIKELY(!_ctx)) {
     return;
   }
   glfwSwapBuffers(_ctx->win);
@@ -297,94 +299,94 @@ extent2d glfw_win::vk_surface_extent() const noexcept {
 }
 
 u32 glfw_win::vk_surface_extensions(scratch_vec<const char*>& extensions) {
-  NTF_UNUSED(extensions);
-  NTF_ASSERT(false, "TODO");
+  SHOGLE_UNUSED(extensions);
+  SHOGLE_ASSERT(false, "TODO");
   return 0;
 }
 
 bool glfw_win::vk_create_surface(vkdefs::VkInstance vk, vkdefs::VkSurfaceKHR& surface,
                                  vkdefs::VkAllocationCallbacksPtr vkalloc) noexcept {
-  NTF_UNUSED(vk);
-  NTF_UNUSED(surface);
-  NTF_UNUSED(vkalloc);
-  NTF_ASSERT(false, "TODO");
+  SHOGLE_UNUSED(vk);
+  SHOGLE_UNUSED(surface);
+  SHOGLE_UNUSED(vkalloc);
+  SHOGLE_ASSERT(false, "TODO");
   return true;
 }
 
 glfw_win& glfw_win::set_viewport_callback(viewport_fun func) {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_viewport = std::move(func);
   return *this;
 }
 
 void glfw_win::remove_viewport_callback() {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_viewport = {};
 }
 
 glfw_win& glfw_win::set_key_input_callback(key_input_fun func) {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_key_input = std::move(func);
   return *this;
 }
 
 void glfw_win::remove_key_input_callback() {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_key_input = {};
 }
 
 glfw_win& glfw_win::set_cursor_pos_callback(cursor_pos_fun func) {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_cursor_pos = std::move(func);
   return *this;
 }
 
 void glfw_win::remove_cursor_pos_callback() {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_cursor_pos = {};
 }
 
 glfw_win& glfw_win::set_cursor_enter_callback(cursor_enter_fun func) {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_cursor_enter = std::move(func);
   return *this;
 }
 
 void glfw_win::remove_cursor_enter_callback() {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_cursor_enter = {};
 }
 
 glfw_win& glfw_win::set_scroll_callback(scroll_fun func) {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_scroll = std::move(func);
   return *this;
 }
 
 void glfw_win::remove_scroll_callback() {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_scroll = {};
 }
 
 glfw_win& glfw_win::set_button_input_callback(button_input_fun func) {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_button_input = std::move(func);
   return *this;
 }
 
 void glfw_win::remove_mouse_input_callback() {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_button_input = {};
 }
 
 glfw_win& glfw_win::set_char_input_callback(char_input_fun func) {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_char_input = std::move(func);
   return *this;
 }
 
 void glfw_win::remove_char_input_callback() {
-  NTF_ASSERT(_ctx);
+  SHOGLE_ASSERT(_ctx);
   _ctx->on_char_input = {};
 }
 
@@ -408,7 +410,7 @@ sv_expect<glfw_imgui> glfw_imgui::create(GLFWwindow* win, shogle::render_context
                                          ImGuiConfigFlags flags,
                                          callback_flags callbacks) noexcept {
   if (!win) {
-    return {ntf::unexpect, "Invalid GLFW window"};
+    return {unexpect, "Invalid GLFW window"};
   }
 
   IMGUI_CHECKVERSION();
@@ -422,34 +424,34 @@ sv_expect<glfw_imgui> glfw_imgui::create(GLFWwindow* win, shogle::render_context
       ImGui_ImplOpenGL3_Init("#version 150");
     } break;
     default:
-      NTF_ASSERT(false, "TODO");
+      SHOGLE_ASSERT(false, "TODO");
   }
 
-  return {ntf::in_place, create_t{}, win, ctx_type};
+  return {in_place, create_t{}, win, ctx_type};
 }
 
 void glfw_imgui::start_frame() {
-  NTF_ASSERT(_win);
+  SHOGLE_ASSERT(_win);
   switch (_ctx_type) {
     case render_context_tag::opengl: {
       ImGui_ImplGlfw_NewFrame();
       ImGui_ImplOpenGL3_NewFrame();
     } break;
     default:
-      NTF_ASSERT(false, "TODO");
+      SHOGLE_ASSERT(false, "TODO");
   }
   ImGui::NewFrame();
 }
 
 void glfw_imgui::end_frame() {
-  NTF_ASSERT(_win);
+  SHOGLE_ASSERT(_win);
   auto* draw_data = ImGui::GetDrawData();
   switch (_ctx_type) {
     case render_context_tag::opengl: {
       ImGui_ImplOpenGL3_RenderDrawData(draw_data);
     } break;
     default:
-      NTF_ASSERT(false, "TODO");
+      SHOGLE_ASSERT(false, "TODO");
   }
 }
 
@@ -461,7 +463,7 @@ void glfw_imgui::destroy() noexcept {
         ImGui_ImplGlfw_Shutdown();
       } break;
       default:
-        NTF_ASSERT(false, "TODO");
+        SHOGLE_ASSERT(false, "TODO");
     }
     ImGui::DestroyContext();
     _win = nullptr;

@@ -2,6 +2,9 @@
 #include <shogle/math/common.hpp>
 #undef SHOGLE_MATH_COMMON_INL
 
+#include <algorithm>
+#include <cmath>
+
 namespace shogle::math {
 
 template<numeric_type T>

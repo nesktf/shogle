@@ -17,7 +17,7 @@ inline gl_vertex_layout::gl_vertex_layout(gl_context& gl, size_t stride,
 template<size_t AttribCount>
 gl_vertex_layout::gl_vertex_layout(gl_context& gl, size_t stride,
                                    span<const ::shogle::vertex_attribute, AttribCount> attribs)
-requires(AttribCount != ntf::dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS)
+requires(AttribCount != dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS)
     :
     gl_vertex_layout(
       ::shogle::gl_vertex_layout::create(gl, stride, attribs.data(), AttribCount).value()) {}
@@ -42,7 +42,7 @@ template<size_t AttribCount>
 gl_expect<gl_vertex_layout>
 gl_vertex_layout::create(gl_context& gl, size_t stride,
                          span<const ::shogle::vertex_attribute, AttribCount> attribs)
-requires(AttribCount != ntf::dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS)
+requires(AttribCount != dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS)
 {
   return ::shogle::gl_vertex_layout::create(gl, stride, attribs.data(), AttribCount);
 }

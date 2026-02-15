@@ -19,7 +19,7 @@ std::string_view buffer_type_name(gl_buffer::buffer_type type) {
     default:
       return "UNKNOWN";
   }
-  NTF_UNREACHABLE();
+  SHOGLE_UNREACHABLE();
 #undef STR
 }
 } // namespace
@@ -38,8 +38,8 @@ gl_buffer::gl_buffer(mutable_tag, gl_context& gl, buffer_type type, size_t size,
 auto gl_buffer::_allocate_span(gl_context& gl, gldefs::GLhandle* buffs, size_t count,
                                buffer_type type, size_t size, gldefs::GLenum usage,
                                const void* data, bool is_mutable) -> n_err_return {
-  NTF_ASSERT(buffs);
-  NTF_ASSERT(count);
+  SHOGLE_ASSERT(buffs);
+  SHOGLE_ASSERT(count);
   GL_ASSERT(glGenBuffers(count, buffs));
   size_t i = 0;
   for (; i < count; ++i) {
@@ -69,11 +69,11 @@ gl_expect<gl_buffer> gl_buffer::allocate(gl_context& gl, buffer_type type, size_
   const auto [count, err] =
     _allocate_span(gl, &buff, 1, type, size, (gldefs::GLenum)usage_flags, data, false);
   if (err) {
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
-  NTF_UNUSED(count);
-  NTF_ASSERT(count == 1);
-  return {ntf::in_place, create_t{}, buff, type, size, (gldefs::GLenum)usage_flags};
+  SHOGLE_UNUSED(count);
+  SHOGLE_ASSERT(count == 1);
+  return {in_place, create_t{}, buff, type, size, (gldefs::GLenum)usage_flags};
 }
 
 gl_expect<gl_buffer> gl_buffer::allocate_mut(gl_context& gl, buffer_type type, size_t size,
@@ -82,15 +82,15 @@ gl_expect<gl_buffer> gl_buffer::allocate_mut(gl_context& gl, buffer_type type, s
   const auto [count, err] =
     _allocate_span(gl, &buff, 1, type, size, (gldefs::GLenum)usage, data, true);
   if (err) {
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
-  NTF_UNUSED(count);
-  NTF_ASSERT(count == 1);
-  return {ntf::in_place, create_t{}, buff, type, size, (gldefs::GLenum)usage};
+  SHOGLE_UNUSED(count);
+  SHOGLE_ASSERT(count == 1);
+  return {in_place, create_t{}, buff, type, size, (gldefs::GLenum)usage};
 }
 
 void gl_buffer::deallocate(gl_context& gl, gl_buffer& buff) noexcept {
-  if (NTF_UNLIKELY(buff.invalidated())) {
+  if (SHOGLE_UNLIKELY(buff.invalidated())) {
     return;
   }
   GL_ASSERT(glDeleteBuffers(1, &buff._id));
@@ -100,11 +100,11 @@ void gl_buffer::deallocate(gl_context& gl, gl_buffer& buff) noexcept {
 }
 
 void gl_buffer::deallocate_n(gl_context& gl, gl_buffer* buffs, size_t buff_count) noexcept {
-  if (NTF_UNLIKELY(!buffs)) {
+  if (SHOGLE_UNLIKELY(!buffs)) {
     return;
   }
   for (size_t i = 0; i < buff_count; ++i) {
-    if (NTF_UNLIKELY(buffs[i].invalidated())) {
+    if (SHOGLE_UNLIKELY(buffs[i].invalidated())) {
       continue;
     }
     GL_CALL(glDeleteBuffers(1, &buffs[i]._id));
@@ -120,15 +120,15 @@ void gl_buffer::deallocate_n(gl_context& gl, span<gl_buffer> buffs) noexcept {
 
 gl_expect<void> gl_buffer::upload_data(gl_context& gl, const void* data, size_t size,
                                        size_t offset) {
-  NTF_ASSERT(!invalidated(), "gl_buffer use after free");
-  NTF_ASSERT(data, "Buffer upload with null pointer");
-  NTF_ASSERT(size, "Buffer upload with no size");
-  NTF_ASSERT(size + offset <= _size, "Buffer upload out of bounds");
+  SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
+  SHOGLE_ASSERT(data, "Buffer upload with null pointer");
+  SHOGLE_ASSERT(size, "Buffer upload with no size");
+  SHOGLE_ASSERT(size + offset <= _size, "Buffer upload out of bounds");
   GL_ASSERT(glBindBuffer(_type, _id));
   const auto err = GL_RET_ERR(glBufferSubData(_type, (GLintptr)offset, (GLsizeiptr)size, data));
   GL_ASSERT(glBindBuffer(_type, GL_DEFAULT_BINDING));
   if (err) {
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   } else {
     SHOGLE_GL_LOG(verbose, "BUFFER_WRITE ({}), (ptr: {}, sz: {}B/{}B, off: {}B)", _id,
                   fmt::ptr(data), size, _size, offset);
@@ -137,15 +137,15 @@ gl_expect<void> gl_buffer::upload_data(gl_context& gl, const void* data, size_t 
 }
 
 gl_expect<void> gl_buffer::read_data(gl_context& gl, void* data, size_t size, size_t offset) {
-  NTF_ASSERT(!invalidated(), "gl_buffer use after free");
-  NTF_ASSERT(data, "Buffer read with null pointer");
-  NTF_ASSERT(size, "Buffer read with no size");
-  NTF_ASSERT(size + offset <= _size, "Buffer read out of bounds");
+  SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
+  SHOGLE_ASSERT(data, "Buffer read with null pointer");
+  SHOGLE_ASSERT(size, "Buffer read with no size");
+  SHOGLE_ASSERT(size + offset <= _size, "Buffer read out of bounds");
   GL_ASSERT(glBindBuffer(_type, _id));
   const auto err = GL_RET_ERR(glGetBufferSubData(_type, (GLintptr)offset, (GLsizeiptr)size, data));
   GL_ASSERT(glBindBuffer(_type, GL_DEFAULT_BINDING));
   if (err) {
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   } else {
     SHOGLE_GL_LOG(verbose, "BUFFER_READ ({}) (ptr: {}, sz: {}B/{}B, off: {}B)", _id,
                   fmt::ptr(data), size, _size, offset);
@@ -155,36 +155,36 @@ gl_expect<void> gl_buffer::read_data(gl_context& gl, void* data, size_t size, si
 
 gl_expect<void*> gl_buffer::map_range(gl_context& gl, size_t size, size_t offset,
                                       gldefs::GLbitfield access_flags) {
-  NTF_ASSERT(!invalidated(), "gl_buffer use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
   GL_ASSERT(glBindBuffer(_type, _id));
   void* ptr = GL_CALL(glMapBufferRange(_type, offset, size, access_flags));
   const auto err = gl.get_error();
   GL_ASSERT(glBindBuffer(_type, GL_DEFAULT_BINDING));
   if (err != GL_NO_ERROR) {
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
   SHOGLE_GL_LOG(verbose, "BUFFER_MAP_RANGE ({}) (ptr: {}, sz: {}B/{}B, off: {}b, flags: {})", _id,
                 fmt::ptr(ptr), size, _size, offset, access_flags);
-  NTF_ASSERT(ptr);
-  return {ntf::in_place, ptr};
+  SHOGLE_ASSERT(ptr);
+  return {in_place, ptr};
 }
 
 gl_expect<void*> gl_buffer::map(gl_context& gl, gl_buffer::mapping_access access) {
-  NTF_ASSERT(!invalidated(), "gl_buffer use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
   GL_ASSERT(glBindBuffer(_type, _id));
   void* ptr = GL_CALL(glMapBuffer(_type, access));
   const auto err = gl.get_error();
   if (err != GL_NO_ERROR) {
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
   SHOGLE_GL_LOG(verbose, "BUFFER_MAP ({}) (ptr: {}, access: {})", _id, fmt::ptr(ptr),
                 (gldefs::GLenum)access);
-  NTF_ASSERT(ptr);
-  return {ntf::in_place, ptr};
+  SHOGLE_ASSERT(ptr);
+  return {in_place, ptr};
 }
 
 void gl_buffer::unmap(gl_context& gl) {
-  NTF_ASSERT(!invalidated(), "gl_buffer use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
   SHOGLE_GL_LOG(verbose, "BUFFER_UNMAP ({})", _id);
   GL_ASSERT(glBindBuffer(_type, _id));
   GL_ASSERT(glUnmapBuffer(_type));
@@ -193,8 +193,8 @@ void gl_buffer::unmap(gl_context& gl) {
 
 void gl_buffer::mut_realloc(gl_context& gl, size_t size, buffer_mut_usage usage,
                             const void* data) {
-  NTF_ASSERT(!invalidated(), "gl_buffer use after free");
-  NTF_ASSERT(is_mutable(), "Can't reallocate inmutable buffer");
+  SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
+  SHOGLE_ASSERT(is_mutable(), "Can't reallocate inmutable buffer");
   GL_ASSERT(glBufferData(_id, size, data, _usage));
   SHOGLE_GL_LOG(verbose, "BUFFER_REALLOC ({}) (data: {}, sz: {}B -> {}B, usage: {})", _id,
                 fmt::ptr(data), _size, size, (gldefs::GLenum)usage);
@@ -203,29 +203,29 @@ void gl_buffer::mut_realloc(gl_context& gl, size_t size, buffer_mut_usage usage,
 }
 
 gldefs::GLhandle gl_buffer::id() const {
-  NTF_ASSERT(!invalidated(), "gl_buffer use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
   return _id;
 }
 
 gl_buffer::buffer_type gl_buffer::type() const {
-  NTF_ASSERT(!invalidated(), "gl_buffer use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
   return _type;
 }
 
 size_t gl_buffer::size() const {
-  NTF_ASSERT(!invalidated(), "gl_buffer use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
   return _size;
 }
 
 gldefs::GLbitfield gl_buffer::usage_flags() const {
-  NTF_ASSERT(!invalidated(), "gl_buffer use after free");
-  NTF_ASSERT(!is_mutable(), "Mutable buffer doesn't have usage bits");
+  SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
+  SHOGLE_ASSERT(!is_mutable(), "Mutable buffer doesn't have usage bits");
   return (gldefs::GLbitfield)_usage;
 }
 
 gl_buffer::buffer_mut_usage gl_buffer::mut_usage() const {
-  NTF_ASSERT(!invalidated(), "gl_buffer use after free");
-  NTF_ASSERT(is_mutable(), "Inmutable buffer doesn't have usage state");
+  SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
+  SHOGLE_ASSERT(is_mutable(), "Inmutable buffer doesn't have usage state");
   return (buffer_mut_usage)_usage;
 }
 

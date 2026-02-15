@@ -2,15 +2,15 @@
 
 #include <shogle/core.hpp>
 
+#include <shogle/util/logger.hpp>
+#include <shogle/util/memory.hpp>
+
 #include <shogle/math/matrix4x4.hpp>
 #include <shogle/math/vector2.hpp>
 #include <shogle/math/vector3.hpp>
 #include <shogle/math/vector4.hpp>
 
-#ifndef SHOGLE_DISABLE_INTERNAL_LOGS
-#include <algorithm>
-#include <string_view>
-#endif
+#include <array>
 
 namespace shogle {
 
@@ -175,7 +175,7 @@ constexpr inline std::string_view attribute_name(::shogle::attribute_type type) 
 };
 
 #define SHOGLE_DECLARE_ATTRIB_TRAIT(type_, tag_, underlying_) \
-static_assert(std::is_trivial_v<type_>, NTF_STRINGIFY(type_) " is not trivial!!!"); \
+static_assert(std::is_trivial_v<type_>, SHOGLE_STRINGIFY(type_) " is not trivial!!!"); \
 template<> \
 struct attribute_traits<type_> { \
   using underlying_type = underlying_; \
@@ -215,9 +215,9 @@ SHOGLE_DECLARE_ATTRIB_TRAIT(uvec4, shogle::attribute_type::uvec4, u32);
 #define SHOGLE_RENDER_LOG(...)
 #else
 #define SHOGLE_RENDER_LOG(priority_, section_, fmt_, ...)				 \
-  ::ntf::logger::priority_("[ShOGLE][" section_ "][{}:{}] " fmt_, 			\
-													 ::shogle::meta::render_parse_src_str(NTF_FILE),	\
-                           NTF_LINE __VA_OPT__(,) __VA_ARGS__)
+  ::shogle::logger::log_##priority_(section_, "[{}:{}] " fmt_, 			\
+													 ::shogle::meta::render_parse_src_str(__FILE__),	\
+                           __LINE__ __VA_OPT__(,) __VA_ARGS__)
 
 consteval std::string_view render_parse_src_str(std::string_view file_str) {
   const char pos[] = {"render/"};

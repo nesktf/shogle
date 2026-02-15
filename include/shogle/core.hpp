@@ -1,22 +1,84 @@
 #pragma once
 
-#include <ntfstl/expected.hpp>
-#include <ntfstl/function.hpp>
-#include <ntfstl/memory.hpp>
-#include <ntfstl/ptr.hpp>
-#include <ntfstl/span.hpp>
-#include <ntfstl/unique_array.hpp>
+#include <shogle/config.hpp>
 
-#ifndef SHOGLE_DISABLE_INTERNAL_LOGS
-#include <ntfstl/logger.hpp>
+#define SHOGLE_NOOP         (void)0
+#define SHOGLE_UNUSED(expr) (void)(true ? SHOGLE_NOOP : ((void)(expr)))
+
+#define SHOGLE_APPLY_VA_ARGS(M, ...)   SHOGLE_APPLY_VA_ARGS_(M, (__VA_ARGS__))
+#define SHOGLE_APPLY_VA_ARGS_(M, args) M args
+
+#define SHOGLE_JOIN(lhs, rhs)   SHOGLE_JOIN_(lhs, rhs)
+#define SHOGLE_JOIN_(lhs, rhs)  SHOGLE_JOIN__(lhs, rhs)
+#define SHOGLE_JOIN__(lhs, rhs) lhs##rhs
+
+#define SHOGLE_NARG_(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, \
+                     _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, \
+                     _32, _33, ...)                                                             \
+  _33
+
+#define SHOGLE_EMPTY_MACRO
+#define SHOGLE_NARG(...)                                                                         \
+  SHOGLE_APPLY_VA_ARGS(SHOGLE_NARG_, SHOGLE_EMPTY_MACRO, ##__VA_ARGS__, 32, 31, 30, 29, 28, 27,  \
+                       26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, \
+                       7, 6, 5, 4, 3, 2, 1, 0, SHOGLE_EMPTY_MACRO)
+
+#define SHOGLE_LIKELY(arg)   __builtin_expect(!!(arg), !0)
+#define SHOGLE_UNLIKELY(arg) __builtin_expect(!!(arg), 0)
+
+#define SHOGLE_STRINGIFY_(a) #a
+#define SHOGLE_STRINGIFY(a)  SHOGLE_STRINGIFY_(a)
+
+#ifdef NDEBUG
+#define SHOGLE_ABORT() ::std::abort()
+#else
+#ifdef __clang__
+#define SHOGLE_ABORT() __builtin_debugtrap()
+#else
+#define SHOGLE_ABORT() __builtin_trap()
+#endif
 #endif
 
+#ifdef NDEBUG
+#define SHOGLE_ASSERT(...) SHOGLE_NOOP
+#else
+#define SHOGLE_ASSERT_1(cond, ...) SHOGLE_ASSERT_2(cond, nullptr)
+#define SHOGLE_ASSERT_2(cond, msg)                                                         \
+  do {                                                                                     \
+    if (SHOGLE_UNLIKELY(!std::is_constant_evaluated() && !(cond))) {                       \
+      ::shogle::impl::assert_failure(#cond, __PRETTY_FUNCTION__, __FILE__, __LINE__, msg); \
+    }                                                                                      \
+  } while (0)
+
+#define SHOGLE_ASSERT_(...) \
+  SHOGLE_APPLY_VA_ARGS(SHOGLE_JOIN(SHOGLE_ASSERT_, SHOGLE_NARG(__VA_ARGS__)), __VA_ARGS__)
+
+namespace shogle::impl {
+
+[[noreturn]] void assert_failure(const char* cond, const char* func, const char* file, int line,
+                                 const char* msg);
+
+}; // namespace shogle::impl
+
+#define SHOGLE_ASSERT(...) SHOGLE_ASSERT_(__VA_ARGS__)
+#endif
+
+#define SHOGLE_UNREACHABLE() __builtin_unreachable()
+
+#ifndef SHOGLE_DISABLE_EXCEPTIONS
 #define SHOGLE_THROW(thing_) throw thing_
 
 #define SHOGLE_THROW_IF(cond_, thing_) \
   if (cond_) {                         \
     SHOGLE_THROW(thing_);              \
   }
+#define SHOGLE_RETHROW() throw
+#else
+#define SHOGLE_RETHROW()  SHOGLE_NOOP
+#define SHOGLE_THROW(err) SHOGLE_ASSERT(false, "Thrown exception " #err)
+#define SHOGLE_THROW_IF(cond, err) \
+  SHOGLE_ASSERT(false && "Condition " #cond " failed, thrown " #err)
+#endif
 
 #if defined(_MSC_VER)
 #define SHOGLE_INLINE    __forceinline
@@ -39,82 +101,55 @@
 #define SHOGLE_SELF_STATIC_CONST_MEMBER static constexpr
 #endif
 
-#include <list>
-#include <memory>
-#include <unordered_map>
-#include <unordered_set>
-
-// TODO: Move these to ntfstl?
-namespace ntf {
-
-namespace meta {
-template<typename Cont>
-concept any_std_cont = requires(Cont a, const Cont b) {
-  requires std::regular<Cont>;
-  requires std::swappable<Cont>;
-  requires std::destructible<typename Cont::value_type>;
-  requires std::same_as<typename Cont::reference, typename Cont::value_type&>;
-  requires std::same_as<typename Cont::const_reference, const typename Cont::value_type&>;
-  requires std::forward_iterator<typename Cont::iterator>;
-  requires std::forward_iterator<typename Cont::const_iterator>;
-  requires std::signed_integral<typename Cont::difference_type>;
-  requires std::same_as<typename Cont::difference_type,
-                        typename std::iterator_traits<typename Cont::iterator>::difference_type>;
-  requires std::same_as<
-    typename Cont::difference_type,
-    typename std::iterator_traits<typename Cont::const_iterator>::difference_type>;
-  { a.begin() } -> std::same_as<typename Cont::iterator>;
-  { a.end() } -> std::same_as<typename Cont::iterator>;
-  { b.begin() } -> std::same_as<typename Cont::const_iterator>;
-  { b.end() } -> std::same_as<typename Cont::const_iterator>;
-  { a.cbegin() } -> std::same_as<typename Cont::const_iterator>;
-  { a.cend() } -> std::same_as<typename Cont::const_iterator>;
-  { a.size() } -> std::same_as<typename Cont::size_type>;
-  { a.max_size() } -> std::same_as<typename Cont::size_type>;
-  { a.empty() } -> std::same_as<bool>;
-};
-
-template<typename Cont, typename T>
-concept std_cont_of =
-  any_std_cont<Cont> && requires() { requires std::same_as<typename Cont::value_type, T>; };
-
-template<typename Cont, typename T, typename... Args>
-concept growable_emplace_container_of =
-  std_cont_of<Cont, T> && requires(Cont c, T obj, Args&&... args) {
-    { c.emplace_back(obj) } -> std::same_as<typename Cont::reference>;
-    { c.emplace_back(std::move(obj)) } -> std::same_as<typename Cont::reference>;
-    { c.emplace_back(std::forward<Args>(args)...) } -> std::same_as<typename Cont::reference>;
-  };
-
-template<typename Cont, typename T>
-concept growable_push_container_of = std_cont_of<Cont, T> && requires(Cont c, T obj) {
-  { c.push_back(obj) } -> std::same_as<typename Cont::reference>;
-  { c.push_back(std::move(obj)) } -> std::same_as<typename Cont::reference>;
-};
-
-template<typename Cont>
-concept reservable_std_cont = any_std_cont<Cont> && requires(Cont c, typename Cont::size_type sz) {
-  { c.reserve(sz) } -> std::same_as<void>;
-};
-
-} // namespace meta
-
-} // namespace ntf
+#include <cstdint>
+#include <functional>
+#include <limits>
+#include <utility>
 
 namespace shogle {
 
-using namespace ntf::numdefs;
+namespace numdefs {
 
-using ntf::span;
+using size_t = std::size_t;
+using ptrdiff_t = std::ptrdiff_t;
+using uintptr_t = std::uintptr_t;
 
-using ntf::ptr_view;
-using ntf::ref_view;
+using uint8 = std::uint8_t;
+using u8 = uint8;
 
-template<typename T>
-using sv_expect = ntf::expected<T, std::string_view>;
+using uint16 = std::uint16_t;
+using u16 = uint16;
 
-template<typename T>
-using s_expect = ntf::expected<T, std::string>;
+using uint32 = std::uint32_t;
+using u32 = uint32;
+
+using uint64 = std::uint64_t;
+using u64 = uint64;
+
+using int8 = std::int8_t;
+using i8 = int8;
+
+using int16 = std::int16_t;
+using i16 = int16;
+
+using int32 = std::int32_t;
+using i32 = int32;
+
+using int64 = std::int64_t;
+using i64 = int64;
+
+using float32 = float;
+using f32 = float32;
+
+using float64 = double;
+using f64 = float64;
+
+} // namespace numdefs
+
+using namespace numdefs;
+
+using std::in_place_t;
+constexpr in_place_t in_place;
 
 template<typename F>
 class scope_end {
@@ -174,92 +209,6 @@ constexpr inline u32 VSPAN_TOMBSTONE = std::numeric_limits<u32>::max();
 struct vec_span {
   u32 index;
   u32 count;
-
-  template<typename Vec, typename Fun>
-  void for_each(Vec& vec, Fun&& f) const {
-    NTF_ASSERT(index != VSPAN_TOMBSTONE);
-    NTF_ASSERT(index + count <= vec.size());
-    for (u32 i = index; i < index + count; ++i) {
-      f(vec[i]);
-    }
-  }
-
-  template<typename Vec, typename Fun>
-  void for_each(const Vec& vec, Fun&& f) const {
-    NTF_ASSERT(index != VSPAN_TOMBSTONE);
-    NTF_ASSERT(index + count <= vec.size());
-    for (u32 i = index; i < index + count; ++i) {
-      f(vec[i]);
-    }
-  }
 };
-
-template<typename T>
-using vec = std::vector<T, ::ntf::mem::default_pool::allocator<T>>;
-
-template<typename T>
-using linked_list = std::list<T, ::ntf::mem::default_pool::allocator<T>>;
-
-template<typename K, typename T, typename Hash = std::hash<K>, typename Pred = std::equal_to<K>>
-using linked_hashmap =
-  std::unordered_map<K, T, Hash, Pred, ::ntf::mem::default_pool::allocator<std::pair<K, T>>>;
-
-template<typename T, typename Hash = std::hash<T>, typename Pred = std::equal_to<T>>
-using linked_set = std::unordered_set<T, Hash, Pred, ::ntf::mem::default_pool::allocator<T>>;
-
-template<typename T>
-using unique_ptr = std::unique_ptr<T, ::ntf::mem::default_pool::deleter<T>>;
-
-template<typename T>
-using unique_array = ::ntf::unique_array<T, ::ntf::mem::default_pool::deleter<T>>;
-
-using scratch_arena = ::ntf::mem::growing_arena;
-
-template<typename T>
-using scratch_vec = std::vector<T, scratch_arena::allocator<T>>;
-
-template<typename T>
-scratch_vec<T> make_scratch_vec(scratch_arena& arena) {
-  return scratch_vec<T>(scratch_arena::allocator<T>{arena});
-}
-
-template<typename T>
-using scratch_list = std::list<T, scratch_arena::allocator<T>>;
-
-template<typename T>
-scratch_list<T> make_scratch_list(scratch_arena& arena) {
-  return scratch_list<T>(scratch_arena::allocator<T>{arena});
-}
-
-template<typename T>
-using scratch_unique = std::unique_ptr<T, scratch_arena::deleter<T>>;
-
-template<typename T, typename... Args>
-scratch_unique<T> make_scratch_unique(scratch_arena& arena, Args&&... args) {
-  return scratch_unique<T>(arena.construct<T>(std::forward<Args>(args)...));
-}
-
-template<typename T>
-using scratch_array = ::ntf::unique_array<T, scratch_arena::deleter<T>>;
-
-template<typename T>
-scratch_array<T> make_scratch_array(scratch_arena& arena, scratch_arena::size_type n) {
-  auto* ptr = arena.construct_n<T>(n);
-  return scratch_array<T>(ptr, n);
-}
-
-template<typename T>
-scratch_array<T> make_scratch_array(scratch_arena& arena, scratch_arena::size_type n,
-                                    const T& copy) {
-  auto* ptr = arena.construct_n<T>(n, copy);
-  return scratch_array<T>(ptr, n);
-}
-
-template<typename T>
-scratch_array<T> make_scratch_array(ntf::uninitialized_t tag, scratch_arena& arena,
-                                    scratch_arena::size_type n) {
-  auto* ptr = arena.construct_n<T>(tag, n);
-  return scratch_array<T>(ptr, n);
-}
 
 } // namespace shogle

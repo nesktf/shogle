@@ -7,7 +7,7 @@
 
 namespace {
 
-using namespace ntf::numdefs;
+using namespace shogle::numdefs;
 
 constexpr std::string_view vert_src = R"glsl(
 #version 460 core
@@ -84,7 +84,7 @@ constexpr size_t ebo_size = indices.size() * sizeof(indices[0]);
 } // namespace
 
 int main() {
-  ntf::logger::set_level(ntf::log_level::verbose);
+  shogle::logger::set_level(shogle::logger::LEVEL_VERBOSE);
 
   const auto glfw = shogle::glfw_win::initialize_lib();
   const auto hints = shogle::glfw_gl_hints::make_default(4, 6);

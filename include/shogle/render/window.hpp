@@ -2,12 +2,16 @@
 
 #include <shogle/render/common.hpp>
 
-#ifndef SHOGLE_DISABLE_GLFW
+#include <shogle/util/expected.hpp>
+
+#ifdef SHOGLE_ENABLE_GLFW
 #include <GLFW/glfw3.h>
 #endif
 
 #ifdef SHOGLE_ENABLE_IMGUI
-#include <imgui.h>
+#ifndef IMGUI_API
+#include <shogle/extern/imgui.h>
+#endif
 #endif
 
 #include <chrono>
@@ -84,7 +88,7 @@ public:
   alpha_mode window_alpha;
   u32 msaa_samples;
   u32 swap_interval;
-  ntf::optional<glfw_x11_hints> x11;
+  optional<glfw_x11_hints> x11;
 };
 
 struct glfw_key_data {

@@ -23,7 +23,7 @@ public:
 
 public:
   color4 clear_color;
-  ntf::optional<rectangle_pos<u32>> viewport;
+  optional<rectangle_pos<u32>> viewport;
   gldefs::GLenum clear_flags;
   span<const fbo_initializer> fbos;
 };
@@ -50,7 +50,7 @@ public:
 
 private:
   color4 _color;
-  ntf::optional<rectangle_pos<u32>> _viewport;
+  optional<rectangle_pos<u32>> _viewport;
   gldefs::GLenum _clear_flags;
   std::vector<gl_clear_opts::fbo_initializer> _fbos;
 };
@@ -117,9 +117,9 @@ public:
   span<const shader_binding> shader_bindings;
   span<const texture_binding> texture_bindings;
   span<const push_uniform> uniforms;
-  ntf::optional<index_binding> index_bind;
-  ntf::optional<rectangle_pos<u32>> viewport;
-  ntf::optional<rectangle_pos<u32>> scissor;
+  optional<index_binding> index_bind;
+  optional<rectangle_pos<u32>> viewport;
+  optional<rectangle_pos<u32>> scissor;
   size_t vertex_offset;
   u32 draw_count;
   u32 instances;
@@ -174,9 +174,9 @@ private:
   std::vector<gl_draw_command::shader_binding> _shader_binds;
   std::vector<gl_draw_command::texture_binding> _texture_binds;
   std::vector<gl_draw_command::push_uniform> _uniforms;
-  ntf::optional<gl_draw_command::index_binding> _index;
-  ntf::optional<rectangle_pos<u32>> _viewport;
-  ntf::optional<rectangle_pos<u32>> _scissor;
+  optional<gl_draw_command::index_binding> _index;
+  optional<rectangle_pos<u32>> _viewport;
+  optional<rectangle_pos<u32>> _scissor;
   size_t _vertex_offset;
   u32 _draw_count;
   u32 _instances;
@@ -184,7 +184,7 @@ private:
 
 struct gl_external_command {
 public:
-  using callback_type = ntf::function_view<void(gl_context& gl, gldefs::GLhandle fbo)>;
+  using callback_type = function_view<void(gl_context& gl, gldefs::GLhandle fbo)>;
 
 public:
   callback_type callback;
@@ -232,7 +232,7 @@ private:
   gl_graphics_pipeline::polygon_mode _poly_mode;
   f32 _poly_width;
   rectangle_pos<u32> _viewport;
-  ntf::optional<rectangle_pos<u32>> _scissor;
+  optional<rectangle_pos<u32>> _scissor;
 };
 
 class gl_context {

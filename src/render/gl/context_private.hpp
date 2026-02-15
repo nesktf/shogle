@@ -4,25 +4,27 @@
 
 #include <shogle/core.hpp>
 
+#include <shogle/util/memory.hpp>
+
 #if defined(SHOGLE_USE_SYSTEM_GL) && SHOGLE_USE_SYSTEM_GL
 #define GL_CALL(func) (func)
 #else
 #define GL_CALL(func) ::shogle::impl::gl_get_private(gl).funcs.func
 #endif
 
-#define GL_ASSERT(func)                                                        \
-  do {                                                                         \
-    GL_CALL(func);                                                             \
-    const GLenum glerr = gl.get_error();                                       \
-    NTF_ASSERT(glerr == 0, "[GL_ERROR] {}", ::shogle::gl_error_string(glerr)); \
+#define GL_ASSERT(func)                                                 \
+  do {                                                                  \
+    GL_CALL(func);                                                      \
+    const GLenum glerr = gl.get_error();                                \
+    SHOGLE_ASSERT(glerr == 0, ::shogle::gl_error_string(glerr).data()); \
   } while (0)
 
-#define GL_ASSERT_RET(func)                                                    \
-  [&]() {                                                                      \
-    const auto ret = GL_CALL(func);                                            \
-    const GLenum glerr = gl.get_error();                                       \
-    NTF_ASSERT(glerr == 0, "[GL_ERROR] {}", ::shogle::gl_error_string(glerr)); \
-    return ret;                                                                \
+#define GL_ASSERT_RET(func)                                             \
+  [&]() {                                                               \
+    const auto ret = GL_CALL(func);                                     \
+    const GLenum glerr = gl.get_error();                                \
+    SHOGLE_ASSERT(glerr == 0, ::shogle::gl_error_string(glerr).data()); \
+    return ret;                                                         \
   }();
 
 #define GL_RET_ERR(func)                 \
@@ -36,10 +38,10 @@ namespace shogle {
 
 class gl_private {
 public:
-  gl_private(scratch_arena&& arena_) noexcept : arena(std::move(arena_)) {}
+  gl_private(mem::scratch_arena&& arena_) noexcept : arena(std::move(arena_)) {}
 
 public:
-  scratch_arena arena;
+  mem::scratch_arena arena;
   const char* renderer_string;
   const char* vendor_string;
   const char* version_string;

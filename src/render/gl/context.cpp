@@ -158,7 +158,7 @@ gl_command_builder& gl_command_builder::set_draw_count(u32 count) {
 gl_command_builder& gl_command_builder::set_index_buffer(const gl_buffer& buffer,
                                                          gl_draw_command::index_format format,
                                                          size_t index_offset) {
-  NTF_ASSERT(buffer.type() == gl_buffer::TYPE_INDEX, "Binding non index buffer for indices");
+  SHOGLE_ASSERT(buffer.type() == gl_buffer::TYPE_INDEX, "Binding non index buffer for indices");
   if (_index.has_value()) {
     _index->buffer = buffer.id();
     _index->format = format;
@@ -170,16 +170,17 @@ gl_command_builder& gl_command_builder::set_index_buffer(const gl_buffer& buffer
 }
 
 gl_command_builder& gl_command_builder::add_vertex_buffer(const gl_buffer& buffer, u32 location) {
-  NTF_ASSERT(buffer.type() == gl_buffer::TYPE_VERTEX, "Binding non vertex buffer for vertices");
+  SHOGLE_ASSERT(buffer.type() == gl_buffer::TYPE_VERTEX, "Binding non vertex buffer for vertices");
   _vertex_binds.emplace_back(buffer.id(), location);
   return *this;
 }
 
 gl_command_builder& gl_command_builder::add_shader_buffer(u32 location, const gl_buffer& buffer,
                                                           size_t size, size_t offset) {
-  NTF_ASSERT(buffer.type() == gl_buffer::TYPE_SHADER || buffer.type() == gl_buffer::TYPE_UNIFORM,
-             "Binding non shader buffer to shader");
-  NTF_ASSERT(offset + size <= buffer.size(), "Shader binding out of buffer range");
+  SHOGLE_ASSERT(buffer.type() == gl_buffer::TYPE_SHADER ||
+                  buffer.type() == gl_buffer::TYPE_UNIFORM,
+                "Binding non shader buffer to shader");
+  SHOGLE_ASSERT(offset + size <= buffer.size(), "Shader binding out of buffer range");
   _shader_binds.emplace_back(buffer.id(), (gldefs::GLenum)buffer.type(), size, offset, location);
   return *this;
 }
@@ -190,8 +191,8 @@ gl_command_builder& gl_command_builder::add_texture(const gl_texture& texture, u
 }
 
 gl_draw_command gl_command_builder::build() const {
-  NTF_ASSERT(!_vertex_layout.empty(), "No vertex layout provided in builder");
-  NTF_ASSERT(!_pipeline.empty(), "No pipeline provided in builder");
+  SHOGLE_ASSERT(!_vertex_layout.empty(), "No vertex layout provided in builder");
+  SHOGLE_ASSERT(!_pipeline.empty(), "No pipeline provided in builder");
   return {
     .vertex_layout = *_vertex_layout,
     .pipeline = *_pipeline,
@@ -305,7 +306,7 @@ void gl_external_command_builder::reset() {
 }
 
 gl_external_command gl_external_command_builder::build() const {
-  NTF_ASSERT(!_callback.is_empty(), "Callback not bound to external command");
+  SHOGLE_ASSERT(!_callback.is_empty(), "Callback not bound to external command");
   return {
     .callback = _callback,
     .depth_test = _depth,
@@ -324,7 +325,7 @@ namespace {
 
 APIENTRY void debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity, GLsizei,
                              const char* message, const void* user) {
-  NTF_UNUSED(user);
+  SHOGLE_UNUSED(user);
 
   std::string_view severity_msg = [severity]() {
     switch (severity) {
@@ -404,21 +405,21 @@ APIENTRY void debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity
 
 sv_expect<gl_context> gl_context::create(gl_surface_provider& surf_prov) noexcept {
   static constexpr size_t initial_arena_pages = 16;
-  const size_t initial_arena_size = initial_arena_pages * ntf::mem::system_page_size();
+  const size_t initial_arena_size = initial_arena_pages * mem::system_page_size();
 
   try {
-    auto arena = scratch_arena::with_initial_size(initial_arena_size);
+    auto arena = mem::scratch_arena::with_initial_size(initial_arena_size);
     if (!arena) {
-      return {ntf::unexpect, "Failed to allocate scratch arena"};
+      return {unexpect, "Failed to allocate scratch arena"};
     }
 
-    context_data ctx(ntf::mem::default_pool::instance().construct<gl_private>(std::move(*arena)));
+    context_data ctx(new gl_private(std::move(*arena)));
     ctx->surf_prov = static_cast<void*>(&surf_prov);
 
 #if defined(SHOGLE_USE_SYSTEM_GL) && SHOGLE_USE_SYSTEM_GL
     ctx->version_string = reinterpret_cast<const char*>(glGetString(GL_VERSION));
     if (!ctx->version_string) {
-      return {ntf::unexpect, "Failed to retrieve OpenGL version"};
+      return {unexpect, "Failed to retrieve OpenGL version"};
     }
     shogle_gl_get_version(ctx->version_string, &ctx->ver);
     ctx->vendor_string = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
@@ -427,34 +428,34 @@ sv_expect<gl_context> gl_context::create(gl_surface_provider& surf_prov) noexcep
 #else
     const auto proc = surf_prov.gl_proc_loader();
     if (!proc) {
-      return {ntf::unexpect, "Invalid glGetProcAddress function"};
+      return {unexpect, "Invalid glGetProcAddress function"};
     }
     auto err = shogle_gl_load_funcs((PFN_shogle_glGetProcAddress)proc, &ctx->funcs, &ctx->ver);
     if (err) {
       static constexpr auto errors = std::to_array<const char*>(
         {"Failed to load OpenGL functions", "Failed to load OpenGL", "Invalid OpenGL version"});
-      return {ntf::unexpect, errors[static_cast<u32>(err) - 1]};
+      return {unexpect, errors[static_cast<u32>(err) - 1]};
     }
     ctx->version_string = reinterpret_cast<const char*>(ctx->funcs.glGetString(GL_VERSION));
     ctx->vendor_string = reinterpret_cast<const char*>(ctx->funcs.glGetString(GL_VENDOR));
     ctx->renderer_string = reinterpret_cast<const char*>(ctx->funcs.glGetString(GL_RENDERER));
     ctx->funcs.glDebugMessageCallback((GLDEBUGPROC)debug_callback, ctx.get());
 #endif
-    NTF_ASSERT(ctx->version_string);
-    NTF_ASSERT(ctx->vendor_string);
-    NTF_ASSERT(ctx->renderer_string);
+    SHOGLE_ASSERT(ctx->version_string);
+    SHOGLE_ASSERT(ctx->vendor_string);
+    SHOGLE_ASSERT(ctx->renderer_string);
     SHOGLE_GL_LOG(debug, "OpenGL context created (ptr: {})", fmt::ptr(ctx.get()));
     SHOGLE_GL_LOG(debug, "{}, {}, {}", ctx->version_string, ctx->vendor_string,
                   ctx->renderer_string);
-    return {ntf::in_place, create_t{}, std::move(ctx)};
+    return {in_place, create_t{}, std::move(ctx)};
   } catch (...) {
-    return {ntf::unexpect, "Failed to allocate OpenGL context"};
+    return {unexpect, "Failed to allocate OpenGL context"};
   }
 }
 
 void gl_context::context_deleter::operator()(gl_private* ptr) noexcept {
   SHOGLE_GL_LOG(debug, "OpenGL context destroyed (ptr: {})", fmt::ptr(ptr));
-  ntf::alloc_destroy(ptr);
+  delete ptr;
 }
 
 gl_context::gl_context(create_t, context_data&& ctx) noexcept : _ctx(std::move(ctx)) {}
@@ -463,21 +464,21 @@ gl_context::gl_context(gl_surface_provider& surf_prov) :
     gl_context(::shogle::gl_context::create(surf_prov).value()) {}
 
 gl_private& impl::gl_get_private(gl_context& gl) {
-  NTF_ASSERT(gl._ctx, "gl_context use after free");
+  SHOGLE_ASSERT(gl._ctx, "gl_context use after free");
   return *gl._ctx;
 }
 
-scratch_arena& impl::gl_get_scratch_arena(gl_context& gl) {
+mem::scratch_arena& impl::gl_get_scratch_arena(gl_context& gl) {
   return impl::gl_get_private(gl).arena;
 }
 
 gl_surface_provider& gl_context::provider() const {
-  NTF_ASSERT(_ctx, "gl_context use after free");
+  SHOGLE_ASSERT(_ctx, "gl_context use after free");
   return *static_cast<gl_surface_provider*>(_ctx->surf_prov);
 }
 
 gldefs::GLenum gl_context::get_error() const {
-  NTF_ASSERT(_ctx, "gl_context use after free");
+  SHOGLE_ASSERT(_ctx, "gl_context use after free");
   gldefs::GLenum out = 0;
   gldefs::GLenum err;
   const auto& funcs = _ctx->funcs;
@@ -488,23 +489,23 @@ gldefs::GLenum gl_context::get_error() const {
 }
 
 gl_context::gl_version gl_context::version() const {
-  NTF_ASSERT(_ctx, "gl_context use after free");
+  SHOGLE_ASSERT(_ctx, "gl_context use after free");
   return gl_version{.major = static_cast<u32>(_ctx->ver.maj),
                     .minor = static_cast<u32>(_ctx->ver.min)};
 }
 
 std::string_view gl_context::renderer_string() const {
-  NTF_ASSERT(_ctx, "gl_context use after free");
+  SHOGLE_ASSERT(_ctx, "gl_context use after free");
   return _ctx->renderer_string;
 }
 
 std::string_view gl_context::vendor_string() const {
-  NTF_ASSERT(_ctx, "gl_context use after free");
+  SHOGLE_ASSERT(_ctx, "gl_context use after free");
   return _ctx->vendor_string;
 }
 
 std::string_view gl_context::version_string() const {
-  NTF_ASSERT(_ctx, "gl_context use after free");
+  SHOGLE_ASSERT(_ctx, "gl_context use after free");
   return _ctx->version_string;
 }
 
@@ -602,7 +603,7 @@ u32 attribute_dimension(attribute_type attrib) {
 void setup_vertex_attributes(gl_context& gl, const gl_vertex_layout& layout,
                              span<const gl_draw_command::vertex_binding> vertex_buffers) {
   const auto attribs = layout.attributes();
-  NTF_ASSERT(!attribs.empty());
+  SHOGLE_ASSERT(!attribs.empty());
 
   const auto bind_attrib_pointer = [&](shogle::attribute_type type, u32 location, size_t offset_) {
     void* offset = reinterpret_cast<void*>(offset_);
@@ -624,34 +625,35 @@ void setup_vertex_attributes(gl_context& gl, const gl_vertex_layout& layout,
           glVertexAttribIPointer(location, dimension, underlying, layout.stride(), offset));
       } break;
       default:
-        NTF_UNREACHABLE();
+        SHOGLE_UNREACHABLE();
     }
   };
 
   GL_ASSERT(glBindVertexArray(layout.vao()));
   if (layout.type() == gl_vertex_layout::TYPE_AOS_LAYOUT) {
-    NTF_ASSERT(vertex_buffers.size() == 1, "AOS vertex layouts uses only a single vertex buffer");
+    SHOGLE_ASSERT(vertex_buffers.size() == 1,
+                  "AOS vertex layouts uses only a single vertex buffer");
     GL_ASSERT(glBindBuffer(GL_ARRAY_BUFFER, vertex_buffers[0].buffer));
     for (const auto& attrib : attribs) {
-      NTF_ASSERT(attrib.location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
-                 "Attribute location out of range");
+      SHOGLE_ASSERT(attrib.location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+                    "Attribute location out of range");
       bind_attrib_pointer(attrib.type, attrib.location, attrib.offset);
     }
   } else {
-    NTF_ASSERT(vertex_buffers.size() == attribs.size(),
-               "SOA vertex layout needs equal number of vertex buffers and attributes");
-    NTF_ASSERT(vertex_buffers.size() >= gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
-               "Vertex buffer count out ofr attribute range");
+    SHOGLE_ASSERT(vertex_buffers.size() == attribs.size(),
+                  "SOA vertex layout needs equal number of vertex buffers and attributes");
+    SHOGLE_ASSERT(vertex_buffers.size() >= gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+                  "Vertex buffer count out ofr attribute range");
 
     std::array<GLuint, gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS> bind_map{};
     for (const auto [buffer, location] : vertex_buffers) {
-      NTF_ASSERT(location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
-                 "Vertex buffer binding out of range");
+      SHOGLE_ASSERT(location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+                    "Vertex buffer binding out of range");
       bind_map[location] = buffer;
     }
     for (const auto& attrib : attribs) {
-      NTF_ASSERT(attrib.location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
-                 "Attribute location out of range");
+      SHOGLE_ASSERT(attrib.location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+                    "Attribute location out of range");
       const GLuint buffer = bind_map[attrib.location];
       if (buffer == 0) {
         continue;
@@ -748,7 +750,7 @@ void upload_uniforms(gl_context& gl, span<const gl_draw_command::push_uniform> u
 } // namespace
 
 void gl_context::start_frame(const gl_clear_opts& clear) {
-  NTF_ASSERT(_ctx, "gl_context use after free");
+  SHOGLE_ASSERT(_ctx, "gl_context use after free");
   auto& gl = *this;
 
   const auto clear_framebuffer = [&](GLuint fbo, const color4& color, GLbitfield clear_flags,
@@ -775,7 +777,7 @@ void gl_context::start_frame(const gl_clear_opts& clear) {
 
 void gl_context::submit_command(const gl_draw_command& cmd,
                                 ptr_view<const gl_framebuffer> target) {
-  NTF_ASSERT(_ctx, "gl_context use after free");
+  SHOGLE_ASSERT(_ctx, "gl_context use after free");
   auto& gl = *this;
   const gl_graphics_pipeline& pipeline = *cmd.pipeline;
   const auto primitive = pipeline.primitive();
@@ -803,7 +805,7 @@ void gl_context::submit_command(const gl_draw_command& cmd,
   };
 
   const auto draw_indexed = [&]() {
-    NTF_ASSERT(cmd.index_bind.has_value())
+    SHOGLE_ASSERT(cmd.index_bind.has_value());
     static constexpr auto idx_formats = std::to_array<gldefs::GLenum>({
       0x1400, // GL_BYTE
       0x1401, // GL_UNSIGNED_BYTE
@@ -820,7 +822,7 @@ void gl_context::submit_command(const gl_draw_command& cmd,
       sizeof(i32), // GL_INT
       sizeof(u32), // GL_UNSIGNED_INT
     });
-    NTF_ASSERT(cmd.index_bind->format < idx_formats.size(), "Invalid index buffer format");
+    SHOGLE_ASSERT(cmd.index_bind->format < idx_formats.size(), "Invalid index buffer format");
     const u32 format_idx = cmd.index_bind->format;
     GL_ASSERT(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cmd.index_bind->buffer));
 
@@ -864,8 +866,8 @@ void gl_context::submit_command(const gl_draw_command& cmd,
 
 void gl_context::submit_command(const gl_external_command& cmd,
                                 ptr_view<const gl_framebuffer> target) {
-  NTF_ASSERT(_ctx, "gl_context use after free");
-  NTF_ASSERT(!cmd.callback.is_empty(), "Empty external command callback");
+  SHOGLE_ASSERT(_ctx, "gl_context use after free");
+  SHOGLE_ASSERT(!cmd.callback.is_empty(), "Empty external command callback");
   const GLuint fbo = target.empty() ? DEFAULT_FRAMEBUFFER : target->id();
   setup_framebuffer(*this, fbo, cmd.viewport, cmd.scissor);
   setup_render_state(*this, cmd.depth_test, cmd.stencil_test, cmd.blending, cmd.culling,
@@ -878,7 +880,7 @@ void gl_context::end_frame() {
 }
 
 void gl_context::destroy() noexcept {
-  if (NTF_UNLIKELY(!_ctx)) {
+  if (SHOGLE_UNLIKELY(!_ctx)) {
     return;
   }
   _ctx.reset();

@@ -13,13 +13,13 @@ gl_expect<gl_vertex_layout> gl_vertex_layout::create(gl_context& gl, size_t stri
                                                      const ::shogle::vertex_attribute* attribs,
                                                      u32 attrib_count) {
   if (!attribs || !attrib_count) {
-    return {ntf::unexpect, GL_INVALID_VALUE};
+    return {unexpect, GL_INVALID_VALUE};
   }
 
   GLuint vao;
   const auto err = GL_RET_ERR(glCreateVertexArrays(1, &vao));
   if (err) {
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
 
   attribute_array attributes;
@@ -33,11 +33,11 @@ gl_expect<gl_vertex_layout> gl_vertex_layout::create(gl_context& gl, size_t stri
                   ::shogle::meta::attribute_name(attrib.type));
   }
 #endif
-  return {ntf::in_place, create_t{}, vao, std::move(attributes), attrib_count, stride};
+  return {in_place, create_t{}, vao, std::move(attributes), attrib_count, stride};
 }
 
 void gl_vertex_layout::destroy(gl_context& gl, gl_vertex_layout& layout) noexcept {
-  if (NTF_UNLIKELY(layout.invalidated())) {
+  if (SHOGLE_UNLIKELY(layout.invalidated())) {
     return;
   }
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
@@ -54,11 +54,11 @@ void gl_vertex_layout::destroy(gl_context& gl, gl_vertex_layout& layout) noexcep
 
 void gl_vertex_layout::destroy_n(gl_context& gl, gl_vertex_layout* layouts,
                                  size_t count) noexcept {
-  if (NTF_UNLIKELY(!layouts)) {
+  if (SHOGLE_UNLIKELY(!layouts)) {
     return;
   }
   for (size_t i = 0; i < count; ++i) {
-    if (NTF_UNLIKELY(layouts[i].invalidated())) {
+    if (SHOGLE_UNLIKELY(layouts[i].invalidated())) {
       continue;
     }
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
@@ -79,22 +79,22 @@ void gl_vertex_layout::destroy_n(gl_context& gl, span<gl_vertex_layout> layouts)
 }
 
 gldefs::GLhandle gl_vertex_layout::vao() const {
-  NTF_ASSERT(_vao != GL_NULL_HANDLE, "gl_vertex_layout use after free");
+  SHOGLE_ASSERT(_vao != GL_NULL_HANDLE, "gl_vertex_layout use after free");
   return _vao;
 }
 
 span<const vertex_attribute> gl_vertex_layout::attributes() const {
-  NTF_ASSERT(_vao != GL_NULL_HANDLE, "gl_vertex_layout use after free");
+  SHOGLE_ASSERT(_vao != GL_NULL_HANDLE, "gl_vertex_layout use after free");
   return {_attributes.data(), _attribute_count};
 }
 
 size_t gl_vertex_layout::stride() const {
-  NTF_ASSERT(_vao != GL_NULL_HANDLE, "gl_vertex_layout use after free");
+  SHOGLE_ASSERT(_vao != GL_NULL_HANDLE, "gl_vertex_layout use after free");
   return _stride;
 }
 
 auto gl_vertex_layout::type() const -> layout_type {
-  NTF_ASSERT(_vao != GL_NULL_HANDLE, "gl_vertex_layout use after free");
+  SHOGLE_ASSERT(_vao != GL_NULL_HANDLE, "gl_vertex_layout use after free");
   return _stride ? TYPE_AOS_LAYOUT : TYPE_SOA_LAYOUT;
 }
 

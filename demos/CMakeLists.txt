@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.25)
-include(FetchContent)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -Wall -Wextra -Wpedantic -O0 -g2 -ggdb -Wno-psabi")
@@ -24,6 +23,7 @@ FetchContent_Declare(
   chimatools
   GIT_REPOSITORY https://github.com/nesktf/chimatools.git
   GIT_TAG 64086978def2957458dbca1f0e28ec3efb326e9f # 1.0.0
+  GIT_PROGRESS TRUE
   FIND_PACKAGE_ARGS NAMES chimatools
 )
 FetchContent_MakeAvailable(chimatools)

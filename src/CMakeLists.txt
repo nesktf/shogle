@@ -1,33 +1,71 @@
 cmake_minimum_required(VERSION 3.25)
 
-file(GLOB_RECURSE SHOGLE_RENDER_GL_SOURCES "${SHOGLE_SOURCE_DIR}/render/gl/**.cpp")
-list(APPEND SHOGLE_RENDER_GL_SOURCES "${SHOGLE_SOURCE_DIR}/render/gl/loader.c")
-set(SHOGLE_RENDER_SOURCES "${SHOGLE_SOURCE_DIR}/render/window.cpp" ${SHOGLE_RENDER_GL_SOURCES})
+set(SOURCES)
+set(INCLUDES)
 
-file(GLOB_RECURSE SHOGLE_UTIL_SOURCES "${SHOGLE_SOURCE_DIR}/util/**.cpp")
+list(APPEND SOURCES
+    "${SHOGLE_SOURCE_DIR}/util/filesystem.cpp"
+    "${SHOGLE_SOURCE_DIR}/util/logger.cpp"
+    "${SHOGLE_SOURCE_DIR}/util/memory.cpp"
+    "${SHOGLE_SOURCE_DIR}/render/window.cpp")
 
-set(SHOGLE_SOURCES ${SHOGLE_UTIL_SOURCES} ${SHOGLE_RENDER_SOURCES})
+list(APPEND INCLUDES
+    "${SHOGLE_INCLUDE_DIR}/shogle/core.hpp"
 
-file(GLOB_RECURSE SHOGLE_INTERNAL_HEADERS "${SHOGLE_SOURCE_DIR}/**.hpp")
+    "${SHOGLE_INCLUDE_DIR}/shogle/util/concepts.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/util/expected.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/util/filesystem.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/util/logger.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/util/optional.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/util/ptr.hpp"
 
-file(GLOB_RECURSE SHOGLE_CPP_HEADERS "${SHOGLE_INCLUDE_DIR}/**.hpp")
-file(GLOB_RECURSE SHOGLE_CPP_INLINE "${SHOGLE_INCLUDE_DIR}/**.inl")
-file(GLOB_RECURSE SHOGLE_C_HEADERS "${SHOGLE_INCLUDE_DIR}/**.h")
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/common.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/aabb.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/calc.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/matrix3x3.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/matrix3x3.inl"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/matrix4x4.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/matrix4x4.inl"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/quaternion.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/quaternion.inl"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/vector2.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/vector2.inl"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/vector3.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/vector3.inl"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/vector4.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/vector4.inl"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/transform.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/math/camera.hpp"
 
-add_library(shogle ${SHOGLE_LIBRARY_TYPE}
-									 ${SHOGLE_C_HEADERS}
-                   ${SHOGLE_CPP_HEADERS} ${SHOGLE_CPP_INLINE}
-                   ${SHOGLE_INTERNAL_HEADERS}
-                   ${SHOGLE_SOURCES}
-                   ${SHOGLE_EXTERN_INCLUDES}
-                   ${SHOGLE_EXTERN_SOURCES})
+    "${SHOGLE_INCLUDE_DIR}/shogle/render/common.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/render/data.hpp"
+    "${SHOGLE_INCLUDE_DIR}/shogle/render/window.hpp")
 
-configure_file("${SHOGLE_SOURCE_DIR}/version.hpp.in" "include/shogle/version.hpp" @ONLY)
+if (SHOGLE_ENABLE_OPENGL)
+  list(APPEND SOURCES
+      "${SHOGLE_SOURCE_DIR}/render/gl/loader.c"
+      "${SHOGLE_SOURCE_DIR}/render/gl/context.cpp"
+      "${SHOGLE_SOURCE_DIR}/render/gl/buffer.cpp"
+      "${SHOGLE_SOURCE_DIR}/render/gl/framebuffer.cpp"
+      "${SHOGLE_SOURCE_DIR}/render/gl/pipeline.cpp"
+      "${SHOGLE_SOURCE_DIR}/render/gl/texture.cpp"
+      "${SHOGLE_SOURCE_DIR}/render/gl/vertex.cpp")
 
-target_include_directories(shogle PUBLIC
-                           "$<BUILD_INTERFACE:${SHOGLE_INCLUDE_DIR}>"
-                           "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+  list(APPEND INCLUDES
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/gldefs.h"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/loader.h"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/common.hpp"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/context.hpp"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/buffer.hpp"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/buffer.inl"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/framebuffer.hpp"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/pipeline.hpp"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/texture.hpp"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/texture.inl"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/vertex.hpp"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/gl/vertex.inl"
+      "${SHOGLE_INCLUDE_DIR}/shogle/render/opengl.hpp")
+endif()
 
-set_target_properties(shogle PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 20)
-target_link_libraries(shogle PUBLIC ${SHOGLE_EXTERN_LINK})
-target_compile_definitions(${PROJECT_NAME} PUBLIC ${SHOGLE_DEFS})
+set(SHOGLE_SOURCES ${SOURCES} PARENT_SCOPE)
+set(SHOGLE_INCLUDES ${INCLUDES} PARENT_SCOPE)

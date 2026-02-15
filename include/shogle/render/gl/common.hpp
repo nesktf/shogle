@@ -2,6 +2,9 @@
 
 #include <shogle/render/common.hpp>
 
+#include <shogle/util/expected.hpp>
+#include <shogle/util/ptr.hpp>
+
 // TODO: Do something to avoid polluting the root namespace with this?
 #include <KHR/khrplatform.h>
 
@@ -30,7 +33,7 @@ class gl_framebuffer;
 
 namespace impl {
 
-scratch_arena& gl_get_scratch_arena(gl_context& gl);
+::shogle::mem::scratch_arena& gl_get_scratch_arena(gl_context& gl);
 gl_private& gl_get_private(gl_context& gl);
 
 } // namespace impl
@@ -77,13 +80,30 @@ private:
 };
 
 template<typename T>
-using gl_sv_expect = ntf::expected<T, gl_sv_error>;
+using gl_sv_expect = expected<T, gl_sv_error>;
 
 template<typename T>
-using gl_s_expect = ntf::expected<T, gl_s_error>;
+using gl_s_expect = expected<T, gl_s_error>;
+
+class gl_error : public std::exception {
+public:
+  gl_error() noexcept : _err(0) {}
+
+  gl_error(gldefs::GLenum err) noexcept : _err(err) {}
+
+public:
+  const char* what() const noexcept override { return gl_error_string(_err).data(); }
+
+  gldefs::GLenum code() const noexcept { return _err; }
+
+  std::string_view code_str() const noexcept { return gl_error_string(_err); }
+
+private:
+  gldefs::GLenum _err;
+};
 
 template<typename T>
-using gl_expect = ntf::expected<T, gldefs::GLenum>;
+using gl_expect = expected<T, gl_error>;
 
 template<typename T>
 struct gl_deleter;

@@ -2,7 +2,6 @@
 
 #include <shogle/core.hpp>
 
-#include <cmath>
 #include <complex>
 
 #define SHOGLE_MATH_DECL constexpr

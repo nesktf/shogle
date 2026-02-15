@@ -49,18 +49,18 @@ gl_s_expect<gl_shader> gl_shader::create(gl_context& gl, std::string_view src,
     GL_ASSERT(glDeleteShader(shader));
     std::string_view buffer_view(log_buffer, std::min(err_len, 1024));
     SHOGLE_GL_LOG(error, "Shader compilation failed: {}", buffer_view);
-    return {ntf::unexpect, fmt::format("Shader compilation failed: {}", buffer_view)};
+    return {unexpect, fmt::format("Shader compilation failed: {}", buffer_view)};
   }
   SHOGLE_GL_LOG(verbose, "Shader created ({}) (type: {})", shader, shader_name(stage));
-  return {ntf::in_place, create_t{}, shader, stage};
+  return {in_place, create_t{}, shader, stage};
 }
 
 void gl_shader::destroy_n(gl_context& gl, gl_shader* shaders, size_t count) noexcept {
-  if (NTF_UNLIKELY(!shaders)) {
+  if (SHOGLE_UNLIKELY(!shaders)) {
     return;
   }
   for (size_t i = 0; i < count; ++i) {
-    if (NTF_UNLIKELY(shaders[i].invalidated())) {
+    if (SHOGLE_UNLIKELY(shaders[i].invalidated())) {
       continue;
     }
     SHOGLE_GL_LOG(verbose, "Shader destroyed ({}) (type: {})", shaders[i]._id,
@@ -75,7 +75,7 @@ void gl_shader::destroy_n(gl_context& gl, span<gl_shader> shaders) noexcept {
 }
 
 void gl_shader::destroy(gl_context& gl, gl_shader& shader) noexcept {
-  if (NTF_UNLIKELY(shader.invalidated())) {
+  if (SHOGLE_UNLIKELY(shader.invalidated())) {
     return;
   }
   SHOGLE_GL_LOG(verbose, "Shader destroyed ({}) (type: {})", shader._id,
@@ -85,12 +85,12 @@ void gl_shader::destroy(gl_context& gl, gl_shader& shader) noexcept {
 }
 
 gldefs::GLhandle gl_shader::id() const {
-  NTF_ASSERT(!invalidated(), "gl_shader use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_shader use after free");
   return _id;
 }
 
 gl_shader::shader_stage gl_shader::stage() const {
-  NTF_ASSERT(!invalidated(), "gl_shader use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_shader use after free");
   return _stage;
 }
 
@@ -118,8 +118,8 @@ gl_shader_builder::gl_shader_builder() noexcept {
 }
 
 gl_shader_builder& gl_shader_builder::add_shader(const gl_shader& shader) {
-  NTF_ASSERT(shader.stage() != gl_shader::STAGE_COMPUTE,
-             "Can't use compute shaders in a graphics pipeline");
+  SHOGLE_ASSERT(shader.stage() != gl_shader::STAGE_COMPUTE,
+                "Can't use compute shaders in a graphics pipeline");
   _shaders[map_shader(shader.stage())] = shader.id();
   return *this;
 }
@@ -130,16 +130,16 @@ gldefs::GLhandle gl_shader_builder::get_shader(gl_shader::shader_stage stage) {
 
 gl_shader::graphics_set gl_shader_builder::build() const {
   const auto vert = _shaders[map_shader(gl_shader::STAGE_VERTEX)];
-  NTF_ASSERT(vert, "No vertex shader");
+  SHOGLE_ASSERT(vert, "No vertex shader");
 
   const auto frag = _shaders[map_shader(gl_shader::STAGE_FRAGMENT)];
-  NTF_ASSERT(frag, "No fragment shaer");
+  SHOGLE_ASSERT(frag, "No fragment shaer");
 
   std::array<gldefs::GLhandle, 5u> shader_set;
   u32 shader_count = 0;
   gldefs::GLbitfield stages = gl_shader::STAGE_NO_BITS;
   const auto add_shader = [&](gldefs::GLhandle shader, gl_shader::stages_bits bits) {
-    NTF_ASSERT(shader_count < shader_set.size());
+    SHOGLE_ASSERT(shader_count < shader_set.size());
     shader_set[shader_count++] = shader;
     stages |= bits;
   };
@@ -160,7 +160,7 @@ gl_shader::graphics_set gl_shader_builder::build() const {
     }
   }
 
-  NTF_ASSERT(shader_count >= 2 && shader_count <= 5);
+  SHOGLE_ASSERT(shader_count >= 2 && shader_count <= 5);
   return {shader_set, shader_count, stages};
 }
 
@@ -179,10 +179,11 @@ gl_graphics_pipeline::gl_graphics_pipeline(gl_context& gl,
 gl_s_expect<gl_graphics_pipeline>
 gl_graphics_pipeline::create(gl_context& gl, const gl_shader::graphics_set& shaders) {
   const auto shader_span = shaders.stages();
-  NTF_ASSERT(!shader_span.empty(), "No shaders in set");
-  NTF_ASSERT(shader_span.size() >= 2 && shader_span.size() <= 5, "Invalid shader set");
-  NTF_ASSERT(shaders.active_stages() & gl_shader::STAGE_VERTEX_BIT, "No vertex shader in set");
-  NTF_ASSERT(shaders.active_stages() & gl_shader::STAGE_FRAGMENT_BIT, "No fragment shader in set");
+  SHOGLE_ASSERT(!shader_span.empty(), "No shaders in set");
+  SHOGLE_ASSERT(shader_span.size() >= 2 && shader_span.size() <= 5, "Invalid shader set");
+  SHOGLE_ASSERT(shaders.active_stages() & gl_shader::STAGE_VERTEX_BIT, "No vertex shader in set");
+  SHOGLE_ASSERT(shaders.active_stages() & gl_shader::STAGE_FRAGMENT_BIT,
+                "No fragment shader in set");
 
   gldefs::GLhandle program = GL_ASSERT_RET(glCreateProgram());
   for (const gldefs::GLhandle shader : shader_span) {
@@ -200,18 +201,18 @@ gl_graphics_pipeline::create(gl_context& gl, const gl_shader::graphics_set& shad
     GL_ASSERT(glDeleteProgram(program));
     std::string_view buffer_view(log_buffer, std::min(err_len, 1024));
     SHOGLE_GL_LOG(error, "Program linking failed: {}", buffer_view);
-    return {ntf::unexpect, fmt::format("Program linking failed: {}", buffer_view)};
+    return {unexpect, fmt::format("Program linking failed: {}", buffer_view)};
   }
 
   for (const gldefs::GLhandle shader : shader_span) {
     GL_ASSERT(glDettachShader(program, shader));
   }
   SHOGLE_GL_LOG(verbose, "Pipeline created ({})", program);
-  return {ntf::in_place, create_t{}, program, shaders.active_stages()};
+  return {in_place, create_t{}, program, shaders.active_stages()};
 }
 
 void gl_graphics_pipeline::destroy(gl_context& gl, gl_graphics_pipeline& pipeline) noexcept {
-  if (NTF_UNLIKELY(pipeline.invalidated())) {
+  if (SHOGLE_UNLIKELY(pipeline.invalidated())) {
     return;
   }
   GL_CALL(glDeleteProgram(pipeline._program));
@@ -221,11 +222,11 @@ void gl_graphics_pipeline::destroy(gl_context& gl, gl_graphics_pipeline& pipelin
 
 void gl_graphics_pipeline::destroy_n(gl_context& gl, gl_graphics_pipeline* pipelines,
                                      size_t count) noexcept {
-  if (NTF_UNLIKELY(!pipelines)) {
+  if (SHOGLE_UNLIKELY(!pipelines)) {
     return;
   }
   for (size_t i = 0; i < count; ++i) {
-    if (NTF_UNLIKELY(pipelines[i].invalidated())) {
+    if (SHOGLE_UNLIKELY(pipelines[i].invalidated())) {
       continue;
     }
     SHOGLE_GL_LOG(verbose, "Pipeline destroyed ({})", pipelines[i]._program);
@@ -239,18 +240,18 @@ void gl_graphics_pipeline::destroy_n(gl_context& gl,
   destroy_n(gl, pipelines.data(), pipelines.size());
 }
 
-ntf::optional<u32> gl_graphics_pipeline::uniform_location(gl_context& gl, const char* name) const {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+optional<u32> gl_graphics_pipeline::uniform_location(gl_context& gl, const char* name) const {
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   const gldefs::GLint loc = GL_ASSERT_RET(glGetUniformLocation(_program, name));
   if (loc == -1) {
-    return {ntf::nullopt};
+    return {nullopt};
   } else {
-    return {ntf::in_place, static_cast<u32>(loc)};
+    return {in_place, static_cast<u32>(loc)};
   }
 }
 
 u32 gl_graphics_pipeline::uniform_count(gl_context& gl) const {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   gldefs::GLint count;
   GL_ASSERT(glGetProgramiv(_program, GL_ACTIVE_UNIFORMS, &count));
   return static_cast<u32>(count);
@@ -258,7 +259,7 @@ u32 gl_graphics_pipeline::uniform_count(gl_context& gl) const {
 
 auto gl_graphics_pipeline::query_uniform_index(gl_context& gl, shader_attrib_props& props,
                                                u32 idx) const -> shader_attrib_type {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   gldefs::GLint size;
   gldefs::GLsizei len;
   gldefs::GLenum type;
@@ -273,19 +274,18 @@ auto gl_graphics_pipeline::query_uniform_index(gl_context& gl, shader_attrib_pro
   return props.type;
 }
 
-ntf::optional<u32> gl_graphics_pipeline::attribute_location(gl_context& gl,
-                                                            const char* name) const {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+optional<u32> gl_graphics_pipeline::attribute_location(gl_context& gl, const char* name) const {
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   const gldefs::GLint loc = GL_ASSERT_RET(glGetAttribLocation(_program, name));
   if (loc == -1) {
-    return {ntf::nullopt};
+    return {nullopt};
   } else {
-    return {ntf::in_place, static_cast<u32>(loc)};
+    return {in_place, static_cast<u32>(loc)};
   }
 }
 
 u32 gl_graphics_pipeline::attribute_count(gl_context& gl) const {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   gldefs::GLint count;
   GL_ASSERT(glGetProgramiv(_program, GL_ACTIVE_ATTRIBUTES, &count));
   return static_cast<u32>(count);
@@ -293,7 +293,7 @@ u32 gl_graphics_pipeline::attribute_count(gl_context& gl) const {
 
 auto gl_graphics_pipeline::query_attribute_index(gl_context& gl, shader_attrib_props& props,
                                                  u32 idx) const -> shader_attrib_type {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   gldefs::GLint size;
   gldefs::GLsizei len;
   gldefs::GLenum type;
@@ -309,7 +309,7 @@ auto gl_graphics_pipeline::query_attribute_index(gl_context& gl, shader_attrib_p
 }
 
 gl_graphics_pipeline& gl_graphics_pipeline::reset_props() {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   _primitive = PRIMITIVE_TRIANGLES;
   _poly_mode = POLY_MODE_FILL;
   _poly_width = 1.f;
@@ -321,90 +321,90 @@ gl_graphics_pipeline& gl_graphics_pipeline::reset_props() {
 }
 
 gl_graphics_pipeline& gl_graphics_pipeline::set_primitive(primitive_mode primitive) {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   _primitive = primitive;
   return *this;
 }
 
 gl_graphics_pipeline& gl_graphics_pipeline::set_poly_mode(polygon_mode poly_mode) {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   _poly_mode = poly_mode;
   return *this;
 }
 
 gl_graphics_pipeline& gl_graphics_pipeline::set_poly_width(f32 poly_width) {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   _poly_width = poly_width;
   return *this;
 }
 
 gl_graphics_pipeline&
 gl_graphics_pipeline::set_stencil_test(const gl_stencil_test_props& stencil) {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   _stencil = stencil;
   return *this;
 }
 
 gl_graphics_pipeline& gl_graphics_pipeline::set_depth_test(const gl_depth_test_props& depth) {
-  NTF_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(_program != GL_NULL_HANDLE, "gl_graphics_pipeline use after free");
   _depth = depth;
   return *this;
 }
 
 gl_graphics_pipeline& gl_graphics_pipeline::set_blending(const gl_blending_props& blending) {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   _blending = blending;
   return *this;
 }
 
 gl_graphics_pipeline& gl_graphics_pipeline::set_culling(const gl_culling_props& culling) {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   _culling = culling;
   return *this;
 }
 
 gldefs::GLhandle gl_graphics_pipeline::program() const {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   return _program;
 }
 
 gldefs::GLbitfield gl_graphics_pipeline::stages() const {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   return _stages;
 }
 
 auto gl_graphics_pipeline::primitive() const -> primitive_mode {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   return _primitive;
 }
 
 auto gl_graphics_pipeline::poly_mode() const -> polygon_mode {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   return _poly_mode;
 }
 
 f32 gl_graphics_pipeline::poly_width() const {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   return _poly_width;
 }
 
 const gl_stencil_test_props& gl_graphics_pipeline::stencil_test() const {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   return _stencil;
 }
 
 const gl_depth_test_props& gl_graphics_pipeline::depth_test() const {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   return _depth;
 }
 
 const gl_blending_props& gl_graphics_pipeline::blending() const {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   return _blending;
 }
 
 const gl_culling_props& gl_graphics_pipeline::culling() const {
-  NTF_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_graphics_pipeline use after free");
   return _culling;
 }
 

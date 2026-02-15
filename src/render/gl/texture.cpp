@@ -46,12 +46,12 @@ namespace {
 
 auto allocate_textures(gl_context& gl, const gldefs::GLenum* texes, u32 count,
                        const gl_texture::allocate_args& args) -> gl_texture::n_err_return {
-  NTF_ASSERT(texes != nullptr && count > 0);
-  NTF_ASSERT(args.levels <= gl_texture::MAX_MIPMAP_LEVEL);
+  SHOGLE_ASSERT(texes != nullptr && count > 0);
+  SHOGLE_ASSERT(args.levels <= gl_texture::MAX_MIPMAP_LEVEL);
 
   gldefs::GLenum err = 0;
   const auto allocate1d = [&](u32 width) -> u32 {
-    NTF_ASSERT(width);
+    SHOGLE_ASSERT(width);
     constexpr auto type = gl_texture::TEX_TYPE_1D;
     u32 i = 0;
     for (; i < count; ++i) {
@@ -65,8 +65,8 @@ auto allocate_textures(gl_context& gl, const gldefs::GLenum* texes, u32 count,
   };
   const auto allocate2d = [&](gldefs::GLenum type, u32 width, u32 height,
                               gl_texture::multisample_opt ms) -> u32 {
-    NTF_ASSERT(width);
-    NTF_ASSERT(height);
+    SHOGLE_ASSERT(width);
+    SHOGLE_ASSERT(height);
     u32 i = 0;
     if (!ms) {
       for (; i < count; ++i) {
@@ -90,9 +90,9 @@ auto allocate_textures(gl_context& gl, const gldefs::GLenum* texes, u32 count,
   };
   const auto allocate3d = [&](gldefs::GLenum type, u32 width, u32 height, u32 depth,
                               gl_texture::multisample_opt ms) -> u32 {
-    NTF_ASSERT(width);
-    NTF_ASSERT(height);
-    NTF_ASSERT(depth);
+    SHOGLE_ASSERT(width);
+    SHOGLE_ASSERT(height);
+    SHOGLE_ASSERT(depth);
     u32 i = 0;
     if (ms) {
       for (; i < count; ++i) {
@@ -122,27 +122,27 @@ auto allocate_textures(gl_context& gl, const gldefs::GLenum* texes, u32 count,
       allocated = allocate1d(args.extent.width);
     } break;
     case gl_texture::TEX_TYPE_1D_ARRAY: {
-      NTF_ASSERT(args.layers);
+      SHOGLE_ASSERT(args.layers);
       allocated = allocate2d(args.type, args.extent.width, args.layers, no_ms);
     } break;
     case gl_texture::TEX_TYPE_CUBEMAP: {
-      NTF_ASSERT(args.extent.width == args.extent.height);
+      SHOGLE_ASSERT(args.extent.width == args.extent.height);
       allocated = allocate2d(args.type, args.extent.width, args.extent.height, no_ms);
     } break;
     case gl_texture::TEX_TYPE_2D: {
       allocated = allocate2d(args.type, args.extent.width, args.extent.height, no_ms);
     } break;
     case gl_texture::TEX_TYPE_2D_ARRAY: {
-      NTF_ASSERT(args.layers);
+      SHOGLE_ASSERT(args.layers);
       allocated = allocate3d(args.type, args.extent.width, args.extent.height, args.layers, no_ms);
     } break;
     case gl_texture::TEX_TYPE_2D_MULTISAMPLE: {
-      NTF_ASSERT(args.multisampling);
+      SHOGLE_ASSERT(args.multisampling);
       allocated = allocate2d(args.type, args.extent.width, args.extent.height, args.multisampling);
     } break;
     case gl_texture::TEX_TYPE_2D_MULTISAMPLE_ARRAY: {
-      NTF_ASSERT(args.multisampling);
-      NTF_ASSERT(args.layers);
+      SHOGLE_ASSERT(args.multisampling);
+      SHOGLE_ASSERT(args.layers);
       allocated = allocate3d(args.type, args.extent.width, args.extent.height, args.layers,
                              args.multisampling);
     } break;
@@ -151,8 +151,8 @@ auto allocate_textures(gl_context& gl, const gldefs::GLenum* texes, u32 count,
         allocate3d(args.type, args.extent.width, args.extent.height, args.extent.depth, no_ms);
     } break;
     default: {
-      NTF_ASSERT(false, "Unknown texture type {}", (u32)args.type);
-      NTF_UNREACHABLE();
+      SHOGLE_ASSERT(false, "Unknown texture type");
+      SHOGLE_UNREACHABLE();
     };
   }
 
@@ -239,7 +239,7 @@ std::string_view tex_format_string(gl_texture::texture_format format) {
     STR(SRGB8_AL8);
 
     default:
-      NTF_UNREACHABLE();
+      SHOGLE_UNREACHABLE();
   }
 
 #undef STR
@@ -259,7 +259,7 @@ std::string_view tex_sampler_string(gldefs::GLenum sampler) {
     STR(NEAREST_MP_LINEAR);
     STR(LINEAR_MP_LINEAR);
     default:
-      NTF_UNREACHABLE();
+      SHOGLE_UNREACHABLE();
   }
 
 #undef STR
@@ -287,13 +287,13 @@ std::string_view tex_type_string(gl_texture::texture_type type) {
     case gl_texture::TEX_TYPE_BUFFER:
       return "TEX_BUFFER";
     default:
-      NTF_UNREACHABLE();
+      SHOGLE_UNREACHABLE();
   }
 }
 
 void log_allocation([[maybe_unused]] gl_context& gl, gldefs::GLhandle tex,
                     const gl_texture::allocate_args& args) {
-  NTF_ASSERT(args.multisampling <= gl_texture::MULTISAMPLE_FIXED);
+  SHOGLE_ASSERT(args.multisampling <= gl_texture::MULTISAMPLE_FIXED);
   static constexpr auto ms_str = std::to_array<std::string_view>({"NONE", "NOT_FIXED", "FIXED"});
 
   SHOGLE_GL_LOG(
@@ -328,7 +328,7 @@ void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
       STR(F16);
       STR(U32D24S8);
       default:
-        NTF_UNREACHABLE();
+        SHOGLE_UNREACHABLE();
     }
 #undef STR
   };
@@ -346,7 +346,7 @@ void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
       STR(DEPTH);
       STR(DEPTH_STENCIL);
       default:
-        NTF_UNREACHABLE();
+        SHOGLE_UNREACHABLE();
     }
 #undef STR
   };
@@ -381,7 +381,7 @@ void log_destroy([[maybe_unused]] gl_context& gl, const gl_texture& tex) {
 
 auto gl_texture::_allocate_span(gl_context& gl, span<gldefs::GLenum> texes,
                                 const allocate_args& args) -> n_err_return {
-  NTF_ASSERT(!texes.empty());
+  SHOGLE_ASSERT(!texes.empty());
   GL_ASSERT(glGenTextures(texes.size(), texes.data()));
   const auto allocated = allocate_textures(gl, texes.data(), texes.size(), args);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
@@ -408,17 +408,17 @@ gl_expect<gl_texture> gl_texture::allocate1d(gl_context& gl, texture_format form
     .multisampling = MULTISAMPLE_NONE,
   };
   const auto [allocated, err] = allocate_textures(gl, &tex, 1, args);
-  NTF_UNUSED(allocated);
+  SHOGLE_UNUSED(allocated);
   if (err) {
-    NTF_ASSERT(allocated == 0);
+    SHOGLE_ASSERT(allocated == 0);
     GL_ASSERT(glDeleteTextures(1, &tex));
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
-  NTF_ASSERT(allocated == 1);
+  SHOGLE_ASSERT(allocated == 1);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
   log_allocation(gl, tex, args);
 #endif
-  return {ntf::in_place, create_t{}, tex, args};
+  return {in_place, create_t{}, tex, args};
 }
 
 gl_expect<gl_texture> gl_texture::allocate2d(gl_context& gl, texture_format format,
@@ -436,17 +436,17 @@ gl_expect<gl_texture> gl_texture::allocate2d(gl_context& gl, texture_format form
     .multisampling = multisampling,
   };
   const auto [allocated, err] = allocate_textures(gl, &tex, 1, args);
-  NTF_UNUSED(allocated);
+  SHOGLE_UNUSED(allocated);
   if (err) {
-    NTF_ASSERT(allocated == 0);
+    SHOGLE_ASSERT(allocated == 0);
     GL_ASSERT(glDeleteTextures(1, &tex));
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
-  NTF_ASSERT(allocated == 1);
+  SHOGLE_ASSERT(allocated == 1);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
   log_allocation(gl, tex, args);
 #endif
-  return {ntf::in_place, create_t{}, tex, args};
+  return {in_place, create_t{}, tex, args};
 }
 
 gl_expect<gl_texture> gl_texture::allocate_cubemap(gl_context& gl, texture_format format,
@@ -462,17 +462,17 @@ gl_expect<gl_texture> gl_texture::allocate_cubemap(gl_context& gl, texture_forma
     .multisampling = MULTISAMPLE_NONE,
   };
   const auto [allocated, err] = allocate_textures(gl, &tex, 1, args);
-  NTF_UNUSED(allocated);
+  SHOGLE_UNUSED(allocated);
   if (err) {
-    NTF_ASSERT(allocated == 0);
+    SHOGLE_ASSERT(allocated == 0);
     GL_ASSERT(glDeleteTextures(1, &tex));
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
-  NTF_ASSERT(allocated == 1);
+  SHOGLE_ASSERT(allocated == 1);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
   log_allocation(gl, tex, args);
 #endif
-  return {ntf::in_place, create_t{}, tex, args};
+  return {in_place, create_t{}, tex, args};
 }
 
 gl_expect<gl_texture> gl_texture::allocate3d(gl_context& gl, texture_format format,
@@ -488,17 +488,17 @@ gl_expect<gl_texture> gl_texture::allocate3d(gl_context& gl, texture_format form
     .multisampling = MULTISAMPLE_NONE,
   };
   const auto [allocated, err] = allocate_textures(gl, &tex, 1, args);
-  NTF_UNUSED(allocated);
+  SHOGLE_UNUSED(allocated);
   if (err) {
-    NTF_ASSERT(allocated == 0);
+    SHOGLE_ASSERT(allocated == 0);
     GL_ASSERT(glDeleteTextures(1, &tex));
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
-  NTF_ASSERT(allocated == 1);
+  SHOGLE_ASSERT(allocated == 1);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
   log_allocation(gl, tex, args);
 #endif
-  return {ntf::in_place, create_t{}, tex, args};
+  return {in_place, create_t{}, tex, args};
 }
 
 gl_expect<gl_texture> gl_texture::bind_to_buffer(gl_context& gl, const gl_buffer& buffer,
@@ -512,9 +512,9 @@ gl_expect<gl_texture> gl_texture::bind_to_buffer(gl_context& gl, const gl_buffer
   GL_ASSERT(glBindTexture(TEX_TYPE_BUFFER, GL_DEFAULT_BINDING));
   if (err) {
     GL_ASSERT(glDeleteTextures(1, &tex));
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
-  return {ntf::in_place, create_t{}, tex, format, size, offset};
+  return {in_place, create_t{}, tex, format, size, offset};
 }
 
 void gl_texture::deallocate(gl_context& gl, gl_texture& tex) {
@@ -566,7 +566,7 @@ auto do_upload_images(gl_context& gl, gldefs::GLhandle tex, gl_texture::texture_
   if (type == gl_texture::TEX_TYPE_BUFFER) {
     return {0, GL_INVALID_VALUE};
   }
-  NTF_ASSERT(images != nullptr && image_count);
+  SHOGLE_ASSERT(images != nullptr && image_count);
 
   gldefs::GLenum err = 0;
   const auto upload1d = [&](u32 xoff) {
@@ -634,7 +634,7 @@ auto do_upload_images(gl_context& gl, gldefs::GLhandle tex, gl_texture::texture_
       uploaded = upload3d(offset.depth);
     }; break;
     default:
-      NTF_UNREACHABLE();
+      SHOGLE_UNREACHABLE();
   }
   GL_ASSERT(glBindTexture(type, GL_DEFAULT_BINDING));
   return {uploaded, err};
@@ -645,17 +645,17 @@ auto do_upload_images(gl_context& gl, gldefs::GLhandle tex, gl_texture::texture_
 gl_expect<void> gl_texture::upload_image(gl_context& gl, const image_data& image,
                                          const extent3d& offset, u32 layer, u32 level) {
   if (type() == gl_texture::TEX_TYPE_BUFFER) {
-    return {ntf::unexpect, GL_INVALID_VALUE};
+    return {unexpect, GL_INVALID_VALUE};
   }
 
   const auto [count, err] = do_upload_images(gl, id(), type(), &image, 1, offset, level);
   if (err) {
     SHOGLE_GL_LOG(error, "Texture upload failed ({}) [type: {}, ptr: {}, err: {}]", id(),
                   tex_type_string(type()), fmt::ptr(&image), ::shogle::gl_error_string(err));
-    return {ntf::unexpect, err};
+    return {unexpect, err};
   }
-  NTF_UNUSED(count);
-  NTF_ASSERT(count == 1);
+  SHOGLE_UNUSED(count);
+  SHOGLE_ASSERT(count == 1);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
   log_upload(gl, *this, image, offset, layer, level);
 #endif
@@ -669,7 +669,7 @@ auto gl_texture::upload_image_layers(gl_context& gl, const image_data* layers, u
   }
   layer_count = std::max(layer_count, _layers);
   const auto [count, err] = do_upload_images(gl, id(), type(), layers, layer_count, offset, level);
-  NTF_UNUSED(err);
+  SHOGLE_UNUSED(err);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
   if (err) {
     SHOGLE_GL_LOG(
@@ -692,7 +692,7 @@ auto gl_texture::upload_image_layers(gl_context& gl, span<const image_data> laye
   u32 layer_count = std::max((u32)layers.size(), _layers);
   const auto [count, err] =
     do_upload_images(gl, id(), type(), layers.data(), layer_count, offset, level);
-  NTF_UNUSED(err);
+  SHOGLE_UNUSED(err);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
   SHOGLE_GL_LOG(error,
                 "Texture layer upload failure ({}) [type: {}, ptr:{}, uploaded: {}/{}, err: {}]",
@@ -709,7 +709,7 @@ void gl_texture::generate_mipmaps(gl_context& gl) {
   if (!_levels) {
     return;
   }
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
   GL_ASSERT(glBindTexture(type(), id()));
   GL_ASSERT(glGenerateMipmap(type()));
   GL_ASSERT(glBindTexture(type(), GL_DEFAULT_BINDING));
@@ -718,7 +718,7 @@ void gl_texture::generate_mipmaps(gl_context& gl) {
 }
 
 gl_texture& gl_texture::set_swizzle(gl_context& gl, swizzle_target target, swizzle_mask mask) {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
   GL_ASSERT(glBindTexture(_type, _id));
   GL_ASSERT(glTexParameteri(_type, target, mask));
   GL_ASSERT(glBindTexture(_type, GL_DEFAULT_BINDING));
@@ -727,7 +727,7 @@ gl_texture& gl_texture::set_swizzle(gl_context& gl, swizzle_target target, swizz
 }
 
 gl_texture& gl_texture::set_sampler_min(gl_context& gl, texture_min_sampler sampler) {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
   GL_ASSERT(glBindTexture(_type, _id));
   GL_ASSERT(glTexParameteri(_type, 0x2801, sampler)); // GL_TEXTURE_MIN_FILTER
   GL_ASSERT(glBindTexture(_type, GL_DEFAULT_BINDING));
@@ -736,7 +736,7 @@ gl_texture& gl_texture::set_sampler_min(gl_context& gl, texture_min_sampler samp
 }
 
 gl_texture& gl_texture::set_sampler_mag(gl_context& gl, texture_mag_sampler sampler) {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
   GL_ASSERT(glBindTexture(_type, _id));
   GL_ASSERT(glTexParameteri(_type, 0x2800, sampler)); // GL_TEXTURE_MAG_FILTER
   GL_ASSERT(glBindTexture(_type, GL_DEFAULT_BINDING));
@@ -745,7 +745,7 @@ gl_texture& gl_texture::set_sampler_mag(gl_context& gl, texture_mag_sampler samp
 }
 
 gl_texture& gl_texture::set_wrap(gl_context& gl, wrap_direction dir, texture_wrap wrap) {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
   GL_ASSERT(glBindTexture(_type, _id));
   GL_ASSERT(glTexParameteri(_type, dir, wrap));
   GL_ASSERT(glBindTexture(_type, GL_DEFAULT_BINDING));
@@ -754,47 +754,47 @@ gl_texture& gl_texture::set_wrap(gl_context& gl, wrap_direction dir, texture_wra
 }
 
 gldefs::GLhandle gl_texture::id() const {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
   return _id;
 }
 
 extent3d gl_texture::extent() const {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
-  NTF_ASSERT(_type != TEX_TYPE_BUFFER, "Can't get extent from a buffer texture");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(_type != TEX_TYPE_BUFFER, "Can't get extent from a buffer texture");
   return _extent;
 }
 
 auto gl_texture::type() const -> texture_type {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
   return _type;
 }
 
 auto gl_texture::format() const -> texture_format {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
   return _format;
 }
 
 u32 gl_texture::layers() const {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
-  NTF_ASSERT(_type != TEX_TYPE_BUFFER, "Can't get layers from a buffer texture");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(_type != TEX_TYPE_BUFFER, "Can't get layers from a buffer texture");
   return _layers;
 }
 
 u32 gl_texture::levels() const {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
-  NTF_ASSERT(_type != TEX_TYPE_BUFFER, "Can't get levels from a buffer texture");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(_type != TEX_TYPE_BUFFER, "Can't get levels from a buffer texture");
   return _levels;
 }
 
 size_t gl_texture::buffer_size() const {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
-  NTF_ASSERT(_type == TEX_TYPE_BUFFER, "Can't get a buffer size from non buffer texture");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(_type == TEX_TYPE_BUFFER, "Can't get a buffer size from non buffer texture");
   return (static_cast<size_t>(_extent.height) << 32) | static_cast<size_t>(_extent.width);
 }
 
 size_t gl_texture::buffer_offset() const {
-  NTF_ASSERT(!invalidated(), "gl_texture use after free");
-  NTF_ASSERT(_type == TEX_TYPE_BUFFER, "Can't get a buffer offset from non buffer texture");
+  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(_type == TEX_TYPE_BUFFER, "Can't get a buffer offset from non buffer texture");
   return (static_cast<size_t>(_levels) << 32) | static_cast<size_t>(_layers);
 }
 
