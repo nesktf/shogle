@@ -448,6 +448,7 @@ void glfw_imgui::start_frame() {
 
 void glfw_imgui::end_frame() {
   SHOGLE_ASSERT(_win);
+  ImGui::Render();
   auto* draw_data = ImGui::GetDrawData();
   switch (_ctx_type) {
     case render_context_tag::opengl: {
