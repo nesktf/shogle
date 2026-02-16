@@ -14,6 +14,8 @@
 
 #cmakedefine SHOGLE_ENABLE_GLFW
 
+#cmakedefine SHOGLE_ENABLE_OPENGL
+
 #cmakedefine SHOGLE_DISABLE_INTERNAL_LOGS
 
 #cmakedefine SHOGLE_DISABLE_EXCEPTIONS

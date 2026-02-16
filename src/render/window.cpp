@@ -4,10 +4,19 @@
 #ifdef SHOGLE_ENABLE_GLFW
 #include <imgui_impl_glfw.h>
 #endif
+
+#ifdef SHOGLE_ENABLE_OPENGL
 #include <imgui_impl_opengl3.h>
 #endif
 
+#endif
+
 #include <shogle/render/window.hpp>
+
+#if defined(SHOGLE_ENABLE_GLFW) && defined(SHOGLE_ENABLE_OPENGL)
+#include <shogle/render/gl/common.hpp>
+static_assert(shogle::gl_provider_type<shogle::glfw_win>);
+#endif
 
 namespace shogle {
 
@@ -279,14 +288,6 @@ shogle::render_context_tag glfw_win::context_type() const noexcept {
   return _ctx->ctx_tag;
 }
 
-PFN_glGetProcAddress glfw_win::gl_proc_loader() noexcept {
-  return reinterpret_cast<shogle::PFN_glGetProcAddress>(glfwGetProcAddress);
-}
-
-extent2d glfw_win::gl_surface_extent() const noexcept {
-  return surface_extent();
-}
-
 void glfw_win::swap_buffers() noexcept {
   if (SHOGLE_UNLIKELY(!_ctx)) {
     return;
@@ -294,10 +295,11 @@ void glfw_win::swap_buffers() noexcept {
   glfwSwapBuffers(_ctx->win);
 }
 
-extent2d glfw_win::vk_surface_extent() const noexcept {
-  return surface_extent();
+void* glfw_win::gl_get_proc(const char* name) const noexcept {
+  return (reinterpret_cast<void* (*)(const char*)>(glfwGetProcAddress))(name);
 }
 
+/*
 u32 glfw_win::vk_surface_extensions(scratch_vec<const char*>& extensions) {
   SHOGLE_UNUSED(extensions);
   SHOGLE_ASSERT(false, "TODO");
@@ -312,6 +314,7 @@ bool glfw_win::vk_create_surface(vkdefs::VkInstance vk, vkdefs::VkSurfaceKHR& su
   SHOGLE_ASSERT(false, "TODO");
   return true;
 }
+*/
 
 glfw_win& glfw_win::set_viewport_callback(viewport_fun func) {
   SHOGLE_ASSERT(_ctx);

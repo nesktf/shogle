@@ -31,6 +31,60 @@ class gl_graphics_pipeline;
 class gl_vertex_layout;
 class gl_framebuffer;
 
+template<typename T>
+concept gl_provider_type = requires(T prov, const char* name) {
+  { prov.gl_get_proc(name) } -> std::same_as<void*>;
+  { prov.surface_extent() } -> std::same_as<extent2d>;
+  requires noexcept(prov.gl_get_proc(name));
+  requires noexcept(prov.surface_extent());
+};
+
+struct gl_version {
+  u32 major;
+  u32 minor;
+};
+
+class gl_surface_provider {
+public:
+  using PFN_glGetProcAddress = void* (*)(void* user, const char* name) noexcept;
+
+private:
+  struct vtbl_t {
+    void* (*gl_get_proc)(void* user, const char* name) noexcept;
+    extent2d (*surface_extent)(void* user) noexcept;
+  };
+
+  template<typename T>
+  static constexpr vtbl_t vtbl_for{
+    .gl_get_proc = +[](void* user, const char* name) noexcept -> void* {
+      return (*static_cast<T*>(user)).gl_get_proc(name);
+    },
+    .surface_extent =
+      +[](void* user) noexcept -> extent2d { return (*static_cast<T*>(user)).surface_extent(); },
+  };
+
+public:
+  template<gl_provider_type T>
+  gl_surface_provider(T& provider) noexcept :
+      _provider(std::addressof(provider)), _vtbl(&vtbl_for<T>) {}
+
+public:
+  void* proc_address(const char* name) const noexcept {
+    return _vtbl->gl_get_proc(_provider, name);
+  }
+
+  extent2d surface_extent() const noexcept { return _vtbl->surface_extent(_provider); }
+
+public:
+  void* get_ptr() const noexcept { return _provider; }
+
+  PFN_glGetProcAddress get_proc_func() const noexcept { return _vtbl->gl_get_proc; }
+
+private:
+  void* _provider;
+  const vtbl_t* _vtbl;
+};
+
 namespace impl {
 
 ::shogle::mem::scratch_arena& gl_get_scratch_arena(gl_context& gl);

@@ -403,7 +403,7 @@ APIENTRY void debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity
 
 } // namespace
 
-sv_expect<gl_context> gl_context::create(gl_surface_provider& surf_prov) noexcept {
+sv_expect<gl_context> gl_context::create(const gl_surface_provider& surf_prov) noexcept {
   static constexpr size_t initial_arena_pages = 16;
   const size_t initial_arena_size = initial_arena_pages * mem::system_page_size();
 
@@ -413,8 +413,7 @@ sv_expect<gl_context> gl_context::create(gl_surface_provider& surf_prov) noexcep
       return {unexpect, "Failed to allocate scratch arena"};
     }
 
-    context_data ctx(new gl_private(std::move(*arena)));
-    ctx->surf_prov = static_cast<void*>(&surf_prov);
+    context_data ctx(new gl_private(std::move(*arena), surf_prov));
 
 #if defined(SHOGLE_USE_SYSTEM_GL) && SHOGLE_USE_SYSTEM_GL
     ctx->version_string = reinterpret_cast<const char*>(glGetString(GL_VERSION));
@@ -426,11 +425,9 @@ sv_expect<gl_context> gl_context::create(gl_surface_provider& surf_prov) noexcep
     ctx->renderer_string = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
     glDebugMessageCallback((GLDEBUGPROC)debug_callback, ctx.get());
 #else
-    const auto proc = surf_prov.gl_proc_loader();
-    if (!proc) {
-      return {unexpect, "Invalid glGetProcAddress function"};
-    }
-    auto err = shogle_gl_load_funcs((PFN_shogle_glGetProcAddress)proc, &ctx->funcs, &ctx->ver);
+    const auto proc = ctx->surf_prov.get_proc_func();
+    auto err = shogle_gl_load_funcs(ctx->surf_prov.get_ptr(), (PFN_shogle_glGetProcAddress)proc,
+                                    &ctx->funcs, &ctx->ver);
     if (err) {
       static constexpr auto errors = std::to_array<const char*>(
         {"Failed to load OpenGL functions", "Failed to load OpenGL", "Invalid OpenGL version"});
@@ -460,7 +457,7 @@ void gl_context::context_deleter::operator()(gl_private* ptr) noexcept {
 
 gl_context::gl_context(create_t, context_data&& ctx) noexcept : _ctx(std::move(ctx)) {}
 
-gl_context::gl_context(gl_surface_provider& surf_prov) :
+gl_context::gl_context(const gl_surface_provider& surf_prov) :
     gl_context(::shogle::gl_context::create(surf_prov).value()) {}
 
 gl_private& impl::gl_get_private(gl_context& gl) {
@@ -472,9 +469,9 @@ mem::scratch_arena& impl::gl_get_scratch_arena(gl_context& gl) {
   return impl::gl_get_private(gl).arena;
 }
 
-gl_surface_provider& gl_context::provider() const {
+gl_surface_provider gl_context::provider() const {
   SHOGLE_ASSERT(_ctx, "gl_context use after free");
-  return *static_cast<gl_surface_provider*>(_ctx->surf_prov);
+  return _ctx->surf_prov;
 }
 
 gldefs::GLenum gl_context::get_error() const {
@@ -764,7 +761,7 @@ void gl_context::start_frame(const gl_clear_opts& clear) {
     if (clear.viewport) {
       return *clear.viewport;
     } else {
-      const auto [w, h] = provider().gl_surface_extent();
+      const auto [w, h] = provider().surface_extent();
       return {0, 0, w, h};
     }
   }();
@@ -843,7 +840,7 @@ void gl_context::submit_command(const gl_draw_command& cmd,
     if (cmd.viewport.has_value()) {
       return *cmd.viewport;
     } else {
-      const auto [w, h] = provider().gl_surface_extent();
+      const auto [w, h] = provider().surface_extent();
       return {0, 0, w, h};
     }
   }();

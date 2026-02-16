@@ -7,7 +7,7 @@ namespace shogle {
 class logger {
 public:
   enum log_level {
-    LEVEL_ERROR = 1,
+    LEVEL_ERROR = 0,
     LEVEL_WARNING,
     LEVEL_INFO,
     LEVEL_DEBUG,

@@ -258,10 +258,18 @@ public:
 public:
   explicit gl_context(create_t, context_data&& ctx) noexcept;
 
-  gl_context(gl_surface_provider& surf_prov);
+  explicit gl_context(const gl_surface_provider& surf_prov);
+
+  template<gl_provider_type T>
+  gl_context(T& surf_prov) : gl_context(::shogle::gl_surface_provider(surf_prov)) {}
 
 public:
-  static sv_expect<gl_context> create(gl_surface_provider& surf_prov) noexcept;
+  static sv_expect<gl_context> create(const gl_surface_provider& surf_prov) noexcept;
+
+  template<gl_provider_type T>
+  static sv_expect<gl_context> create(T& surf_prov) noexcept {
+    return ::shogle::gl_context::create(::shogle::gl_surface_provider(surf_prov));
+  }
 
 public:
   void start_frame(const gl_clear_opts& clear);
@@ -286,7 +294,7 @@ public:
   void destroy() noexcept;
 
 public:
-  gl_surface_provider& provider() const;
+  gl_surface_provider provider() const;
   gldefs::GLenum get_error() const;
   gl_version version() const;
   std::string_view renderer_string() const;

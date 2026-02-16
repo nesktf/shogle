@@ -8,7 +8,7 @@
 #include <assert.h>
 
 #define GLLOAD(name_) \
-  funcs->name_ = (PFN_shogle_##name_)proc(#name_)
+  funcs->name_ = (PFN_shogle_##name_)proc(user, #name_)
 
 #define GLLOADCHECK(name_) \
   (GLLOAD(name_)) == NULL
@@ -60,7 +60,7 @@ void shogle_gl_get_version(const char* ver_str, shogle_gl_ver* ver) {
 }
 
 #if !defined(SHOGLE_USE_SYSTEM_GL) || !SHOGLE_USE_SYSTEM_GL
-shogle_gl_load_ret shogle_gl_load_funcs(PFN_shogle_glGetProcAddress proc,
+shogle_gl_load_ret shogle_gl_load_funcs(void* user, PFN_shogle_glGetProcAddress proc,
                                         shogle_gl_functions* funcs, shogle_gl_ver* ver) {
   assert(proc && funcs && ver);
 

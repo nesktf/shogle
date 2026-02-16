@@ -64,6 +64,11 @@ struct glfw_x11_hints {
   const char* instance_name;
 };
 
+struct glfw_gl_version {
+  u32 major;
+  u32 minor;
+};
+
 struct glfw_gl_hints {
 public:
   enum alpha_mode : glfw_enum {
@@ -83,7 +88,7 @@ public:
   static glfw_gl_hints make_default(u32 ver_maj, u32 ver_min, u32 swap_interval = 1) noexcept;
 
 public:
-  shogle::gl_version gl_ver;
+  glfw_gl_version gl_ver;
   surface_buffer surface_buffer;
   alpha_mode window_alpha;
   u32 msaa_samples;
@@ -104,7 +109,7 @@ struct glfw_button_data {
   glfw_enum modifiers;
 };
 
-class glfw_win : public gl_surface_provider, public vk_surface_provider {
+class glfw_win {
 private:
   template<typename Signature>
   using callback_type = std::function<Signature>;
@@ -163,7 +168,6 @@ public:
   void poll_events() const;
   void set_title(const char* title) const;
   extent2d window_extent() const noexcept;
-  extent2d surface_extent() const noexcept;
   void set_swap_interval(u32 interval) const noexcept;
   void set_attrib(glfw_enum attrib, glfw_enum value) const;
   glfw_enum poll_key(glfw_enum key) const;
@@ -171,13 +175,11 @@ public:
   void swap_buffers() noexcept;
 
 public:
-  PFN_glGetProcAddress gl_proc_loader() noexcept override;
-  extent2d gl_surface_extent() const noexcept override;
-
-  extent2d vk_surface_extent() const noexcept override;
-  u32 vk_surface_extensions(scratch_vec<const char*>& extensions) override;
-  bool vk_create_surface(vkdefs::VkInstance vk, vkdefs::VkSurfaceKHR& surface,
-                         vkdefs::VkAllocationCallbacksPtr vkalloc) noexcept override;
+  void* gl_get_proc(const char* name) const noexcept;
+  extent2d surface_extent() const noexcept;
+  // u32 vk_surface_extensions(scratch_vec<const char*>& extensions) override;
+  // bool vk_create_surface(vkdefs::VkInstance vk, vkdefs::VkSurfaceKHR& surface,
+  //                        vkdefs::VkAllocationCallbacksPtr vkalloc) noexcept override;
 
 public:
   glfw_win& set_viewport_callback(viewport_fun func);

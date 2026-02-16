@@ -21,36 +21,6 @@ enum class render_context_tag {
   software,
 };
 
-using PFN_glGetProcAddress = void* (*)(const char* name);
-
-struct gl_surface_provider {
-  virtual ~gl_surface_provider() = default;
-  virtual PFN_glGetProcAddress gl_proc_loader() noexcept = 0;
-  virtual extent2d gl_surface_extent() const noexcept = 0;
-};
-
-struct gl_version {
-  u32 major;
-  u32 minor;
-};
-
-// Placeholders
-namespace vkdefs {
-
-using VkInstance = void*;
-using VkSurfaceKHR = void*;
-using VkAllocationCallbacksPtr = void*;
-
-} // namespace vkdefs
-
-struct vk_surface_provider {
-  virtual ~vk_surface_provider() = default;
-  virtual u32 vk_surface_extensions(scratch_vec<const char*>& extensions) = 0;
-  virtual bool vk_create_surface(vkdefs::VkInstance vk, vkdefs::VkSurfaceKHR& surface,
-                                 vkdefs::VkAllocationCallbacksPtr vkalloc) noexcept = 0;
-  virtual extent2d vk_surface_extent() const noexcept = 0;
-};
-
 // clang-format off
 
 enum class attribute_type : u32 {

@@ -278,7 +278,7 @@ typedef struct shogle_gl_functions {
   SHOGLE_GL_DOFUNCS(SHOGLE_GL_DEFPROC)
 } shogle_gl_functions;
 
-typedef void* (*PFN_shogle_glGetProcAddress)(const char*);
+typedef void* (*PFN_shogle_glGetProcAddress)(void* user, const char* name);
 
 typedef enum shogle_gl_load_ret {
   SHOGLE_GL_LOAD_NO_ERROR = 0,
@@ -289,7 +289,8 @@ typedef enum shogle_gl_load_ret {
   _SHOGLE_GL_LOAD_FORCE_32BIT = 0x7FFFFFFF,
 } shogle_gl_load_ret;
 
-SHOGLE_GLAPI_ENTRY shogle_gl_load_ret shogle_gl_load_funcs(PFN_shogle_glGetProcAddress proc,
+SHOGLE_GLAPI_ENTRY shogle_gl_load_ret shogle_gl_load_funcs(void* user,
+                                                           PFN_shogle_glGetProcAddress proc,
                                                            shogle_gl_functions* funcs,
                                                            shogle_gl_ver* ver);
 

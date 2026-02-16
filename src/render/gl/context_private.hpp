@@ -2,9 +2,9 @@
 
 #include <shogle/render/gl/loader.h>
 
-#include <shogle/core.hpp>
-
 #include <shogle/util/memory.hpp>
+
+#include <shogle/render/gl/common.hpp>
 
 #if defined(SHOGLE_USE_SYSTEM_GL) && SHOGLE_USE_SYSTEM_GL
 #define GL_CALL(func) (func)
@@ -38,7 +38,8 @@ namespace shogle {
 
 class gl_private {
 public:
-  gl_private(mem::scratch_arena&& arena_) noexcept : arena(std::move(arena_)) {}
+  gl_private(mem::scratch_arena&& arena_, const gl_surface_provider& surf_prov_) noexcept :
+      arena(std::move(arena_)), surf_prov(surf_prov_) {}
 
 public:
   mem::scratch_arena arena;
@@ -49,7 +50,7 @@ public:
 #if !defined(SHOGLE_USE_SYSTEM_GL) || !SHOGLE_USE_SYSTEM_GL
   shogle_gl_functions funcs;
 #endif
-  void* surf_prov;
+  gl_surface_provider surf_prov;
 };
 
 } // namespace shogle
