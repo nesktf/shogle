@@ -19,10 +19,11 @@ layout (location = 2) in vec2 att_uvs;
 layout (location = 0) out vec4 frag_color;
 layout (location = 1) out vec2 frag_uvs;
 
+uniform mat4 u_proj;
 uniform mat4 u_model;
 
 void main() {
-  gl_Position = u_model*vec4(att_pos, 1.0f);
+  gl_Position = u_proj*u_model*vec4(att_pos, 1.0f);
   frag_color = att_color;
   frag_uvs = att_uvs;
 }  
@@ -114,6 +115,7 @@ int main() {
   shogle::gl_graphics_pipeline pipeline(gl, pipeline_shaders);
   const shogle::gl_scoped_resource pipeline_scope(gl, pipeline);
   const auto u_model = pipeline.uniform_location(gl, "u_model").value();
+  const auto u_proj = pipeline.uniform_location(gl, "u_proj").value();
   const auto u_tex = pipeline.uniform_location(gl, "u_tex").value();
 
   shogle::gl_clear_builder clear_builder;
@@ -146,6 +148,12 @@ int main() {
       pause = !pause;
     }
   });
+  f32 win_w = 800;
+  f32 win_h = 600;
+  win.set_viewport_callback([&](auto, const shogle::extent2d& vp) {
+    win_w = (f32)vp.width;
+    win_h = (f32)vp.height;
+  });
 
   shogle::render_loop(win, [&](f64 dt) {
     if (win.poll_key(GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -157,7 +165,11 @@ int main() {
       t += (f32)dt;
     }
     const f32 rot = t * shogle::math::pi<f32>;
-    const auto mat = shogle::math::rotate(shogle::mat4(1.f), rot, shogle::vec3(0.f, 0.f, 1.f));
+    const auto proj = shogle::math::ortho(0.f, win_w, 0.f, win_h);
+    auto model =
+      shogle::math::translate(shogle::mat4(1.f), shogle::vec3(win_w / 2.f, win_h / 2.f, 1.f));
+    model = shogle::math::rotate(model, rot, shogle::vec3(0.f, 0.f, 1.f));
+    model = shogle::math::scale(model, shogle::vec3(400.f, 400.f, 1.f));
 
     cmd_builder.reset();
     const auto cmd = cmd_builder.set_vertex_layout(quad_layout)
@@ -165,7 +177,8 @@ int main() {
                        .set_index_buffer(quad_ebo, shogle::gl_draw_command::INDEX_FORMAT_U16)
                        .set_draw_count(indices.size())
                        .add_texture(tex, 0)
-                       .add_uniform(mat, u_model)
+                       .add_uniform(proj, u_proj)
+                       .add_uniform(model, u_model)
                        .add_uniform(0, u_tex)
                        .add_vertex_buffer(quad_vbo)
                        .build();

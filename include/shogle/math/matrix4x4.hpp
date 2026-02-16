@@ -257,6 +257,15 @@ template<typename T>
 SHOGLE_MATH_DECL nummat<4, 4, T> lookat_lh(const numvec<3, T>& pos, const numvec<3, T>& center,
                                            const numvec<3, T>& up) noexcept;
 
+template<typename T>
+SHOGLE_MATH_DECL nummat<4, 4, T> ortho(T left, T right, T bottom, T top) noexcept;
+
+template<typename T>
+SHOGLE_MATH_DECL nummat<4, 4, T> ortho(T left, T right, T bottom, T top, T znear, T zfar) noexcept;
+
+template<typename T>
+SHOGLE_MATH_DECL nummat<4, 4, T> perspective(T fov, T aspect, T znear, T zfar) noexcept;
+
 } // namespace shogle::math
 
 #ifndef SHOGLE_MATH_MATRIX4x4_INL

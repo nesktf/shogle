@@ -112,7 +112,7 @@ SHOGLE_MATH_DEF nummat<4, 4, T> translate(const nummat<4, 4, T>& m,
 
 template<typename T, numeric_convertible<T> U>
 SHOGLE_MATH_DEF nummat<4, 4, T> scale(const nummat<4, 4, T>& m, const numvec<3, U>& v) noexcept {
-  nummat<4, 4, T> out;
+  nummat<4, 4, T> out(T(1));
   out.x1 = m.x1 * static_cast<T>(v.x);
   out.y1 = m.y1 * static_cast<T>(v.x);
   out.z1 = m.z1 * static_cast<T>(v.x);
@@ -258,6 +258,51 @@ SHOGLE_MATH_DEF nummat<4, 4, T> lookat_lh(const numvec<3, T>& pos, const numvec<
   out.w2 = T(0);
   out.w3 = T(0);
   out.w4 = T(1);
+  return out;
+}
+
+template<typename T>
+SHOGLE_MATH_DEF nummat<4, 4, T> ortho(T left, T right, T bottom, T top) noexcept {
+  nummat<4, 4, T> out(T(1));
+  out.x1 = T(2) / (right - left);
+  out.y2 = T(2) / (top - bottom);
+  out.z3 = -T(1);
+  out.x4 = -(right + left) / (right - left);
+  out.y4 = -(top + bottom) / (top - bottom);
+  return out;
+}
+
+template<typename T>
+SHOGLE_MATH_DEF nummat<4, 4, T> ortho(T left, T right, T bottom, T top, T znear, T zfar) noexcept {
+  nummat<4, 4, T> out(T(1));
+  out.x1 = T(2) / (right - left);
+  out.y2 = T(2) / (top - bottom);
+  out.z3 = T(2) / (zfar - znear);
+  out.x4 = -(right + left) / (right - left);
+  out.y4 = -(top + bottom) / (top - bottom);
+  out.z4 = -(zfar + znear) / (zfar - znear);
+  return out;
+}
+
+template<typename T>
+SHOGLE_MATH_DEF nummat<4, 4, T> perspective(T fov, T aspect, T znear, T zfar) noexcept {
+  if constexpr (std::floating_point<T>) {
+    if (::shogle::math::fequal(fov, T(0))) {
+      fov = T(0.0001);
+    }
+  } else {
+    if (fov == T(0)) {
+      fov = 1;
+    }
+  }
+  const T halftan = ::shogle::math::tan(fov / T(2));
+
+  nummat<4, 4, T> out(T(0));
+  out.x1 = T(1) / (aspect * halftan);
+  out.y2 = T(1) / halftan;
+  out.z3 = -(zfar + znear) / (zfar - znear);
+  out.w3 = -T(1);
+  out.z4 = -(T(2) * zfar * znear) / (zfar - znear);
   return out;
 }
 
