@@ -185,9 +185,10 @@ SHOGLE_DECLARE_ATTRIB_TRAIT(uvec4, shogle::attribute_type::uvec4, u32);
 #define SHOGLE_RENDER_LOG(...)
 #else
 #define SHOGLE_RENDER_LOG(priority_, section_, fmt_, ...)				 \
-  ::shogle::logger::log_##priority_(section_, "[{}:{}] " fmt_, 			\
-													 ::shogle::meta::render_parse_src_str(__FILE__),	\
-                           __LINE__ __VA_OPT__(,) __VA_ARGS__)
+  ::shogle::logger::log_prefix(::shogle::logger::LEVEL_##priority_, section_, \
+															 "[render/{}:{}] " fmt_,									\
+													     ::shogle::meta::render_parse_src_str(__FILE__),	\
+                               __LINE__ __VA_OPT__(,) __VA_ARGS__)
 
 consteval std::string_view render_parse_src_str(std::string_view file_str) {
   const char pos[] = {"render/"};

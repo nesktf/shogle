@@ -246,7 +246,7 @@ std::string_view tex_format_string(gl_texture::texture_format format) {
 }
 
 std::string_view tex_sampler_string(gldefs::GLenum sampler) {
-#define STR(enum_)                      \
+#define STR(enum_)                  \
   case gl_texture::SAMPLER_##enum_: \
     return #enum_
 
@@ -295,7 +295,7 @@ void log_allocation([[maybe_unused]] gl_context& gl, gldefs::GLhandle tex,
   static constexpr auto ms_str = std::to_array<std::string_view>({"NONE", "NOT_FIXED", "FIXED"});
 
   SHOGLE_GL_LOG(
-    verbose, "TEXTURE_ALLOC ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}, ms: {}]",
+    VERBOSE, "TEXTURE_ALLOC ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}, ms: {}]",
     tex, tex_type_string(args.type), tex_format_string(args.format), args.extent.width,
     args.extent.height, args.extent.depth, args.levels, args.layers, ms_str[args.multisampling]);
 }
@@ -352,7 +352,7 @@ void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
   const auto [w, h, d] = tex.extent();
   const auto [ow, oh, od] = offset;
   SHOGLE_GL_LOG(
-    verbose,
+    VERBOSE,
     "TEXTURE_WRITE ({}) [type: {}, extent: {}x{}x{}, ptr: {}, sz: {}x{}x{}, align: {}, "
     "pixel_type: {}, pixel_format: {}, off: {}x{}x{}, lyr: {}, lvl: {}]",
     tex.id(), tex_type_string(tex.type()), w, h, d, fmt::ptr(image.data), image.extent.width,
@@ -362,12 +362,12 @@ void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
 
 void log_destroy([[maybe_unused]] gl_context& gl, const gl_texture& tex) {
   if (tex.type() == gl_texture::TEX_TYPE_BUFFER) {
-    SHOGLE_GL_LOG(verbose, "TEXTURE_BUFF_UNBOUND ({}) [format: {}, size: {}, offset: {}]",
+    SHOGLE_GL_LOG(VERBOSE, "TEXTURE_BUFF_UNBOUND ({}) [format: {}, size: {}, offset: {}]",
                   tex.id(), tex_format_string(tex.format()), tex.buffer_size(),
                   tex.buffer_offset());
   } else {
     const auto [w, h, d] = tex.extent();
-    SHOGLE_GL_LOG(verbose,
+    SHOGLE_GL_LOG(VERBOSE,
                   "TEXTURE_DEALLOC ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}]",
                   tex.id(), tex_type_string(tex.type()), tex_format_string(tex.format()), w, h, d,
                   tex.levels(), tex.layers());
@@ -648,7 +648,7 @@ gl_expect<void> gl_texture::upload_image(gl_context& gl, const image_data& image
 
   const auto [count, err] = do_upload_images(gl, id(), type(), &image, 1, offset, level);
   if (err) {
-    SHOGLE_GL_LOG(error, "Texture upload failed ({}) [type: {}, ptr: {}, err: {}]", id(),
+    SHOGLE_GL_LOG(ERROR, "Texture upload failed ({}) [type: {}, ptr: {}, err: {}]", id(),
                   tex_type_string(type()), fmt::ptr(&image), ::shogle::gl_error_string(err));
     return {unexpect, err};
   }
@@ -671,7 +671,7 @@ auto gl_texture::upload_image_layers(gl_context& gl, const image_data* layers, u
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
   if (err) {
     SHOGLE_GL_LOG(
-      error, "Texture layer upload failure ({}) [type: {}, ptr: {}, uploaded: {}/{}, err: {}]",
+      ERROR, "Texture layer upload failure ({}) [type: {}, ptr: {}, uploaded: {}/{}, err: {}]",
       id(), tex_type_string(type()), count, fmt::ptr(layers), layer_count,
       ::shogle::gl_error_string(err));
   }
@@ -692,7 +692,7 @@ auto gl_texture::upload_image_layers(gl_context& gl, span<const image_data> laye
     do_upload_images(gl, id(), type(), layers.data(), layer_count, offset, level);
   SHOGLE_UNUSED(err);
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
-  SHOGLE_GL_LOG(error,
+  SHOGLE_GL_LOG(ERROR,
                 "Texture layer upload failure ({}) [type: {}, ptr:{}, uploaded: {}/{}, err: {}]",
                 id(), tex_type_string(type()), count, fmt::ptr(layers.data()), layer_count,
                 ::shogle::gl_error_string(err));
@@ -711,7 +711,7 @@ void gl_texture::generate_mipmaps(gl_context& gl) {
   GL_ASSERT(glBindTexture(type(), id()));
   GL_ASSERT(glGenerateMipmap(type()));
   GL_ASSERT(glBindTexture(type(), GL_DEFAULT_BINDING));
-  SHOGLE_GL_LOG(verbose, "TEXTURE_GENMIPS ({}) [type: {}, lvls: {}, lyrs: {}]", _id,
+  SHOGLE_GL_LOG(VERBOSE, "TEXTURE_GENMIPS ({}) [type: {}, lvls: {}, lyrs: {}]", _id,
                 tex_type_string(_type), _levels, _layers);
 }
 
@@ -740,8 +740,8 @@ gl_texture& gl_texture::set_sampler(gl_context& gl, texture_sampler sampler) {
   GL_ASSERT(glTexParameteri(_type, GL_TEXTURE_MIN_FILTER, sampler));
   GL_ASSERT(glTexParameteri(_type, GL_TEXTURE_MAG_FILTER, magsampler));
   GL_ASSERT(glBindTexture(_type, GL_DEFAULT_BINDING));
-  SHOGLE_GL_LOG(verbose, "TEXTURE_SAMPLER ({}) [type: {}, sampler: {}]", _id,
-								tex_type_string(_type), tex_sampler_string(sampler));
+  SHOGLE_GL_LOG(VERBOSE, "TEXTURE_SAMPLER ({}) [type: {}, sampler: {}]", _id,
+                tex_type_string(_type), tex_sampler_string(sampler));
   return *this;
 }
 

@@ -219,11 +219,11 @@ gl_external_command_builder::gl_external_command_builder() noexcept :
 
 gl_external_command_builder&
 gl_external_command_builder::set_callback(gl_external_command::callback_type callback) {
-	if (_callback.has_value()) {
-		*_callback = callback;
-	} else {
-		_callback.emplace(callback);
-          }
+  if (_callback.has_value()) {
+    *_callback = callback;
+  } else {
+    _callback.emplace(callback);
+  }
   return *this;
 }
 
@@ -294,7 +294,7 @@ gl_external_command_builder& gl_external_command_builder::set_scissor(u32 x, u32
 }
 
 void gl_external_command_builder::reset() {
-	_callback.reset();
+  _callback.reset();
   _stencil = gl_stencil_test_props::make_default(false);
   _depth = gl_depth_test_props::make_default(false);
   _blending = gl_blending_props::make_default(false);
@@ -397,10 +397,10 @@ APIENTRY void debug_callback(GLenum src, GLenum type, GLuint id, GLenum severity
   }();
 
   if (type == GL_DEBUG_TYPE_ERROR) {
-    SHOGLE_GL_LOG(error, "Debug ({})({})({})({}) {}", severity_msg, type_msg, src_msg, id,
+    SHOGLE_GL_LOG(ERROR, "Debug ({})({})({})({}) {}", severity_msg, type_msg, src_msg, id,
                   message);
   } else {
-    SHOGLE_GL_LOG(verbose, "Debug ({})({})({})({}) {}", severity_msg, type_msg, src_msg, id,
+    SHOGLE_GL_LOG(VERBOSE, "Debug ({})({})({})({}) {}", severity_msg, type_msg, src_msg, id,
                   message);
   }
 }
@@ -445,8 +445,8 @@ sv_expect<gl_context> gl_context::create(const gl_surface_provider& surf_prov) n
     SHOGLE_ASSERT(ctx->version_string);
     SHOGLE_ASSERT(ctx->vendor_string);
     SHOGLE_ASSERT(ctx->renderer_string);
-    SHOGLE_GL_LOG(debug, "OpenGL context created (ptr: {})", fmt::ptr(ctx.get()));
-    SHOGLE_GL_LOG(debug, "{}, {}, {}", ctx->version_string, ctx->vendor_string,
+    SHOGLE_GL_LOG(DEBUG, "OpenGL context created (ptr: {})", fmt::ptr(ctx.get()));
+    SHOGLE_GL_LOG(DEBUG, "{}, {}, {}", ctx->version_string, ctx->vendor_string,
                   ctx->renderer_string);
     return {in_place, create_t{}, std::move(ctx)};
   } catch (...) {
@@ -455,7 +455,7 @@ sv_expect<gl_context> gl_context::create(const gl_surface_provider& surf_prov) n
 }
 
 void gl_context::context_deleter::operator()(gl_private* ptr) noexcept {
-  SHOGLE_GL_LOG(debug, "OpenGL context destroyed (ptr: {})", fmt::ptr(ptr));
+  SHOGLE_GL_LOG(DEBUG, "OpenGL context destroyed (ptr: {})", fmt::ptr(ptr));
   delete ptr;
 }
 

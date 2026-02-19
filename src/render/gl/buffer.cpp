@@ -55,7 +55,7 @@ auto gl_buffer::_allocate_span(gl_context& gl, gldefs::GLhandle* buffs, size_t c
       GL_ASSERT(glDeleteBuffers(count - i + 1, buffs + i));
       return {i, err};
     }
-    SHOGLE_GL_LOG(verbose, "BUFFER_ALLOC ({}) (sz: {}B, type: {}, mut: {})", buffs[i], size,
+    SHOGLE_GL_LOG(VERBOSE, "BUFFER_ALLOC ({}) (sz: {}B, type: {}, mut: {})", buffs[i], size,
                   buffer_type_name(type), is_mutable);
   }
   // GL_ASSERT(glBindBuffer(type, buff))
@@ -94,7 +94,7 @@ void gl_buffer::deallocate(gl_context& gl, gl_buffer& buff) noexcept {
     return;
   }
   GL_ASSERT(glDeleteBuffers(1, &buff._id));
-  SHOGLE_GL_LOG(verbose, "BUFFER_DEALLOC ({}) (sz: {}B, type: {})", buff._id, buff._size,
+  SHOGLE_GL_LOG(VERBOSE, "BUFFER_DEALLOC ({}) (sz: {}B, type: {})", buff._id, buff._size,
                 buffer_type_name(buff._type));
   buff._id = GL_NULL_HANDLE;
 }
@@ -108,7 +108,7 @@ void gl_buffer::deallocate_n(gl_context& gl, gl_buffer* buffs, size_t buff_count
       continue;
     }
     GL_CALL(glDeleteBuffers(1, &buffs[i]._id));
-    SHOGLE_GL_LOG(verbose, "BUFFER_DEALLOC ({}) (sz: {}B, type: {})", buffs[i]._id, buffs[i]._size,
+    SHOGLE_GL_LOG(VERBOSE, "BUFFER_DEALLOC ({}) (sz: {}B, type: {})", buffs[i]._id, buffs[i]._size,
                   buffer_type_name(buffs[i]._type));
     buffs[i]._id = GL_NULL_HANDLE;
   }
@@ -130,7 +130,7 @@ gl_expect<void> gl_buffer::upload_data(gl_context& gl, const void* data, size_t 
   if (err) {
     return {unexpect, err};
   } else {
-    SHOGLE_GL_LOG(verbose, "BUFFER_WRITE ({}), (ptr: {}, sz: {}B/{}B, off: {}B)", _id,
+    SHOGLE_GL_LOG(VERBOSE, "BUFFER_WRITE ({}), (ptr: {}, sz: {}B/{}B, off: {}B)", _id,
                   fmt::ptr(data), size, _size, offset);
     return {};
   }
@@ -147,7 +147,7 @@ gl_expect<void> gl_buffer::read_data(gl_context& gl, void* data, size_t size, si
   if (err) {
     return {unexpect, err};
   } else {
-    SHOGLE_GL_LOG(verbose, "BUFFER_READ ({}) (ptr: {}, sz: {}B/{}B, off: {}B)", _id,
+    SHOGLE_GL_LOG(VERBOSE, "BUFFER_READ ({}) (ptr: {}, sz: {}B/{}B, off: {}B)", _id,
                   fmt::ptr(data), size, _size, offset);
     return {};
   }
@@ -163,7 +163,7 @@ gl_expect<void*> gl_buffer::map_range(gl_context& gl, size_t size, size_t offset
   if (err != GL_NO_ERROR) {
     return {unexpect, err};
   }
-  SHOGLE_GL_LOG(verbose, "BUFFER_MAP_RANGE ({}) (ptr: {}, sz: {}B/{}B, off: {}b, flags: {})", _id,
+  SHOGLE_GL_LOG(VERBOSE, "BUFFER_MAP_RANGE ({}) (ptr: {}, sz: {}B/{}B, off: {}b, flags: {})", _id,
                 fmt::ptr(ptr), size, _size, offset, access_flags);
   SHOGLE_ASSERT(ptr);
   return {in_place, ptr};
@@ -177,7 +177,7 @@ gl_expect<void*> gl_buffer::map(gl_context& gl, gl_buffer::mapping_access access
   if (err != GL_NO_ERROR) {
     return {unexpect, err};
   }
-  SHOGLE_GL_LOG(verbose, "BUFFER_MAP ({}) (ptr: {}, access: {})", _id, fmt::ptr(ptr),
+  SHOGLE_GL_LOG(VERBOSE, "BUFFER_MAP ({}) (ptr: {}, access: {})", _id, fmt::ptr(ptr),
                 (gldefs::GLenum)access);
   SHOGLE_ASSERT(ptr);
   return {in_place, ptr};
@@ -185,7 +185,7 @@ gl_expect<void*> gl_buffer::map(gl_context& gl, gl_buffer::mapping_access access
 
 void gl_buffer::unmap(gl_context& gl) {
   SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
-  SHOGLE_GL_LOG(verbose, "BUFFER_UNMAP ({})", _id);
+  SHOGLE_GL_LOG(VERBOSE, "BUFFER_UNMAP ({})", _id);
   GL_ASSERT(glBindBuffer(_type, _id));
   GL_ASSERT(glUnmapBuffer(_type));
   GL_ASSERT(glBindBuffer(_type, GL_DEFAULT_BINDING));
@@ -196,7 +196,7 @@ void gl_buffer::mut_realloc(gl_context& gl, size_t size, buffer_mut_usage usage,
   SHOGLE_ASSERT(!invalidated(), "gl_buffer use after free");
   SHOGLE_ASSERT(is_mutable(), "Can't reallocate inmutable buffer");
   GL_ASSERT(glBufferData(_id, size, data, _usage));
-  SHOGLE_GL_LOG(verbose, "BUFFER_REALLOC ({}) (data: {}, sz: {}B -> {}B, usage: {})", _id,
+  SHOGLE_GL_LOG(VERBOSE, "BUFFER_REALLOC ({}) (data: {}, sz: {}B -> {}B, usage: {})", _id,
                 fmt::ptr(data), _size, size, (gldefs::GLenum)usage);
   _size = size;
   _usage = (gldefs::GLenum)usage;

@@ -48,10 +48,10 @@ gl_s_expect<gl_shader> gl_shader::create(gl_context& gl, std::string_view src,
     GL_ASSERT(glGetShaderInfoLog(shader, 1024, &err_len, &log_buffer[0]));
     GL_ASSERT(glDeleteShader(shader));
     std::string_view buffer_view(log_buffer, std::min(err_len, 1024));
-    SHOGLE_GL_LOG(error, "Shader compilation failed: {}", buffer_view);
+    SHOGLE_GL_LOG(ERROR, "SHADER_COMPILER ({}) {}", shader, buffer_view);
     return {unexpect, fmt::format("Shader compilation failed: {}", buffer_view)};
   }
-  SHOGLE_GL_LOG(verbose, "Shader created ({}) (type: {})", shader, shader_name(stage));
+  SHOGLE_GL_LOG(VERBOSE, "SHADER_CREATE ({}) [type: {}]", shader, shader_name(stage));
   return {in_place, create_t{}, shader, stage};
 }
 
@@ -63,7 +63,7 @@ void gl_shader::destroy_n(gl_context& gl, gl_shader* shaders, size_t count) noex
     if (SHOGLE_UNLIKELY(shaders[i].invalidated())) {
       continue;
     }
-    SHOGLE_GL_LOG(verbose, "Shader destroyed ({}) (type: {})", shaders[i]._id,
+    SHOGLE_GL_LOG(VERBOSE, "SHADER_DESTROY ({}) [type: {}]", shaders[i]._id,
                   shader_name(shaders[i]._stage));
     GL_CALL(glDeleteShader(shaders[i]._id));
     shaders[i]._id = GL_NULL_HANDLE;
@@ -78,8 +78,7 @@ void gl_shader::destroy(gl_context& gl, gl_shader& shader) noexcept {
   if (SHOGLE_UNLIKELY(shader.invalidated())) {
     return;
   }
-  SHOGLE_GL_LOG(verbose, "Shader destroyed ({}) (type: {})", shader._id,
-                shader_name(shader._stage));
+  SHOGLE_GL_LOG(VERBOSE, "SHADER_DESTROY ({}) [type: {}]", shader._id, shader_name(shader._stage));
   GL_CALL(glDeleteShader(shader._id));
   shader._id = GL_NULL_HANDLE;
 }
@@ -200,14 +199,14 @@ gl_graphics_pipeline::create(gl_context& gl, const gl_shader::graphics_set& shad
     GL_ASSERT(glGetShaderInfoLog(shader_span[0], 1024, &err_len, &log_buffer[0]));
     GL_ASSERT(glDeleteProgram(program));
     std::string_view buffer_view(log_buffer, std::min(err_len, 1024));
-    SHOGLE_GL_LOG(error, "Program linking failed: {}", buffer_view);
+    SHOGLE_GL_LOG(ERROR, "PIPELINE_LINKER ({}) {}", program, buffer_view);
     return {unexpect, fmt::format("Program linking failed: {}", buffer_view)};
   }
 
   for (const gldefs::GLhandle shader : shader_span) {
     GL_ASSERT(glDettachShader(program, shader));
   }
-  SHOGLE_GL_LOG(verbose, "Pipeline created ({})", program);
+  SHOGLE_GL_LOG(VERBOSE, "PIPELINE_CREATE ({})", program);
   return {in_place, create_t{}, program, shaders.active_stages()};
 }
 
@@ -216,7 +215,7 @@ void gl_graphics_pipeline::destroy(gl_context& gl, gl_graphics_pipeline& pipelin
     return;
   }
   GL_CALL(glDeleteProgram(pipeline._program));
-  SHOGLE_GL_LOG(verbose, "Pipeline destroyed ({})", pipeline._program);
+  SHOGLE_GL_LOG(VERBOSE, "PIPELINE_DESTROY ({})", pipeline._program);
   pipeline._program = GL_NULL_HANDLE;
 }
 
@@ -229,7 +228,7 @@ void gl_graphics_pipeline::destroy_n(gl_context& gl, gl_graphics_pipeline* pipel
     if (SHOGLE_UNLIKELY(pipelines[i].invalidated())) {
       continue;
     }
-    SHOGLE_GL_LOG(verbose, "Pipeline destroyed ({})", pipelines[i]._program);
+    SHOGLE_GL_LOG(VERBOSE, "PIPELINE_DESTROY ({})", pipelines[i]._program);
     GL_CALL(glDeleteProgram(pipelines[i]._program));
     pipelines[i]._program = GL_NULL_HANDLE;
   }

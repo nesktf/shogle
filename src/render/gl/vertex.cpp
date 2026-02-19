@@ -25,11 +25,11 @@ gl_expect<gl_vertex_layout> gl_vertex_layout::create(gl_context& gl, size_t stri
   attribute_array attributes;
   std::memcpy(attributes.data(), attribs, attrib_count * sizeof(attributes[0]));
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
-  SHOGLE_GL_LOG(verbose, "Vertex layout created ({}) (stride: {}B, type: {})", vao, stride,
+  SHOGLE_GL_LOG(VERBOSE, "VAO_CREATE ({}) [stride: {}B, type: {}]", vao, stride,
                 stride ? "AOS" : "SOA");
   for (u32 i = 0; i < attrib_count; ++i) {
     auto attrib = attributes[i];
-    SHOGLE_GL_LOG(verbose, "- (loc: {}, off: {}, type: {})", attrib.location, attrib.offset,
+    SHOGLE_GL_LOG(VERBOSE, "- (loc: {}, off: {}, type: {})", attrib.location, attrib.offset,
                   ::shogle::meta::attribute_name(attrib.type));
   }
 #endif
@@ -41,10 +41,10 @@ void gl_vertex_layout::destroy(gl_context& gl, gl_vertex_layout& layout) noexcep
     return;
   }
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
-  SHOGLE_GL_LOG(verbose, "Vertex layout destroyed ({}) (stride: {}B, type: {})", layout._vao,
-                layout._stride, layout._stride ? "AOS" : "SOA");
+  SHOGLE_GL_LOG(VERBOSE, "VAO_DESTROY ({}) [stride: {}B, type: {}]", layout._vao, layout._stride,
+                layout._stride ? "AOS" : "SOA");
   for (const auto& attrib : layout.attributes()) {
-    SHOGLE_GL_LOG(verbose, "- (loc: {}, off: {}, type: {})", attrib.location, attrib.offset,
+    SHOGLE_GL_LOG(VERBOSE, "- (loc: {}, off: {}, type: {})", attrib.location, attrib.offset,
                   ::shogle::meta::attribute_name(attrib.type));
   }
 #endif
@@ -62,10 +62,10 @@ void gl_vertex_layout::destroy_n(gl_context& gl, gl_vertex_layout* layouts,
       continue;
     }
 #ifndef SHOGLE_DISABLE_INTERNAL_LOGS
-    SHOGLE_GL_LOG(verbose, "Vertex layout destroyed ({}) (stride: {}, type: {})", layouts[i]._vao,
+    SHOGLE_GL_LOG(VERBOSE, "VAO_DESTROY ({}) [stride: {}, type: {}]", layouts[i]._vao,
                   layouts[i]._stride, layouts[i]._stride ? "AOS" : "SOA");
     for (const auto& attrib : layouts[i].attributes()) {
-      SHOGLE_GL_LOG(verbose, "- (loc: {}, off: {}, type: {})", attrib.location, attrib.offset,
+      SHOGLE_GL_LOG(VERBOSE, "- (loc: {}, off: {}, type: {})", attrib.location, attrib.offset,
                     ::shogle::meta::attribute_name(attrib.type));
     }
 #endif

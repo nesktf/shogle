@@ -20,10 +20,11 @@ public:
 
 private:
   static void _do_log(log_level level, std::string_view prefix, const std::string& str);
+  static void _do_log(log_level level, const std::string& str);
 
 public:
   template<typename... Args>
-  static void log(log_level level, std::string_view pre, fmt::format_string<Args...> fmt,
+  static void log_prefix(log_level level, std::string_view pre, fmt::format_string<Args...> fmt,
                   Args&&... args) {
     if (get_level() < level) {
       return;
@@ -33,28 +34,39 @@ public:
   }
 
   template<typename... Args>
-  static void log_error(std::string_view pre, fmt::format_string<Args...> fmt, Args&&... args) {
-    log(LEVEL_ERROR, pre, fmt, std::forward<Args>(args)...);
+  static void log(log_level level, fmt::format_string<Args...> fmt,
+                  Args&&... args) {
+    if (get_level() < level) {
+      return;
+    }
+    const auto str = fmt::format(fmt, std::forward<Args>(args)...);
+    _do_log(level, str);
   }
 
   template<typename... Args>
-  static void log_warning(std::string_view pre, fmt::format_string<Args...> fmt, Args&&... args) {
-    log(LEVEL_WARNING, pre, fmt, std::forward<Args>(args)...);
+  static void error(fmt::format_string<Args...> fmt, Args&&... args) {
+    log(LEVEL_ERROR, fmt, std::forward<Args>(args)...);
+  }
+
+
+  template<typename... Args>
+  static void warning(fmt::format_string<Args...> fmt, Args&&... args) {
+    log(LEVEL_WARNING, fmt, std::forward<Args>(args)...);
   }
 
   template<typename... Args>
-  static void log_info(std::string_view pre, fmt::format_string<Args...> fmt, Args&&... args) {
-    log(LEVEL_INFO, pre, fmt, std::forward<Args>(args)...);
+  static void info(fmt::format_string<Args...> fmt, Args&&... args) {
+    log(LEVEL_INFO, fmt, std::forward<Args>(args)...);
   }
 
   template<typename... Args>
-  static void log_debug(std::string_view pre, fmt::format_string<Args...> fmt, Args&&... args) {
-    log(LEVEL_DEBUG, pre, fmt, std::forward<Args>(args)...);
+  static void debug(fmt::format_string<Args...> fmt, Args&&... args) {
+    log(LEVEL_DEBUG, fmt, std::forward<Args>(args)...);
   }
 
   template<typename... Args>
-  static void log_verbose(std::string_view pre, fmt::format_string<Args...> fmt, Args&&... args) {
-    log(LEVEL_VERBOSE, pre, fmt, std::forward<Args>(args)...);
+  static void verbose(fmt::format_string<Args...> fmt, Args&&... args) {
+    log(LEVEL_VERBOSE, fmt, std::forward<Args>(args)...);
   }
 };
 

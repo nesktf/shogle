@@ -30,7 +30,7 @@ struct glfw_win::window_data {
       on_cursor_enter(), on_scroll(), on_button_input(), on_char_input() {}
 
   ~window_data() noexcept {
-    WIN_LOG(debug, "Window destroyed (ptr: {})", fmt::ptr(win));
+    WIN_LOG(DEBUG, "Window destroyed (ptr: {})", fmt::ptr(win));
     glfwDestroyWindow(win);
   }
 
@@ -190,7 +190,7 @@ sv_expect<glfw_win> glfw_win::create(u32 width, u32 height, const char* title,
   if (!win) {
     const char* err;
     glfwGetError(&err);
-    WIN_LOG(error, "Failed to create window: {}", err);
+    WIN_LOG(ERROR, "Failed to create window: {}", err);
     return {unexpect, err};
   }
 
@@ -206,10 +206,10 @@ sv_expect<glfw_win> glfw_win::create(u32 width, u32 height, const char* title,
   glfwSetWindowUserPointer(win, data_ptr);
 
   glfwMakeContextCurrent(win);
-  WIN_LOG(verbose, "Current OpenGL window context: {}", fmt::ptr(win));
+  WIN_LOG(VERBOSE, "Current OpenGL window context: {}", fmt::ptr(win));
   glfwSwapInterval(hints.swap_interval);
 
-  WIN_LOG(debug, "OpenGL window created (w: {}, h: {}, title: \"{}\", ptr: {})", width, height,
+  WIN_LOG(DEBUG, "OpenGL window created (w: {}, h: {}, title: \"{}\", ptr: {})", width, height,
           title, fmt::ptr(win));
 
   return {in_place, create_t{}, window_data_ptr(data_ptr)};

@@ -185,6 +185,10 @@ gl_sv_expect<gl_framebuffer> gl_framebuffer::with_textures(gl_context& gl, exten
     return {unexpect, "Incomplete framebuffer", err};
   }
 
+  SHOGLE_GL_LOG(VERBOSE,
+                "FRAMEBUFFER_CREATE ({}) [ext: {}x{}, col_att: {} (tex), buff_att: {} (rbo)]", fbo,
+                extent.width, extent.height, color.size(), buffer.id());
+
   return {in_place, create_t{}, fbo, extent};
 }
 
@@ -219,6 +223,10 @@ gl_sv_expect<gl_framebuffer> gl_framebuffer::with_textures(gl_context& gl, exten
     GL_ASSERT(glDeleteFramebuffers(1, &fbo));
     return {unexpect, "Incomplete framebuffer", err};
   }
+
+  SHOGLE_GL_LOG(VERBOSE,
+                "FRAMEBUFFER_CREATE ({}) [ext: {}x{}, col_att: {} (tex), buff_att: {} (tex)]", fbo,
+                extent.width, extent.height, color.size(), buffer.tex->id());
 
   return {in_place, create_t{}, fbo, extent};
 }
@@ -263,6 +271,9 @@ gl_sv_expect<gl_framebuffer> gl_framebuffer::with_renderbuffer(gl_context& gl, e
     GL_ASSERT(glDeleteFramebuffers(1, &fbo));
     return {unexpect, "Incomplete framebuffer", err};
   }
+  SHOGLE_GL_LOG(VERBOSE,
+                "FRAMEBUFFER_CREATE ({}) [ext: {}x{}, col_att: 1 (rbo), buff_att: {} (rbo)]", fbo,
+                extent.width, extent.height, buffer.id());
 
   return {in_place, create_t{}, fbo, extent};
 }
@@ -315,6 +326,10 @@ gl_sv_expect<gl_framebuffer> gl_framebuffer::with_renderbuffer(gl_context& gl, e
     GL_ASSERT(glDeleteFramebuffers(1, &fbo));
     return {unexpect, "Incomplete framebuffer", err};
   }
+
+  SHOGLE_GL_LOG(VERBOSE,
+                "FRAMEBUFFER_CREATE ({}) [ext: {}x{}, col_att: 1 (rbo), buff_att: {} (tex)]", fbo,
+                extent.width, extent.height, buffer.tex->id());
 
   return {in_place, create_t{}, fbo, extent};
 }
