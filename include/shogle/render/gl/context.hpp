@@ -3,6 +3,8 @@
 #include <shogle/render/gl/common.hpp>
 #include <shogle/render/gl/pipeline.hpp>
 
+#include <shogle/util/function.hpp>
+
 namespace shogle {
 
 struct gl_clear_opts {
@@ -184,10 +186,10 @@ private:
 
 struct gl_external_command {
 public:
-  using callback_type = function_view<void(gl_context& gl, gldefs::GLhandle fbo)>;
+  using callback_type = fn_ref<void(gl_context& gl, gldefs::GLhandle fbo)>;
 
 public:
-  callback_type callback;
+	fn_ref<void(gl_context& gl, gldefs::GLhandle fbo)> callback;
   gl_depth_test_props depth_test;
   gl_stencil_test_props stencil_test;
   gl_blending_props blending;
@@ -223,7 +225,7 @@ public:
   gl_external_command build() const;
 
 private:
-  gl_external_command::callback_type _callback;
+	optional<gl_external_command::callback_type> _callback;
   gl_stencil_test_props _stencil;
   gl_depth_test_props _depth;
   gl_blending_props _blending;

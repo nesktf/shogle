@@ -4,7 +4,6 @@
 
 #include <fmt/format.h>
 
-#include <functional>
 #include <limits>
 #include <memory>
 #include <type_traits>
@@ -410,103 +409,5 @@ private:
   pointer _data;
 };
 
-template<typename Signature>
-class function_view;
-
-template<typename Ret, typename... Args>
-class function_view<Ret(Args...)> {
-private:
-  template<typename T>
-  static constexpr Ret _invoke_for(void* obj, Args... args) {
-    if constexpr (std::is_void_v<Ret>) {
-      std::invoke(*static_cast<T*>(obj), std::forward<Args>(args)...);
-    } else {
-      return std::invoke(*static_cast<T*>(obj), std::forward<Args>(args)...);
-    }
-  }
-
-public:
-  using signature = Ret(Args...);
-  using return_type = Ret;
-
-public:
-  constexpr function_view() noexcept : _data{nullptr}, _invoke_ptr{nullptr} {}
-
-  explicit constexpr function_view(std::nullptr_t) noexcept :
-      _data{nullptr}, _invoke_ptr{nullptr} {}
-
-  explicit constexpr function_view(Ret (*fun)(Args...)) noexcept :
-      _data{nullptr}, _invoke_ptr{fun} {}
-
-  template<typename T>
-  requires(std::is_invocable_r_v<Ret, T, Args...> && !std::is_same_v<function_view, T>)
-  constexpr function_view(T& functor) noexcept :
-      _data{static_cast<void*>(std::addressof(functor))}, _invoke_functor{&_invoke_for<T>} {}
-
-  template<typename T>
-  requires(std::is_invocable_r_v<Ret, T, Args...> && !std::is_same_v<function_view, T>)
-  constexpr function_view(T* functor) noexcept :
-      _data{static_cast<void*>(functor)}, _invoke_functor{&_invoke_for<T>} {}
-
-public:
-  constexpr ~function_view() noexcept = default;
-  constexpr function_view(const function_view&) noexcept = default;
-  constexpr function_view(function_view&&) noexcept = default;
-
-public:
-  constexpr Ret operator()(Args... args) const {
-    if (_data) {
-      SHOGLE_ASSERT(_invoke_functor);
-      if constexpr (std::is_void_v<Ret>) {
-        std::invoke(_invoke_functor, _data, std::forward<Args>(args)...);
-      } else {
-        return std::invoke(_invoke_functor, _data, std::forward<Args>(args)...);
-      }
-    } else {
-      SHOGLE_ASSERT(_invoke_ptr);
-      if constexpr (std::is_void_v<Ret>) {
-        std::invoke(_invoke_ptr, std::forward<Args>(args)...);
-      } else {
-        return std::invoke(_invoke_ptr, std::forward<Args>(args)...);
-      }
-    }
-  }
-
-  constexpr function_view& operator=(std::nullptr_t) noexcept {
-    _data = nullptr;
-    _invoke_ptr = nullptr;
-    return *this;
-  }
-
-  constexpr function_view& operator=(Ret (*fun)(Args...)) noexcept {
-    _data = nullptr;
-    _invoke_ptr = fun;
-    return *this;
-  }
-
-  template<typename T>
-  requires(std::is_invocable_r_v<Ret, T, Args...> && !std::is_same_v<function_view, T>)
-  constexpr function_view& operator=(T& functor) noexcept {
-    _data = std::addressof(functor);
-    _invoke_functor = &_invoke_for<T>;
-    return *this;
-  }
-
-  constexpr function_view& operator=(const function_view&) noexcept = default;
-  constexpr function_view& operator=(function_view&&) noexcept = default;
-
-public:
-  constexpr bool is_empty() const { return !(_data && _invoke_functor) || _invoke_ptr == nullptr; }
-
-  constexpr explicit operator bool() const { return !is_empty(); }
-
-private:
-  void* _data;
-
-  union {
-    Ret (*_invoke_functor)(void*, Args...);
-    Ret (*_invoke_ptr)(Args...);
-  };
-};
 
 } // namespace shogle

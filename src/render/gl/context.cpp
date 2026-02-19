@@ -219,7 +219,11 @@ gl_external_command_builder::gl_external_command_builder() noexcept :
 
 gl_external_command_builder&
 gl_external_command_builder::set_callback(gl_external_command::callback_type callback) {
-  _callback = callback;
+	if (_callback.has_value()) {
+		*_callback = callback;
+	} else {
+		_callback.emplace(callback);
+          }
   return *this;
 }
 
@@ -290,7 +294,7 @@ gl_external_command_builder& gl_external_command_builder::set_scissor(u32 x, u32
 }
 
 void gl_external_command_builder::reset() {
-  _callback = nullptr;
+	_callback.reset();
   _stencil = gl_stencil_test_props::make_default(false);
   _depth = gl_depth_test_props::make_default(false);
   _blending = gl_blending_props::make_default(false);
@@ -306,9 +310,9 @@ void gl_external_command_builder::reset() {
 }
 
 gl_external_command gl_external_command_builder::build() const {
-  SHOGLE_ASSERT(!_callback.is_empty(), "Callback not bound to external command");
+  SHOGLE_ASSERT(_callback.has_value(), "Callback not bound to external command");
   return {
-    .callback = _callback,
+    .callback = *_callback,
     .depth_test = _depth,
     .stencil_test = _stencil,
     .blending = _blending,
@@ -864,7 +868,6 @@ void gl_context::submit_command(const gl_draw_command& cmd,
 void gl_context::submit_command(const gl_external_command& cmd,
                                 ptr_view<const gl_framebuffer> target) {
   SHOGLE_ASSERT(_ctx, "gl_context use after free");
-  SHOGLE_ASSERT(!cmd.callback.is_empty(), "Empty external command callback");
   const GLuint fbo = target.empty() ? DEFAULT_FRAMEBUFFER : target->id();
   setup_framebuffer(*this, fbo, cmd.viewport, cmd.scissor);
   setup_render_state(*this, cmd.depth_test, cmd.stencil_test, cmd.blending, cmd.culling,
