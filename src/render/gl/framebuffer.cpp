@@ -1,4 +1,5 @@
 #include "./context_private.hpp"
+#include <GL/glext.h>
 #include <shogle/render/gl/context.hpp>
 #include <shogle/render/gl/framebuffer.hpp>
 
@@ -71,7 +72,7 @@ bool gl_renderbuffer::invalidated() const noexcept {
 
 namespace {
 
-u32 attach_colors([[maybe_unused]] gl_context& gl, [[maybe_unused]] extent2d extent,
+u32 attach_colors(gl_context& gl, [[maybe_unused]] extent2d extent,
                   span<const gl_framebuffer::texture_attachment> attachments) {
   u32 attachment_count = 0;
   for (const auto& [texture, level, layer] : attachments) {
@@ -91,6 +92,8 @@ u32 attach_colors([[maybe_unused]] gl_context& gl, [[maybe_unused]] extent2d ext
         GL_ASSERT(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment_count,
                                          GL_TEXTURE_2D, tex.id(), level));
       } break;
+      case GL_TEXTURE_CUBE_MAP:
+        [[fallthrough]];
       case GL_TEXTURE_3D: {
         SHOGLE_ASSERT(twidth == extent.width, "Color texture width mismatch");
         SHOGLE_ASSERT(theight == extent.height, "Color texture height mismatch");
@@ -106,40 +109,67 @@ u32 attach_colors([[maybe_unused]] gl_context& gl, [[maybe_unused]] extent2d ext
   return attachment_count;
 }
 
+gldefs::GLenum find_rbo_attachment(gl_renderbuffer::buffer_format format) {
+  switch (format) {
+    case gl_renderbuffer::FORMAT_D24U_S8U:
+      [[fallthrough]];
+    case gl_renderbuffer::FORMAT_D32F_S8U:
+      return GL_DEPTH_STENCIL_ATTACHMENT;
+    case gl_renderbuffer::FORMAT_D16U:
+      [[fallthrough]];
+    case gl_renderbuffer::FORMAT_D24U:
+      [[fallthrough]];
+    case gl_renderbuffer::FORMAT_D32U:
+      [[fallthrough]];
+    case gl_renderbuffer::FORMAT_D32F:
+      return GL_DEPTH_ATTACHMENT;
+    case gl_renderbuffer::FORMAT_S8U:
+      return GL_STENCIL_ATTACHMENT;
+    default:
+      return 0;
+  };
+  SHOGLE_UNREACHABLE();
+}
+
+GLenum attach_tex_buffer(gl_context& gl, const gl_framebuffer::texture_attachment& buffer,
+                         extent2d extent, gldefs::GLenum attachment) {
+  switch (buffer.tex->type()) {
+    case gl_texture::TEX_TYPE_1D: {
+      return GL_RET_ERR(glFramebufferTexture1D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_1D,
+                                               buffer.tex->id(), buffer.level));
+    } break;
+    case gl_texture::TEX_TYPE_2D: {
+      return GL_RET_ERR(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D,
+                                               buffer.tex->id(), buffer.level));
+    } break;
+    case gl_texture::TEX_TYPE_CUBEMAP:
+      [[fallthrough]];
+    case gl_texture::TEX_TYPE_3D: {
+      return GL_RET_ERR(glFramebufferTexture3D(GL_FRAMEBUFFER, attachment, buffer.tex->type(),
+                                               buffer.tex->id(), buffer.level, buffer.layer));
+    } break;
+    default: {
+      return GL_INVALID_VALUE;
+    } break;
+  }
+}
+
 } // namespace
 
-gl_sv_expect<gl_framebuffer>
-gl_framebuffer::from_renderbuffer(gl_context& gl, extent2d extent,
-                                  span<const texture_attachment> color,
-                                  const gl_renderbuffer& rbo) {
-  const auto find_rbo_attachment = [](gl_renderbuffer::buffer_format format) -> GLenum {
-    switch (format) {
-      case gl_renderbuffer::FORMAT_D24u_S8u:
-        [[fallthrough]];
-      case gl_renderbuffer::FORMAT_D32f_S8u:
-        return GL_DEPTH_STENCIL_ATTACHMENT;
-      case gl_renderbuffer::FORMAT_D16u:
-        [[fallthrough]];
-      case gl_renderbuffer::FORMAT_D24u:
-        [[fallthrough]];
-      case gl_renderbuffer::FORMAT_D32u:
-        [[fallthrough]];
-      case gl_renderbuffer::FORMAT_D32f:
-        return GL_DEPTH_ATTACHMENT;
-      case gl_renderbuffer::FORMAT_S8u:
-        return GL_STENCIL_ATTACHMENT;
-      default:
-        break;
-    };
-    SHOGLE_UNREACHABLE();
-  };
+gl_sv_expect<gl_framebuffer> gl_framebuffer::with_textures(gl_context& gl, extent2d extent,
+                                                           span<const texture_attachment> color,
+                                                           const gl_renderbuffer& buffer) {
+  const auto attachment = find_rbo_attachment(buffer.format());
+  if (!attachment) {
+    return {unexpect, "Invalid renderbuffer attachment format"};
+  }
   GLuint fbo;
   GL_ASSERT(glGenFramebuffers(1, &fbo));
   GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
 
-  GL_ASSERT(glBindRenderbuffer(GL_RENDERBUFFER, rbo.id()));
-  auto err = GL_RET_ERR(glFramebufferRenderbuffer(
-    GL_FRAMEBUFFER, find_rbo_attachment(rbo.format()), GL_RENDERBUFFER, rbo.id()));
+  GL_ASSERT(glBindRenderbuffer(GL_RENDERBUFFER, buffer.id()));
+  auto err = GL_RET_ERR(
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, buffer.id()));
   GL_ASSERT(glBindRenderbuffer(GL_RENDERBUFFER, GL_DEFAULT_BINDING));
   if (err) {
     GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, GL_DEFAULT_BINDING));
@@ -147,71 +177,121 @@ gl_framebuffer::from_renderbuffer(gl_context& gl, extent2d extent,
     return {unexpect, "Failed to bind renderbuffer", err};
   }
 
-  const u32 attachment_count = attach_colors(gl, extent, color);
+  attach_colors(gl, extent, color);
   err = GL_CALL(glCheckFramebufferStatus(GL_FRAMEBUFFER));
   GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, GL_DEFAULT_BINDING));
-  if (err) {
+  if (err != GL_FRAMEBUFFER_COMPLETE) {
     GL_ASSERT(glDeleteFramebuffers(1, &fbo));
     return {unexpect, "Incomplete framebuffer", err};
   }
 
-  return {in_place, create_t{}, fbo, attachment_count, BUFFER_ATT_RENDERBUFFER, extent};
+  return {in_place, create_t{}, fbo, extent};
 }
 
-gl_sv_expect<gl_framebuffer> gl_framebuffer::from_texture(gl_context& gl, extent2d extent,
-                                                          span<const texture_attachment> color,
-                                                          const texture_attachment& tex) {
-  const auto find_tex_component = [](gl_texture::texture_format format) -> GLenum {
-    // TODO: fill this thing
-    switch (format) {
-      case GL_DEPTH_COMPONENT:
-        return GL_DEPTH_ATTACHMENT;
-      default:
-        break;
-    }
-    return 0;
-  };
+gl_sv_expect<gl_framebuffer> gl_framebuffer::with_textures(gl_context& gl, extent2d extent,
+                                                           span<const texture_attachment> color,
+                                                           const texture_attachment& buffer) {
+  const auto format = buffer.tex->format();
+  if (format != gl_texture::TEX_FORMAT_DEPTH_STENCIL || gl_texture::TEX_FORMAT_DEPTH_COMPONENT) {
+    return {unexpect, "Invalid buffer texture attachment format"};
+  }
   GLuint fbo;
   GL_ASSERT(glGenFramebuffers(1, &fbo));
   GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
 
-  const u32 level = tex.level;
-  const u32 layer = tex.layer;
-  const gl_texture& texture = tex.tex.get();
-  const auto attachment_component = find_tex_component(texture.format());
-  if (!attachment_component) {
+  const auto attachment = format == gl_texture::TEX_FORMAT_DEPTH_STENCIL
+                          ? GL_DEPTH_STENCIL_ATTACHMENT
+                          : GL_DEPTH_ATTACHMENT;
+  const auto [twidth, theight, _] = buffer.tex->extent();
+  const auto type = buffer.tex->type();
+  GL_ASSERT(glBindTexture(type, buffer.tex->id()));
+  GLenum err = attach_tex_buffer(gl, buffer, extent, attachment);
+  if (err) {
     GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, GL_DEFAULT_BINDING));
     GL_ASSERT(glDeleteFramebuffers(1, &fbo));
-    return {unexpect, "Invalid buffer texture format", GL_INVALID_VALUE};
+    return {unexpect, "Failed to bind texture buffer", err};
   }
-  const auto [twidth, theight, _] = texture.extent();
-  const auto type = texture.type();
-  GL_ASSERT(glBindTexture(type, texture.id()));
-  GLenum err = GL_NO_ERROR;
-  switch (type) {
-    case gl_texture::TEX_TYPE_1D: {
-      SHOGLE_ASSERT(twidth == extent.width, "Buffer texture width mismatch");
-      err = GL_RET_ERR(glFramebufferTexture1D(GL_FRAMEBUFFER, attachment_component, GL_TEXTURE_1D,
-                                              texture.id(), level));
-    } break;
-    case gl_texture::TEX_TYPE_2D: {
-      SHOGLE_ASSERT(twidth == extent.width, "Buffer texture width mismatch");
-      SHOGLE_ASSERT(theight == extent.height, "Buffer texture height mismatch");
-      err = GL_RET_ERR(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment_component, GL_TEXTURE_2D,
-                                              texture.id(), level));
-    } break;
-    case gl_texture::TEX_TYPE_CUBEMAP:
-      [[fallthrough]];
-    case gl_texture::TEX_TYPE_3D: {
-      SHOGLE_ASSERT(twidth == extent.width, "Buffer texture width mismatch");
-      SHOGLE_ASSERT(theight == extent.height, "Buffer texture height mismatch");
-      err = GL_RET_ERR(glFramebufferTexture3D(GL_FRAMEBUFFER, attachment_component, type,
-                                              texture.id(), level, layer));
-    } break;
-    default: {
-      err = GL_INVALID_VALUE;
-    } break;
+
+  attach_colors(gl, extent, color);
+  err = GL_CALL(glCheckFramebufferStatus(GL_FRAMEBUFFER));
+  GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, GL_DEFAULT_BINDING));
+  if (err != GL_FRAMEBUFFER_COMPLETE) {
+    GL_ASSERT(glDeleteFramebuffers(1, &fbo));
+    return {unexpect, "Incomplete framebuffer", err};
   }
+
+  return {in_place, create_t{}, fbo, extent};
+}
+
+gl_sv_expect<gl_framebuffer> gl_framebuffer::with_renderbuffer(gl_context& gl, extent2d extent,
+                                                               const gl_renderbuffer& color,
+                                                               const gl_renderbuffer& buffer) {
+  const auto attachment = find_rbo_attachment(buffer.format());
+  if (!attachment) {
+    return {unexpect, "Invalid renderbuffer attachment format"};
+  }
+  if (color.format() != gl_renderbuffer::FORMAT_SRGB8_A8 ||
+      color.format() != gl_renderbuffer::FORMAT_RGB10_A2UI) {
+    return {unexpect, "Invalid color attachment format"};
+  }
+  GLuint fbo;
+  GL_ASSERT(glGenFramebuffers(1, &fbo));
+  GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+
+  GL_ASSERT(glBindRenderbuffer(GL_RENDERBUFFER, buffer.id()));
+  auto err = GL_RET_ERR(
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, buffer.id()));
+  if (err) {
+    GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, GL_DEFAULT_BINDING));
+    GL_ASSERT(glDeleteFramebuffers(1, &fbo));
+    return {unexpect, "Failed to bind buffer renderbuffer", err};
+  }
+
+  GL_ASSERT(glBindRenderbuffer(GL_RENDERBUFFER, color.id()));
+  err = GL_RET_ERR(
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color.id()));
+  GL_ASSERT(glBindRenderbuffer(GL_RENDERBUFFER, GL_DEFAULT_BINDING));
+  if (err) {
+    GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, GL_DEFAULT_BINDING));
+    GL_ASSERT(glDeleteFramebuffers(1, &fbo));
+    return {unexpect, "Failed to bind buffer renderbuffer", err};
+  }
+
+  err = GL_CALL(glCheckFramebufferStatus(GL_FRAMEBUFFER));
+  GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, GL_DEFAULT_BINDING));
+  if (err != GL_FRAMEBUFFER_COMPLETE) {
+    GL_ASSERT(glDeleteFramebuffers(1, &fbo));
+    return {unexpect, "Incomplete framebuffer", err};
+  }
+
+  return {in_place, create_t{}, fbo, extent};
+}
+
+gl_sv_expect<gl_framebuffer> gl_framebuffer::with_renderbuffer(gl_context& gl, extent2d extent,
+                                                               const gl_renderbuffer& color,
+                                                               const texture_attachment& buffer) {
+  const auto format = buffer.tex->format();
+  if (format != gl_texture::TEX_FORMAT_DEPTH_STENCIL || gl_texture::TEX_FORMAT_DEPTH_COMPONENT) {
+    return {unexpect, "Invalid buffer texture attachment format"};
+  }
+  if (color.format() != gl_renderbuffer::FORMAT_SRGB8_A8 ||
+      color.format() != gl_renderbuffer::FORMAT_RGB10_A2UI) {
+    return {unexpect, "Invalid color attachment format"};
+  }
+
+  GLuint fbo;
+  GL_ASSERT(glGenFramebuffers(1, &fbo));
+  GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+
+  const u32 level = buffer.level;
+  const u32 layer = buffer.layer;
+  const auto attachment = format == gl_texture::TEX_FORMAT_DEPTH_STENCIL
+                          ? GL_DEPTH_STENCIL_ATTACHMENT
+                          : GL_DEPTH_ATTACHMENT;
+  const auto [twidth, theight, _] = buffer.tex->extent();
+  const auto type = buffer.tex->type();
+  GL_ASSERT(glBindTexture(type, buffer.tex->id()));
+  GLenum err = attach_tex_buffer(gl, buffer, extent, attachment);
   GL_ASSERT(glBindTexture(type, GL_DEFAULT_BINDING));
   if (err) {
     GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, GL_DEFAULT_BINDING));
@@ -219,49 +299,48 @@ gl_sv_expect<gl_framebuffer> gl_framebuffer::from_texture(gl_context& gl, extent
     return {unexpect, "Failed to bind texture buffer", err};
   }
 
-  const u32 attachment_count = attach_colors(gl, extent, color);
+  GL_ASSERT(glBindRenderbuffer(GL_RENDERBUFFER, color.id()));
+  err = GL_RET_ERR(
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color.id()));
+  GL_ASSERT(glBindRenderbuffer(GL_RENDERBUFFER, GL_DEFAULT_BINDING));
+  if (err) {
+    GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, GL_DEFAULT_BINDING));
+    GL_ASSERT(glDeleteFramebuffers(1, &fbo));
+    return {unexpect, "Failed to bind buffer renderbuffer", err};
+  }
+
   err = GL_CALL(glCheckFramebufferStatus(GL_FRAMEBUFFER));
   GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, GL_DEFAULT_BINDING));
-  if (err) {
+  if (err != GL_FRAMEBUFFER_COMPLETE) {
     GL_ASSERT(glDeleteFramebuffers(1, &fbo));
     return {unexpect, "Incomplete framebuffer", err};
   }
 
-  return {in_place, create_t{}, fbo, attachment_count, BUFFER_ATT_TEXTURE, extent};
+  return {in_place, create_t{}, fbo, extent};
 }
 
-gl_sv_expect<gl_framebuffer>
-gl_framebuffer::from_color_only(gl_context& gl, extent2d extent,
-                                span<const texture_attachment> color) {
-  GLuint fbo;
-  GL_ASSERT(glGenFramebuffers(1, &fbo));
-  GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
-  const u32 attachment_count = attach_colors(gl, extent, color);
-  const auto err = GL_CALL(glCheckFramebufferStatus(GL_FRAMEBUFFER));
-  GL_ASSERT(glBindFramebuffer(GL_FRAMEBUFFER, GL_DEFAULT_BINDING));
-  if (err) {
-    return {unexpect, "Incomplete framebuffer", err};
-  }
-  SHOGLE_ASSERT(attachment_count);
-  return {in_place, create_t{}, fbo, attachment_count, BUFFER_ATT_NONE, extent};
-}
-
-gl_framebuffer::gl_framebuffer(create_t, gldefs::GLhandle fbo, u32 color_attachments,
-                               buffer_attachment attachment, extent2d extent) :
-    _extent(extent), _id(fbo), _buffer_attachment(attachment), _color_count(color_attachments) {}
-
-gl_framebuffer::gl_framebuffer(gl_context& gl, extent2d extent,
-                               span<const texture_attachment> color, const gl_renderbuffer& rbo) :
-    gl_framebuffer(::shogle::gl_framebuffer::from_renderbuffer(gl, extent, color, rbo).value()) {}
+gl_framebuffer::gl_framebuffer(create_t, gldefs::GLhandle fbo, extent2d extent) noexcept :
+    _extent(extent), _id(fbo) {}
 
 gl_framebuffer::gl_framebuffer(gl_context& gl, extent2d extent,
                                span<const texture_attachment> color,
-                               const texture_attachment& tex) :
-    gl_framebuffer(::shogle::gl_framebuffer::from_texture(gl, extent, color, tex).value()) {}
+                               const gl_renderbuffer& buffer) :
+    gl_framebuffer(::shogle::gl_framebuffer::with_textures(gl, extent, color, buffer).value()) {}
 
 gl_framebuffer::gl_framebuffer(gl_context& gl, extent2d extent,
-                               span<const texture_attachment> color) :
-    gl_framebuffer(::shogle::gl_framebuffer::from_color_only(gl, extent, color).value()) {}
+                               span<const texture_attachment> color,
+                               const texture_attachment& buffer) :
+    gl_framebuffer(::shogle::gl_framebuffer::with_textures(gl, extent, color, buffer).value()) {}
+
+gl_framebuffer::gl_framebuffer(gl_context& gl, extent2d extent, const gl_renderbuffer& color,
+                               const gl_renderbuffer& buffer) :
+    gl_framebuffer(
+      ::shogle::gl_framebuffer::with_renderbuffer(gl, extent, color, buffer).value()) {}
+
+gl_framebuffer::gl_framebuffer(gl_context& gl, extent2d extent, const gl_renderbuffer& color,
+                               const texture_attachment& buffer) :
+    gl_framebuffer(
+      ::shogle::gl_framebuffer::with_renderbuffer(gl, extent, color, buffer).value()) {}
 
 void gl_framebuffer::destroy(gl_context& gl, gl_framebuffer& fbo) noexcept {
   if (SHOGLE_UNLIKELY(fbo.invalidated())) {
@@ -288,16 +367,15 @@ void gl_framebuffer::destroy_n(gl_context& gl, span<gl_framebuffer> fbos) noexce
   destroy_n(gl, fbos.data(), fbos.size());
 }
 
-gl_expect<void> gl_framebuffer::blit(gl_context& gl, const gl_framebuffer& source,
-                                     const rectangle_pos<u32>& source_area,
-                                     const gl_framebuffer& dest,
+gl_expect<void> gl_framebuffer::blit(gl_context& gl, gldefs::GLhandle src_fbo,
+                                     const rectangle_pos<u32>& src_area, gldefs::GLhandle dst_fbo,
                                      const rectangle_pos<u32>& dest_area,
                                      gl_framebuffer::buffer_target target_mask,
                                      gl_framebuffer::buffer_filter filter) {
-  const auto [src_x, src_y, src_w, src_h] = source_area;
+  const auto [src_x, src_y, src_w, src_h] = src_area;
   const auto [dst_x, dst_y, dst_w, dst_h] = dest_area;
-  GL_ASSERT(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dest.id()));
-  GL_ASSERT(glBindFramebuffer(GL_READ_FRAMEBUFFER, source.id()));
+  GL_ASSERT(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst_fbo));
+  GL_ASSERT(glBindFramebuffer(GL_READ_FRAMEBUFFER, src_fbo));
   const auto err = GL_RET_ERR(glBlitFramebuffer(src_x, src_y, src_w, src_h, dst_x, dst_y, dst_w,
                                                 dst_h, target_mask, filter));
   GL_ASSERT(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, GL_DEFAULT_BINDING));
@@ -316,16 +394,6 @@ gldefs::GLhandle gl_framebuffer::id() const {
 extent2d gl_framebuffer::extent() const {
   SHOGLE_ASSERT(!invalidated(), "gl_framebuffer use after free");
   return _extent;
-}
-
-gl_framebuffer::buffer_attachment gl_framebuffer::attachment_type() const {
-  SHOGLE_ASSERT(!invalidated(), "gl_framebuffer use after free");
-  return _buffer_attachment;
-}
-
-u32 gl_framebuffer::color_attachment_count() const {
-  SHOGLE_ASSERT(!invalidated(), "gl_framebuffer use after free");
-  return _color_count;
 }
 
 bool gl_framebuffer::invalidated() const noexcept {

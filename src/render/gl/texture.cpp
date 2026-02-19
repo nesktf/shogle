@@ -245,10 +245,9 @@ std::string_view tex_format_string(gl_texture::texture_format format) {
 #undef STR
 }
 
-#if 0
 std::string_view tex_sampler_string(gldefs::GLenum sampler) {
 #define STR(enum_)                      \
-  case gl_texture::SAMPLER_MIN_##enum_: \
+  case gl_texture::SAMPLER_##enum_: \
     return #enum_
 
   switch (sampler) {
@@ -264,7 +263,6 @@ std::string_view tex_sampler_string(gldefs::GLenum sampler) {
 
 #undef STR
 }
-#endif
 
 std::string_view tex_type_string(gl_texture::texture_type type) {
   switch (type) {
@@ -726,21 +724,24 @@ gl_texture& gl_texture::set_swizzle(gl_context& gl, swizzle_target target, swizz
   return *this;
 }
 
-gl_texture& gl_texture::set_sampler_min(gl_context& gl, texture_min_sampler sampler) {
+gl_texture& gl_texture::set_sampler(gl_context& gl, texture_sampler sampler) {
   SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  const texture_sampler magsampler = [](texture_sampler sampler) {
+    switch (sampler) {
+      case SAMPLER_NEAREST_MP_NEAREST:
+        [[fallthrough]];
+      case SAMPLER_NEAREST:
+        return SAMPLER_NEAREST;
+      default:
+        return SAMPLER_LINEAR;
+    }
+  }(sampler);
   GL_ASSERT(glBindTexture(_type, _id));
-  GL_ASSERT(glTexParameteri(_type, 0x2801, sampler)); // GL_TEXTURE_MIN_FILTER
+  GL_ASSERT(glTexParameteri(_type, GL_TEXTURE_MIN_FILTER, sampler));
+  GL_ASSERT(glTexParameteri(_type, GL_TEXTURE_MAG_FILTER, magsampler));
   GL_ASSERT(glBindTexture(_type, GL_DEFAULT_BINDING));
-  // TODO: Add logger here
-  return *this;
-}
-
-gl_texture& gl_texture::set_sampler_mag(gl_context& gl, texture_mag_sampler sampler) {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
-  GL_ASSERT(glBindTexture(_type, _id));
-  GL_ASSERT(glTexParameteri(_type, 0x2800, sampler)); // GL_TEXTURE_MAG_FILTER
-  GL_ASSERT(glBindTexture(_type, GL_DEFAULT_BINDING));
-  // TODO: Add logger here
+  SHOGLE_GL_LOG(verbose, "TEXTURE_SAMPLER ({}) [type: {}, sampler: {}]", _id,
+								tex_type_string(_type), tex_sampler_string(sampler));
   return *this;
 }
 

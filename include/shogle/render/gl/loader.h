@@ -106,6 +106,8 @@ SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver
 
 #define GL_TEXTURE0         0x84C0
 #define GL_UNPACK_ALIGNMENT 0x0CF5
+#define GL_TEXTURE_MAG_FILTER 0x2801
+#define GL_TEXTURE_MIN_FILTER 0x2801
 
 #ifndef APIENTRY
 #define APIENTRY

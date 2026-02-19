@@ -130,6 +130,7 @@ int main() {
 
   shogle::gl_texture tex(gl, shogle::gl_texture::TEX_FORMAT_RGB8, shogle::extent2d{w, h});
   shogle::gl_scoped_resource tex_scope(gl, tex);
+	tex.set_sampler(gl, shogle::gl_texture::SAMPLER_NEAREST);
   const shogle::gl_texture::image_data d{
     .data = cirno.data(),
     .extent = {w, h, 1},

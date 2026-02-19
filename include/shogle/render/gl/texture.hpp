@@ -144,19 +144,14 @@ public:
     WRAP_DIR_R = 0x8072, // GL_TEXTURE_WRAP_R
   };
 
-  enum texture_mag_sampler : gldefs::GLenum {
-    SAMPLER_MAG_NEAREST = 0x2600, // GL_NEAREST
-    SAMPLER_MAG_LINEAR = 0x2601,  // GL_LINEAR
-  };
-
-  enum texture_min_sampler : gldefs::GLenum {
-    SAMPLER_MIN_NEAREST = 0x2600,            // GL_NEAREST
-    SAMPLER_MIN_LINEAR = 0x2601,             // GL_LINEAR
-    SAMPLER_MIN_NEAREST_MP_NEAREST = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
-    SAMPLER_MIN_LINEAR_MP_NEAREST = 0x2701,  // GL_LINEAR_MIPMAP_NEAREST
-    SAMPLER_MIN_NEAREST_MP_LINEAR = 0x2702,  // GL_NEAREST_MIPMAP_LINEAR
-    SAMPLER_MIN_LINEAR_MP_LINEAR = 0x2703,   // GL_LINEAR_MIPMAP_LINEAR
-  };
+  enum texture_sampler : gldefs::GLenum {
+    SAMPLER_NEAREST = 0x2600,            // GL_NEAREST
+    SAMPLER_LINEAR = 0x2601,             // GL_LINEAR
+    SAMPLER_NEAREST_MP_NEAREST = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
+    SAMPLER_LINEAR_MP_NEAREST = 0x2701,  // GL_LINEAR_MIPMAP_NEAREST
+    SAMPLER_NEAREST_MP_LINEAR = 0x2702,  // GL_NEAREST_MIPMAP_LINEAR
+    SAMPLER_LINEAR_MP_LINEAR = 0x2703,   // GL_LINEAR_MIPMAP_LINEAR
+	};
 
   enum cubemap_face : gldefs::GLenum {
     CUBEMAP_POS_X = 0x8515, // GL_TEXTURE_CUBEMAP_POSITIVE_X
@@ -323,8 +318,7 @@ public:
 public:
   gl_texture& set_swizzle(gl_context& gl, swizzle_target target, swizzle_mask mask);
   gl_texture& set_wrap(gl_context& gl, wrap_direction dir, texture_wrap wrap);
-  gl_texture& set_sampler_mag(gl_context& gl, texture_mag_sampler sampler);
-  gl_texture& set_sampler_min(gl_context& gl, texture_min_sampler sampler);
+  gl_texture& set_sampler(gl_context& gl, texture_sampler sampler);
 
 public:
   gldefs::GLhandle id() const;

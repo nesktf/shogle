@@ -11,13 +11,15 @@ public:
 
 public:
   enum buffer_format : gldefs::GLenum {
-    FORMAT_D24u_S8u = 0x88F0, // GL_DEPTH24_STENCIL8,
-    FORMAT_D32f_S8u = 0x8CAD, // GL_DEPTH32F_STENCIL8,
-    FORMAT_D16u = 0x81A5,     // GL_DEPTH_COMPONENT16,
-    FORMAT_D24u = 0x81A6,     // GL_DEPTH_COMPONENT24,
-    FORMAT_D32u = 0x81A7,     // GL_DEPTH_COMPONENT32,
-    FORMAT_D32f = 0x8CAC,     // GL_DEPTH_COMPONENT32F,
-    FORMAT_S8u = 0x8D48,      // GL_STENCIL_INDEX8,
+    FORMAT_RGB10_A2UI = 0x8059, // GL_RGBA10_A2UI
+    FORMAT_SRGB8_A8 = 0x8C43,   // GL_SRGB8_ALPHA8
+    FORMAT_D24U_S8U = 0x88F0,   // GL_DEPTH24_STENCIL8,
+    FORMAT_D32F_S8U = 0x8CAD,   // GL_DEPTH32F_STENCIL8,
+    FORMAT_D16U = 0x81A5,       // GL_DEPTH_COMPONENT16,
+    FORMAT_D24U = 0x81A6,       // GL_DEPTH_COMPONENT24,
+    FORMAT_D32U = 0x81A7,       // GL_DEPTH_COMPONENT32,
+    FORMAT_D32F = 0x8CAC,       // GL_DEPTH_COMPONENT32F,
+    FORMAT_S8U = 0x8D48,        // GL_STENCIL_INDEX8,
   };
 
 private:
@@ -77,12 +79,6 @@ public:
     u32 layer;
   };
 
-  enum buffer_attachment : gldefs::GLenum {
-    BUFFER_ATT_NONE = 0,
-    BUFFER_ATT_TEXTURE,
-    BUFFER_ATT_RENDERBUFFER,
-  };
-
   enum buffer_target : gldefs::GLbitfield {
     FORMAT_COLOR_BIT = 0x00004000,   // GL_COLOR_FORMAT_BIT
     FORMAT_DEPTH_BIT = 0x00000100,   // GL_DEPTH_FORMAT_BIT,
@@ -98,28 +94,36 @@ private:
   struct create_t {};
 
 public:
-  gl_framebuffer(create_t, gldefs::GLhandle fbo, u32 color_attachments,
-                 buffer_attachment attachment, extent2d extent);
+  gl_framebuffer(create_t, gldefs::GLhandle fbo, extent2d extent) noexcept;
+
+  gl_framebuffer(gl_context& gl, extent2d extent, span<const texture_attachment> color,
+                 const gl_renderbuffer& buffer);
 
   explicit gl_framebuffer(gl_context& gl, extent2d extent, span<const texture_attachment> color,
-                          const gl_renderbuffer& rbo);
+                          const texture_attachment& buffer);
 
-  explicit gl_framebuffer(gl_context& gl, extent2d extent, span<const texture_attachment> color,
-                          const texture_attachment& tex);
+  explicit gl_framebuffer(gl_context& gl, extent2d extent, const gl_renderbuffer& color,
+                          const gl_renderbuffer& buffer);
 
-  explicit gl_framebuffer(gl_context& gl, extent2d extent, span<const texture_attachment> color);
+  explicit gl_framebuffer(gl_context& gl, extent2d extent, const gl_renderbuffer& color,
+                          const texture_attachment& buffer);
 
 public:
-  static gl_sv_expect<gl_framebuffer> from_renderbuffer(gl_context& gl, extent2d extent,
-                                                        span<const texture_attachment> color,
-                                                        const gl_renderbuffer& rbo);
+  static gl_sv_expect<gl_framebuffer> with_textures(gl_context& gl, extent2d extent,
+                                                    span<const texture_attachment> color,
+                                                    const gl_renderbuffer& buffer);
 
-  static gl_sv_expect<gl_framebuffer> from_texture(gl_context& gl, extent2d extent,
-                                                   span<const texture_attachment> color,
-                                                   const texture_attachment& tex);
+  static gl_sv_expect<gl_framebuffer> with_textures(gl_context& gl, extent2d extent,
+                                                    span<const texture_attachment> color,
+                                                    const texture_attachment& buffer);
 
-  static gl_sv_expect<gl_framebuffer> from_color_only(gl_context& gl, extent2d extent,
-                                                      span<const texture_attachment> color);
+  static gl_sv_expect<gl_framebuffer> with_renderbuffer(gl_context& gl, extent2d extent,
+                                                        const gl_renderbuffer& color,
+                                                        const gl_renderbuffer& buffer);
+
+  static gl_sv_expect<gl_framebuffer> with_renderbuffer(gl_context& gl, extent2d extent,
+                                                        const gl_renderbuffer& color,
+                                                        const texture_attachment& buffer);
 
   static void destroy(gl_context& gl, gl_framebuffer& fbo) noexcept;
 
@@ -128,8 +132,8 @@ public:
   static void destroy_n(gl_context& gl, span<gl_framebuffer> fbos) noexcept;
 
 public:
-  static gl_expect<void> blit(gl_context& gl, const gl_framebuffer& source,
-                              const rectangle_pos<u32>& source_area, const gl_framebuffer& dest,
+  static gl_expect<void> blit(gl_context& gl, gldefs::GLhandle src_fbo,
+                              const rectangle_pos<u32>& src_area, gldefs::GLhandle dst_fbo,
                               const rectangle_pos<u32>& dest_area,
                               gl_framebuffer::buffer_target target_mask,
                               gl_framebuffer::buffer_filter filter);
@@ -137,8 +141,6 @@ public:
 public:
   gldefs::GLhandle id() const;
   extent2d extent() const;
-  buffer_attachment attachment_type() const;
-  u32 color_attachment_count() const;
 
   bool invalidated() const noexcept;
 
@@ -148,8 +150,6 @@ public:
 private:
   extent2d _extent;
   gldefs::GLhandle _id;
-  buffer_attachment _buffer_attachment;
-  u32 _color_count;
 };
 
 template<>
