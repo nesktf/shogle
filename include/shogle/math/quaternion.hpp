@@ -66,7 +66,7 @@ public:
   }
 
 public:
-  SHOGLE_MATH_DEF const T* data() const noexcept { return &this->x1; }
+  SHOGLE_MATH_DEF const T* data() const noexcept { return &this->x; }
 
   SHOGLE_MATH_DEF T* data() noexcept { return const_cast<T*>(std::as_const(*this).data()); }
 
