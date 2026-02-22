@@ -182,7 +182,7 @@ public:
   static constexpr inline gl_depth_test_props make_default(bool enabled) {
     return {
       .enable = enabled,
-      .near = 0.01f,
+      .near = 0.f,
       .far = 1.f,
       .test = TEST_LESS,
       .mask = MASK_WRITE_ENABLE,

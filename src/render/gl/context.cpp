@@ -643,8 +643,8 @@ void setup_vertex_attributes(gl_context& gl, const gl_vertex_layout& layout,
   } else {
     SHOGLE_ASSERT(vertex_buffers.size() == attribs.size(),
                   "SOA vertex layout needs equal number of vertex buffers and attributes");
-    SHOGLE_ASSERT(vertex_buffers.size() >= gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
-                  "Vertex buffer count out ofr attribute range");
+    SHOGLE_ASSERT(vertex_buffers.size() < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+                  "Vertex buffer count out of attribute range");
 
     std::array<GLuint, gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS> bind_map{};
     for (const auto [buffer, location] : vertex_buffers) {
