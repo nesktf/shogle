@@ -660,7 +660,7 @@ void setup_vertex_attributes(gl_context& gl, const gl_vertex_layout& layout,
         continue;
       }
       GL_ASSERT(glBindBuffer(GL_ARRAY_BUFFER, buffer));
-      bind_attrib_pointer(attrib.type, attrib.location, attrib.offset);
+      bind_attrib_pointer(attrib.type, attrib.location, 0);
     }
   }
 }
