@@ -124,13 +124,13 @@ int main() {
                              .build();
 
   chima::context chima;
-  chima::image cirno(chima, CHIMA_DEPTH_8U, "./demos/res/cirno_cpp.jpg");
+  chima::image cirno(chima, CHIMA_DEPTH_8U, RES_FOLDER "/cirno_cpp.jpg");
   chima::scoped_resource cirno_scope(chima, cirno);
   const auto [w, h] = cirno.extent();
 
   shogle::gl_texture tex(gl, shogle::gl_texture::TEX_FORMAT_RGB8, shogle::extent2d{w, h});
   shogle::gl_scoped_resource tex_scope(gl, tex);
-	tex.set_sampler(gl, shogle::gl_texture::SAMPLER_NEAREST);
+  tex.set_sampler(gl, shogle::gl_texture::SAMPLER_NEAREST);
   const shogle::gl_texture::image_data d{
     .data = cirno.data(),
     .extent = {w, h, 1},
