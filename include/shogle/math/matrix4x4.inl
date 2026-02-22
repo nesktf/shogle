@@ -302,7 +302,7 @@ SHOGLE_MATH_DEF nummat<4, 4, T> perspective(T fov, T aspect, T znear, T zfar) no
   out.y2 = T(1) / halftan;
   out.z3 = -(zfar + znear) / (zfar - znear);
   out.w3 = -T(1);
-  out.z4 = -(T(2) * zfar * znear) / (zfar - znear);
+  out.z4 = -(zfar * znear) / (zfar - znear);
   return out;
 }
 
