@@ -5,7 +5,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -Wall -Wextra -Wpedantic -O0 -g2 -ggdb
 set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -Wall -Wextra -Wpedantic -O3 -Wno-psabi")
 
 set(RES_FOLDER "${SHOGLE_DIR}/res")
-set(EXAMPLE_LIST textured_quad)
+set(EXAMPLE_LIST textured_quad load_model)
 
 # freetype
 #find_package(Freetype REQUIRED)

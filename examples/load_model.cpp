@@ -1,0 +1,253 @@
+#include <shogle/math/transform.hpp>
+#include <shogle/render/data.hpp>
+#include <shogle/render/opengl.hpp>
+#include <shogle/render/window.hpp>
+
+#include <chimatools/chimatools.hpp>
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "./tiny_obj_loader.h"
+
+namespace {
+
+using namespace shogle::numdefs;
+
+constexpr std::string_view vert_src = R"glsl(
+#version 430 core
+
+layout (location = 0) in vec3 att_pos;
+layout (location = 1) in vec3 att_norm;
+layout (location = 2) in vec2 att_uvs;
+
+layout (location = 0) out vec3 frag_norm;
+layout (location = 1) out vec2 frag_uvs;
+
+uniform mat4 u_proj;
+uniform mat4 u_model;
+
+void main() {
+  gl_Position = u_proj*u_model*vec4(att_pos, 1.0f);
+  frag_norm = att_norm;
+  frag_uvs = att_uvs;
+}  
+)glsl";
+
+constexpr std::string_view frag_src = R"glsl(
+#version 430 core
+
+layout (location = 0) in vec3 frag_norm;
+layout (location = 1) in vec2 frag_uvs;
+
+layout (location = 0) out vec4 out_color;
+
+uniform sampler2D u_tex;
+  
+void main() {
+  out_color = texture(u_tex, frag_uvs);
+}
+)glsl";
+
+struct model_data {
+  std::vector<shogle::vec3> positions;
+  std::vector<shogle::vec3> normals;
+  std::vector<shogle::vec2> uvs;
+  // std::vector<u32> indices;
+  chima::image diffuse;
+};
+
+shogle::expected<model_data, std::string> load_model(chima::context_view chima) {
+  tinyobj::ObjReaderConfig reader_config;
+  reader_config.mtl_search_path = RES_FOLDER "/cirno_fumo";
+  static const char file_path[] = RES_FOLDER "/cirno_fumo/cirno_fumo.obj";
+  shogle::logger::info("Model path: {}", file_path);
+
+  tinyobj::ObjReader reader;
+  if (!reader.ParseFromFile(file_path, reader_config)) {
+    if (!reader.Error().empty()) {
+      return {shogle::unexpect, reader.Error()};
+    } else {
+      return {shogle::unexpect, "Can't load model"};
+    }
+  }
+
+  const auto& mat = reader.GetMaterials()[0];
+  const auto& attr = reader.GetAttrib();
+  const auto& mesh = reader.GetShapes()[0].mesh;
+  std::vector<shogle::vec3> pos_data;
+  std::vector<shogle::vec3> norm_data;
+  std::vector<shogle::vec2> uv_data;
+  /*
+  std::vector<u32> indices;
+  for (size_t i = 0; i < attr.vertices.size(); i += 3) {
+    pos_data.emplace_back(attr.vertices[i], attr.vertices[i + 1], attr.vertices[i + 2]);
+  }
+  for (size_t i = 0; i < attr.normals.size(); i += 3) {
+    norm_data.emplace_back(attr.normals[i], attr.normals[i + 1], attr.normals[i + 2]);
+  }
+  for (size_t i = 0; i < attr.texcoords.size(); i += 2) {
+    uv_data.emplace_back(attr.texcoords[i], attr.texcoords[i + 1]);
+  }
+  for (size_t i = 0; i < mesh.indices.size(); ++i) {
+    u32 v = mesh.indices[i].vertex_index;
+    u32 n = mesh.indices[i].normal_index;
+    u32 u = mesh.indices[i].texcoord_index;
+    if (v != n && v != u) {
+      shogle::logger::info("{} {} {}", v, n, u);
+    }
+    indices.push_back(mesh.indices[i].vertex_index);
+  }
+  */
+
+  u32 vertex_count = 0;
+  for (u32 face_vertex_count : mesh.num_face_vertices) {
+    for (u32 vertex = 0; vertex < face_vertex_count; ++vertex) {
+      tinyobj::index_t idx = mesh.indices[vertex_count + vertex];
+      assert(idx.vertex_index >= 0);
+      assert(idx.normal_index >= 0);
+      assert(idx.texcoord_index >= 0);
+      pos_data.emplace_back(attr.vertices[3 * idx.vertex_index + 0],
+                            attr.vertices[3 * idx.vertex_index + 1],
+                            attr.vertices[3 * idx.vertex_index + 2]);
+      norm_data.emplace_back(attr.normals[3 * idx.normal_index + 0],
+                             attr.normals[3 * idx.normal_index + 1],
+                             attr.normals[3 * idx.normal_index + 2]);
+      uv_data.emplace_back(attr.texcoords[2 * idx.texcoord_index + 0],
+                           attr.texcoords[2 * idx.texcoord_index + 1]);
+    }
+    vertex_count += face_vertex_count;
+  }
+  const auto diffuse_path =
+    fmt::format("{}/{}", reader_config.mtl_search_path, mat.diffuse_texname);
+  shogle::logger::info("Diffuse path: {}", diffuse_path);
+  chima::image diffuse(chima, CHIMA_DEPTH_8U, diffuse_path.c_str());
+
+  return {shogle::in_place, std::move(pos_data), std::move(norm_data), std::move(uv_data),
+          /*std::move(indices),*/ diffuse};
+}
+
+} // namespace
+
+int main() {
+  shogle::logger::set_level(shogle::logger::LEVEL_VERBOSE);
+
+  chima::context chima;
+  chima.set_flip_y(true);
+  auto cirno = load_model(chima);
+  if (!cirno) {
+    shogle::logger::error("Failed to load model: {}", cirno.error());
+    return EXIT_FAILURE;
+  }
+  chima::scoped_resource diffuse_defer(chima, cirno->diffuse);
+  const size_t nverts = cirno->positions.size();
+
+  f32 win_w = 800;
+  f32 win_h = 600;
+
+  const auto glfw = shogle::glfw_win::initialize_lib();
+  const auto hints = shogle::glfw_gl_hints::make_default(4, 6);
+  shogle::glfw_win win((u32)win_w, (u32)win_h, "test", hints);
+  shogle::gl_context gl(win);
+
+  bool do_things = true;
+  win.set_viewport_callback([&](auto, const shogle::extent2d& vp) {
+    win_w = (f32)vp.width;
+    win_h = (f32)vp.height;
+  });
+  win.set_key_input_callback([&](auto, const shogle::glfw_key_data& key) {
+    if (key.key == GLFW_KEY_SPACE && key.action == GLFW_PRESS) {
+      do_things = !do_things;
+    }
+  });
+
+  // Important: We are using a SoA vertex layout
+  shogle::gl_vertex_layout layout(gl, shogle::soa_vertex_arg<shogle::pnt_vertex>{});
+  const shogle::gl_scoped_resource layout_defer(gl, layout);
+
+  shogle::gl_buffer positions(gl, shogle::gl_buffer::TYPE_VERTEX, nverts * sizeof(shogle::vec3));
+  const shogle::gl_scoped_resource pos_defer(gl, positions);
+  shogle::gl_buffer normals(gl, shogle::gl_buffer::TYPE_VERTEX, nverts * sizeof(shogle::vec3));
+  const shogle::gl_scoped_resource norm_defer(gl, normals);
+  shogle::gl_buffer uvs(gl, shogle::gl_buffer::TYPE_VERTEX, nverts * sizeof(shogle::vec2));
+  const shogle::gl_scoped_resource uv_defer(gl, uvs);
+  // shogle::gl_buffer indices(gl, shogle::gl_buffer::TYPE_INDEX,
+  //                           cirno->indices.size() * sizeof(u32));
+
+  positions.upload_data(gl, cirno->positions.data(), nverts * sizeof(shogle::vec3), 0).value();
+  normals.upload_data(gl, cirno->normals.data(), nverts * sizeof(shogle::vec3), 0).value();
+  uvs.upload_data(gl, cirno->uvs.data(), nverts * sizeof(shogle::vec2), 0).value();
+  // indices.upload_data(gl, cirno->indices.data(), cirno->indices.size() * sizeof(u32),
+  // 0).value();
+
+  const auto [w, h] = cirno->diffuse.extent();
+  shogle::gl_texture tex(gl, shogle::gl_texture::TEX_FORMAT_RGB8, shogle::extent2d(w, h));
+  shogle::gl_scoped_resource tex_scope(gl, tex);
+  tex.set_sampler(gl, shogle::gl_texture::SAMPLER_LINEAR);
+  const shogle::gl_texture::image_data diffuse_data{
+    .data = cirno->diffuse.data(),
+    .extent = {w, h, 1},
+    .format = shogle::gl_texture::PIXEL_FORMAT_RGB,
+    .datatype = shogle::gl_texture::PIXEL_TYPE_U8,
+    .alignment = shogle::gl_texture::ALIGN_4BYTES,
+  };
+  tex.upload_image(gl, diffuse_data).value();
+  tex.generate_mipmaps(gl);
+
+  shogle::gl_shader vertex_shader(gl, vert_src, shogle::gl_shader::STAGE_VERTEX);
+  const shogle::gl_scoped_resource vshader_defer(gl, vertex_shader);
+  shogle::gl_shader fragment_shader(gl, frag_src, shogle::gl_shader::STAGE_FRAGMENT);
+  const shogle::gl_scoped_resource fshader_defer(gl, fragment_shader);
+
+  shogle::gl_shader_builder shader_builder;
+  const auto pipeline_shaders =
+    shader_builder.add_shader(vertex_shader).add_shader(fragment_shader).build();
+
+  shogle::gl_graphics_pipeline pipeline(gl, pipeline_shaders);
+  pipeline.set_depth_test(shogle::gl_depth_test_props::make_default(true));
+  const shogle::gl_scoped_resource pipeline_defer(gl, pipeline);
+  const auto u_model = pipeline.uniform_location(gl, "u_model").value();
+  const auto u_proj = pipeline.uniform_location(gl, "u_proj").value();
+  const auto u_tex = pipeline.uniform_location(gl, "u_tex").value();
+
+  shogle::gl_clear_builder clear_builder;
+  const auto frame_clear = clear_builder.set_clear_color(.3f, .3f, .3f, 1.f)
+                             .set_clear_flag(shogle::gl_clear_opts::CLEAR_COLOR)
+                             .set_clear_flag(shogle::gl_clear_opts::CLEAR_DEPTH)
+                             .build();
+
+  f32 t = 0.f;
+  shogle::gl_command_builder cmd_builder;
+  shogle::render_loop(win, [&](f64 dt) {
+    if (win.poll_key(GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+      win.close();
+    }
+    if (do_things) {
+      t += (f32)dt;
+    }
+
+    shogle::mat4 model(1.f);
+    model = shogle::math::translate(model, shogle::vec3(0.f, -.25f, -.75f));
+    model = shogle::math::rotate(model, t * shogle::math::pi<f32>, shogle::vec3(0.f, 1.f, 0.f));
+    model = shogle::math::scale(model, shogle::vec3(0.025f, 0.025f, 0.025f));
+    const auto proj = shogle::math::perspective(shogle::math::rad(90.f), win_w / win_h, .1f, 10.f);
+
+    gl.start_frame(frame_clear);
+    cmd_builder.reset();
+    const auto cmd = cmd_builder.set_vertex_layout(layout)
+                       .set_pipeline(pipeline)
+                       .set_draw_count(nverts)
+                       // .set_draw_count(cirno->indices.size())
+                       .add_texture(tex, 0)
+                       .add_uniform(proj, u_proj)
+                       .add_uniform(model, u_model)
+                       .add_uniform(0, u_tex)
+                       // .set_index_buffer(indices, shogle::gl_draw_command::INDEX_FORMAT_U32)
+                       .add_vertex_buffer(positions, 0)
+                       .add_vertex_buffer(normals, 1)
+                       .add_vertex_buffer(uvs, 2)
+                       .build();
+    gl.submit_command(cmd);
+    gl.end_frame();
+  });
+
+  return EXIT_SUCCESS;
+}

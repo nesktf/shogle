@@ -10,7 +10,7 @@ namespace {
 using namespace shogle::numdefs;
 
 constexpr std::string_view vert_src = R"glsl(
-#version 460 core
+#version 430 core
 
 layout (location = 0) in vec3 att_pos;
 layout (location = 1) in vec4 att_color;
@@ -30,7 +30,7 @@ void main() {
 )glsl";
 
 constexpr std::string_view frag_src = R"glsl(
-#version 460 core
+#version 430 core
 
 layout (location = 0) in vec4 frag_color;
 layout (location = 1) in vec2 frag_uvs;
@@ -87,6 +87,11 @@ constexpr size_t ebo_size = indices.size() * sizeof(indices[0]);
 int main() {
   shogle::logger::set_level(shogle::logger::LEVEL_VERBOSE);
 
+  chima::context chima;
+  chima::image cirno(chima, CHIMA_DEPTH_8U, RES_FOLDER "/cirno_cpp.jpg");
+  chima::scoped_resource cirno_scope(chima, cirno);
+  const auto [w, h] = cirno.extent();
+
   const auto glfw = shogle::glfw_win::initialize_lib();
   const auto hints = shogle::glfw_gl_hints::make_default(4, 6);
   shogle::glfw_win win(800, 600, "test", hints);
@@ -122,11 +127,6 @@ int main() {
   const auto frame_clear = clear_builder.set_clear_color(.3f, .3f, .3f, 1.f)
                              .set_clear_flag(shogle::gl_clear_opts::CLEAR_COLOR)
                              .build();
-
-  chima::context chima;
-  chima::image cirno(chima, CHIMA_DEPTH_8U, RES_FOLDER "/cirno_cpp.jpg");
-  chima::scoped_resource cirno_scope(chima, cirno);
-  const auto [w, h] = cirno.extent();
 
   shogle::gl_texture tex(gl, shogle::gl_texture::TEX_FORMAT_RGB8, shogle::extent2d{w, h});
   shogle::gl_scoped_resource tex_scope(gl, tex);
