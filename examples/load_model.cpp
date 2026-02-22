@@ -51,7 +51,6 @@ struct model_data {
   std::vector<shogle::vec3> positions;
   std::vector<shogle::vec3> normals;
   std::vector<shogle::vec2> uvs;
-  // std::vector<u32> indices;
   chima::image diffuse;
 };
 
@@ -76,32 +75,11 @@ shogle::expected<model_data, std::string> load_model(chima::context_view chima) 
   std::vector<shogle::vec3> pos_data;
   std::vector<shogle::vec3> norm_data;
   std::vector<shogle::vec2> uv_data;
-  /*
-  std::vector<u32> indices;
-  for (size_t i = 0; i < attr.vertices.size(); i += 3) {
-    pos_data.emplace_back(attr.vertices[i], attr.vertices[i + 1], attr.vertices[i + 2]);
-  }
-  for (size_t i = 0; i < attr.normals.size(); i += 3) {
-    norm_data.emplace_back(attr.normals[i], attr.normals[i + 1], attr.normals[i + 2]);
-  }
-  for (size_t i = 0; i < attr.texcoords.size(); i += 2) {
-    uv_data.emplace_back(attr.texcoords[i], attr.texcoords[i + 1]);
-  }
-  for (size_t i = 0; i < mesh.indices.size(); ++i) {
-    u32 v = mesh.indices[i].vertex_index;
-    u32 n = mesh.indices[i].normal_index;
-    u32 u = mesh.indices[i].texcoord_index;
-    if (v != n && v != u) {
-      shogle::logger::info("{} {} {}", v, n, u);
-    }
-    indices.push_back(mesh.indices[i].vertex_index);
-  }
-  */
 
-  u32 vertex_count = 0;
-  for (u32 face_vertex_count : mesh.num_face_vertices) {
-    for (u32 vertex = 0; vertex < face_vertex_count; ++vertex) {
-      tinyobj::index_t idx = mesh.indices[vertex_count + vertex];
+  u32 face_offset = 0;
+  for (u32 face : mesh.num_face_vertices) {
+    for (u32 vertex = 0; vertex < face; ++vertex) {
+      tinyobj::index_t idx = mesh.indices[face_offset + vertex];
       assert(idx.vertex_index >= 0);
       assert(idx.normal_index >= 0);
       assert(idx.texcoord_index >= 0);
@@ -114,7 +92,7 @@ shogle::expected<model_data, std::string> load_model(chima::context_view chima) 
       uv_data.emplace_back(attr.texcoords[2 * idx.texcoord_index + 0],
                            attr.texcoords[2 * idx.texcoord_index + 1]);
     }
-    vertex_count += face_vertex_count;
+    face_offset += face;
   }
   const auto diffuse_path =
     fmt::format("{}/{}", reader_config.mtl_search_path, mat.diffuse_texname);
@@ -122,7 +100,7 @@ shogle::expected<model_data, std::string> load_model(chima::context_view chima) 
   chima::image diffuse(chima, CHIMA_DEPTH_8U, diffuse_path.c_str());
 
   return {shogle::in_place, std::move(pos_data), std::move(norm_data), std::move(uv_data),
-          /*std::move(indices),*/ diffuse};
+          diffuse};
 }
 
 } // namespace
@@ -169,14 +147,10 @@ int main() {
   const shogle::gl_scoped_resource norm_defer(gl, normals);
   shogle::gl_buffer uvs(gl, shogle::gl_buffer::TYPE_VERTEX, nverts * sizeof(shogle::vec2));
   const shogle::gl_scoped_resource uv_defer(gl, uvs);
-  // shogle::gl_buffer indices(gl, shogle::gl_buffer::TYPE_INDEX,
-  //                           cirno->indices.size() * sizeof(u32));
 
   positions.upload_data(gl, cirno->positions.data(), nverts * sizeof(shogle::vec3), 0).value();
   normals.upload_data(gl, cirno->normals.data(), nverts * sizeof(shogle::vec3), 0).value();
   uvs.upload_data(gl, cirno->uvs.data(), nverts * sizeof(shogle::vec2), 0).value();
-  // indices.upload_data(gl, cirno->indices.data(), cirno->indices.size() * sizeof(u32),
-  // 0).value();
 
   const auto [w, h] = cirno->diffuse.extent();
   shogle::gl_texture tex(gl, shogle::gl_texture::TEX_FORMAT_RGB8, shogle::extent2d(w, h));
@@ -215,6 +189,7 @@ int main() {
                              .build();
 
   f32 t = 0.f;
+  const f32 fumo_scale = 0.025f;
   shogle::gl_command_builder cmd_builder;
   shogle::render_loop(win, [&](f64 dt) {
     if (win.poll_key(GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -225,9 +200,12 @@ int main() {
     }
 
     shogle::mat4 model(1.f);
+    const f32 yscale =
+      fumo_scale * .5f + fumo_scale * .5f * std::abs(std::sin(3 * shogle::math::pi<f32> * t));
     model = shogle::math::translate(model, shogle::vec3(0.f, -.25f, -.75f));
-    model = shogle::math::rotate(model, t * shogle::math::pi<f32>, shogle::vec3(0.f, 1.f, 0.f));
-    model = shogle::math::scale(model, shogle::vec3(0.025f, 0.025f, 0.025f));
+    model =
+      shogle::math::rotate(model, t * 1.2f * shogle::math::pi<f32>, shogle::vec3(0.f, 1.f, 0.f));
+    model = shogle::math::scale(model, shogle::vec3(fumo_scale, yscale, fumo_scale));
     const auto proj = shogle::math::perspective(shogle::math::rad(90.f), win_w / win_h, .1f, 10.f);
 
     gl.start_frame(frame_clear);
@@ -235,12 +213,10 @@ int main() {
     const auto cmd = cmd_builder.set_vertex_layout(layout)
                        .set_pipeline(pipeline)
                        .set_draw_count(nverts)
-                       // .set_draw_count(cirno->indices.size())
                        .add_texture(tex, 0)
                        .add_uniform(proj, u_proj)
                        .add_uniform(model, u_model)
                        .add_uniform(0, u_tex)
-                       // .set_index_buffer(indices, shogle::gl_draw_command::INDEX_FORMAT_U32)
                        .add_vertex_buffer(positions, 0)
                        .add_vertex_buffer(normals, 1)
                        .add_vertex_buffer(uvs, 2)
