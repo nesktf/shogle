@@ -22,7 +22,7 @@ message(STATUS "ShOGLE: Fetching chimatools")
 FetchContent_Declare(
   chimatools
   GIT_REPOSITORY https://github.com/nesktf/chimatools.git
-  GIT_TAG 64086978def2957458dbca1f0e28ec3efb326e9f # 1.0.0
+  GIT_TAG f5327099cef0057d23a27f9670a71708b322d7ff # 1.0.1
   GIT_PROGRESS TRUE
   FIND_PACKAGE_ARGS NAMES chimatools
 )
