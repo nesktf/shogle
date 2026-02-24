@@ -6,7 +6,7 @@ namespace shogle::math {
 
 // clang-format off
 template<typename T>
-constexpr bool collision_aabb(const rectangle_pos<T>& a, const rectangle_pos<T>& b) {
+SHOGLE_MATH_DEF bool collision_aabb(const rectangle_pos<T>& a, const rectangle_pos<T>& b) {
   // AABB assumes pos is the lower left corner
   // Normalize scale, since obj.pos it's the quad's center
   const T a_width = a.width / T(2);
@@ -24,7 +24,7 @@ constexpr bool collision_aabb(const rectangle_pos<T>& a, const rectangle_pos<T>&
 // clang-format on
 
 template<typename T>
-constexpr bool collision_aabb(const rectangle_pos<T>& a, const circle_pos<T>& b) {
+SHOGLE_MATH_DEF bool collision_aabb(const rectangle_pos<T>& a, const circle_pos<T>& b) {
   // No need to normalize pos1 to be the center
   const T sq_rad = b.radius * b.radius;
   const T half_rect_w = a.width / T(2);
@@ -42,12 +42,12 @@ constexpr bool collision_aabb(const rectangle_pos<T>& a, const circle_pos<T>& b)
 }
 
 template<typename T>
-constexpr bool collision_aabb(const circle_pos<T>& a, const rectangle_pos<T>& b) {
+SHOGLE_MATH_DEF bool collision_aabb(const circle_pos<T>& a, const rectangle_pos<T>& b) {
   return collision_aabb(b, a);
 }
 
 template<typename T>
-constexpr bool collision_aabb(const circle_pos<T>& a, const circle_pos<T>& b) {
+SHOGLE_MATH_DEF bool collision_aabb(const circle_pos<T>& a, const circle_pos<T>& b) {
   const T diff_x = b.x - a.x;
   const T diff_y = b.y - a.y;
   const T sq_sum = (a.radius + b.radius) * (a.radius + b.radius);

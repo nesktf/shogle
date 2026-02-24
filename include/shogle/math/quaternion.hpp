@@ -14,7 +14,7 @@ public:
   using value_type = T;
   static constexpr u32 component_count = 4;
 
-  SHOGLE_SELF_STATIC_CONST_MEMBER numquat identity = T(1);
+  static constexpr numquat identity() noexcept { return numquat{T(1)}; }
 
 public:
   SHOGLE_MATH_DECLARE_VECTOR_SPECIAL_MEMBERS(numquat);

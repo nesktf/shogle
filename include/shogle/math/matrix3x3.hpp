@@ -14,7 +14,7 @@ public:
   using row_type = numvec<3, T>;
   using col_type = numvec<3, T>;
 
-  SHOGLE_SELF_STATIC_CONST_MEMBER nummat identity = T(1);
+  static constexpr nummat identity() noexcept { return nummat{T(1)}; }
 
 public:
   SHOGLE_MATH_DECLARE_VECTOR_SPECIAL_MEMBERS(nummat);
