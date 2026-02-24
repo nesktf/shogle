@@ -5,19 +5,52 @@
 #include <shogle/util/expected.hpp>
 #include <shogle/util/ptr.hpp>
 
-// TODO: Do something to avoid polluting the root namespace with this?
-#include <KHR/khrplatform.h>
-
 #include <string>
 
 #define SHOGLE_GL_LOG(level_, fmt_, ...) SHOGLE_RENDER_LOG(level_, "OpenGL", fmt_, __VA_ARGS__)
 
 namespace shogle {
 
+// Try to not pollute the root namespace with opengl things
 namespace gldefs {
 
-// Try to not pollute the root namespace with opengl things
-#include <shogle/render/gl/gldefs.h>
+typedef unsigned int GLenum;
+typedef unsigned char GLboolean;
+typedef unsigned int GLbitfield;
+typedef void GLvoid;
+typedef khronos_int8_t GLbyte;
+typedef khronos_uint8_t GLubyte;
+typedef khronos_int16_t GLshort;
+typedef khronos_uint16_t GLushort;
+typedef int GLint;
+typedef unsigned int GLuint;
+typedef khronos_int32_t GLclampx;
+typedef int GLsizei;
+typedef khronos_float_t GLfloat;
+typedef khronos_float_t GLclampf;
+typedef double GLdouble;
+typedef double GLclampd;
+typedef void* GLeglClientBufferEXT;
+typedef void* GLeglImageOES;
+typedef char GLchar;
+typedef char GLcharARB;
+#ifdef __APPLE__
+typedef void* GLuintARB;
+#else
+typedef unsigned int GLuintARB;
+#endif
+typedef khronos_uint16_t GLhalf;
+typedef khronos_uint16_t GLhalfARB;
+typedef khronos_int32_t GLfixed;
+typedef khronos_intptr_t GLintptr;
+typedef khronos_intptr_t GLintptrARB;
+typedef khronos_ssize_t GLsizeiptr;
+typedef khronos_ssize_t GLsizeiptrARB;
+typedef khronos_int64_t GLint64;
+typedef khronos_int64_t GLint64EXT;
+typedef khronos_uint64_t GLuint64;
+typedef khronos_uint64_t GLuint64EXT;
+typedef struct __GLsync* GLsync;
 typedef GLuint GLhandle; // just because
 
 } // namespace gldefs

@@ -106,6 +106,8 @@ namespace shogle::impl {
 #include <limits>
 #include <utility>
 
+#include "./khrplatform.h"
+
 namespace shogle {
 
 namespace numdefs {
@@ -114,28 +116,28 @@ using size_t = std::size_t;
 using ptrdiff_t = std::ptrdiff_t;
 using uintptr_t = std::uintptr_t;
 
-using uint8 = std::uint8_t;
+using uint8 = khronos_uint8_t;
 using u8 = uint8;
 
-using uint16 = std::uint16_t;
+using uint16 = khronos_uint16_t;
 using u16 = uint16;
 
-using uint32 = std::uint32_t;
+using uint32 = khronos_uint32_t;
 using u32 = uint32;
 
-using uint64 = std::uint64_t;
+using uint64 = khronos_uint64_t;
 using u64 = uint64;
 
-using int8 = std::int8_t;
+using int8 = khronos_int8_t;
 using i8 = int8;
 
-using int16 = std::int16_t;
+using int16 = khronos_int16_t;
 using i16 = int16;
 
-using int32 = std::int32_t;
+using int32 = khronos_int32_t;
 using i32 = int32;
 
-using int64 = std::int64_t;
+using int64 = khronos_int64_t;
 using i64 = int64;
 
 using float32 = float;

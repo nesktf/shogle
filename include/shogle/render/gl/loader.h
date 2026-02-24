@@ -24,8 +24,45 @@ typedef struct shogle_gl_ver {
 SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver* ver);
 
 #if !defined(SHOGLE_USE_SYSTEM_GL) || !SHOGLE_USE_SYSTEM_GL
-#include <KHR/khrplatform.h>
-#include <shogle/render/gl/gldefs.h>
+#include "../../khrplatform.h"
+
+typedef unsigned int GLenum;
+typedef unsigned char GLboolean;
+typedef unsigned int GLbitfield;
+typedef void GLvoid;
+typedef khronos_int8_t GLbyte;
+typedef khronos_uint8_t GLubyte;
+typedef khronos_int16_t GLshort;
+typedef khronos_uint16_t GLushort;
+typedef int GLint;
+typedef unsigned int GLuint;
+typedef khronos_int32_t GLclampx;
+typedef int GLsizei;
+typedef khronos_float_t GLfloat;
+typedef khronos_float_t GLclampf;
+typedef double GLdouble;
+typedef double GLclampd;
+typedef void* GLeglClientBufferEXT;
+typedef void* GLeglImageOES;
+typedef char GLchar;
+typedef char GLcharARB;
+#ifdef __APPLE__
+typedef void* GLuintARB;
+#else
+typedef unsigned int GLuintARB;
+#endif
+typedef khronos_uint16_t GLhalf;
+typedef khronos_uint16_t GLhalfARB;
+typedef khronos_int32_t GLfixed;
+typedef khronos_intptr_t GLintptr;
+typedef khronos_intptr_t GLintptrARB;
+typedef khronos_ssize_t GLsizeiptr;
+typedef khronos_ssize_t GLsizeiptrARB;
+typedef khronos_int64_t GLint64;
+typedef khronos_int64_t GLint64EXT;
+typedef khronos_uint64_t GLuint64;
+typedef khronos_uint64_t GLuint64EXT;
+typedef struct __GLsync* GLsync;
 
 #define GL_NO_ERROR                      0x0000
 #define GL_INVALID_ENUM                  0x0500
@@ -104,8 +141,8 @@ SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver
 #define GL_DEBUG_SOURCE_APPLICATION     0x824A
 #define GL_DEBUG_SOURCE_OTHER           0x824B
 
-#define GL_TEXTURE0         0x84C0
-#define GL_UNPACK_ALIGNMENT 0x0CF5
+#define GL_TEXTURE0           0x84C0
+#define GL_UNPACK_ALIGNMENT   0x0CF5
 #define GL_TEXTURE_MAG_FILTER 0x2801
 #define GL_TEXTURE_MIN_FILTER 0x2801
 
