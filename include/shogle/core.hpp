@@ -106,7 +106,7 @@ namespace shogle::impl {
 #include <limits>
 #include <utility>
 
-#include "./khrplatform.h"
+#include <shogle/extern/KHR/khrplatform.h>
 
 namespace shogle {
 

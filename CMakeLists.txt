@@ -83,7 +83,7 @@ if (SHOGLE_ENABLE_IMGUI)
     GIT_TAG ${IMGUI_TAG}
     GIT_PROGRESS TRUE
   )
-  FetchCOntent_GetProperties(imgui)
+  FetchContent_GetProperties(imgui)
   if (NOT imgui_POPULATED)
     FetchContent_MakeAvailable(imgui)
     file(GLOB IMGUI_SOURCES "${imgui_SOURCE_DIR}/*.cpp")
@@ -109,6 +109,10 @@ add_subdirectory(${SHOGLE_SOURCE_DIR})
 configure_file("${SHOGLE_SOURCE_DIR}/config.hpp.in"
                "${CMAKE_CURRENT_BINARY_DIR}/generated/shogle/config.hpp"
                @ONLY)
+
+configure_file("${SHOGLE_EXTERN_DIR}/KHR/khrplatform.h"
+               "${CMAKE_CURRENT_BINARY_DIR}/extern/shogle/extern/KHR/khrplatform.h"
+							 COPYONLY)
 
 if (SHOGLE_SHARED_BUILD)
   set(SHOGLE_LIBRARY_TYPE SHARED)

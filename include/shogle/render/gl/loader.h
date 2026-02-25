@@ -24,7 +24,7 @@ typedef struct shogle_gl_ver {
 SHOGLE_GLAPI_ENTRY void shogle_gl_get_version(const char* ver_str, shogle_gl_ver* ver);
 
 #if !defined(SHOGLE_USE_SYSTEM_GL) || !SHOGLE_USE_SYSTEM_GL
-#include "../../khrplatform.h"
+#include <shogle/extern/KHR/khrplatform.h>
 
 typedef unsigned int GLenum;
 typedef unsigned char GLboolean;
