@@ -358,7 +358,7 @@ gl_framebuffer::gl_framebuffer(gl_context& gl, extent2d extent, const gl_renderb
       ::shogle::gl_framebuffer::with_renderbuffer(gl, extent, color, buffer).value()) {}
 
 void gl_framebuffer::destroy(gl_context& gl, gl_framebuffer& fbo) noexcept {
-  if (SHOGLE_UNLIKELY(fbo.invalidated())) {
+  if (SHOGLE_UNLIKELY(fbo._id == GL_NULL_HANDLE)) {
     return;
   }
   GL_CALL(glDeleteFramebuffers(1, &fbo._id));
@@ -370,7 +370,7 @@ void gl_framebuffer::destroy_n(gl_context& gl, gl_framebuffer* fbos, size_t coun
     return;
   }
   for (size_t i = 0; i < count; ++i) {
-    if (SHOGLE_UNLIKELY(fbos[i].invalidated())) {
+    if (SHOGLE_UNLIKELY(fbos[i]._id == GL_NULL_HANDLE)) {
       continue;
     }
     GL_CALL(glDeleteFramebuffers(1, &fbos[i]._id));
@@ -402,17 +402,13 @@ gl_expect<void> gl_framebuffer::blit(gl_context& gl, gldefs::GLhandle src_fbo,
 }
 
 gldefs::GLhandle gl_framebuffer::id() const {
-  SHOGLE_ASSERT(!invalidated(), "gl_framebuffer use after free");
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_framebuffer use after free");
   return _id;
 }
 
 extent2d gl_framebuffer::extent() const {
-  SHOGLE_ASSERT(!invalidated(), "gl_framebuffer use after free");
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_framebuffer use after free");
   return _extent;
-}
-
-bool gl_framebuffer::invalidated() const noexcept {
-  return _id == GL_NULL_HANDLE;
 }
 
 } // namespace shogle

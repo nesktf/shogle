@@ -7,7 +7,7 @@
 
 #include <string>
 
-#define SHOGLE_GL_LOG(level_, fmt_, ...) SHOGLE_RENDER_LOG(level_, "OpenGL", fmt_, __VA_ARGS__)
+#define SHOGLE_GL_LOG(level_, fmt_, ...) SHOGLE_RENDER_LOG(level_, fmt_, __VA_ARGS__)
 
 namespace shogle {
 

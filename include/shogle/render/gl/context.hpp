@@ -19,14 +19,14 @@ public:
   struct fbo_initializer {
     color4 clear_color;
     rectangle_pos<u32> viewport;
-    gldefs::GLenum clear_flags;
+    gldefs::GLbitfield clear_flags;
     gldefs::GLhandle fbo;
   };
 
 public:
   color4 clear_color;
   optional<rectangle_pos<u32>> viewport;
-  gldefs::GLenum clear_flags;
+  gldefs::GLbitfield clear_flags;
   span<const fbo_initializer> fbos;
 };
 
@@ -37,7 +37,7 @@ public:
 public:
   gl_clear_builder& set_viewport(const rectangle_pos<u32>& viewport) &;
   gl_clear_builder& set_viewport(u32 x, u32 y, u32 width, u32 height) &;
-  gl_clear_builder& set_clear_color(const color4& color);
+  gl_clear_builder& set_clear_color(const color4& color) &;
   gl_clear_builder& set_clear_color(f32 r, f32 g, f32 b, f32 a = 1.f) &;
   gl_clear_builder& set_clear_flag(gl_clear_opts::clear_flag flag) &;
 
@@ -86,16 +86,21 @@ public:
     u32 index;
   };
 
+  enum shader_bind_type : gldefs::GLenum {
+    BIND_TYPE_UNIFORM,
+    BIND_TYPE_SHADER_BUFFER,
+  };
+
   struct shader_binding {
     gldefs::GLhandle buffer;
-    gldefs::GLenum type;
+    shader_bind_type binding;
     size_t size;
     size_t offset;
     u32 location;
   };
 
 public:
-  optional<inplace_trivial_fn<void(), 2 * sizeof(void*)>> on_render;
+  optional<inplace_trivial_fn<void() const, 2 * sizeof(void*)>> on_render;
   ref_view<const gl_vertex_layout> vertex_layout;
   ref_view<const gl_pipeline> pipeline;
   span<const shader_binding> shader_bindings;
@@ -123,7 +128,8 @@ public:
   gl_cmd_builder& set_instances(u32 instances) &;
   gl_cmd_builder& set_draw_count(u32 count) &;
 
-  gl_cmd_builder& add_shader_buffer(u32 location, const gl_buffer& buffer, size_t size = 0,
+  gl_cmd_builder& add_shader_buffer(u32 location, const gl_buffer& buffer,
+                                    gl_draw_cmd::shader_bind_type binding, size_t size = 0,
                                     size_t offset = 0) &;
   gl_cmd_builder& add_texture(const gl_texture& texture, u32 location) &;
 
@@ -163,7 +169,7 @@ public:
   gl_draw_cmd build() const&;
 
 private:
-  optional<inplace_trivial_fn<void(), 2 * sizeof(void*)>> _on_render;
+  optional<inplace_trivial_fn<void() const, 2 * sizeof(void*)>> _on_render;
   ptr_view<const gl_vertex_layout> _vertex_layout;
   ptr_view<const gl_pipeline> _pipeline;
   std::vector<gl_draw_cmd::shader_binding> _shader_binds;
@@ -176,7 +182,7 @@ private:
 };
 
 struct gl_ext_cmd {
-  inplace_trivial_fn<void(gldefs::GLhandle fbo), 2 * sizeof(void*)> callback;
+  inplace_trivial_fn<void(gldefs::GLhandle fbo) const, 2 * sizeof(void*)> callback;
   gl_depth_test_props depth_test;
   gl_stencil_test_props stencil_test;
   gl_blending_props blending;
@@ -228,7 +234,7 @@ public:
   gl_ext_cmd build() const;
 
 private:
-  optional<inplace_trivial_fn<void(gldefs::GLhandle fbo), 2 * sizeof(void*)>> _callback;
+  optional<inplace_trivial_fn<void(gldefs::GLhandle fbo) const, 2 * sizeof(void*)>> _callback;
   gl_stencil_test_props _stencil;
   gl_depth_test_props _depth;
   gl_blending_props _blending;

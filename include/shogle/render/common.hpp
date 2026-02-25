@@ -184,8 +184,8 @@ SHOGLE_DECLARE_ATTRIB_TRAIT(uvec4, shogle::attribute_type::uvec4, u32);
 #ifdef SHOGLE_DISABLE_INTERNAL_LOGS
 #define SHOGLE_RENDER_LOG(...)
 #else
-#define SHOGLE_RENDER_LOG(priority_, section_, fmt_, ...)				 \
-  ::shogle::logger::log_prefix(::shogle::logger::LEVEL_##priority_, section_, \
+#define SHOGLE_RENDER_LOG(priority_, fmt_, ...)				 \
+  ::shogle::logger::log_prefix(::shogle::logger::LEVEL_##priority_, "ShOGLE", \
 															 "[render/{}:{}] " fmt_,									\
 													     ::shogle::meta::render_parse_src_str(__FILE__),	\
                                __LINE__ __VA_OPT__(,) __VA_ARGS__)

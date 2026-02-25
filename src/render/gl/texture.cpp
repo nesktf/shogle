@@ -1,22 +1,183 @@
 #include "./context_private.hpp"
-#include <shogle/render/gl/buffer.hpp>
 #include <shogle/render/gl/context.hpp>
 #include <shogle/render/gl/texture.hpp>
 
 namespace shogle {
+
+namespace {
+
+constexpr auto swizzle_map = std::to_array<gldefs::GLenum>({
+  0x8E42, // GL_TEXTURE_SWIZZLE_R
+  0x8E43, // GL_TEXTURE_SWIZZLE_G
+  0x8E44, // GL_TEXTURE_SWIZZLE_B
+  0x8E45, // GL_TEXTURE_SWIZZLE_A
+});
+
+constexpr auto wrap_map = std::to_array<gldefs::GLenum>({
+  0x2802, // GL_TEXTURE_WRAP_S
+  0x2803, // GL_TEXTURE_WRAP_T
+  0x8072, // GL_TEXTURE_WRAP_R
+});
+
+} // namespace
+
+gl_texture_builder::gl_texture_builder() noexcept :
+    _swizzle{gl_texture::SWIZZLE_MASK_R, gl_texture::SWIZZLE_MASK_G, gl_texture::SWIZZLE_MASK_B,
+             gl_texture::SWIZZLE_MASK_A},
+    _wrap{gl_texture::WRAP_CLAMP_TO_BORDER, gl_texture::WRAP_CLAMP_TO_BORDER,
+          gl_texture::WRAP_CLAMP_TO_BORDER},
+    _extent(0, 0, 0), _type(), _format(), _ms(gl_texture::MULTISAMPLE_NONE),
+    _min(gl_texture::SAMPLER_MIN_NEAREST), _mag(gl_texture::SAMPLER_MAG_NEAREST), _layers(1),
+    _levels(1) {}
+
+gl_texture_builder& gl_texture_builder::set_type(gl_texture::texture_type type) {
+  if (_type.has_value()) {
+    *_type = type;
+  } else {
+    _type.emplace(type);
+  }
+  return *this;
+}
+
+gl_texture_builder& gl_texture_builder::set_format(gl_texture::texture_format format) {
+  if (_format.has_value()) {
+    *_format = format;
+  } else {
+    _format.emplace(format);
+  }
+  return *this;
+}
+
+gl_texture_builder& gl_texture_builder::set_extent(u32 ext) {
+  _extent = shogle::meta::extent_traits<u32>::extent_clamp3d(ext);
+  return *this;
+}
+
+gl_texture_builder& gl_texture_builder::set_extent(const extent2d& ext) {
+  _extent = shogle::meta::extent_traits<extent2d>::extent_clamp3d(ext);
+  return *this;
+}
+
+gl_texture_builder& gl_texture_builder::set_extent(const extent3d& ext) {
+  _extent = shogle::meta::extent_traits<extent3d>::extent_clamp3d(ext);
+  return *this;
+}
+
+gl_texture_builder& gl_texture_builder::set_layers(u32 layers) {
+  _layers = layers;
+  return *this;
+}
+
+gl_texture_builder& gl_texture_builder::set_levels(u32 levels) {
+  _levels = levels;
+  return *this;
+}
+
+gl_texture_builder& gl_texture_builder::set_mag_sampler(gl_texture::texture_mag_sampler mag) {
+  _mag = mag;
+  return *this;
+}
+
+gl_texture_builder& gl_texture_builder::set_min_sampler(gl_texture::texture_min_sampler min) {
+  _min = min;
+  return *this;
+}
+
+gl_texture_builder& gl_texture_builder::set_mutlisampling(gl_texture::multisample_opt opt) {
+  _ms = opt;
+  return *this;
+}
+
+gl_texture_builder& gl_texture_builder::set_wrap(gl_texture::wrap_direction dir,
+                                                 gl_texture::texture_wrap wrap) {
+  const size_t idx = (size_t)dir;
+  SHOGLE_ASSERT(idx < _wrap.size());
+  _wrap[idx] = wrap;
+  return *this;
+}
+
+gl_texture_builder& gl_texture_builder::set_swizzle(gl_texture::swizzle_target target,
+                                                    gl_texture::swizzle_mask mask) {
+  const size_t idx = (size_t)target;
+  SHOGLE_ASSERT(idx < _swizzle.size());
+  _swizzle[idx] = mask;
+  return *this;
+}
+
+void gl_texture_builder::reset() {
+  _swizzle[0] = gl_texture::SWIZZLE_MASK_R;
+  _swizzle[1] = gl_texture::SWIZZLE_MASK_G;
+  _swizzle[2] = gl_texture::SWIZZLE_MASK_B;
+  _swizzle[3] = gl_texture::SWIZZLE_MASK_A;
+  _wrap[0] = gl_texture::WRAP_CLAMP_TO_BORDER;
+  _wrap[1] = gl_texture::WRAP_CLAMP_TO_BORDER;
+  _wrap[2] = gl_texture::WRAP_CLAMP_TO_BORDER;
+  _extent.width = 0;
+  _extent.height = 0;
+  _extent.depth = 0;
+  if (_type.has_value()) {
+    _type.reset();
+  }
+  if (_format.has_value()) {
+    _format.reset();
+  }
+  _ms = gl_texture::MULTISAMPLE_NONE;
+  _min = gl_texture::SAMPLER_MIN_NEAREST;
+  _mag = gl_texture::SAMPLER_MAG_NEAREST;
+  _layers = 1;
+  _levels = 1;
+}
+
+gl_expect<gl_texture> gl_texture_builder::build(gl_context& gl) const {
+  SHOGLE_ASSERT(_type.has_value(), "No texture type provided");
+  SHOGLE_ASSERT(_format.has_value(), "No texture format provided");
+  switch (*_type) {
+    case gl_texture::TEX_TYPE_1D_ARRAY:
+      SHOGLE_ASSERT(_layers > 1, "Single layer for array");
+      [[fallthrough]];
+    case gl_texture::TEX_TYPE_1D: {
+      return gl_texture::allocate1d(gl, *_format, _extent.width, _layers, _levels);
+    } break;
+    case gl_texture::TEX_TYPE_2D_MULTISAMPLE_ARRAY:
+      [[fallthrough]];
+    case gl_texture::TEX_TYPE_2D_ARRAY:
+      SHOGLE_ASSERT(_layers > 1, "Single layer for array");
+      [[fallthrough]];
+    case gl_texture::TEX_TYPE_2D_MULTISAMPLE:
+      [[fallthrough]];
+    case gl_texture::TEX_TYPE_2D: {
+      SHOGLE_ASSERT(_extent.width * _extent.height > 0, "Invalid extent");
+      const extent2d ext(_extent.width, _extent.height);
+      return gl_texture::allocate2d(gl, *_format, ext, _layers, _levels, _ms);
+    } break;
+    case gl_texture::TEX_TYPE_CUBEMAP: {
+      SHOGLE_ASSERT(_extent.width * _extent.height > 0, "Invalid extent");
+      SHOGLE_ASSERT(_extent.width == _extent.height, "Invalid extent");
+      return gl_texture::allocate_cubemap(gl, *_format, _extent.width, _levels);
+    } break;
+    case gl_texture::TEX_TYPE_3D: {
+      SHOGLE_ASSERT(_extent.width * _extent.height * _extent.depth > 0, "Invalid extent");
+      return gl_texture::allocate3d(gl, *_format, _extent, _levels);
+    } break;
+    default:
+      SHOGLE_UNREACHABLE();
+  }
+}
 
 // Internal constructor
 gl_texture::gl_texture(create_t, gldefs::GLhandle id, const allocate_args& args) :
     _extent(args.extent), _layers(args.layers), _levels(args.levels), _id(id), _type(args.type),
     _format(args.format) {}
 
+/*
 // Internal buffer constructor
 gl_texture::gl_texture(create_t, gldefs::GLhandle id, texture_format format, size_t size,
-                       size_t offset) :
-    // HACK: store the u64 size and offset inside extent, layers and levels
-    _extent(static_cast<u32>(size), static_cast<u32>(size >> 32), 0),
-    _layers(static_cast<u32>(offset)), _levels(static_cast<u32>(offset >> 32)), _id(id),
-    _type(TEX_TYPE_BUFFER), _format(format) {}
+               size_t offset) :
+// HACK: store the u64 size and offset inside extent, layers and levels
+_extent(static_cast<u32>(size), static_cast<u32>(size >> 32), 0),
+_layers(static_cast<u32>(offset)), _levels(static_cast<u32>(offset >> 32)), _id(id),
+_type(TEX_TYPE_BUFFER), _format(format) {}
+*/
 
 // TEX_TYPE_2D[_MULTISAMPLE/_ARRAY] constructor
 gl_texture::gl_texture(gl_context& gl, texture_format format, const extent2d& extent, u32 layers,
@@ -37,10 +198,12 @@ gl_texture::gl_texture(gl_context& gl, texture_format format, u32 extent, u32 la
 gl_texture::gl_texture(gl_context& gl, texture_format format, const extent3d& extent, u32 levels) :
     gl_texture(::shogle::gl_texture::allocate3d(gl, format, extent, levels).value()) {}
 
+/*
 // TEX_TYPE_BUFFER constructor
 gl_texture::gl_texture(gl_context& gl, const gl_buffer& buffer, texture_format format, size_t size,
-                       size_t offset) :
-    gl_texture(::shogle::gl_texture::bind_to_buffer(gl, buffer, format, size, offset).value()) {}
+               size_t offset) :
+gl_texture(::shogle::gl_texture::bind_to_buffer(gl, buffer, format, size, offset).value()) {}
+*/
 
 namespace {
 
@@ -245,9 +408,9 @@ std::string_view tex_format_string(gl_texture::texture_format format) {
 #undef STR
 }
 
-std::string_view tex_sampler_string(gldefs::GLenum sampler) {
-#define STR(enum_)                  \
-  case gl_texture::SAMPLER_##enum_: \
+std::string_view tex_sampler_min_string(gl_texture::texture_min_sampler sampler) {
+#define STR(enum_)                      \
+  case gl_texture::SAMPLER_MIN_##enum_: \
     return #enum_
 
   switch (sampler) {
@@ -257,6 +420,21 @@ std::string_view tex_sampler_string(gldefs::GLenum sampler) {
     STR(LINEAR_MP_NEAREST);
     STR(NEAREST_MP_LINEAR);
     STR(LINEAR_MP_LINEAR);
+    default:
+      SHOGLE_UNREACHABLE();
+  }
+
+#undef STR
+}
+
+std::string_view tex_sampler_mag_string(gl_texture::texture_mag_sampler sampler) {
+#define STR(enum_)                      \
+  case gl_texture::SAMPLER_MAG_##enum_: \
+    return #enum_
+
+  switch (sampler) {
+    STR(NEAREST);
+    STR(LINEAR);
     default:
       SHOGLE_UNREACHABLE();
   }
@@ -282,8 +460,10 @@ std::string_view tex_type_string(gl_texture::texture_type type) {
       return "TEX_3D";
     case gl_texture::TEX_TYPE_CUBEMAP:
       return "TEX_CUBEMAP";
-    case gl_texture::TEX_TYPE_BUFFER:
-      return "TEX_BUFFER";
+      /*
+case gl_texture::TEX_TYPE_BUFFER:
+return "TEX_BUFFER";
+      */
     default:
       SHOGLE_UNREACHABLE();
   }
@@ -300,14 +480,14 @@ void log_allocation([[maybe_unused]] gl_context& gl, gldefs::GLhandle tex,
     args.extent.height, args.extent.depth, args.levels, args.layers, ms_str[args.multisampling]);
 }
 
-#if 0
+/*
 void log_binding([[maybe_unused]] gl_context& gl, gldefs::GLhandle tex, const gl_buffer& buffer,
-                 gl_texture::texture_format format, size_t size, size_t offset) {
-  SHOGLE_GL_LOG(verbose,
+         gl_texture::texture_format format, size_t size, size_t offset) {
+SHOGLE_GL_LOG(verbose,
 "Texture bound to buffer ({}) [buff: {}, format: {}, size: {}, offset: {}]",
-                   tex, buffer.id(), tex_format_string(format), size, offset);
+           tex, buffer.id(), tex_format_string(format), size, offset);
 }
-#endif
+*/
 
 void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
                 const gl_texture::image_data& image, const extent3d& offset, u32 lyr, u32 lvl) {
@@ -361,17 +541,19 @@ void log_upload([[maybe_unused]] gl_context& gl, const gl_texture& tex,
 }
 
 void log_destroy([[maybe_unused]] gl_context& gl, const gl_texture& tex) {
-  if (tex.type() == gl_texture::TEX_TYPE_BUFFER) {
-    SHOGLE_GL_LOG(VERBOSE, "TEXTURE_BUFF_UNBOUND ({}) [format: {}, size: {}, offset: {}]",
-                  tex.id(), tex_format_string(tex.format()), tex.buffer_size(),
-                  tex.buffer_offset());
-  } else {
-    const auto [w, h, d] = tex.extent();
-    SHOGLE_GL_LOG(VERBOSE,
-                  "TEXTURE_DEALLOC ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}]",
-                  tex.id(), tex_type_string(tex.type()), tex_format_string(tex.format()), w, h, d,
-                  tex.levels(), tex.layers());
-  }
+  /*
+if (tex.type() == gl_texture::TEX_TYPE_BUFFER) {
+SHOGLE_GL_LOG(VERBOSE, "TEXTURE_BUFF_UNBOUND ({}) [format: {}, size: {}, offset: {}]",
+            tex.id(), tex_format_string(tex.format()), tex.buffer_size(),
+            tex.buffer_offset());
+} else {
+  */
+  const auto [w, h, d] = tex.extent();
+  SHOGLE_GL_LOG(VERBOSE,
+                "TEXTURE_DEALLOC ({}) [type: {}, format: {}, ext: {}x{}x{}, lvl: {}, lyr: {}]",
+                tex.id(), tex_type_string(tex.type()), tex_format_string(tex.format()), w, h, d,
+                tex.levels(), tex.layers());
+  //}
 }
 #endif
 
@@ -394,7 +576,7 @@ auto gl_texture::_allocate_span(gl_context& gl, span<gldefs::GLenum> texes,
 }
 
 gl_expect<gl_texture> gl_texture::allocate1d(gl_context& gl, texture_format format, u32 extent,
-                                             u32 levels, u32 layers) {
+                                             u32 layers, u32 levels) {
   gldefs::GLenum tex;
   GL_ASSERT(glGenTextures(1, &tex));
   const allocate_args args{
@@ -420,7 +602,7 @@ gl_expect<gl_texture> gl_texture::allocate1d(gl_context& gl, texture_format form
 }
 
 gl_expect<gl_texture> gl_texture::allocate2d(gl_context& gl, texture_format format,
-                                             const extent2d& extent, u32 levels, u32 layers,
+                                             const extent2d& extent, u32 layers, u32 levels,
                                              multisample_opt multisampling) {
   gldefs::GLenum tex;
   GL_ASSERT(glGenTextures(1, &tex));
@@ -499,21 +681,23 @@ gl_expect<gl_texture> gl_texture::allocate3d(gl_context& gl, texture_format form
   return {in_place, create_t{}, tex, args};
 }
 
+/*
 gl_expect<gl_texture> gl_texture::bind_to_buffer(gl_context& gl, const gl_buffer& buffer,
-                                                 texture_format format, size_t size,
-                                                 size_t offset) {
-  gldefs::GLenum tex;
-  GL_ASSERT(glGenTextures(1, &tex));
-  GL_ASSERT(glBindTexture(TEX_TYPE_BUFFER, tex));
-  auto err = GL_RET_ERR(
-    glTexBufferRange(TEX_TYPE_BUFFER, format, buffer.id(), (GLintptr)offset, (GLsizeiptr)size));
-  GL_ASSERT(glBindTexture(TEX_TYPE_BUFFER, GL_DEFAULT_BINDING));
-  if (err) {
-    GL_ASSERT(glDeleteTextures(1, &tex));
-    return {unexpect, err};
-  }
-  return {in_place, create_t{}, tex, format, size, offset};
+                                         texture_format format, size_t size,
+                                         size_t offset) {
+gldefs::GLenum tex;
+GL_ASSERT(glGenTextures(1, &tex));
+GL_ASSERT(glBindTexture(TEX_TYPE_BUFFER, tex));
+auto err = GL_RET_ERR(
+glTexBufferRange(TEX_TYPE_BUFFER, format, buffer.id(), (GLintptr)offset, (GLsizeiptr)size));
+GL_ASSERT(glBindTexture(TEX_TYPE_BUFFER, GL_DEFAULT_BINDING));
+if (err) {
+GL_ASSERT(glDeleteTextures(1, &tex));
+return {unexpect, err};
 }
+return {in_place, create_t{}, tex, format, size, offset};
+}
+*/
 
 void gl_texture::deallocate(gl_context& gl, gl_texture& tex) {
   auto id = tex._id;
@@ -561,9 +745,11 @@ namespace {
 auto do_upload_images(gl_context& gl, gldefs::GLhandle tex, gl_texture::texture_type type,
                       const gl_texture::image_data* images, u32 image_count,
                       const extent3d& offset, u32 level) -> gl_texture::n_err_return {
-  if (type == gl_texture::TEX_TYPE_BUFFER) {
-    return {0, GL_INVALID_VALUE};
-  }
+  /*
+if (type == gl_texture::TEX_TYPE_BUFFER) {
+return {0, GL_INVALID_VALUE};
+}
+  */
   SHOGLE_ASSERT(images != nullptr && image_count);
 
   gldefs::GLenum err = 0;
@@ -642,9 +828,11 @@ auto do_upload_images(gl_context& gl, gldefs::GLhandle tex, gl_texture::texture_
 
 gl_expect<void> gl_texture::upload_image(gl_context& gl, const image_data& image,
                                          const extent3d& offset, u32 layer, u32 level) {
-  if (type() == gl_texture::TEX_TYPE_BUFFER) {
-    return {unexpect, GL_INVALID_VALUE};
-  }
+  /*
+if (type() == gl_texture::TEX_TYPE_BUFFER) {
+return {unexpect, GL_INVALID_VALUE};
+}
+  */
 
   const auto [count, err] = do_upload_images(gl, id(), type(), &image, 1, offset, level);
   if (err) {
@@ -707,7 +895,7 @@ void gl_texture::generate_mipmaps(gl_context& gl) {
   if (!_levels) {
     return;
   }
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_texture use after free");
   GL_ASSERT(glBindTexture(type(), id()));
   GL_ASSERT(glGenerateMipmap(type()));
   GL_ASSERT(glBindTexture(type(), GL_DEFAULT_BINDING));
@@ -716,7 +904,7 @@ void gl_texture::generate_mipmaps(gl_context& gl) {
 }
 
 gl_texture& gl_texture::set_swizzle(gl_context& gl, swizzle_target target, swizzle_mask mask) {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_texture use after free");
   GL_ASSERT(glBindTexture(_type, _id));
   GL_ASSERT(glTexParameteri(_type, target, mask));
   GL_ASSERT(glBindTexture(_type, GL_DEFAULT_BINDING));
@@ -724,29 +912,20 @@ gl_texture& gl_texture::set_swizzle(gl_context& gl, swizzle_target target, swizz
   return *this;
 }
 
-gl_texture& gl_texture::set_sampler(gl_context& gl, texture_sampler sampler) {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
-  const texture_sampler magsampler = [](texture_sampler sampler) {
-    switch (sampler) {
-      case SAMPLER_NEAREST_MP_NEAREST:
-        [[fallthrough]];
-      case SAMPLER_NEAREST:
-        return SAMPLER_NEAREST;
-      default:
-        return SAMPLER_LINEAR;
-    }
-  }(sampler);
+gl_texture& gl_texture::set_sampler(gl_context& gl, texture_min_sampler min,
+                                    texture_mag_sampler mag) {
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_texture use after free");
   GL_ASSERT(glBindTexture(_type, _id));
-  GL_ASSERT(glTexParameteri(_type, GL_TEXTURE_MIN_FILTER, sampler));
-  GL_ASSERT(glTexParameteri(_type, GL_TEXTURE_MAG_FILTER, magsampler));
+  GL_ASSERT(glTexParameteri(_type, GL_TEXTURE_MIN_FILTER, (gldefs::GLenum)min));
+  GL_ASSERT(glTexParameteri(_type, GL_TEXTURE_MAG_FILTER, (gldefs::GLenum)mag));
   GL_ASSERT(glBindTexture(_type, GL_DEFAULT_BINDING));
-  SHOGLE_GL_LOG(VERBOSE, "TEXTURE_SAMPLER ({}) [type: {}, sampler: {}]", _id,
-                tex_type_string(_type), tex_sampler_string(sampler));
+  SHOGLE_GL_LOG(VERBOSE, "TEXTURE_SAMPLER ({}) [type: {}, min: {}, mag: {}]", _id,
+                tex_type_string(_type), tex_sampler_min_string(min), tex_sampler_mag_string(mag));
   return *this;
 }
 
 gl_texture& gl_texture::set_wrap(gl_context& gl, wrap_direction dir, texture_wrap wrap) {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_texture use after free");
   GL_ASSERT(glBindTexture(_type, _id));
   GL_ASSERT(glTexParameteri(_type, dir, wrap));
   GL_ASSERT(glBindTexture(_type, GL_DEFAULT_BINDING));
@@ -755,52 +934,33 @@ gl_texture& gl_texture::set_wrap(gl_context& gl, wrap_direction dir, texture_wra
 }
 
 gldefs::GLhandle gl_texture::id() const {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_texture use after free");
   return _id;
 }
 
 extent3d gl_texture::extent() const {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
-  SHOGLE_ASSERT(_type != TEX_TYPE_BUFFER, "Can't get extent from a buffer texture");
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_texture use after free");
   return _extent;
 }
 
 auto gl_texture::type() const -> texture_type {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_texture use after free");
   return _type;
 }
 
 auto gl_texture::format() const -> texture_format {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_texture use after free");
   return _format;
 }
 
 u32 gl_texture::layers() const {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
-  SHOGLE_ASSERT(_type != TEX_TYPE_BUFFER, "Can't get layers from a buffer texture");
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_texture use after free");
   return _layers;
 }
 
 u32 gl_texture::levels() const {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
-  SHOGLE_ASSERT(_type != TEX_TYPE_BUFFER, "Can't get levels from a buffer texture");
+  SHOGLE_ASSERT(_id != GL_NULL_HANDLE, "gl_texture use after free");
   return _levels;
-}
-
-size_t gl_texture::buffer_size() const {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
-  SHOGLE_ASSERT(_type == TEX_TYPE_BUFFER, "Can't get a buffer size from non buffer texture");
-  return (static_cast<size_t>(_extent.height) << 32) | static_cast<size_t>(_extent.width);
-}
-
-size_t gl_texture::buffer_offset() const {
-  SHOGLE_ASSERT(!invalidated(), "gl_texture use after free");
-  SHOGLE_ASSERT(_type == TEX_TYPE_BUFFER, "Can't get a buffer offset from non buffer texture");
-  return (static_cast<size_t>(_levels) << 32) | static_cast<size_t>(_layers);
-}
-
-bool gl_texture::invalidated() const noexcept {
-  return _id == GL_NULL_HANDLE;
 }
 
 } // namespace shogle

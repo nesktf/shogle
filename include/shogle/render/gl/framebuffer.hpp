@@ -142,11 +142,6 @@ public:
   gldefs::GLhandle id() const;
   extent2d extent() const;
 
-  bool invalidated() const noexcept;
-
-public:
-  explicit operator bool() const noexcept { return !invalidated(); }
-
 private:
   extent2d _extent;
   gldefs::GLhandle _id;

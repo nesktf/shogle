@@ -104,7 +104,7 @@ int main() {
 
   chima::context chima;
   chima::image cirno(chima, CHIMA_DEPTH_8U, RES_FOLDER "/cirno_cpp.jpg");
-  chima::scoped_resource cirno_scope(chima, cirno);
+  chima::scoped_resource cirno_defer(chima, cirno);
   const auto [tex_w, tex_h] = cirno.extent();
 
   f32 win_w = 800;
@@ -127,13 +127,15 @@ int main() {
   });
 
   shogle::gl_buffer quad_vbo(gl, vbo_size);
+  shogle::gl_defer vbo_defer(gl, quad_vbo);
   shogle::gl_buffer quad_ebo(gl, ebo_size);
+  shogle::gl_defer ebo_defer(gl, quad_ebo);
   shogle::gl_layout_builder layout_builder;
   auto layout = layout_builder.set_vertex_buffer(quad_vbo)
                   .set_index_buffer(quad_ebo, shogle::gl_vertex_layout::INDEX_FORMAT_U16)
                   .build<quad_layout>(gl)
                   .value();
-  const shogle::gl_defer layout_scope(gl, layout);
+  const shogle::gl_defer layout_defer(gl, layout);
   layout.vertex_buffer()->upload_data(gl, vertices.data(), vbo_size, 0).value();
   layout.index_buffer()->upload_data(gl, indices.data(), ebo_size, 0).value();
 
@@ -151,7 +153,7 @@ int main() {
                     .build(gl)
                     .value();
 
-  const shogle::gl_defer pipeline_scope(gl, pipeline);
+  const shogle::gl_defer pipeline_defer(gl, pipeline);
   const auto u_model = pipeline.uniform_location(gl, "u_model").value();
   const auto u_proj = pipeline.uniform_location(gl, "u_proj").value();
   const auto u_tex = pipeline.uniform_location(gl, "u_tex").value();
@@ -169,7 +171,7 @@ int main() {
                .set_mag_sampler(shogle::gl_texture::SAMPLER_MAG_NEAREST)
                .build(gl)
                .value();
-  shogle::gl_defer tex_scope(gl, tex);
+  shogle::gl_defer tex_defer(gl, tex);
   const shogle::gl_texture::image_data d{
     .data = cirno.data(),
     .extent = {tex_w, tex_h, 1},

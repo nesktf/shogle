@@ -22,7 +22,7 @@ namespace shogle {
 
 #ifdef SHOGLE_ENABLE_GLFW
 
-#define WIN_LOG(level_, fmt_, ...) SHOGLE_RENDER_LOG(level_, "GLFW", fmt_, __VA_ARGS__)
+#define WIN_LOG(level_, fmt_, ...) SHOGLE_RENDER_LOG(level_, fmt_, __VA_ARGS__)
 
 struct glfw_win::window_data {
   window_data(GLFWwindow* win_, shogle::render_context_tag ctx_tag_) noexcept :

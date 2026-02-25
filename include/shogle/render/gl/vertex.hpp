@@ -9,7 +9,7 @@ public:
   using context_type = gl_context;
   using deleter_type = gl_deleter<gl_vertex_layout>;
 
-  enum index_format : gldefs::GLenum {
+  enum index_buffer_format : gldefs::GLenum {
     INDEX_FORMAT_I8 = 0, // GL_BYTE
     INDEX_FORMAT_U8,     // GL_UNSIGNED_BYTE
     INDEX_FORMAT_I16,    // GL_SHORT
@@ -29,36 +29,37 @@ private:
 
 public:
   gl_vertex_layout(create_t, attribute_array attributes, u32 attribute_count, gldefs::GLhandle vao,
-                   optional<gl_buffer> vertex, optional<gl_buffer> index, size_t vertex_offset,
-                   size_t index_offset);
+                   optional<gl_buffer> vertex, optional<gl_buffer> index,
+                   index_buffer_format format, size_t vertex_offset, size_t index_offset);
 
   template<meta::context_layout_type Layout>
   gl_vertex_layout(gl_context& gl, const Layout& layout, ptr_view<gl_buffer> vertex_buffer,
-                   ptr_view<gl_buffer> index_buffer, index_format format, size_t vertex_offset,
-                   size_t index_offset);
+                   ptr_view<gl_buffer> index_buffer, index_buffer_format format,
+                   size_t vertex_offset, size_t index_offset);
 
   template<typename Layout>
   gl_vertex_layout(gl_context& gl, vertex_arg<Layout>, ptr_view<gl_buffer> vertex_buffer,
-                   ptr_view<gl_buffer> index_buffer, index_format format, size_t vertex_offset,
-                   size_t index_offset);
+                   ptr_view<gl_buffer> index_buffer, index_buffer_format format,
+                   size_t vertex_offset, size_t index_offset);
 
 private:
   static gl_expect<gl_vertex_layout> _create(gl_context& gl, span<const vertex_attribute> attribs,
                                              ptr_view<gl_buffer> vertex_buffer,
-                                             ptr_view<gl_buffer> index_buffer, index_format format,
-                                             size_t vertex_offset, size_t index_offset);
+                                             ptr_view<gl_buffer> index_buffer,
+                                             index_buffer_format format, size_t vertex_offset,
+                                             size_t index_offset);
 
 public:
   template<meta::context_layout_type Layout>
-  static gl_expect<gl_vertex_layout> create(gl_context& gl, const Layout& layout,
-                                            ptr_view<gl_buffer> vertex_buffer,
-                                            ptr_view<gl_buffer> index_buffer, index_format format,
-                                            size_t vertex_offset, size_t index_offset);
+  static gl_expect<gl_vertex_layout>
+  create(gl_context& gl, const Layout& layout, ptr_view<gl_buffer> vertex_buffer,
+         ptr_view<gl_buffer> index_buffer, index_buffer_format format, size_t vertex_offset,
+         size_t index_offset);
 
   template<meta::static_layout_type Layout>
-  static gl_expect<gl_vertex_layout> create(gl_context& gl, ptr_view<gl_buffer> vertex_buffer,
-                                            ptr_view<gl_buffer> index_buffer, index_format format,
-                                            size_t vertex_offset, size_t index_offset);
+  static gl_expect<gl_vertex_layout>
+  create(gl_context& gl, ptr_view<gl_buffer> vertex_buffer, ptr_view<gl_buffer> index_buffer,
+         index_buffer_format format, size_t vertex_offset, size_t index_offset);
 
   static void destroy(gl_context& gl, gl_vertex_layout& layout) noexcept;
   static void destroy_n(gl_context& gl, gl_vertex_layout* layouts, size_t count) noexcept;
@@ -73,6 +74,7 @@ public:
 
   const gl_buffer* index_buffer() const;
   size_t index_offset() const;
+  index_buffer_format index_format() const;
 
 private:
   attribute_array _attributes;
@@ -80,6 +82,7 @@ private:
   gldefs::GLhandle _vao;
   optional<gl_buffer> _vertex;
   optional<gl_buffer> _index;
+  index_buffer_format _format;
   size_t _vertex_offset;
   size_t _index_offset;
 };
@@ -110,7 +113,8 @@ public:
 
 public:
   gl_layout_builder& set_vertex_buffer(gl_buffer& buffer);
-  gl_layout_builder& set_index_buffer(gl_buffer& buffer, gl_vertex_layout::index_format format);
+  gl_layout_builder& set_index_buffer(gl_buffer& buffer,
+                                      gl_vertex_layout::index_buffer_format format);
 
   gl_layout_builder& set_vertex_offset(size_t offset);
   gl_layout_builder& set_index_offset(size_t offset);
@@ -124,7 +128,7 @@ public:
 private:
   ptr_view<gl_buffer> _vert;
   ptr_view<gl_buffer> _ind;
-  gl_vertex_layout::index_format _ind_format;
+  gl_vertex_layout::index_buffer_format _ind_format;
   size_t _vert_offset;
   size_t _ind_offset;
 };

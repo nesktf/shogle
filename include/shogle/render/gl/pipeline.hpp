@@ -11,12 +11,12 @@ public:
 
 public:
   enum shader_stage : gldefs::GLenum {
-    STAGE_VERTEX = 0,
-    STAGE_FRAGMENT,
-    STAGE_GEOMETRY,
-    STAGE_TESS_EVAL,
-    STAGE_TESS_CTRL,
-    STAGE_COMPUTE,
+    STAGE_VERTEX = 0, // GL_VERTEX_SHADER
+    STAGE_FRAGMENT,   // GL_FRAGMENT_SHADER
+    STAGE_GEOMETRY,   // GL_GEOMETRY_SHADER
+    STAGE_TESS_EVAL,  // GL_TESS_EVALUATION_SHADER
+    STAGE_TESS_CTRL,  // GL_TESS_CONTROL_SHADER
+    STAGE_COMPUTE,    // GL_COMPUTE_SHADER
   };
 
   enum stages_bits : gldefs::GLbitfield {
@@ -362,17 +362,19 @@ public:
   };
 
   struct pipeline_props {
-    gl_stencil_test_props _stencil;
-    gl_depth_test_props _depth;
-    gl_blending_props _blending;
-    gl_culling_props _culling;
+    gl_stencil_test_props stencil;
+    gl_depth_test_props depth;
+    gl_blending_props blending;
+    gl_culling_props culling;
   };
 
 private:
   struct create_t {};
 
 public:
-  gl_pipeline(create_t, gldefs::GLhandle program, gldefs::GLbitfield stages);
+  gl_pipeline(create_t, gldefs::GLhandle program, gldefs::GLbitfield stages,
+              primitive_mode primitive, polygon_mode poly, f32 poly_width,
+              ptr_view<const pipeline_props> props);
 
   gl_pipeline(gl_context& gl, const shader_set& shaders, primitive_mode primitive,
               polygon_mode poly, f32 poly_width, ptr_view<const pipeline_props> props);
@@ -454,23 +456,13 @@ private:
 };
 
 class gl_pipeline_builder {
-private:
-  enum shader_stage : gldefs::GLenum {
-    GL_STAGE_VERTEX = 0x8B31,    // GL_VERTEX_SHADER
-    GL_STAGE_FRAGMENT = 0x8B30,  // GL_FRAGMENT_SHADER
-    GL_STAGE_GEOMETRY = 0x8DD9,  // GL_GEOMETRY_SHADER
-    GL_STAGE_TESS_EVAL = 0x8E87, // GL_TESS_EVALUATION_SHADER
-    GL_STAGE_TESS_CTRL = 0x8E88, // GL_TESS_CONTROL_SHADER
-    GL_STAGE_COMPUTE = 0x91B9,   // GL_COMPUTE_SHADER
-  };
-
 public:
   gl_pipeline_builder() noexcept;
 
 public:
   gl_pipeline_builder& add_shader(const gl_shader& shader);
 
-  gl_pipeline_builder& set_depth_test(const gl_depth_test_props& props);
+  gl_pipeline_builder& set_depth_test(const gl_depth_test_props& depth);
   gl_pipeline_builder& set_stencil_test(const gl_stencil_test_props& stencil);
   gl_pipeline_builder& set_blending(const gl_blending_props& blending);
   gl_pipeline_builder& set_culling(const gl_culling_props& culling);
@@ -479,6 +471,8 @@ public:
   gl_pipeline_builder& set_polygon_mode(gl_pipeline::polygon_mode poly_mode);
   gl_pipeline_builder& set_polygon_width(f32 poly_width);
 
+public:
+  void reset();
   gl_s_expect<gl_pipeline> build(gl_context& gl) const;
 
 private:

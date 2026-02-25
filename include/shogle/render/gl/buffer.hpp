@@ -63,7 +63,7 @@ private:
 
 public:
   // Internal constructor
-  gl_buffer(create_t, gldefs::GLhandle id, gldefs::GLenum usage, size_t size);
+  gl_buffer(create_t, gldefs::GLhandle id, gldefs::GLbitfield usage_flags, size_t size);
 
   // Inmutable sized constructor with optional data
   gl_buffer(gl_context& gl, size_t size, gldefs::GLbitfield usage_flags = DEFAULT_USAGE_FLAGS,
@@ -75,13 +75,13 @@ private:
                                      const void* data);
 
 public:
-  static gl_expect<gl_buffer> allocate(gl_context& gl, buffer_type type, size_t size,
+  static gl_expect<gl_buffer> allocate(gl_context& gl, size_t size,
                                        gldefs::GLbitfield usage_flags = DEFAULT_USAGE_FLAGS,
                                        const void* data = nullptr);
 
   template<typename Cont>
-  static n_err_return allocate_n(gl_context& gl, Cont&& cont, size_t count, buffer_type type,
-                                 size_t size, gldefs::GLbitfield usage_flags = DEFAULT_USAGE_FLAGS,
+  static n_err_return allocate_n(gl_context& gl, Cont&& cont, size_t count, size_t size,
+                                 gldefs::GLbitfield usage_flags = DEFAULT_USAGE_FLAGS,
                                  const void* data = nullptr)
   requires(growable_buff_container<Cont>);
 
@@ -103,15 +103,12 @@ public:
   gldefs::GLbitfield usage_flags() const;
   size_t size() const;
 
-  bool invalidated() const noexcept;
-
-public:
-  explicit operator bool() const noexcept { return !invalidated(); }
-
 private:
   gldefs::GLhandle _id;
   gldefs::GLbitfield _usage_flags;
   size_t _size;
+
+  friend gl_vertex_layout;
 };
 
 static_assert(::shogle::meta::renderer_object_type<gl_buffer>);

@@ -9,12 +9,12 @@ namespace shogle {
 
 gl_clear_builder::gl_clear_builder() noexcept : _color(), _viewport(), _clear_flags(), _fbos() {}
 
-gl_clear_builder& gl_clear_builder::set_viewport(u32 x, u32 y, u32 width, u32 height) {
+gl_clear_builder& gl_clear_builder::set_viewport(u32 x, u32 y, u32 width, u32 height) & {
   const rectangle_pos<u32> viewport(x, y, width, height);
   return set_viewport(viewport);
 }
 
-gl_clear_builder& gl_clear_builder::set_viewport(const rectangle_pos<u32>& viewport) {
+gl_clear_builder& gl_clear_builder::set_viewport(const rectangle_pos<u32>& viewport) & {
   if (_viewport.has_value()) {
     *_viewport = viewport;
   } else {
@@ -23,11 +23,11 @@ gl_clear_builder& gl_clear_builder::set_viewport(const rectangle_pos<u32>& viewp
   return *this;
 }
 
-gl_clear_builder& gl_clear_builder::set_clear_color(const color4& color) {
+gl_clear_builder& gl_clear_builder::set_clear_color(const color4& color) & {
   return this->set_clear_color(color.r, color.g, color.b, color.a);
 }
 
-gl_clear_builder& gl_clear_builder::set_clear_color(f32 r, f32 g, f32 b, f32 a) {
+gl_clear_builder& gl_clear_builder::set_clear_color(f32 r, f32 g, f32 b, f32 a) & {
   _color.r = r;
   _color.g = g;
   _color.b = b;
@@ -35,28 +35,48 @@ gl_clear_builder& gl_clear_builder::set_clear_color(f32 r, f32 g, f32 b, f32 a) 
   return *this;
 }
 
-gl_clear_builder& gl_clear_builder::set_clear_flag(gl_clear_opts::clear_flag clear_flag) {
-  _clear_flags |= (gldefs::GLenum)clear_flag;
+gl_clear_builder& gl_clear_builder::set_clear_flag(gl_clear_opts::clear_flag clear_flag) & {
+  _clear_flags |= (gldefs::GLbitfield)clear_flag;
   return *this;
 }
 
-gl_clear_builder& gl_clear_builder::add_framebuffer(const gl_framebuffer& fbo,
-                                                    const rectangle_pos<u32>& viewport,
-                                                    gldefs::GLenum clear_flags,
-                                                    const color4& clear_color) {
-  _fbos.emplace_back(clear_color, viewport, clear_flags, fbo.id());
+gl_clear_builder& gl_clear_builder::add_framebuffer(const gl_framebuffer& fbo) & {
+  _fbos.emplace_back(color4(0.f, 0.f, 0.f, 0.f), rectangle_pos<u32>(0, 0, 0, 0), 0, fbo.id());
   return *this;
 }
 
-gl_clear_builder& gl_clear_builder::add_framebuffer(const gl_framebuffer& fbo,
-                                                    const rectangle_pos<u32>& viewport,
-                                                    gldefs::GLenum clear_flags, f32 r, f32 g,
-                                                    f32 b, f32 a) {
-  const color4 clear_color(r, g, b, a);
-  return this->add_framebuffer(fbo, viewport, clear_flags, clear_color);
+gl_clear_builder& gl_clear_builder::set_fb_viewport(size_t idx,
+                                                    const rectangle_pos<u32>& viewport) & {
+  SHOGLE_ASSERT(idx < _fbos.size());
+  _fbos[idx].viewport = viewport;
+  return *this;
 }
 
-void gl_clear_builder::reset() {
+gl_clear_builder& gl_clear_builder::set_fb_viewport(size_t idx, u32 x, u32 y, u32 width,
+                                                    u32 height) & {
+  const rectangle_pos<u32> viewport(x, y, width, height);
+  return set_fb_viewport(idx, viewport);
+}
+
+gl_clear_builder& gl_clear_builder::set_fb_clear_color(size_t idx, const color4& color) & {
+  SHOGLE_ASSERT(idx < _fbos.size());
+  _fbos[idx].clear_color = color;
+  return *this;
+}
+
+gl_clear_builder& gl_clear_builder::set_fb_clear_color(size_t idx, f32 r, f32 g, f32 b, f32 a) & {
+  const color4 col(r, g, b, a);
+  return set_fb_clear_color(idx, col);
+}
+
+gl_clear_builder& gl_clear_builder::set_fb_clear_flag(size_t idx,
+                                                      gl_clear_opts::clear_flag flag) & {
+  SHOGLE_ASSERT(idx < _fbos.size());
+  _fbos[idx].clear_flags |= (gldefs::GLbitfield)flag;
+  return *this;
+}
+
+void gl_clear_builder::reset() & {
   _color.r = 0.f;
   _color.g = 0.f;
   _color.b = 0.f;
@@ -68,7 +88,7 @@ void gl_clear_builder::reset() {
   _fbos.clear();
 }
 
-gl_clear_opts gl_clear_builder::build() const {
+gl_clear_opts gl_clear_builder::build() const& {
   return {
     .clear_color = _color,
     .viewport = _viewport,
@@ -77,42 +97,37 @@ gl_clear_opts gl_clear_builder::build() const {
   };
 }
 
-gl_command_builder::gl_command_builder() noexcept :
-    _vertex_layout(), _pipeline(), _vertex_binds(), _shader_binds(), _texture_binds(), _uniforms(),
-    _index(), _viewport(), _scissor(), _vertex_offset(), _draw_count(), _instances(1u) {}
+gl_cmd_builder::gl_cmd_builder() noexcept :
+    _on_render(), _vertex_layout(), _pipeline(), _shader_binds(), _texture_binds(), _uniforms(),
+    _viewport(), _scissor(), _draw_count(), _instances(1u) {}
 
-void gl_command_builder::reset() {
+void gl_cmd_builder::reset() & {
   _vertex_layout = nullptr;
   _pipeline = nullptr;
-  _vertex_binds.clear();
   _shader_binds.clear();
   _texture_binds.clear();
   _uniforms.clear();
-  if (_index.has_value()) {
-    _index.reset();
-  }
   if (_viewport.has_value()) {
     _viewport.reset();
   }
   if (_scissor.has_value()) {
     _scissor.reset();
   }
-  _vertex_offset = 0;
   _draw_count = 0;
   _instances = 1;
 }
 
-gl_command_builder& gl_command_builder::set_vertex_layout(const gl_vertex_layout& layout) {
+gl_cmd_builder& gl_cmd_builder::set_vertex_layout(const gl_vertex_layout& layout) & {
   _vertex_layout = layout;
   return *this;
 }
 
-gl_command_builder& gl_command_builder::set_pipeline(const gl_graphics_pipeline& pipeline) {
+gl_cmd_builder& gl_cmd_builder::set_pipeline(const gl_pipeline& pipeline) & {
   _pipeline = pipeline;
   return *this;
 }
 
-gl_command_builder& gl_command_builder::set_viewport(const rectangle_pos<u32>& viewport) {
+gl_cmd_builder& gl_cmd_builder::set_viewport(const rectangle_pos<u32>& viewport) & {
   if (_viewport.has_value()) {
     *_viewport = viewport;
   } else {
@@ -121,12 +136,12 @@ gl_command_builder& gl_command_builder::set_viewport(const rectangle_pos<u32>& v
   return *this;
 }
 
-gl_command_builder& gl_command_builder::set_viewport(u32 x, u32 y, u32 width, u32 height) {
+gl_cmd_builder& gl_cmd_builder::set_viewport(u32 x, u32 y, u32 width, u32 height) & {
   const rectangle_pos<u32> viewport(x, y, width, height);
   return set_viewport(viewport);
 }
 
-gl_command_builder& gl_command_builder::set_scissor(const rectangle_pos<u32>& scissor) {
+gl_cmd_builder& gl_cmd_builder::set_scissor(const rectangle_pos<u32>& scissor) & {
   if (_scissor.has_value()) {
     *_scissor = scissor;
   } else {
@@ -135,153 +150,105 @@ gl_command_builder& gl_command_builder::set_scissor(const rectangle_pos<u32>& sc
   return *this;
 }
 
-gl_command_builder& gl_command_builder::set_scissor(u32 x, u32 y, u32 width, u32 height) {
+gl_cmd_builder& gl_cmd_builder::set_scissor(u32 x, u32 y, u32 width, u32 height) & {
   const rectangle_pos<u32> scissor(x, y, width, height);
   return set_scissor(scissor);
 }
 
-gl_command_builder& gl_command_builder::set_instances(u32 instances) {
+gl_cmd_builder& gl_cmd_builder::set_instances(u32 instances) & {
   _instances = instances;
   return *this;
 }
 
-gl_command_builder& gl_command_builder::set_vertex_offset(size_t offset) {
-  _vertex_offset = offset;
-  return *this;
-}
-
-gl_command_builder& gl_command_builder::set_draw_count(u32 count) {
+gl_cmd_builder& gl_cmd_builder::set_draw_count(u32 count) & {
   _draw_count = count;
   return *this;
 }
 
-gl_command_builder& gl_command_builder::set_index_buffer(const gl_buffer& buffer,
-                                                         gl_draw_command::index_format format,
-                                                         size_t index_offset) {
-  SHOGLE_ASSERT(buffer.type() == gl_buffer::TYPE_INDEX, "Binding non index buffer for indices");
-  if (_index.has_value()) {
-    _index->buffer = buffer.id();
-    _index->format = format;
-    _index->index_offset = index_offset;
-  } else {
-    _index.emplace(buffer.id(), format, index_offset);
-  }
-  return *this;
-}
-
-gl_command_builder& gl_command_builder::add_vertex_buffer(const gl_buffer& buffer, u32 location) {
-  SHOGLE_ASSERT(buffer.type() == gl_buffer::TYPE_VERTEX, "Binding non vertex buffer for vertices");
-  _vertex_binds.emplace_back(buffer.id(), location);
-  return *this;
-}
-
-gl_command_builder& gl_command_builder::add_shader_buffer(u32 location, const gl_buffer& buffer,
-                                                          size_t size, size_t offset) {
-  SHOGLE_ASSERT(buffer.type() == gl_buffer::TYPE_SHADER ||
-                  buffer.type() == gl_buffer::TYPE_UNIFORM,
-                "Binding non shader buffer to shader");
+gl_cmd_builder& gl_cmd_builder::add_shader_buffer(u32 location, const gl_buffer& buffer,
+                                                  gl_draw_cmd::shader_bind_type binding,
+                                                  size_t size, size_t offset) & {
+  size = size ? size : buffer.size();
   SHOGLE_ASSERT(offset + size <= buffer.size(), "Shader binding out of buffer range");
-  _shader_binds.emplace_back(buffer.id(), (gldefs::GLenum)buffer.type(), size, offset, location);
+  _shader_binds.emplace_back(buffer.id(), binding, size, offset, location);
   return *this;
 }
 
-gl_command_builder& gl_command_builder::add_texture(const gl_texture& texture, u32 index) {
+gl_cmd_builder& gl_cmd_builder::add_texture(const gl_texture& texture, u32 index) & {
   _texture_binds.emplace_back(texture.id(), texture.type(), index);
   return *this;
 }
 
-gl_draw_command gl_command_builder::build() const {
+gl_draw_cmd gl_cmd_builder::build() const& {
   SHOGLE_ASSERT(!_vertex_layout.empty(), "No vertex layout provided in builder");
   SHOGLE_ASSERT(!_pipeline.empty(), "No pipeline provided in builder");
   return {
+    .on_render = _on_render,
     .vertex_layout = *_vertex_layout,
     .pipeline = *_pipeline,
-    .vertex_bindings = {_vertex_binds.data(), _vertex_binds.size()},
     .shader_bindings = {_shader_binds.data(), _shader_binds.size()},
     .texture_bindings = {_texture_binds.data(), _texture_binds.size()},
     .uniforms = {_uniforms.data(), _uniforms.size()},
-    .index_bind = _index,
     .viewport = _viewport,
     .scissor = _scissor.has_value() ? *_scissor : _viewport,
-    .vertex_offset = _vertex_offset,
     .draw_count = _draw_count,
     .instances = std::max(_instances, 1u),
   };
 }
 
-gl_external_command_builder::gl_external_command_builder() noexcept :
+gl_extcmd_builder::gl_extcmd_builder() noexcept :
     _callback(), _stencil(::shogle::gl_stencil_test_props::make_default(false)),
     _depth(::shogle::gl_depth_test_props::make_default(false)),
     _blending(::shogle::gl_blending_props::make_default(false)),
     _culling(::shogle::gl_culling_props::make_default(false)),
-    _primitive(gl_graphics_pipeline::PRIMITIVE_TRIANGLES),
-    _poly_mode(gl_graphics_pipeline::POLY_MODE_FILL), _poly_width(1.f), _viewport(), _scissor() {}
+    _primitive(gl_pipeline::PRIMITIVE_TRIANGLES), _poly_mode(gl_pipeline::POLY_MODE_FILL),
+    _poly_width(1.f), _viewport(), _scissor() {}
 
-gl_external_command_builder&
-gl_external_command_builder::set_callback(gl_external_command::callback_type callback) {
-  if (_callback.has_value()) {
-    *_callback = callback;
-  } else {
-    _callback.emplace(callback);
-  }
-  return *this;
-}
-
-gl_external_command_builder&
-gl_external_command_builder::set_depth_test(const gl_depth_test_props& depth) {
+gl_extcmd_builder& gl_extcmd_builder::set_depth_test(const gl_depth_test_props& depth) {
   _depth = depth;
   return *this;
 }
 
-gl_external_command_builder&
-gl_external_command_builder::set_stencil_test(const gl_stencil_test_props& stencil) {
+gl_extcmd_builder& gl_extcmd_builder::set_stencil_test(const gl_stencil_test_props& stencil) {
   _stencil = stencil;
   return *this;
 }
 
-gl_external_command_builder&
-gl_external_command_builder::set_blending(const gl_blending_props& blending) {
+gl_extcmd_builder& gl_extcmd_builder::set_blending(const gl_blending_props& blending) {
   _blending = blending;
   return *this;
 }
 
-gl_external_command_builder&
-gl_external_command_builder::set_culling(const gl_culling_props& culling) {
+gl_extcmd_builder& gl_extcmd_builder::set_culling(const gl_culling_props& culling) {
   _culling = culling;
   return *this;
 }
 
-gl_external_command_builder&
-gl_external_command_builder::set_primitive(gl_graphics_pipeline::primitive_mode primitive) {
+gl_extcmd_builder& gl_extcmd_builder::set_primitive(gl_pipeline::primitive_mode primitive) {
   _primitive = primitive;
   return *this;
 }
 
-gl_external_command_builder&
-gl_external_command_builder::set_poly_mode(gl_graphics_pipeline::polygon_mode poly_mode) {
+gl_extcmd_builder& gl_extcmd_builder::set_poly_mode(gl_pipeline::polygon_mode poly_mode) {
   _poly_mode = poly_mode;
   return *this;
 }
 
-gl_external_command_builder&
-gl_external_command_builder::set_viewport(const rectangle_pos<u32>& viewport) {
+gl_extcmd_builder& gl_extcmd_builder::set_viewport(const rectangle_pos<u32>& viewport) {
   _viewport = viewport;
   return *this;
 }
 
-gl_external_command_builder& gl_external_command_builder::set_viewport(u32 x, u32 y, u32 width,
-                                                                       u32 height) {
+gl_extcmd_builder& gl_extcmd_builder::set_viewport(u32 x, u32 y, u32 width, u32 height) {
   const rectangle_pos<u32> viewport(x, y, width, height);
   return set_viewport(viewport);
 }
 
-gl_external_command_builder&
-gl_external_command_builder::set_scissor(const rectangle_pos<u32>& scissor) {
+gl_extcmd_builder& gl_extcmd_builder::set_scissor(const rectangle_pos<u32>& scissor) {
   return this->set_scissor(scissor.x, scissor.y, scissor.width, scissor.height);
 }
 
-gl_external_command_builder& gl_external_command_builder::set_scissor(u32 x, u32 y, u32 width,
-                                                                      u32 height) {
+gl_extcmd_builder& gl_extcmd_builder::set_scissor(u32 x, u32 y, u32 width, u32 height) {
   if (_scissor.has_value()) {
     _scissor->x = x;
     _scissor->y = y;
@@ -293,14 +260,14 @@ gl_external_command_builder& gl_external_command_builder::set_scissor(u32 x, u32
   return *this;
 }
 
-void gl_external_command_builder::reset() {
+void gl_extcmd_builder::reset() {
   _callback.reset();
   _stencil = gl_stencil_test_props::make_default(false);
   _depth = gl_depth_test_props::make_default(false);
   _blending = gl_blending_props::make_default(false);
   _culling = gl_culling_props::make_default(false);
-  _primitive = gl_graphics_pipeline::PRIMITIVE_TRIANGLES;
-  _poly_mode = gl_graphics_pipeline::POLY_MODE_FILL;
+  _primitive = gl_pipeline::PRIMITIVE_TRIANGLES;
+  _poly_mode = gl_pipeline::POLY_MODE_FILL;
   _poly_width = 1.f;
   _viewport.x = 0;
   _viewport.y = 0;
@@ -309,7 +276,7 @@ void gl_external_command_builder::reset() {
   _scissor.reset();
 }
 
-gl_external_command gl_external_command_builder::build() const {
+gl_ext_cmd gl_extcmd_builder::build() const {
   SHOGLE_ASSERT(_callback.has_value(), "Callback not bound to external command");
   return {
     .callback = *_callback,
@@ -572,100 +539,49 @@ void setup_render_state(gl_context& gl, const gl_depth_test_props& depth_test,
   }
 }
 
-gldefs::GLenum underlying_attribute_type(attribute_type attrib) {
-  static constexpr auto attrs = std::to_array({
-    GL_FLOAT,        // f32
-    GL_FLOAT,        // vec2
-    GL_FLOAT,        // vec3
-    GL_FLOAT,        // vec4
-    GL_FLOAT,        // mat3
-    GL_FLOAT,        // mat4
-    GL_DOUBLE,       // f64
-    GL_DOUBLE,       // dvec2
-    GL_DOUBLE,       // dvec3
-    GL_DOUBLE,       // dvec4
-    GL_INT,          // i32
-    GL_INT,          // ivec2
-    GL_INT,          // ivec3
-    GL_INT,          // ivec4
-    GL_UNSIGNED_INT, // u32
-    GL_UNSIGNED_INT, // uvec2
-    GL_UNSIGNED_INT, // uvec3
-    GL_UNSIGNED_INT, // uvec4
-  });
-  const u32 idx = static_cast<u32>(attrib);
-  return idx < attrs.size() ? attrs[idx] : 0;
-};
-
-u32 attribute_dimension(attribute_type attrib) {
-  return ::shogle::meta::attribute_dim(attrib);
-}
-
+/*
 void setup_vertex_attributes(gl_context& gl, const gl_vertex_layout& layout,
-                             span<const gl_draw_command::vertex_binding> vertex_buffers) {
-  const auto attribs = layout.attributes();
-  SHOGLE_ASSERT(!attribs.empty());
+                     span<const gl_draw_command::vertex_binding> vertex_buffers) {
+const auto attribs = layout.attributes();
+SHOGLE_ASSERT(!attribs.empty());
 
-  const auto bind_attrib_pointer = [&](shogle::attribute_type type, u32 location, size_t offset_) {
-    void* offset = reinterpret_cast<void*>(offset_);
-    const u32 dimension = attribute_dimension(type);
-    const auto underlying = underlying_attribute_type(type);
-
-    GL_ASSERT(glEnableVertexAttribArray(location));
-    switch (underlying) {
-      case GL_FLOAT: {
-        GL_ASSERT(glVertexAttribPointer(location, dimension, underlying, GL_FALSE, layout.stride(),
-                                        offset));
-      } break;
-      case GL_DOUBLE: {
-        GL_ASSERT(
-          glVertexAttribLPointer(location, dimension, underlying, layout.stride(), offset));
-      } break;
-      case GL_INT: {
-        GL_ASSERT(
-          glVertexAttribIPointer(location, dimension, underlying, layout.stride(), offset));
-      } break;
-      default:
-        SHOGLE_UNREACHABLE();
-    }
-  };
-
-  GL_ASSERT(glBindVertexArray(layout.vao()));
-  if (layout.type() == gl_vertex_layout::TYPE_AOS_LAYOUT) {
-    SHOGLE_ASSERT(vertex_buffers.size() == 1,
-                  "AOS vertex layouts uses only a single vertex buffer");
-    GL_ASSERT(glBindBuffer(GL_ARRAY_BUFFER, vertex_buffers[0].buffer));
-    for (const auto& attrib : attribs) {
-      SHOGLE_ASSERT(attrib.location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
-                    "Attribute location out of range");
-      bind_attrib_pointer(attrib.type, attrib.location, attrib.offset);
-    }
-  } else {
-    SHOGLE_ASSERT(vertex_buffers.size() == attribs.size(),
-                  "SOA vertex layout needs equal number of vertex buffers and attributes");
-    SHOGLE_ASSERT(vertex_buffers.size() < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
-                  "Vertex buffer count out of attribute range");
-
-    std::array<GLuint, gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS> bind_map{};
-    for (const auto [buffer, location] : vertex_buffers) {
-      SHOGLE_ASSERT(location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
-                    "Vertex buffer binding out of range");
-      bind_map[location] = buffer;
-    }
-    for (const auto& attrib : attribs) {
-      SHOGLE_ASSERT(attrib.location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
-                    "Attribute location out of range");
-      const GLuint buffer = bind_map[attrib.location];
-      if (buffer == 0) {
-        continue;
-      }
-      GL_ASSERT(glBindBuffer(GL_ARRAY_BUFFER, buffer));
-      bind_attrib_pointer(attrib.type, attrib.location, 0);
-    }
-  }
+GL_ASSERT(glBindVertexArray(layout.vao()));
+if (layout.type() == gl_vertex_layout::TYPE_AOS_LAYOUT) {
+SHOGLE_ASSERT(vertex_buffers.size() == 1,
+          "AOS vertex layouts uses only a single vertex buffer");
+GL_ASSERT(glBindBuffer(GL_ARRAY_BUFFER, vertex_buffers[0].buffer));
+for (const auto& attrib : attribs) {
+SHOGLE_ASSERT(attrib.location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+            "Attribute location out of range");
+bind_attrib_pointer(attrib.type, attrib.location, attrib.offset);
 }
+} else {
+SHOGLE_ASSERT(vertex_buffers.size() == attribs.size(),
+          "SOA vertex layout needs equal number of vertex buffers and attributes");
+SHOGLE_ASSERT(vertex_buffers.size() < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+          "Vertex buffer count out of attribute range");
 
-void upload_uniforms(gl_context& gl, span<const gl_draw_command::push_uniform> uniforms) {
+std::array<GLuint, gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS> bind_map{};
+for (const auto [buffer, location] : vertex_buffers) {
+SHOGLE_ASSERT(location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+            "Vertex buffer binding out of range");
+bind_map[location] = buffer;
+}
+for (const auto& attrib : attribs) {
+SHOGLE_ASSERT(attrib.location < gl_vertex_layout::MAX_ATTRIBUTE_BINDINGS,
+            "Attribute location out of range");
+const GLuint buffer = bind_map[attrib.location];
+if (buffer == 0) {
+continue;
+}
+GL_ASSERT(glBindBuffer(GL_ARRAY_BUFFER, buffer));
+bind_attrib_pointer(attrib.type, attrib.location, 0);
+}
+}
+}
+*/
+
+void upload_uniforms(gl_context& gl, span<const gl_push_uniform> uniforms) {
   for (const auto& [data, type, location] : uniforms) {
     switch (type) {
       case attribute_type::f32: {
@@ -776,11 +692,11 @@ void gl_context::start_frame(const gl_clear_opts& clear) {
   }
 }
 
-void gl_context::submit_command(const gl_draw_command& cmd,
-                                ptr_view<const gl_framebuffer> target) {
+void gl_context::submit_immediate_command(const gl_draw_cmd& cmd,
+                                          ptr_view<const gl_framebuffer> target) {
   SHOGLE_ASSERT(_ctx, "gl_context use after free");
   auto& gl = *this;
-  const gl_graphics_pipeline& pipeline = *cmd.pipeline;
+  const gl_pipeline& pipeline = *cmd.pipeline;
   const auto primitive = pipeline.primitive();
 
   const auto bind_shader_buffers = [&]() {
@@ -794,19 +710,19 @@ void gl_context::submit_command(const gl_draw_command& cmd,
       GL_ASSERT(glBindTexture(type, texture));
     }
   };
+  const auto vertex_offset = cmd.vertex_layout->vertex_offset();
 
   const auto draw_arrays = [&]() {
     GL_ASSERT(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_DEFAULT_BINDING));
     if (cmd.instances > 1) {
-      GL_ASSERT(
-        glDrawArraysInstanced(primitive, cmd.vertex_offset, cmd.draw_count, cmd.instances));
+      GL_ASSERT(glDrawArraysInstanced(primitive, vertex_offset, cmd.draw_count, cmd.instances));
     } else {
-      GL_ASSERT(glDrawArrays(primitive, cmd.vertex_offset, cmd.draw_count));
+      GL_ASSERT(glDrawArrays(primitive, vertex_offset, cmd.draw_count));
     }
   };
 
   const auto draw_indexed = [&]() {
-    SHOGLE_ASSERT(cmd.index_bind.has_value());
+    SHOGLE_ASSERT(cmd.vertex_layout->index_buffer() != nullptr);
     static constexpr auto idx_formats = std::to_array<gldefs::GLenum>({
       0x1400, // GL_BYTE
       0x1401, // GL_UNSIGNED_BYTE
@@ -823,20 +739,23 @@ void gl_context::submit_command(const gl_draw_command& cmd,
       sizeof(i32), // GL_INT
       sizeof(u32), // GL_UNSIGNED_INT
     });
-    SHOGLE_ASSERT(cmd.index_bind->format < idx_formats.size(), "Invalid index buffer format");
-    const u32 format_idx = cmd.index_bind->format;
-    GL_ASSERT(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cmd.index_bind->buffer));
+    /*
+SHOGLE_ASSERT(cmd.index_bind->format < idx_formats.size(), "Invalid index buffer format");
+GL_ASSERT(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cmd.index_bind->buffer));
+    */
 
+    const u32 format_idx = (u32)cmd.vertex_layout->index_format();
+    SHOGLE_ASSERT(format_idx < idx_sizes.size());
     const void* idx_offset =
-      reinterpret_cast<const void*>(cmd.index_bind->index_offset * idx_sizes[format_idx]);
+      reinterpret_cast<const void*>(cmd.vertex_layout->index_offset() * idx_sizes[format_idx]);
     const gldefs::GLenum format = idx_formats[format_idx];
     if (cmd.instances > 1) {
       GL_ASSERT(glDrawElementsInstancedBaseVertex(primitive, cmd.draw_count, format, idx_offset,
-                                                  cmd.instances, cmd.vertex_offset));
+                                                  cmd.instances, vertex_offset));
 
     } else {
-      GL_ASSERT(glDrawElementsBaseVertex(primitive, cmd.draw_count, format, idx_offset,
-                                         cmd.vertex_offset));
+      GL_ASSERT(
+        glDrawElementsBaseVertex(primitive, cmd.draw_count, format, idx_offset, vertex_offset));
     }
   };
 
@@ -854,25 +773,38 @@ void gl_context::submit_command(const gl_draw_command& cmd,
   setup_render_state(gl, pipeline.depth_test(), pipeline.stencil_test(), pipeline.blending(),
                      pipeline.culling(), pipeline.poly_mode(), pipeline.poly_width());
 
-  setup_vertex_attributes(gl, cmd.vertex_layout, cmd.vertex_bindings);
+  // setup_vertex_attributes(gl, cmd.vertex_layout, cmd.vertex_bindings);
   bind_shader_buffers();
   bind_textures();
   upload_uniforms(gl, cmd.uniforms);
-  if (cmd.index_bind.has_value()) {
+  GL_ASSERT(glBindVertexArray(cmd.vertex_layout->vao()));
+  if (cmd.vertex_layout->index_buffer() != nullptr) {
     draw_indexed();
   } else {
     draw_arrays();
   }
 }
 
-void gl_context::submit_command(const gl_external_command& cmd,
-                                ptr_view<const gl_framebuffer> target) {
+void gl_context::submit_immediate_command(const gl_ext_cmd& cmd,
+                                          ptr_view<const gl_framebuffer> target) {
   SHOGLE_ASSERT(_ctx, "gl_context use after free");
   const GLuint fbo = target.empty() ? DEFAULT_FRAMEBUFFER : target->id();
   setup_framebuffer(*this, fbo, cmd.viewport, cmd.scissor);
   setup_render_state(*this, cmd.depth_test, cmd.stencil_test, cmd.blending, cmd.culling,
                      cmd.poly_mode, cmd.poly_width);
-  std::invoke(cmd.callback, *this, fbo);
+  std::invoke(cmd.callback, fbo);
+}
+
+void gl_context::submit_command(const gl_draw_cmd& cmd, ptr_view<const gl_framebuffer> target) {
+  SHOGLE_UNUSED(cmd);
+  SHOGLE_UNUSED(target);
+  SHOGLE_ASSERT(false, "TODO");
+}
+
+void gl_context::submit_command(const gl_ext_cmd& cmd, ptr_view<const gl_framebuffer> target) {
+  SHOGLE_UNUSED(cmd);
+  SHOGLE_UNUSED(target);
+  SHOGLE_ASSERT(false, "TODO");
 }
 
 void gl_context::end_frame() {

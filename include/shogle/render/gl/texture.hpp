@@ -12,13 +12,13 @@ public:
   using deleter_type = gl_deleter<gl_texture>;
 
   enum texture_type : gldefs::GLenum {
-    TEX_TYPE_1D = 0x0DE0,                   // GL_TEXTURE_1D
-    TEX_TYPE_2D = 0x0DE1,                   // GL_TEXTURE_2D
-    TEX_TYPE_3D = 0x806F,                   // GL_TEXTURE_3D
-    TEX_TYPE_CUBEMAP = 0x8513,              // GL_TEXTURE_CUBEMAP
-    TEX_TYPE_1D_ARRAY = 0x8C18,             // GL_TEXTURE_1D_ARRAY
-    TEX_TYPE_2D_ARRAY = 0x8C1A,             // GL_TEXTURE_2D_ARRAY
-    TEX_TYPE_BUFFER = 0x8C2A,               // GL_TEXTURE_BUFFER
+    TEX_TYPE_1D = 0x0DE0,       // GL_TEXTURE_1D
+    TEX_TYPE_2D = 0x0DE1,       // GL_TEXTURE_2D
+    TEX_TYPE_3D = 0x806F,       // GL_TEXTURE_3D
+    TEX_TYPE_CUBEMAP = 0x8513,  // GL_TEXTURE_CUBEMAP
+    TEX_TYPE_1D_ARRAY = 0x8C18, // GL_TEXTURE_1D_ARRAY
+    TEX_TYPE_2D_ARRAY = 0x8C1A, // GL_TEXTURE_2D_ARRAY
+    // TEX_TYPE_BUFFER = 0x8C2A,               // GL_TEXTURE_BUFFER
     TEX_TYPE_2D_MULTISAMPLE_ARRAY = 0x9102, // GL_TEXTURE_2D_MULTISAMPLE_ARRAY
     TEX_TYPE_2D_MULTISAMPLE = 0x9100,       // GL_TEXTURE_2D_MULTISAMPLE
   };
@@ -139,23 +139,23 @@ public:
   };
 
   enum wrap_direction : gldefs::GLenum {
-    WRAP_DIR_S = 0x2802, // GL_TEXTURE_WRAP_S
-    WRAP_DIR_T = 0x2803, // GL_TEXTURE_WRAP_T
-    WRAP_DIR_R = 0x8072, // GL_TEXTURE_WRAP_R
+    WRAP_DIR_S = 0, // GL_TEXTURE_WRAP_S
+    WRAP_DIR_T,     // GL_TEXTURE_WRAP_T
+    WRAP_DIR_R,     // GL_TEXTURE_WRAP_R
   };
 
   enum texture_min_sampler : gldefs::GLenum {
-    SAMPLER_MIN_NEAREST = 0x2600, // GL_NEAREST
-    SAMPLER_MIN_LINEAR = 0x2601,  // GL_LINEAR
+    SAMPLER_MIN_NEAREST = 0x2600,            // GL_NEAREST
+    SAMPLER_MIN_LINEAR = 0x2601,             // GL_LINEAR
+    SAMPLER_MIN_NEAREST_MP_NEAREST = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
+    SAMPLER_MIN_LINEAR_MP_NEAREST = 0x2701,  // GL_LINEAR_MIPMAP_NEAREST
+    SAMPLER_MIN_NEAREST_MP_LINEAR = 0x2702,  // GL_NEAREST_MIPMAP_LINEAR
+    SAMPLER_MIN_LINEAR_MP_LINEAR = 0x2703,   // GL_LINEAR_MIPMAP_LINEAR
   };
 
   enum texture_mag_sampler : gldefs::GLenum {
-    SAMPLER_MAG_NEAREST = 0x2600,            // GL_NEAREST
-    SAMPLER_MAG_LINEAR = 0x2601,             // GL_LINEAR
-    SAMPLER_MAG_NEAREST_MP_NEAREST = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
-    SAMPLER_MAG_LINEAR_MP_NEAREST = 0x2701,  // GL_LINEAR_MIPMAP_NEAREST
-    SAMPLER_MAG_NEAREST_MP_LINEAR = 0x2702,  // GL_NEAREST_MIPMAP_LINEAR
-    SAMPLER_MAG_LINEAR_MP_LINEAR = 0x2703,   // GL_LINEAR_MIPMAP_LINEAR
+    SAMPLER_MAG_NEAREST = 0x2600, // GL_NEAREST
+    SAMPLER_MAG_LINEAR = 0x2601,  // GL_LINEAR
   };
 
   enum cubemap_face : gldefs::GLenum {
@@ -168,10 +168,10 @@ public:
   };
 
   enum swizzle_target : gldefs::GLenum {
-    SWIZZLE_TARGET_R = 0x8E42, // GL_TEXTURE_SWIZZLE_R
-    SWIZZLE_TARGET_G = 0x8E43, // GL_TEXTURE_SWIZZLE_G
-    SWIZZLE_TARGET_B = 0x8E44, // GL_TEXTURE_SWIZZLE_B
-    SWIZZLE_TARGET_A = 0x8E45, // GL_TEXTURE_SWIZZLE_A
+    SWIZZLE_TARGET_R = 0, // GL_TEXTURE_SWIZZLE_R
+    SWIZZLE_TARGET_G,     // GL_TEXTURE_SWIZZLE_G
+    SWIZZLE_TARGET_B,     // GL_TEXTURE_SWIZZLE_B
+    SWIZZLE_TARGET_A,     // GL_TEXTURE_SWIZZLE_A
   };
 
   enum swizzle_mask : gldefs::GLenum {
@@ -232,9 +232,11 @@ public:
   // Internal constructor
   explicit gl_texture(create_t, gldefs::GLhandle id, const allocate_args& args);
 
-  // Internal buffer constructor
-  explicit gl_texture(create_t, gldefs::GLhandle id, texture_format format, size_t size,
-                      size_t offset);
+  /*
+// Internal buffer constructor
+explicit gl_texture(create_t, gldefs::GLhandle id, texture_format format, size_t size,
+                size_t offset);
+  */
 
   // TEX_TYPE_2D[_MULTISAMPLE/_ARRAY] constructor
   gl_texture(gl_context& gl, texture_format format, const extent2d& extent, u32 layers, u32 levels,
@@ -250,9 +252,11 @@ public:
   // TEX_TYPE_3D constructor
   explicit gl_texture(gl_context& gl, texture_format format, const extent3d& extent, u32 levels);
 
-  // TEX_TYPE_BUFFER constructor
-  explicit gl_texture(gl_context& gl, const gl_buffer& buffer, texture_format format, size_t size,
-                      size_t offset);
+  /*
+// TEX_TYPE_BUFFER constructor
+explicit gl_texture(gl_context& gl, const gl_buffer& buffer, texture_format format, size_t size,
+                size_t offset);
+  */
 
 private:
   static n_err_return _allocate_span(gl_context& gl, span<gldefs::GLenum> texes,
@@ -291,8 +295,10 @@ public:
                                    const extent3d& extent, u32 levels)
   requires(growable_tex_container<Cont>);
 
-  static gl_expect<gl_texture> bind_to_buffer(gl_context& gl, const gl_buffer& buffer,
-                                              texture_format format, size_t size, size_t offset);
+  /*
+static gl_expect<gl_texture> bind_to_buffer(gl_context& gl, const gl_buffer& buffer,
+                                        texture_format format, size_t size, size_t offset);
+  */
 
   static void deallocate(gl_context& gl, gl_texture& tex);
   static void deallocate_n(gl_context& gl, gl_texture* texes, u32 tex_count);
@@ -327,13 +333,10 @@ public:
   texture_format format() const;
   u32 layers() const;
   u32 levels() const;
-  size_t buffer_size() const;
-  size_t buffer_offset() const;
-
-  bool invalidated() const noexcept;
-
-public:
-  explicit operator bool() const noexcept { return !invalidated(); }
+  /*
+size_t buffer_size() const;
+size_t buffer_offset() const;
+  */
 
 private:
   extent3d _extent;
@@ -371,8 +374,8 @@ public:
   gl_texture_builder& set_format(gl_texture::texture_format format);
 
   gl_texture_builder& set_extent(u32 ext);
-  gl_texture_builder& set_extent(extent2d ext);
-  gl_texture_builder& set_extent(extent3d ext);
+  gl_texture_builder& set_extent(const extent2d& ext);
+  gl_texture_builder& set_extent(const extent3d& ext);
 
   gl_texture_builder& set_layers(u32 layers);
   gl_texture_builder& set_levels(u32 levels);
@@ -386,14 +389,16 @@ public:
   gl_texture_builder& set_swizzle(gl_texture::swizzle_target target,
                                   gl_texture::swizzle_mask mask);
 
+public:
+  void reset();
   gl_expect<gl_texture> build(gl_context& gl) const;
 
 private:
   std::array<gl_texture::swizzle_mask, 4u> _swizzle;
   std::array<gl_texture::texture_wrap, 3u> _wrap;
   extent3d _extent;
-  gl_texture::texture_type _type;
-  gl_texture::texture_format _format;
+  optional<gl_texture::texture_type> _type;
+  optional<gl_texture::texture_format> _format;
   gl_texture::multisample_opt _ms;
   gl_texture::texture_min_sampler _min;
   gl_texture::texture_mag_sampler _mag;

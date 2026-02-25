@@ -41,7 +41,7 @@ void logger::_do_log(log_level level, std::string_view prefix, const std::string
   level = level > LEVEL_VERBOSE ? LEVEL_VERBOSE : level;
   const auto [time, ms] = get_time();
   const std::tm* time_tm = std::localtime(&time);
-  fmt::print("[{:%H:%M:%S}.{:03d}]\033{}[{}]\033[0m[ShOGLE][{}]{}\n", *time_tm, (int)ms,
+  fmt::print("[{:%H:%M:%S}.{:03d}]\033{}[{}]\033[0m[{}]{}\n", *time_tm, (int)ms,
              level_colors[(int)level], level_pfxs[(int)level], prefix, str);
 }
 

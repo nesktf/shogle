@@ -109,7 +109,7 @@ public:
 
 public:
   fumo_vert_layout(size_t nverts) noexcept :
-      _pos_stride(nverts * sizeof(shogle::vec3)), _norm_stride(nverts * sizeof(shogle::vec2)),
+      _pos_stride(nverts * sizeof(shogle::vec3)), _norm_stride(nverts * sizeof(shogle::vec3)),
       _uv_stride(nverts * sizeof(shogle::vec2)) {}
 
 public:
@@ -118,20 +118,20 @@ public:
       {.location = 0,
        .type = shogle::attribute_type::vec3,
        .offset = pos_offset(),
-       .stride = _pos_stride},
+       .stride = sizeof(shogle::vec3)},
       {.location = 1,
        .type = shogle::attribute_type::vec3,
        .offset = norm_offset(),
-       .stride = _norm_stride},
+       .stride = sizeof(shogle::vec3)},
       {.location = 2,
        .type = shogle::attribute_type::vec2,
        .offset = uv_offset(),
-       .stride = _uv_stride},
+       .stride = sizeof(shogle::vec2)},
     });
   }
 
 public:
-  size_t buffer_size() const noexcept { return _pos_stride + _norm_stride + _uv_stride; }
+  size_t buffer_stride() const noexcept { return _pos_stride + _norm_stride + _uv_stride; }
 
   size_t pos_stride() const noexcept { return _pos_stride; }
 
@@ -186,7 +186,8 @@ int main() {
   });
 
   // Important: We are using a SoA vertex layout
-  shogle::gl_buffer vertices(gl, fumo_layout.buffer_size());
+  shogle::gl_buffer vertices(gl, fumo_layout.buffer_stride());
+  shogle::gl_defer vertices_defer(gl, vertices);
   shogle::gl_layout_builder layout_builder;
   auto layout = layout_builder.set_vertex_buffer(vertices).build(gl, fumo_layout).value();
   const shogle::gl_defer layout_defer(gl, layout);
@@ -274,7 +275,7 @@ int main() {
                        .add_uniform(model, u_model)
                        .add_uniform(0, u_tex)
                        .build();
-    gl.submit_command(cmd);
+    gl.submit_immediate_command(cmd);
     gl.end_frame();
   });
 
