@@ -14,7 +14,7 @@ expected<unique_array<u8>, std::error_code> read_entire_file(const char* path) {
   if (ec || !len) {
     return {unexpect, ec};
   }
-  auto buffer = make_array<u8>(::shogle::mem::uninitialized, len);
+  auto buffer = make_array<u8>(::shogle::uninitialized, len);
   std::ifstream in_file(path, std::ios_base::binary);
   in_file.read(reinterpret_cast<char*>(buffer.data()), len);
   in_file.close();

@@ -153,10 +153,10 @@ install(EXPORT ${PROJECT_NAME}-config
         NAMESPACE ${PROJECT_NAME}::
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
-#if (SHOGLE_BUILD_TESTS)
-#  message(STATUS "ShOGLE: Building tests")
-#  add_subdirectory(${SHOGLE_TESTS_DIR})
-#endif()
+if (SHOGLE_BUILD_TESTS)
+  message(STATUS "ShOGLE: Building tests")
+  add_subdirectory(${SHOGLE_TESTS_DIR})
+endif()
 
 if (SHOGLE_BUILD_EXAMPLES)
   message(STATUS "ShOGLE: Building examples")

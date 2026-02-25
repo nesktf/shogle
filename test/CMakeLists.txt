@@ -8,7 +8,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -Wall -Wextra -Wpedantic -O0 -g2 -ggdb
 set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -Wall -Wextra -Wpedantic -O3 -Wno-psabi")
 
 file(GLOB SHOGLE_TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-file(GLOB SHOGLE_TEST_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
 message(STATUS "ShOGLE Test: Fetching Catch2 contents...")
 FetchContent_Declare(
@@ -22,7 +21,7 @@ message(STATUS "ShOGLE Test: Setting up...")
 set(CATCH_BUILD_TESTING OFF)
 enable_testing()
 
-add_executable(${PROJECT_NAME} PUBLIC ${SHOGLE_TEST_SOURCE} ${SHOGLE_TEST_HEADERS})
+add_executable(${PROJECT_NAME} ${SHOGLE_TEST_SOURCE})
 target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include/")
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 target_link_libraries(${PROJECT_NAME} PRIVATE shogle Catch2::Catch2WithMain)

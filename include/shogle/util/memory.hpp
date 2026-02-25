@@ -8,11 +8,15 @@
 #include <utility>
 #include <vector>
 
-namespace shogle::mem {
+namespace shogle {
 
 struct uninitialized_t {};
 
 constexpr inline uninitialized_t uninitialized;
+
+} // namespace shogle
+
+namespace shogle::mem {
 
 template<typename T>
 concept bulk_memory_resource_type = requires(T res, size_t& size, size_t align, void* ptr) {
@@ -765,7 +769,7 @@ unique_array<T> make_array(size_t n, const T& copy) {
 
 template<typename T>
 requires(std::is_trivially_constructible_v<T>)
-unique_array<T> make_array(mem::uninitialized_t, size_t n) {
+unique_array<T> make_array(uninitialized_t, size_t n) {
   return unique_array<T>(std::allocator<T>().allocate(n), n);
 }
 

@@ -21,12 +21,6 @@ struct nullopt_t {};
 
 constexpr inline nullopt_t nullopt;
 
-template<typename T>
-struct optional_null {};
-
-template<typename T>
-struct optional_null<T*> : public std::integral_constant<T*, nullptr> {};
-
 namespace meta {
 
 template<typename T>
