@@ -67,5 +67,20 @@ if (SHOGLE_ENABLE_OPENGL)
       "${SHOGLE_INCLUDE_DIR}/shogle/render/opengl.hpp")
 endif()
 
+if (SHOGLE_ENABLE_VULKAN)
+  list(APPEND SOURCES
+	    "${SHOGLE_SOURCE_DIR}/render/vk/context.cpp"
+	    "${SHOGLE_SOURCE_DIR}/render/vk/device.cpp"
+	    "${SHOGLE_SOURCE_DIR}/render/vk/pipeline.cpp"
+	    "${SHOGLE_SOURCE_DIR}/render/vk/swapchain.cpp")
+
+	list(APPEND INCLUDES
+	    "${SHOGLE_INCLUDE_DIR}/shogle/render/vk/common.hpp"
+	    "${SHOGLE_INCLUDE_DIR}/shogle/render/vk/context.hpp"
+	    "${SHOGLE_INCLUDE_DIR}/shogle/render/vk/device.hpp"
+	    "${SHOGLE_INCLUDE_DIR}/shogle/render/vk/pipeline.hpp"
+	    "${SHOGLE_INCLUDE_DIR}/shogle/render/vk/swapchain.hpp")
+endif()
+
 set(SHOGLE_SOURCES ${SOURCES} PARENT_SCOPE)
 set(SHOGLE_INCLUDES ${INCLUDES} PARENT_SCOPE)
