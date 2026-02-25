@@ -23,8 +23,10 @@ option(SHOGLE_ENABLE_IMGUI "Enable imgui support" OFF)
 option(SHOGLE_SHARED_BUILD "Shared library build" OFF)
 option(SHOGLE_DISABLE_EXCEPTIONS "Disable exceptions" OFF)
 
-set(SHOGLE_ENABLE_GLFW ON)
-set(SHOGLE_ENABLE_OPENGL ON)
+# Backends
+option(SHOGLE_ENABLE_OPENGL "Enable OpenGL backen" ON)
+option(SHOGLE_ENABLE_GLFW "Enable GLFW window backend" ON)
+option(SHOGLE_ENABLE_VULKAN "Enable vulkan backend" ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -67,6 +69,13 @@ if (SHOGLE_ENABLE_GLFW)
   pkg_search_module(GLFW REQUIRED glfw3)
   list(APPEND SHOGLE_EXTERN_INCLUDES ${GLFW_INCLUDE_DIRS})
   list(APPEND SHOGLE_EXTERN_LINK glfw)
+endif()
+
+# VulkanMemoryAllocator
+if (SHOGLE_ENABLE_VULKAN)
+  add_subdirectory("${SHOGLE_EXTERN_DIR}/VulkanMemoryAllocator")
+	list(APPEND SHOGLE_EXTERN_INCLUDES GPUOpen::VulkanMemoryAllocator)
+	list(APPEND SHOGLE_EXTERN_LINK GPUOpen::VulkanMemoryAllocator)
 endif()
 
 # imgui
@@ -134,28 +143,28 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 20)
 target_link_libraries(${PROJECT_NAME} PUBLIC ${SHOGLE_EXTERN_LINK})
 
-install(TARGETS ${PROJECT_NAME}
-        EXPORT ${PROJECT_NAME}-config
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-
-install(FILES ${SHOGLE_INCLUDES}
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
-
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/generated/shogle/config.hpp"
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}")
-
-if (SHOGLE_ENABLE_IMGUI)
-  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/extern/shogle/extern/imgui.h"
-          DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/extern")
-  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/extern/shogle/extern/imconfig.h"
-          DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/extern")
-endif()
-
-install(EXPORT ${PROJECT_NAME}-config
-        NAMESPACE ${PROJECT_NAME}::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+#install(TARGETS ${PROJECT_NAME}
+#        EXPORT ${PROJECT_NAME}-config
+#        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+#        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+#
+#install(FILES ${SHOGLE_INCLUDES}
+#        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
+#
+#install(FILES "${CMAKE_CURRENT_BINARY_DIR}/generated/shogle/config.hpp"
+#        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}")
+#
+#if (SHOGLE_ENABLE_IMGUI)
+#  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/extern/shogle/extern/imgui.h"
+#          DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/extern")
+#  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/extern/shogle/extern/imconfig.h"
+#          DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/extern")
+#endif()
+#
+#install(EXPORT ${PROJECT_NAME}-config
+#        NAMESPACE ${PROJECT_NAME}::
+#        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
 if (SHOGLE_BUILD_TESTS)
   message(STATUS "ShOGLE: Building tests")

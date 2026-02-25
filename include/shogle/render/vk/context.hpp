@@ -1,10 +1,9 @@
 #pragma once
 
-#include "./vk_pipeline.hpp"
-#include "./vk_swapchain.hpp"
-#include <vulkan/vulkan_core.h>
+#include <shogle/render/vk/pipeline.hpp>
+#include <shogle/render/vk/swapchain.hpp>
 
-namespace keiki::render {
+namespace shogle {
 
 struct vk_layout_info {
   VkVertexInputBindingDescription bind;
@@ -58,79 +57,93 @@ public:
 
   struct buffer_data {
     VkBuffer buffer;
-    ntf::optional<VkDeviceAddress> address;
+    optional<VkDeviceAddress> address;
     VmaAllocation allocation;
-    VmaAllocationInfo info;
+    // VmaAllocationInfo info;
     VkBufferUsageFlags buffer_usage;
   };
 
   static constexpr u32 NULL_IMG_INDEX = std::numeric_limits<u32>::max();
 
-public:
-  vk_context(scratch_arena&& arena, vk_memory mem, vk_surface_provider& surf_prov, VkInstance vk,
-             VkSurfaceKHR surface, VkDebugUtilsMessengerEXT messenger, vk_device&& device,
-             vk_swapchain&& swapchain, command_pool&& cmdpool, sync_objects&& sync);
+private:
+  struct create_t {};
 
-  NTF_DECLARE_NO_MOVE_NO_COPY(vk_context);
+  struct context_deleter {
+    void operator()(vk_private* ptr) noexcept;
+  };
 
-public:
-  static fn create(size_t arena_size, vk_surface_provider& surf_prov) -> vk_sv_expect<vk_context>;
-
-public:
-  fn start_frame() -> vk_sv_expect<void>;
-  fn record_command(const vk_indexed_draw_command& cmd) -> void;
-  fn end_frame() -> vk_sv_expect<void>;
-
-  fn device_wait() -> void;
-  fn flag_dirty_framebuffer() -> void;
+  using context_data = std::unique_ptr<vk_private, context_deleter>;
 
 public:
-  fn create_pipeline_layout(const vk_layout_info& info) -> vk_sv_expect<vk_pipeline_layout>;
-  fn destroy_pipeline_layout(vk_pipeline_layout layout) -> void;
+  vk_context(mem::scratch_arena&& arena, vk_memory mem, vk_surface_provider& surf_prov,
+             VkInstance vk, VkSurfaceKHR surface, VkDebugUtilsMessengerEXT messenger,
+             vk_device&& device, vk_swapchain&& swapchain, command_pool&& cmdpool,
+             sync_objects&& sync);
 
-  fn create_pipeline_stage(vk_stage_type stage, std::string_view src)
+public:
+  static auto create(size_t arena_size, vk_surface_provider& surf_prov)
+    -> vk_sv_expect<vk_context>;
+
+public:
+  auto start_frame() -> vk_sv_expect<void>;
+  auto record_command(const vk_indexed_draw_command& cmd) -> void;
+  auto end_frame() -> vk_sv_expect<void>;
+
+  auto device_wait() -> void;
+  auto flag_dirty_framebuffer() -> void;
+
+public:
+  auto create_pipeline_layout(const vk_layout_info& info) -> vk_sv_expect<vk_pipeline_layout>;
+  auto destroy_pipeline_layout(vk_pipeline_layout layout) -> void;
+
+  auto create_pipeline_stage(vk_stage_type stage, std::string_view src)
     -> vk_sv_expect<vk_pipeline_stage>;
-  fn destroy_pipeline_stage(vk_pipeline_stage stage) -> void;
+  auto destroy_pipeline_stage(vk_pipeline_stage stage) -> void;
 
-  fn create_pipeline(const vk_pipeline_builder& builder) -> vk_sv_expect<vk_handle>;
-  fn destroy_pipeline(vk_handle pipeline) -> void;
+  auto create_pipeline(const vk_pipeline_builder& builder) -> vk_sv_expect<vk_handle>;
+  auto destroy_pipeline(vk_handle pipeline) -> void;
 
-  fn create_buffer(vk_buffer_type type, size_t size, u32 flags = 0u) -> vk_sv_expect<vk_handle>;
-  fn upload_buffer_data(vk_handle buffer, const void* data, size_t size, size_t offset = 0u)
+  auto create_buffer(vk_buffer_type type, size_t size, u32 flags = 0u) -> vk_sv_expect<vk_handle>;
+  auto upload_buffer_data(vk_handle buffer, const void* data, size_t size, size_t offset = 0u)
     -> vk_sv_expect<void>;
-  fn destroy_buffer(vk_handle buffer) -> void;
+  auto destroy_buffer(vk_handle buffer) -> void;
 
+  /*
 private:
-  fn _rebuild_swapchain() -> vk_sv_expect<void>;
-  fn _current_command_buffer() -> VkCommandBuffer;
+auto _rebuild_swapchain() -> vk_sv_expect<void>;
+auto _current_command_buffer() -> VkCommandBuffer;
 
-  fn _allocate_buffer(VkBufferUsageFlags buffer_usage, VmaMemoryUsage mem_usage, size_t size,
-                      u32 flags) -> vk_sv_expect<buffer_data>;
-  fn _deallocate_buffer(const buffer_data& data) -> void;
+auto _allocate_buffer(VkBufferUsageFlags buffer_usage, VmaMemoryUsage mem_usage, size_t size,
+                  u32 flags) -> vk_sv_expect<buffer_data>;
+auto _deallocate_buffer(const buffer_data& data) -> void;
 
 public:
-  fn swapchain_format() const -> VkFormat { return _swapchain.format(); }
+auto swapchain_format() const -> VkFormat { return _swapchain.format(); }
+  */
 
 private:
-  scratch_arena _arena;
-  vk_memory _mem;
-  vk_surface_provider& _surf_prov;
-  VkInstance _vk;
-  VkSurfaceKHR _surface;
-  VkDebugUtilsMessengerEXT _messenger;
-  vk_device _device;
-  vk_swapchain _swapchain;
-  command_pool _cmdpool;
-  sync_objects _sync;
+  context_data _ctx;
+  /*
+scratch_arena _arena;
+vk_memory _mem;
+vk_surface_provider& _surf_prov;
+VkInstance _vk;
+VkSurfaceKHR _surface;
+VkDebugUtilsMessengerEXT _messenger;
+vk_device _device;
+vk_swapchain _swapchain;
+command_pool _cmdpool;
+sync_objects _sync;
 
-  u32 _curr_frame;
-  u32 _img_index;
-  u32 _frame_flags;
+u32 _curr_frame;
+u32 _img_index;
+u32 _frame_flags;
 
-  ntf::freelist<buffer_data> _buffs;
-  ntf::freelist<stage_module_data> _stage_modules;
-  ntf::freelist<VkPipelineLayout> _pipeline_layouts;
-  ntf::freelist<VkPipeline> _pipelines;
+ntf::freelist<buffer_data> _buffs;
+ntf::freelist<stage_module_data> _stage_modules;
+ntf::freelist<VkPipelineLayout> _pipeline_layouts;
+ntf::freelist<VkPipeline> _pipelines;
+  */
 };
 
-} // namespace keiki::render
+} // namespace shogle

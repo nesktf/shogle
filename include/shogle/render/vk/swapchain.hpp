@@ -1,8 +1,8 @@
 #pragma once
 
-#include "./vk_device.hpp"
+#include <shogle/render/vk/device.hpp>
 
-namespace keiki::render {
+namespace shogle {
 
 class vk_swapchain {
 public:
@@ -11,27 +11,27 @@ public:
                std::vector<VkImageView>&& image_views, std::vector<VkFramebuffer>&& framebuffers);
 
 public:
-  static fn create(const vk_device& device, vk_view<VkSurfaceKHR> surface, VkExtent2D extent,
-                   vk_view<VkSwapchainKHR> old_swapchain,
-                   ptr_view<const VkAllocationCallbacks> vkalloc) -> vk_sv_expect<vk_swapchain>;
+  static auto create(const vk_device& device, vk_view<VkSurfaceKHR> surface, VkExtent2D extent,
+                     vk_view<VkSwapchainKHR> old_swapchain,
+                     ptr_view<const VkAllocationCallbacks> vkalloc) -> vk_sv_expect<vk_swapchain>;
 
-  fn rebuild(const vk_device& device, vk_view<VkSurfaceKHR> surface, VkExtent2D extent,
-             ptr_view<const VkAllocationCallbacks> vkalloc) -> vk_sv_expect<void>;
-  fn destroy(const vk_device& device, ptr_view<const VkAllocationCallbacks> vkalloc) -> void;
-
-public:
-  fn swapchain() const -> vk_view<VkSwapchainKHR>;
-  fn format() const -> VkFormat;
-  fn extent() const -> VkExtent2D;
-  fn renderpass() const -> vk_view<VkRenderPass>;
-  fn images() const -> span<const VkImage>;
-  fn image_views() const -> span<const VkImageView>;
-  fn framebuffers() const -> span<const VkFramebuffer>;
+  auto rebuild(const vk_device& device, vk_view<VkSurfaceKHR> surface, VkExtent2D extent,
+               ptr_view<const VkAllocationCallbacks> vkalloc) -> vk_sv_expect<void>;
+  auto destroy(const vk_device& device, ptr_view<const VkAllocationCallbacks> vkalloc) -> void;
 
 public:
-  operator VkSwapchainKHR() const { return swapchain(); }
+  auto swapchain() const -> vk_view<VkSwapchainKHR>;
+  auto format() const -> VkFormat;
+  auto extent() const -> VkExtent2D;
+  auto renderpass() const -> vk_view<VkRenderPass>;
+  auto images() const -> span<const VkImage>;
+  auto image_views() const -> span<const VkImageView>;
+  auto framebuffers() const -> span<const VkFramebuffer>;
 
-  operator VkRenderPass() const { return renderpass(); }
+public:
+  operator VkSwapchainKHR() const { return _swapchain; }
+
+  operator VkRenderPass() const { return _renderpass; }
 
 private:
   VkSwapchainKHR _swapchain;
@@ -43,4 +43,4 @@ private:
   std::vector<VkFramebuffer> _framebuffers;
 };
 
-} // namespace keiki::render
+} // namespace shogle

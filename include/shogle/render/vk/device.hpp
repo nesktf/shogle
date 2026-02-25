@@ -1,9 +1,10 @@
 #pragma once
 
-#include "../util.hpp"
-#include "./vk_common.hpp"
+#include <shogle/render/vk/common.hpp>
 
-namespace keiki::render {
+#include <shogle/util/memory.hpp>
+
+namespace shogle {
 
 class vk_device {
 public:
@@ -32,30 +33,31 @@ public:
             swapchain_caps&& caps);
 
 public:
-  static fn create(scratch_arena& arena, vk_view<VkInstance> vk, vk_view<VkSurfaceKHR> surface,
-                   span<const char*> device_extensions, span<const char*> layers,
-                   ptr_view<const VkAllocationCallbacks> vkalloc) -> vk_sv_expect<vk_device>;
+  static auto create(mem::scratch_arena& arena, vk_view<VkInstance> vk,
+                     vk_view<VkSurfaceKHR> surface, span<const char*> device_extensions,
+                     span<const char*> layers, ptr_view<const VkAllocationCallbacks> vkalloc)
+    -> vk_sv_expect<vk_device>;
 
-  fn destroy(ptr_view<const VkAllocationCallbacks> vkalloc) -> void;
-
-public:
-  fn device() const -> vk_view<VkDevice>;
-  fn physical_device() const -> vk_view<VkPhysicalDevice>;
-
-  fn swapchain_formats() const -> span<const VkSurfaceFormatKHR>;
-  fn swapchain_present_modes() const -> span<const VkPresentModeKHR>;
-  fn swapchain_capabilities() const -> VkSurfaceCapabilitiesKHR;
-
-  fn queue_families() const -> queue_family_indices;
-
-  fn get_queue(queue_family family, u32 queue_index = 0u) const -> vk_view<VkQueue>;
-
-  fn physical_device_props() const -> VkPhysicalDeviceProperties;
+  auto destroy(ptr_view<const VkAllocationCallbacks> vkalloc) -> void;
 
 public:
-  operator VkDevice() const { return device(); }
+  auto device() const -> vk_view<VkDevice>;
+  auto physical_device() const -> vk_view<VkPhysicalDevice>;
 
-  operator VkPhysicalDevice() const { return physical_device(); }
+  auto swapchain_formats() const -> span<const VkSurfaceFormatKHR>;
+  auto swapchain_present_modes() const -> span<const VkPresentModeKHR>;
+  auto swapchain_capabilities() const -> VkSurfaceCapabilitiesKHR;
+
+  auto queue_families() const -> queue_family_indices;
+
+  auto get_queue(queue_family family, u32 queue_index = 0u) const -> vk_view<VkQueue>;
+
+  auto physical_device_props() const -> VkPhysicalDeviceProperties;
+
+public:
+  operator VkDevice() const { return _device; }
+
+  operator VkPhysicalDevice() const { return _physical_device; }
 
 private:
   VkPhysicalDevice _physical_device;
@@ -64,4 +66,4 @@ private:
   swapchain_caps _swapchain_capabilities;
 };
 
-} // namespace keiki::render
+} // namespace shogle

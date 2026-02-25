@@ -1,10 +1,9 @@
 #pragma once
 
-#include "./vk_common.hpp"
+#include <shogle/render/vk/common.hpp>
 
-namespace keiki::render {
+namespace shogle {
 
-using vk_pipeline = vk_handle;
 using vk_pipeline_layout = vk_handle;
 using vk_pipeline_stage = vk_handle;
 
@@ -25,20 +24,20 @@ public:
   vk_pipeline_builder(vk_context& ctx);
 
 public:
-  fn set_layout(vk_pipeline_layout layout) -> vk_pipeline_builder&;
-  fn set_shader(vk_stage_type type, vk_pipeline_stage stage) -> vk_pipeline_builder&;
-  fn set_topology(VkPrimitiveTopology topology) -> vk_pipeline_builder&;
-  fn set_polygon_mode(VkPolygonMode mode, f32 width = 1.f) -> vk_pipeline_builder&;
-  fn set_cull_mode(VkCullModeFlags mode, VkFrontFace front) -> vk_pipeline_builder&;
-  fn set_multisampling_none() -> vk_pipeline_builder&;
-  fn disable_blending() -> vk_pipeline_builder&;
-  fn set_color_attachment_format(VkFormat format) -> vk_pipeline_builder&;
-  fn set_depth_format(VkFormat format) -> vk_pipeline_builder&;
-  fn disable_depthtest() -> vk_pipeline_builder&;
+  auto set_layout(vk_pipeline_layout layout) -> vk_pipeline_builder&;
+  auto set_shader(vk_stage_type type, vk_pipeline_stage stage) -> vk_pipeline_builder&;
+  auto set_topology(VkPrimitiveTopology topology) -> vk_pipeline_builder&;
+  auto set_polygon_mode(VkPolygonMode mode, f32 width = 1.f) -> vk_pipeline_builder&;
+  auto set_cull_mode(VkCullModeFlags mode, VkFrontFace front) -> vk_pipeline_builder&;
+  auto set_multisampling_none() -> vk_pipeline_builder&;
+  auto disable_blending() -> vk_pipeline_builder&;
+  auto set_color_attachment_format(VkFormat format) -> vk_pipeline_builder&;
+  auto set_depth_format(VkFormat format) -> vk_pipeline_builder&;
+  auto disable_depthtest() -> vk_pipeline_builder&;
 
 public:
-  fn build() const -> vk_sv_expect<vk_pipeline>;
-  fn clear() -> void;
+  auto build() const -> vk_sv_expect<vk_pipeline>;
+  auto clear() -> void;
 
 private:
   ptr_view<vk_context> _ctx;
@@ -56,4 +55,4 @@ private:
   friend class vk_context;
 };
 
-} // namespace keiki::render
+} // namespace shogle
