@@ -103,12 +103,12 @@ shogle::expected<model_data, std::string> load_model(chima::context_view chima) 
           diffuse};
 }
 
-struct fumo_attribs {
+struct fumo_vert_layout {
 public:
   static constexpr size_t attribute_count = 3u;
 
 public:
-  fumo_attribs(size_t nverts) noexcept :
+  fumo_vert_layout(size_t nverts) noexcept :
       _pos_stride(nverts * sizeof(shogle::vec3)), _norm_stride(nverts * sizeof(shogle::vec2)),
       _uv_stride(nverts * sizeof(shogle::vec2)) {}
 
@@ -162,49 +162,56 @@ int main() {
     return EXIT_FAILURE;
   }
   chima::scoped_resource diffuse_defer(chima, cirno->diffuse);
+  const auto [diffuse_w, diffuse_h] = cirno->diffuse.extent();
   const size_t nverts = cirno->positions.size();
-  fumo_attribs attribs(nverts);
+  fumo_vert_layout fumo_layout(nverts);
 
   f32 win_w = 800;
   f32 win_h = 600;
 
   const auto glfw = shogle::glfw_win::initialize_lib();
-  const auto hints = shogle::glfw_gl_hints::make_default(4, 6);
+  const auto hints = shogle::glfw_gl_hints::make_default(4, 4);
   shogle::glfw_win win((u32)win_w, (u32)win_h, "test", hints);
   shogle::gl_context gl(win);
 
-  bool do_things = true;
+  bool pause = false;
   win.set_viewport_callback([&](auto, const shogle::extent2d& vp) {
     win_w = (f32)vp.width;
     win_h = (f32)vp.height;
   });
   win.set_key_input_callback([&](auto, const shogle::glfw_key_data& key) {
     if (key.key == GLFW_KEY_SPACE && key.action == GLFW_PRESS) {
-      do_things = !do_things;
+      pause = !pause;
     }
   });
 
   // Important: We are using a SoA vertex layout
-  shogle::gl_buffer vertices(gl, attribs.buffer_size());
-  shogle::gl_vertex_layout layout(gl, attribs, vertices, 0u);
-  const shogle::gl_scoped_resource layout_defer(gl, layout);
+  shogle::gl_buffer vertices(gl, fumo_layout.buffer_size());
+  shogle::gl_layout_builder layout_builder;
+  auto layout = layout_builder.set_vertex_buffer(vertices).build(gl, fumo_layout).value();
+  const shogle::gl_defer layout_defer(gl, layout);
   layout.vertex_buffer()
-    .upload_data(gl, cirno->positions.data(), attribs.pos_stride(), attribs.pos_offset())
+    ->upload_data(gl, cirno->positions.data(), fumo_layout.pos_stride(), fumo_layout.pos_offset())
     .value();
   layout.vertex_buffer()
-    .upload_data(gl, cirno->normals.data(), attribs.norm_stride(), attribs.norm_offset())
+    ->upload_data(gl, cirno->normals.data(), fumo_layout.norm_stride(), fumo_layout.norm_offset())
     .value();
   layout.vertex_buffer()
-    .upload_data(gl, cirno->uvs.data(), attribs.uv_stride(), attribs.uv_offset())
+    ->upload_data(gl, cirno->uvs.data(), fumo_layout.uv_stride(), fumo_layout.uv_offset())
     .value();
 
-  const auto [w, h] = cirno->diffuse.extent();
-  shogle::gl_texture tex(gl, shogle::gl_texture::TEX_FORMAT_RGB8, shogle::extent2d(w, h));
-  shogle::gl_scoped_resource tex_scope(gl, tex);
-  tex.set_sampler(gl, shogle::gl_texture::SAMPLER_LINEAR);
+  shogle::gl_texture_builder tex_builder;
+  auto tex = tex_builder.set_type(shogle::gl_texture::TEX_TYPE_2D)
+               .set_format(shogle::gl_texture::TEX_FORMAT_RGB8)
+               .set_extent(shogle::extent2d(diffuse_w, diffuse_h))
+               .set_min_sampler(shogle::gl_texture::SAMPLER_MIN_LINEAR)
+               .set_mag_sampler(shogle::gl_texture::SAMPLER_MAG_LINEAR)
+               .build(gl)
+               .value();
+  shogle::gl_defer tex_scope(gl, tex);
   const shogle::gl_texture::image_data diffuse_data{
     .data = cirno->diffuse.data(),
-    .extent = {w, h, 1},
+    .extent = {diffuse_w, diffuse_h, 1},
     .format = shogle::gl_texture::PIXEL_FORMAT_RGB,
     .datatype = shogle::gl_texture::PIXEL_TYPE_U8,
     .alignment = shogle::gl_texture::ALIGN_4BYTES,
@@ -212,19 +219,21 @@ int main() {
   tex.upload_image(gl, diffuse_data).value();
   tex.generate_mipmaps(gl);
 
-  shogle::gl_shader vertex_shader(gl, vert_src, sizeof(vert_src), shogle::gl_shader::STAGE_VERTEX);
-  const shogle::gl_scoped_resource vshader_defer(gl, vertex_shader);
-  shogle::gl_shader fragment_shader(gl, frag_src, sizeof(frag_src),
-                                    shogle::gl_shader::STAGE_FRAGMENT);
-  const shogle::gl_scoped_resource fshader_defer(gl, fragment_shader);
+  shogle::gl_shader vert_shader(gl, vert_src, sizeof(vert_src), shogle::gl_shader::STAGE_VERTEX);
+  const shogle::gl_defer vert_shader_defer(gl, vert_shader);
+  shogle::gl_shader frag_shader(gl, frag_src, sizeof(frag_src), shogle::gl_shader::STAGE_FRAGMENT);
+  const shogle::gl_defer frag_shader_defer(gl, frag_shader);
 
-  shogle::gl_shader_builder shader_builder;
-  const auto pipeline_shaders =
-    shader_builder.add_shader(vertex_shader).add_shader(fragment_shader).build();
-
-  shogle::gl_graphics_pipeline pipeline(gl, pipeline_shaders);
-  pipeline.set_depth_test(shogle::gl_depth_test_props::make_default(true));
-  const shogle::gl_scoped_resource pipeline_defer(gl, pipeline);
+  shogle::gl_pipeline_builder pipeline_builder;
+  auto pipeline = pipeline_builder.set_primitive(shogle::gl_pipeline::PRIMITIVE_TRIANGLES)
+                    .set_polygon_mode(shogle::gl_pipeline::POLY_MODE_FILL)
+                    .set_polygon_width(1.f)
+                    .add_shader(vert_shader)
+                    .add_shader(frag_shader)
+                    .set_depth_test(shogle::gl_depth_test_props::make_default(true))
+                    .build(gl)
+                    .value();
+  const shogle::gl_defer pipeline_defer(gl, pipeline);
   const auto u_model = pipeline.uniform_location(gl, "u_model").value();
   const auto u_proj = pipeline.uniform_location(gl, "u_proj").value();
   const auto u_tex = pipeline.uniform_location(gl, "u_tex").value();
@@ -242,7 +251,7 @@ int main() {
     if (win.poll_key(GLFW_KEY_ESCAPE) == GLFW_PRESS) {
       win.close();
     }
-    if (do_things) {
+    if (!pause) {
       t += (f32)dt;
     }
 

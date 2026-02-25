@@ -196,21 +196,21 @@ template<typename T>
 struct gl_deleter;
 
 template<typename T>
-class gl_scoped_resource : public gl_deleter<T> {
+class gl_defer : public gl_deleter<T> {
 public:
-  gl_scoped_resource(gl_context& gl, T& obj) noexcept :
+  gl_defer(gl_context& gl, T& obj) noexcept :
       gl_deleter<T>(gl), _obj(std::addressof(obj)), _count(1u) {}
 
-  gl_scoped_resource(gl_context& gl, T* obj, u32 count) noexcept :
+  gl_defer(gl_context& gl, T* obj, u32 count) noexcept :
       gl_deleter<T>(gl), _obj(obj), _count(count) {}
 
-  gl_scoped_resource(gl_context& gl, span<T> objs) noexcept :
+  gl_defer(gl_context& gl, span<T> objs) noexcept :
       gl_deleter<T>(gl), _obj(objs.data()), _count(objs.size()) {}
 
-  gl_scoped_resource(const gl_scoped_resource&) = delete;
-  gl_scoped_resource(gl_scoped_resource&&) = delete;
+  gl_defer(const gl_defer&) = delete;
+  gl_defer(gl_defer&&) = delete;
 
-  ~gl_scoped_resource() noexcept { destroy(); }
+  ~gl_defer() noexcept { destroy(); }
 
 public:
   void disengage() noexcept { _obj = nullptr; }
@@ -242,8 +242,8 @@ public:
   bool is_active() const noexcept { return _obj != nullptr; }
 
 public:
-  gl_scoped_resource& operator=(const gl_scoped_resource&) = delete;
-  gl_scoped_resource& operator=(gl_scoped_resource&&) = delete;
+  gl_defer& operator=(const gl_defer&) = delete;
+  gl_defer& operator=(gl_defer&&) = delete;
 
   operator bool() const noexcept { return is_active(); }
 

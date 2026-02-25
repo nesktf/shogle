@@ -35,20 +35,22 @@ public:
   gl_clear_builder() noexcept;
 
 public:
-  gl_clear_builder& set_viewport(const rectangle_pos<u32>& viewport);
-  gl_clear_builder& set_viewport(u32 x, u32 y, u32 width, u32 height);
+  gl_clear_builder& set_viewport(const rectangle_pos<u32>& viewport) &;
+  gl_clear_builder& set_viewport(u32 x, u32 y, u32 width, u32 height) &;
   gl_clear_builder& set_clear_color(const color4& color);
-  gl_clear_builder& set_clear_color(f32 r, f32 g, f32 b, f32 a = 1.f);
-  gl_clear_builder& set_clear_flag(gl_clear_opts::clear_flag flag);
+  gl_clear_builder& set_clear_color(f32 r, f32 g, f32 b, f32 a = 1.f) &;
+  gl_clear_builder& set_clear_flag(gl_clear_opts::clear_flag flag) &;
 
-  gl_clear_builder& add_framebuffer(const gl_framebuffer& fbo, const rectangle_pos<u32>& viewport,
-                                    gldefs::GLenum clear_flags, const color4& color);
-  gl_clear_builder& add_framebuffer(const gl_framebuffer& fbo, const rectangle_pos<u32>& viewport,
-                                    gldefs::GLenum clear_flags, f32 r, f32 g, f32 b, f32 a = 1.f);
+  gl_clear_builder& add_framebuffer(const gl_framebuffer& fbo) &;
+  gl_clear_builder& set_fb_viewport(size_t idx, const rectangle_pos<u32>& viewport) &;
+  gl_clear_builder& set_fb_viewport(size_t idx, u32 x, u32 y, u32 width, u32 height) &;
+  gl_clear_builder& set_fb_clear_color(size_t idx, const color4& color) &;
+  gl_clear_builder& set_fb_clear_color(size_t idx, f32 r, f32 g, f32 b, f32 a = 1.f) &;
+  gl_clear_builder& set_fb_clear_flag(size_t idx, gl_clear_opts::clear_flag flag) &;
 
 public:
-  void reset();
-  gl_clear_opts build() const;
+  void reset() &;
+  gl_clear_opts build() const&;
 
 private:
   color4 _color;
@@ -95,7 +97,7 @@ public:
 public:
   optional<inplace_trivial_fn<void(), 2 * sizeof(void*)>> on_render;
   ref_view<const gl_vertex_layout> vertex_layout;
-  ref_view<const gl_graphics_pipeline> pipeline;
+  ref_view<const gl_pipeline> pipeline;
   span<const shader_binding> shader_bindings;
   span<const texture_binding> texture_bindings;
   span<const gl_push_uniform> uniforms;
@@ -110,36 +112,36 @@ public:
   gl_cmd_builder() noexcept;
 
 public:
-  gl_cmd_builder& set_vertex_layout(const gl_vertex_layout& layout);
-  gl_cmd_builder& set_pipeline(const gl_graphics_pipeline& pipeline);
+  gl_cmd_builder& set_vertex_layout(const gl_vertex_layout& layout) &;
+  gl_cmd_builder& set_pipeline(const gl_pipeline& pipeline) &;
 
-  gl_cmd_builder& set_viewport(const rectangle_pos<u32>& viewport);
-  gl_cmd_builder& set_viewport(u32 x, u32 y, u32 width, u32 height);
-  gl_cmd_builder& set_scissor(const rectangle_pos<u32>& scissor);
-  gl_cmd_builder& set_scissor(u32 x, u32 y, u32 width, u32 height);
+  gl_cmd_builder& set_viewport(const rectangle_pos<u32>& viewport) &;
+  gl_cmd_builder& set_viewport(u32 x, u32 y, u32 width, u32 height) &;
+  gl_cmd_builder& set_scissor(const rectangle_pos<u32>& scissor) &;
+  gl_cmd_builder& set_scissor(u32 x, u32 y, u32 width, u32 height) &;
 
-  gl_cmd_builder& set_instances(u32 instances);
-  gl_cmd_builder& set_draw_count(u32 count);
+  gl_cmd_builder& set_instances(u32 instances) &;
+  gl_cmd_builder& set_draw_count(u32 count) &;
 
   gl_cmd_builder& add_shader_buffer(u32 location, const gl_buffer& buffer, size_t size = 0,
-                                    size_t offset = 0);
-  gl_cmd_builder& add_texture(const gl_texture& texture, u32 location);
+                                    size_t offset = 0) &;
+  gl_cmd_builder& add_texture(const gl_texture& texture, u32 location) &;
 
   template<::shogle::meta::attribute_type T>
-  gl_cmd_builder& add_uniform(const T& value, u32 location) {
+  gl_cmd_builder& add_uniform(const T& value, u32 location) & {
     _uniforms.emplace_back(location, value);
     return *this;
   }
 
   template<typename T>
   requires(std::is_trivially_copyable_v<T>)
-  gl_cmd_builder& add_uniform(const T& value, u32 location, attribute_type tag) {
+  gl_cmd_builder& add_uniform(const T& value, u32 location, attribute_type tag) & {
     _uniforms.emplace_back(location, value, tag);
     return *this;
   }
 
   template<typename F>
-  gl_cmd_builder& set_callback(F&& func) {
+  gl_cmd_builder& set_callback(F&& func) & {
     if (_on_render.has_value()) {
       _on_render.reset();
     }
@@ -148,22 +150,22 @@ public:
   }
 
   template<typename F, typename... Args>
-  gl_cmd_builder& set_callback(std::in_place_type_t<F> tag, Args&&... args) {
+  gl_cmd_builder& set_callback(in_place_type_t<F>, Args&&... args) & {
     if (_on_render.has_value()) {
       _on_render.reset();
     }
-    _on_render.emplace(tag, std::forward<Args>(args)...);
+    _on_render.emplace(in_place_type<F>, std::forward<Args>(args)...);
     return *this;
   }
 
 public:
-  void reset();
-  gl_draw_cmd build() const;
+  void reset() &;
+  gl_draw_cmd build() const&;
 
 private:
   optional<inplace_trivial_fn<void(), 2 * sizeof(void*)>> _on_render;
   ptr_view<const gl_vertex_layout> _vertex_layout;
-  ptr_view<const gl_graphics_pipeline> _pipeline;
+  ptr_view<const gl_pipeline> _pipeline;
   std::vector<gl_draw_cmd::shader_binding> _shader_binds;
   std::vector<gl_draw_cmd::texture_binding> _texture_binds;
   std::vector<gl_push_uniform> _uniforms;
@@ -174,13 +176,13 @@ private:
 };
 
 struct gl_ext_cmd {
-  inplace_trivial_fn<void(gl_context& gl, gldefs::GLhandle fbo), 2 * sizeof(void*)> callback;
+  inplace_trivial_fn<void(gldefs::GLhandle fbo), 2 * sizeof(void*)> callback;
   gl_depth_test_props depth_test;
   gl_stencil_test_props stencil_test;
   gl_blending_props blending;
   gl_culling_props culling;
-  gl_graphics_pipeline::primitive_mode primitive;
-  gl_graphics_pipeline::polygon_mode poly_mode;
+  gl_pipeline::primitive_mode primitive;
+  gl_pipeline::polygon_mode poly_mode;
   f32 poly_width;
   rectangle_pos<u32> viewport;
   rectangle_pos<u32> scissor;
@@ -195,8 +197,8 @@ public:
   gl_extcmd_builder& set_stencil_test(const gl_stencil_test_props& stencil);
   gl_extcmd_builder& set_blending(const gl_blending_props& blending);
   gl_extcmd_builder& set_culling(const gl_culling_props& culling);
-  gl_extcmd_builder& set_primitive(gl_graphics_pipeline::primitive_mode primitive);
-  gl_extcmd_builder& set_poly_mode(gl_graphics_pipeline::polygon_mode poly_mode);
+  gl_extcmd_builder& set_primitive(gl_pipeline::primitive_mode primitive);
+  gl_extcmd_builder& set_poly_mode(gl_pipeline::polygon_mode poly_mode);
 
   gl_extcmd_builder& set_viewport(const rectangle_pos<u32>& viewport);
   gl_extcmd_builder& set_viewport(u32 x, u32 y, u32 width, u32 height);
@@ -226,14 +228,13 @@ public:
   gl_ext_cmd build() const;
 
 private:
-  optional<inplace_trivial_fn<void(gl_context& gl, gldefs::GLhandle fbo), 2 * sizeof(void*)>>
-    _callback;
+  optional<inplace_trivial_fn<void(gldefs::GLhandle fbo), 2 * sizeof(void*)>> _callback;
   gl_stencil_test_props _stencil;
   gl_depth_test_props _depth;
   gl_blending_props _blending;
   gl_culling_props _culling;
-  gl_graphics_pipeline::primitive_mode _primitive;
-  gl_graphics_pipeline::polygon_mode _poly_mode;
+  gl_pipeline::primitive_mode _primitive;
+  gl_pipeline::polygon_mode _poly_mode;
   f32 _poly_width;
   rectangle_pos<u32> _viewport;
   optional<rectangle_pos<u32>> _scissor;

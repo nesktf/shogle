@@ -11,12 +11,12 @@ public:
 
 public:
   enum shader_stage : gldefs::GLenum {
-    STAGE_VERTEX = 0x8B31,    // GL_VERTEX_SHADER
-    STAGE_FRAGMENT = 0x8B30,  // GL_FRAGMENT_SHADER
-    STAGE_GEOMETRY = 0x8DD9,  // GL_GEOMETRY_SHADER
-    STAGE_TESS_EVAL = 0x8E87, // GL_TESS_EVALUATION_SHADER
-    STAGE_TESS_CTRL = 0x8E88, // GL_TESS_CONTROL_SHADER
-    STAGE_COMPUTE = 0x91B9,   // GL_COMPUTE_SHADER
+    STAGE_VERTEX = 0,
+    STAGE_FRAGMENT,
+    STAGE_GEOMETRY,
+    STAGE_TESS_EVAL,
+    STAGE_TESS_CTRL,
+    STAGE_COMPUTE,
   };
 
   enum stages_bits : gldefs::GLbitfield {
@@ -28,25 +28,6 @@ public:
     STAGE_TESS_EVAL_BIT = 0x00000010, // GL_TESS_EVALUATION_SHADER_BIT
     STAGE_COMPUTE_BIT = 0x00000020,   // GL_COMPUTE_SHADER_BIT
     STAGE_ALL_BITS = 0xFFFFFFFF,      // GL_ALL_STAGE_BITS
-  };
-
-  struct graphics_set {
-  public:
-    graphics_set(std::array<gldefs::GLhandle, 5u> shader_set, u32 shader_count,
-                 gldefs::GLbitfield active_stages) noexcept :
-        _shader_set(shader_set), _shader_count(shader_count), _active_stages(active_stages) {}
-
-  public:
-    span<const gldefs::GLhandle> stages() const noexcept {
-      return {_shader_set.data(), _shader_count};
-    }
-
-    gldefs::GLbitfield active_stages() const noexcept { return _active_stages; }
-
-  private:
-    std::array<gldefs::GLhandle, 5u> _shader_set;
-    u32 _shader_count;
-    gldefs::GLbitfield _active_stages;
   };
 
 private:
@@ -67,10 +48,6 @@ public:
 public:
   gldefs::GLhandle id() const;
   shader_stage stage() const;
-  bool invalidated() const noexcept;
-
-public:
-  explicit operator bool() const noexcept { return !invalidated(); }
 
 private:
   gldefs::GLhandle _id;
@@ -93,23 +70,6 @@ public:
 
 private:
   gl_context* _gl;
-};
-
-class gl_shader_builder {
-public:
-  static constexpr u32 MAP_SIZE = 12;
-  using shader_map = std::array<gldefs::GLhandle, MAP_SIZE>;
-
-public:
-  gl_shader_builder() noexcept;
-
-public:
-  gl_shader_builder& add_shader(const gl_shader& shader);
-  gldefs::GLhandle get_shader(gl_shader::shader_stage stage);
-  gl_shader::graphics_set build() const;
-
-private:
-  shader_map _shaders;
 };
 
 struct gl_stencil_test_props {
@@ -287,10 +247,10 @@ public:
   cull_face face;
 };
 
-class gl_graphics_pipeline {
+class gl_pipeline {
 public:
   using context_type = gl_context;
-  using deleter_type = gl_deleter<gl_graphics_pipeline>;
+  using deleter_type = gl_deleter<gl_pipeline>;
 
 public:
   enum primitive_mode : gldefs::GLenum {
@@ -395,22 +355,37 @@ public:
     shader_attrib_type type;
   };
 
+  struct shader_set {
+    std::array<gldefs::GLhandle, 5u> shaders;
+    u32 shader_count;
+    gldefs::GLbitfield active_stages;
+  };
+
+  struct pipeline_props {
+    gl_stencil_test_props _stencil;
+    gl_depth_test_props _depth;
+    gl_blending_props _blending;
+    gl_culling_props _culling;
+  };
+
 private:
   struct create_t {};
 
 public:
-  gl_graphics_pipeline(create_t, gldefs::GLhandle program, gldefs::GLbitfield stages);
+  gl_pipeline(create_t, gldefs::GLhandle program, gldefs::GLbitfield stages);
 
-  gl_graphics_pipeline(gl_context& gl, const gl_shader::graphics_set& shaders);
+  gl_pipeline(gl_context& gl, const shader_set& shaders, primitive_mode primitive,
+              polygon_mode poly, f32 poly_width, ptr_view<const pipeline_props> props);
 
 public:
-  static gl_s_expect<gl_graphics_pipeline> create(gl_context& gl,
-                                                  const gl_shader::graphics_set& shaders);
+  static gl_s_expect<gl_pipeline> create(gl_context& gl, const shader_set& shaders,
+                                         primitive_mode primitive, polygon_mode poly,
+                                         f32 poly_width, ptr_view<const pipeline_props> props);
 
-  static void destroy(gl_context& gl, gl_graphics_pipeline& pipeline) noexcept;
+  static void destroy(gl_context& gl, gl_pipeline& pipeline) noexcept;
 
-  static void destroy_n(gl_context& gl, gl_graphics_pipeline* pipelines, size_t count) noexcept;
-  static void destroy_n(gl_context& gl, span<gl_graphics_pipeline> pipelines) noexcept;
+  static void destroy_n(gl_context& gl, gl_pipeline* pipelines, size_t count) noexcept;
+  static void destroy_n(gl_context& gl, span<gl_pipeline> pipelines) noexcept;
 
 public:
   optional<u32> uniform_location(gl_context& gl, const char* name) const;
@@ -424,16 +399,16 @@ public:
                                            u32 idx) const;
 
 public:
-  gl_graphics_pipeline& reset_props();
+  gl_pipeline& reset_props();
 
-  gl_graphics_pipeline& set_primitive(primitive_mode primitive);
-  gl_graphics_pipeline& set_poly_mode(polygon_mode poly_mode);
-  gl_graphics_pipeline& set_poly_width(f32 poly_width);
+  gl_pipeline& set_primitive(primitive_mode primitive);
+  gl_pipeline& set_poly_mode(polygon_mode poly_mode);
+  gl_pipeline& set_poly_width(f32 poly_width);
 
-  gl_graphics_pipeline& set_stencil_test(const gl_stencil_test_props& stencil);
-  gl_graphics_pipeline& set_depth_test(const gl_depth_test_props& depth);
-  gl_graphics_pipeline& set_blending(const gl_blending_props& blending);
-  gl_graphics_pipeline& set_culling(const gl_culling_props& culling);
+  gl_pipeline& set_stencil_test(const gl_stencil_test_props& stencil);
+  gl_pipeline& set_depth_test(const gl_depth_test_props& depth);
+  gl_pipeline& set_blending(const gl_blending_props& blending);
+  gl_pipeline& set_culling(const gl_culling_props& culling);
 
 public:
   gldefs::GLhandle program() const;
@@ -448,11 +423,6 @@ public:
   const gl_blending_props& blending() const;
   const gl_culling_props& culling() const;
 
-  bool invalidated() const noexcept;
-
-public:
-  explicit operator bool() const noexcept { return !invalidated(); }
-
 private:
   gl_stencil_test_props _stencil;
   gl_depth_test_props _depth;
@@ -465,24 +435,61 @@ private:
   f32 _poly_width;
 };
 
-static_assert(::shogle::meta::renderer_object_type<gl_graphics_pipeline>);
+static_assert(::shogle::meta::renderer_object_type<gl_pipeline>);
 
 template<>
-struct gl_deleter<gl_graphics_pipeline> {
+struct gl_deleter<gl_pipeline> {
 public:
   gl_deleter(gl_context& gl) noexcept : _gl(&gl) {}
 
 public:
-  void operator()(gl_graphics_pipeline* pipelines, size_t count) const noexcept {
-    gl_graphics_pipeline::destroy_n(*_gl, pipelines, count);
+  void operator()(gl_pipeline* pipelines, size_t count) const noexcept {
+    gl_pipeline::destroy_n(*_gl, pipelines, count);
   }
 
-  void operator()(gl_graphics_pipeline& pipeline) const noexcept {
-    gl_graphics_pipeline::destroy(*_gl, pipeline);
-  }
+  void operator()(gl_pipeline& pipeline) const noexcept { gl_pipeline::destroy(*_gl, pipeline); }
 
 private:
   gl_context* _gl;
+};
+
+class gl_pipeline_builder {
+private:
+  enum shader_stage : gldefs::GLenum {
+    GL_STAGE_VERTEX = 0x8B31,    // GL_VERTEX_SHADER
+    GL_STAGE_FRAGMENT = 0x8B30,  // GL_FRAGMENT_SHADER
+    GL_STAGE_GEOMETRY = 0x8DD9,  // GL_GEOMETRY_SHADER
+    GL_STAGE_TESS_EVAL = 0x8E87, // GL_TESS_EVALUATION_SHADER
+    GL_STAGE_TESS_CTRL = 0x8E88, // GL_TESS_CONTROL_SHADER
+    GL_STAGE_COMPUTE = 0x91B9,   // GL_COMPUTE_SHADER
+  };
+
+public:
+  gl_pipeline_builder() noexcept;
+
+public:
+  gl_pipeline_builder& add_shader(const gl_shader& shader);
+
+  gl_pipeline_builder& set_depth_test(const gl_depth_test_props& props);
+  gl_pipeline_builder& set_stencil_test(const gl_stencil_test_props& stencil);
+  gl_pipeline_builder& set_blending(const gl_blending_props& blending);
+  gl_pipeline_builder& set_culling(const gl_culling_props& culling);
+
+  gl_pipeline_builder& set_primitive(gl_pipeline::primitive_mode primitive);
+  gl_pipeline_builder& set_polygon_mode(gl_pipeline::polygon_mode poly_mode);
+  gl_pipeline_builder& set_polygon_width(f32 poly_width);
+
+  gl_s_expect<gl_pipeline> build(gl_context& gl) const;
+
+private:
+  gl_pipeline::shader_set _set;
+  gl_stencil_test_props _stencil;
+  gl_depth_test_props _depth;
+  gl_blending_props _blending;
+  gl_culling_props _culling;
+  gl_pipeline::primitive_mode _primitive;
+  gl_pipeline::polygon_mode _poly_mode;
+  f32 _poly_width;
 };
 
 } // namespace shogle

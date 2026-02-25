@@ -144,13 +144,18 @@ public:
     WRAP_DIR_R = 0x8072, // GL_TEXTURE_WRAP_R
   };
 
-  enum texture_sampler : gldefs::GLenum {
-    SAMPLER_NEAREST = 0x2600,            // GL_NEAREST
-    SAMPLER_LINEAR = 0x2601,             // GL_LINEAR
-    SAMPLER_NEAREST_MP_NEAREST = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
-    SAMPLER_LINEAR_MP_NEAREST = 0x2701,  // GL_LINEAR_MIPMAP_NEAREST
-    SAMPLER_NEAREST_MP_LINEAR = 0x2702,  // GL_NEAREST_MIPMAP_LINEAR
-    SAMPLER_LINEAR_MP_LINEAR = 0x2703,   // GL_LINEAR_MIPMAP_LINEAR
+  enum texture_min_sampler : gldefs::GLenum {
+    SAMPLER_MIN_NEAREST = 0x2600, // GL_NEAREST
+    SAMPLER_MIN_LINEAR = 0x2601,  // GL_LINEAR
+  };
+
+  enum texture_mag_sampler : gldefs::GLenum {
+    SAMPLER_MAG_NEAREST = 0x2600,            // GL_NEAREST
+    SAMPLER_MAG_LINEAR = 0x2601,             // GL_LINEAR
+    SAMPLER_MAG_NEAREST_MP_NEAREST = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
+    SAMPLER_MAG_LINEAR_MP_NEAREST = 0x2701,  // GL_LINEAR_MIPMAP_NEAREST
+    SAMPLER_MAG_NEAREST_MP_LINEAR = 0x2702,  // GL_NEAREST_MIPMAP_LINEAR
+    SAMPLER_MAG_LINEAR_MP_LINEAR = 0x2703,   // GL_LINEAR_MIPMAP_LINEAR
   };
 
   enum cubemap_face : gldefs::GLenum {
@@ -232,20 +237,18 @@ public:
                       size_t offset);
 
   // TEX_TYPE_2D[_MULTISAMPLE/_ARRAY] constructor
-  gl_texture(gl_context& gl, texture_format format, const extent2d& extent, u32 layers = 1,
-             u32 levels = MAX_MIPMAP_LEVEL, multisample_opt multisampling = MULTISAMPLE_NONE);
+  gl_texture(gl_context& gl, texture_format format, const extent2d& extent, u32 layers, u32 levels,
+             multisample_opt multisampling);
 
   // TEX_TYPE_CUBEMAP constructor
   explicit gl_texture(cubemap_tag_t, gl_context& gl, texture_format format, u32 extent,
-                      u32 levels = MAX_MIPMAP_LEVEL);
+                      u32 levels);
 
   // TEX_TYPE_1D[_MULTISAMPLE/_ARRAY] constructor
-  explicit gl_texture(gl_context& gl, texture_format format, u32 extent, u32 layers = 1,
-                      u32 levels = MAX_MIPMAP_LEVEL);
+  explicit gl_texture(gl_context& gl, texture_format format, u32 extent, u32 layers, u32 levels);
 
   // TEX_TYPE_3D constructor
-  explicit gl_texture(gl_context& gl, texture_format format, const extent3d& extent,
-                      u32 levels = MAX_MIPMAP_LEVEL);
+  explicit gl_texture(gl_context& gl, texture_format format, const extent3d& extent, u32 levels);
 
   // TEX_TYPE_BUFFER constructor
   explicit gl_texture(gl_context& gl, const gl_buffer& buffer, texture_format format, size_t size,
@@ -257,38 +260,35 @@ private:
 
 public:
   static gl_expect<gl_texture> allocate1d(gl_context& gl, texture_format format, u32 extent,
-                                          u32 levels = MAX_MIPMAP_LEVEL, u32 layers = 1);
+                                          u32 layers, u32 levels);
   template<typename Cont>
   static n_err_return allocate1d_n(gl_context& gl, Cont&& cont, u32 count, texture_format format,
-                                   u32 extent, u32 levels = MAX_MIPMAP_LEVEL, u32 layers = 1)
+                                   u32 extent, u32 layers, u32 levels)
   requires(growable_tex_container<Cont>);
 
   static gl_expect<gl_texture> allocate2d(gl_context& gl, texture_format format,
-                                          const extent2d& extent, u32 levels = MAX_MIPMAP_LEVEL,
-                                          u32 layers = 1,
-                                          multisample_opt multisampling = MULTISAMPLE_NONE);
+                                          const extent2d& extent, u32 layers, u32 levels,
+                                          multisample_opt multisampling);
   template<typename Cont>
   static n_err_return allocate2d_n(gl_context& gl, Cont&& cont, u32 count, texture_format format,
-                                   const extent2d& extent, u32 layers = 1,
-                                   u32 levels = MAX_MIPMAP_LEVEL,
-                                   multisample_opt multisampling = MULTISAMPLE_NONE)
+                                   const extent2d& extent, u32 layers, u32 levels,
+                                   multisample_opt multisampling)
   requires(growable_tex_container<Cont>);
 
   static gl_expect<gl_texture> allocate_cubemap(gl_context& gl, texture_format format, u32 extent,
-                                                u32 levels = MAX_MIPMAP_LEVEL);
+                                                u32 levels);
 
   template<typename Cont>
   static n_err_return allocate_cubemap_n(gl_context& gl, Cont&& cont, u32 count,
-                                         texture_format format, u32 extent,
-                                         u32 levels = MAX_MIPMAP_LEVEL)
+                                         texture_format format, u32 extent, u32 levels)
   requires(growable_tex_container<Cont>);
 
   static gl_expect<gl_texture> allocate3d(gl_context& gl, texture_format format,
-                                          const extent3d& extent, u32 levels = MAX_MIPMAP_LEVEL);
+                                          const extent3d& extent, u32 levels);
 
   template<typename Cont>
   static n_err_return allocate3d_n(gl_context& gl, Cont&& cont, u32 count, texture_format format,
-                                   const extent3d& extent, u32 levels = MAX_MIPMAP_LEVEL)
+                                   const extent3d& extent, u32 levels)
   requires(growable_tex_container<Cont>);
 
   static gl_expect<gl_texture> bind_to_buffer(gl_context& gl, const gl_buffer& buffer,
@@ -318,7 +318,7 @@ public:
 public:
   gl_texture& set_swizzle(gl_context& gl, swizzle_target target, swizzle_mask mask);
   gl_texture& set_wrap(gl_context& gl, wrap_direction dir, texture_wrap wrap);
-  gl_texture& set_sampler(gl_context& gl, texture_sampler sampler);
+  gl_texture& set_sampler(gl_context& gl, texture_min_sampler min, texture_mag_sampler mag);
 
 public:
   gldefs::GLhandle id() const;
@@ -360,6 +360,45 @@ public:
 
 private:
   gl_context* _gl;
+};
+
+class gl_texture_builder {
+public:
+  gl_texture_builder() noexcept;
+
+public:
+  gl_texture_builder& set_type(gl_texture::texture_type type);
+  gl_texture_builder& set_format(gl_texture::texture_format format);
+
+  gl_texture_builder& set_extent(u32 ext);
+  gl_texture_builder& set_extent(extent2d ext);
+  gl_texture_builder& set_extent(extent3d ext);
+
+  gl_texture_builder& set_layers(u32 layers);
+  gl_texture_builder& set_levels(u32 levels);
+
+  gl_texture_builder& set_mag_sampler(gl_texture::texture_mag_sampler mag);
+  gl_texture_builder& set_min_sampler(gl_texture::texture_min_sampler min);
+  gl_texture_builder& set_mutlisampling(gl_texture::multisample_opt opt);
+
+  gl_texture_builder& set_wrap(gl_texture::wrap_direction dir, gl_texture::texture_wrap wrap);
+
+  gl_texture_builder& set_swizzle(gl_texture::swizzle_target target,
+                                  gl_texture::swizzle_mask mask);
+
+  gl_expect<gl_texture> build(gl_context& gl) const;
+
+private:
+  std::array<gl_texture::swizzle_mask, 4u> _swizzle;
+  std::array<gl_texture::texture_wrap, 3u> _wrap;
+  extent3d _extent;
+  gl_texture::texture_type _type;
+  gl_texture::texture_format _format;
+  gl_texture::multisample_opt _ms;
+  gl_texture::texture_min_sampler _min;
+  gl_texture::texture_mag_sampler _mag;
+  u32 _layers;
+  u32 _levels;
 };
 
 } // namespace shogle
