@@ -9,8 +9,8 @@ namespace {
 
 using namespace shogle::numdefs;
 
-constexpr std::string_view vert_src = R"glsl(
-#version 430 core
+constexpr char vert_src[] = R"glsl(
+#version 440 core
 
 layout (location = 0) in vec3 att_pos;
 layout (location = 1) in vec4 att_color;
@@ -29,8 +29,8 @@ void main() {
 }  
 )glsl";
 
-constexpr std::string_view frag_src = R"glsl(
-#version 430 core
+constexpr char frag_src[] = R"glsl(
+#version 440 core
 
 layout (location = 0) in vec4 frag_color;
 layout (location = 1) in vec2 frag_uvs;
@@ -44,29 +44,44 @@ void main() {
 }
 )glsl";
 
-struct pct_vertex {
+struct quad_layout {
 public:
-  static constexpr u32 attribute_count = 3u;
-  static constexpr inline auto attributes() noexcept;
+  static constexpr size_t attribute_count = 3u;
 
 public:
-  shogle::vec3 pos;
-  shogle::vec4 color;
-  shogle::vec2 uvs;
+  struct pct_vertex {
+    shogle::vec3 pos;
+    shogle::vec4 color;
+    shogle::vec2 uvs;
+  };
+
+public:
+  static shogle::vertex_attrib_array<attribute_count> attributes() noexcept {
+    return std::to_array<shogle::vertex_attribute>({
+      {
+        .location = 0,
+        .type = shogle::attribute_type::vec3,
+        .offset = offsetof(pct_vertex, pos),
+        .stride = sizeof(pct_vertex),
+      },
+      {
+        .location = 1,
+        .type = shogle::attribute_type::vec4,
+        .offset = offsetof(pct_vertex, color),
+        .stride = sizeof(pct_vertex),
+      },
+      {
+        .location = 2,
+        .type = shogle::attribute_type::vec2,
+        .offset = offsetof(pct_vertex, uvs),
+        .stride = sizeof(pct_vertex),
+      },
+    });
+  };
 };
 
-constexpr inline auto pct_vertex::attributes() noexcept {
-  return std::to_array<shogle::vertex_attribute>({
-    {.location = 0, .type = shogle::attribute_type::vec3, .offset = offsetof(pct_vertex, pos)},
-    {.location = 1, .type = shogle::attribute_type::vec4, .offset = offsetof(pct_vertex, color)},
-    {.location = 2, .type = shogle::attribute_type::vec2, .offset = offsetof(pct_vertex, uvs)},
-  });
-}
-
-static_assert(shogle::meta::vertex_type<pct_vertex>);
-
 // clang-format off
-constexpr auto vertices = std::to_array<pct_vertex>({
+constexpr auto vertices = std::to_array<quad_layout::pct_vertex>({
   // pos               // color              // tex
   {{-.5f, -.5f,  0.f}, {1.f, 0.f, 0.f, 1.f}, {0.f, 1.f}},
   {{ .5f, -.5f,  0.f}, {0.f, 1.f, 0.f, 1.f}, {1.f, 1.f}},
@@ -97,20 +112,18 @@ int main() {
   shogle::glfw_win win(800, 600, "test", hints);
   shogle::gl_context gl(win);
 
-  shogle::gl_vertex_layout quad_layout(gl, shogle::aos_vertex_arg<pct_vertex>{});
-  const shogle::gl_scoped_resource layout_scope(gl, quad_layout);
-
   shogle::gl_buffer quad_vbo(gl, shogle::gl_buffer::TYPE_VERTEX, vbo_size);
-  const shogle::gl_scoped_resource vbo_scope(gl, quad_vbo);
-  quad_vbo.upload_data(gl, vertices.data(), vbo_size, 0).value();
-
   shogle::gl_buffer quad_ebo(gl, shogle::gl_buffer::TYPE_INDEX, ebo_size);
-  const shogle::gl_scoped_resource ebo_scope(gl, quad_ebo);
-  quad_ebo.upload_data(gl, indices.data(), ebo_size, 0).value();
+  shogle::gl_vertex_layout layout(gl, shogle::vertex_arg<quad_layout>{}, quad_vbo, 0, quad_ebo,
+                                  shogle::gl_vertex_layout::INDEX_FORMAT_U16, 0);
+  const shogle::gl_scoped_resource layout_scope(gl, layout);
+  layout.vertex_buffer().upload_data(gl, vertices.data(), vbo_size, 0).value();
+  layout.index_buffer()->upload_data(gl, indices.data(), ebo_size, 0).value();
 
-  shogle::gl_shader vertex_shader(gl, vert_src, shogle::gl_shader::STAGE_VERTEX);
+  shogle::gl_shader vertex_shader(gl, vert_src, sizeof(vert_src), shogle::gl_shader::STAGE_VERTEX);
   const shogle::gl_scoped_resource vshader_scope(gl, vertex_shader);
-  shogle::gl_shader fragment_shader(gl, frag_src, shogle::gl_shader::STAGE_FRAGMENT);
+  shogle::gl_shader fragment_shader(gl, frag_src, sizeof(frag_src),
+                                    shogle::gl_shader::STAGE_FRAGMENT);
   const shogle::gl_scoped_resource fshader_scope(gl, fragment_shader);
 
   shogle::gl_shader_builder shader_builder;
@@ -141,7 +154,7 @@ int main() {
   tex.upload_image(gl, d).value();
   tex.generate_mipmaps(gl);
 
-  shogle::gl_command_builder cmd_builder;
+  shogle::gl_cmd_builder cmd_builder;
   f32 t = 0.f;
   bool pause = false;
   win.set_key_input_callback([&](auto, const shogle::glfw_key_data& key) {
@@ -173,17 +186,15 @@ int main() {
     model = shogle::math::scale(model, shogle::vec3(400.f, 400.f, 1.f));
 
     cmd_builder.reset();
-    const auto cmd = cmd_builder.set_vertex_layout(quad_layout)
+    const auto cmd = cmd_builder.set_vertex_layout(layout)
                        .set_pipeline(pipeline)
-                       .set_index_buffer(quad_ebo, shogle::gl_draw_command::INDEX_FORMAT_U16)
                        .set_draw_count(indices.size())
                        .add_texture(tex, 0)
                        .add_uniform(proj, u_proj)
                        .add_uniform(model, u_model)
                        .add_uniform(0, u_tex)
-                       .add_vertex_buffer(quad_vbo)
                        .build();
-    gl.submit_command(cmd);
+    gl.submit_immediate_command(cmd);
     gl.end_frame();
   });
 

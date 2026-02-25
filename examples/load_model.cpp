@@ -12,8 +12,8 @@ namespace {
 
 using namespace shogle::numdefs;
 
-constexpr std::string_view vert_src = R"glsl(
-#version 430 core
+constexpr char vert_src[] = R"glsl(
+#version 440 core
 
 layout (location = 0) in vec3 att_pos;
 layout (location = 1) in vec3 att_norm;
@@ -32,8 +32,8 @@ void main() {
 }  
 )glsl";
 
-constexpr std::string_view frag_src = R"glsl(
-#version 430 core
+constexpr char frag_src[] = R"glsl(
+#version 440 core
 
 layout (location = 0) in vec3 frag_norm;
 layout (location = 1) in vec2 frag_uvs;
@@ -103,6 +103,52 @@ shogle::expected<model_data, std::string> load_model(chima::context_view chima) 
           diffuse};
 }
 
+struct fumo_attribs {
+public:
+  static constexpr size_t attribute_count = 3u;
+
+public:
+  fumo_attribs(size_t nverts) noexcept :
+      _pos_stride(nverts * sizeof(shogle::vec3)), _norm_stride(nverts * sizeof(shogle::vec2)),
+      _uv_stride(nverts * sizeof(shogle::vec2)) {}
+
+public:
+  shogle::vertex_attrib_array<attribute_count> attributes() const noexcept {
+    return std::to_array<shogle::vertex_attribute>({
+      {.location = 0,
+       .type = shogle::attribute_type::vec3,
+       .offset = pos_offset(),
+       .stride = _pos_stride},
+      {.location = 1,
+       .type = shogle::attribute_type::vec3,
+       .offset = norm_offset(),
+       .stride = _norm_stride},
+      {.location = 2,
+       .type = shogle::attribute_type::vec2,
+       .offset = uv_offset(),
+       .stride = _uv_stride},
+    });
+  }
+
+public:
+  size_t buffer_size() const noexcept { return _pos_stride + _norm_stride + _uv_stride; }
+
+  size_t pos_stride() const noexcept { return _pos_stride; }
+
+  size_t pos_offset() const noexcept { return 0; }
+
+  size_t norm_stride() const noexcept { return _norm_stride; }
+
+  size_t norm_offset() const noexcept { return _pos_stride; }
+
+  size_t uv_stride() const noexcept { return _uv_stride; }
+
+  size_t uv_offset() const noexcept { return _pos_stride + _norm_stride; }
+
+private:
+  size_t _pos_stride, _norm_stride, _uv_stride;
+};
+
 } // namespace
 
 int main() {
@@ -117,6 +163,7 @@ int main() {
   }
   chima::scoped_resource diffuse_defer(chima, cirno->diffuse);
   const size_t nverts = cirno->positions.size();
+  fumo_attribs attribs(nverts);
 
   f32 win_w = 800;
   f32 win_h = 600;
@@ -138,19 +185,18 @@ int main() {
   });
 
   // Important: We are using a SoA vertex layout
-  shogle::gl_vertex_layout layout(gl, shogle::soa_vertex_arg<shogle::pnt_vertex>{});
+  shogle::gl_buffer vertices(gl, attribs.buffer_size());
+  shogle::gl_vertex_layout layout(gl, attribs, vertices, 0u);
   const shogle::gl_scoped_resource layout_defer(gl, layout);
-
-  shogle::gl_buffer positions(gl, shogle::gl_buffer::TYPE_VERTEX, nverts * sizeof(shogle::vec3));
-  const shogle::gl_scoped_resource pos_defer(gl, positions);
-  shogle::gl_buffer normals(gl, shogle::gl_buffer::TYPE_VERTEX, nverts * sizeof(shogle::vec3));
-  const shogle::gl_scoped_resource norm_defer(gl, normals);
-  shogle::gl_buffer uvs(gl, shogle::gl_buffer::TYPE_VERTEX, nverts * sizeof(shogle::vec2));
-  const shogle::gl_scoped_resource uv_defer(gl, uvs);
-
-  positions.upload_data(gl, cirno->positions.data(), nverts * sizeof(shogle::vec3), 0).value();
-  normals.upload_data(gl, cirno->normals.data(), nverts * sizeof(shogle::vec3), 0).value();
-  uvs.upload_data(gl, cirno->uvs.data(), nverts * sizeof(shogle::vec2), 0).value();
+  layout.vertex_buffer()
+    .upload_data(gl, cirno->positions.data(), attribs.pos_stride(), attribs.pos_offset())
+    .value();
+  layout.vertex_buffer()
+    .upload_data(gl, cirno->normals.data(), attribs.norm_stride(), attribs.norm_offset())
+    .value();
+  layout.vertex_buffer()
+    .upload_data(gl, cirno->uvs.data(), attribs.uv_stride(), attribs.uv_offset())
+    .value();
 
   const auto [w, h] = cirno->diffuse.extent();
   shogle::gl_texture tex(gl, shogle::gl_texture::TEX_FORMAT_RGB8, shogle::extent2d(w, h));
@@ -166,9 +212,10 @@ int main() {
   tex.upload_image(gl, diffuse_data).value();
   tex.generate_mipmaps(gl);
 
-  shogle::gl_shader vertex_shader(gl, vert_src, shogle::gl_shader::STAGE_VERTEX);
+  shogle::gl_shader vertex_shader(gl, vert_src, sizeof(vert_src), shogle::gl_shader::STAGE_VERTEX);
   const shogle::gl_scoped_resource vshader_defer(gl, vertex_shader);
-  shogle::gl_shader fragment_shader(gl, frag_src, shogle::gl_shader::STAGE_FRAGMENT);
+  shogle::gl_shader fragment_shader(gl, frag_src, sizeof(frag_src),
+                                    shogle::gl_shader::STAGE_FRAGMENT);
   const shogle::gl_scoped_resource fshader_defer(gl, fragment_shader);
 
   shogle::gl_shader_builder shader_builder;
@@ -190,7 +237,7 @@ int main() {
 
   f32 t = 0.f;
   const f32 fumo_scale = 0.025f;
-  shogle::gl_command_builder cmd_builder;
+  shogle::gl_cmd_builder cmd_builder;
   shogle::render_loop(win, [&](f64 dt) {
     if (win.poll_key(GLFW_KEY_ESCAPE) == GLFW_PRESS) {
       win.close();
@@ -217,9 +264,6 @@ int main() {
                        .add_uniform(proj, u_proj)
                        .add_uniform(model, u_model)
                        .add_uniform(0, u_tex)
-                       .add_vertex_buffer(positions, 0)
-                       .add_vertex_buffer(normals, 1)
-                       .add_vertex_buffer(uvs, 2)
                        .build();
     gl.submit_command(cmd);
     gl.end_frame();

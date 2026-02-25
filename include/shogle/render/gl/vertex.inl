@@ -1,68 +1,69 @@
-#define SHOGLE_RENDER_GL_VERTEX
-#include <shogle/render/gl/vertex.hpp>
-#undef SHOGLE_RENDER_GL_VERTEX
+#define SHOGLE_RENDER_GL_VERTEX_INL
+#include "./vertex.hpp"
+#undef SHOGLE_RENDER_GL_VERTEX_INL
 
 namespace shogle {
 
-inline gl_vertex_layout::gl_vertex_layout(gl_context& gl, size_t stride,
-                                          span<const ::shogle::vertex_attribute> attribs) :
-    gl_vertex_layout(gl, stride, attribs.data(), attribs.size()) {}
+template<meta::context_layout_type Layout>
+gl_vertex_layout::gl_vertex_layout(gl_context& gl, const Layout& layout, gl_buffer vertex_buffer,
+                                   size_t vertex_offset) :
+    gl_vertex_layout(create(gl, layout, vertex_buffer, vertex_offset).value()) {}
 
-inline gl_vertex_layout::gl_vertex_layout(gl_context& gl, size_t stride,
-                                          const ::shogle::vertex_attribute* attribs,
-                                          u32 attrib_count) :
+template<meta::context_layout_type Layout>
+gl_vertex_layout::gl_vertex_layout(gl_context& gl, const Layout& layout, gl_buffer vertex_buffer,
+                                   size_t vertex_offset, gl_buffer index_buffer,
+                                   index_format format, size_t index_offset) :
     gl_vertex_layout(
-      ::shogle::gl_vertex_layout::create(gl, stride, attribs, attrib_count).value()) {}
+      create(gl, layout, vertex_buffer, vertex_offset, index_buffer, format, index_offset)
+        .value()) {}
 
-template<size_t AttribCount>
-gl_vertex_layout::gl_vertex_layout(gl_context& gl, size_t stride,
-                                   span<const ::shogle::vertex_attribute, AttribCount> attribs)
-requires(AttribCount != dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS)
-    :
+template<typename Layout>
+gl_vertex_layout::gl_vertex_layout(gl_context& gl, vertex_arg<Layout>, gl_buffer vertex_buffer,
+                                   size_t vertex_offset) :
+    gl_vertex_layout(create<Layout>(gl, vertex_buffer, vertex_offset).value()) {}
+
+template<typename Layout>
+gl_vertex_layout::gl_vertex_layout(gl_context& gl, vertex_arg<Layout>, gl_buffer vertex_buffer,
+                                   size_t vertex_offset, gl_buffer index_buffer,
+                                   index_format format, size_t index_offset) :
     gl_vertex_layout(
-      ::shogle::gl_vertex_layout::create(gl, stride, attribs.data(), AttribCount).value()) {}
+      create<Layout>(gl, vertex_buffer, vertex_offset, index_buffer, format, index_offset)
+        .value()) {}
 
-template<typename T>
-gl_vertex_layout::gl_vertex_layout(gl_context& gl, soa_vertex_arg<T>)
-requires(T::attribute_count <= MAX_ATTRIBUTE_BINDINGS)
-    : gl_vertex_layout(::shogle::gl_vertex_layout::from_soa_vertex<T>(gl).value()) {}
-
-template<typename T>
-gl_vertex_layout::gl_vertex_layout(gl_context& gl, aos_vertex_arg<T>)
-requires(T::attribute_count <= MAX_ATTRIBUTE_BINDINGS)
-    : gl_vertex_layout(::shogle::gl_vertex_layout::from_aos_vertex<T>(gl).value()) {}
-
-inline gl_expect<gl_vertex_layout>
-gl_vertex_layout::create(gl_context& gl, size_t stride,
-                         span<const ::shogle::vertex_attribute> attribs) {
-  return ::shogle::gl_vertex_layout::create(gl, stride, attribs.data(), attribs.size());
+template<meta::context_layout_type Layout>
+gl_expect<gl_vertex_layout> gl_vertex_layout::create(gl_context& gl, const Layout& layout,
+                                                     gl_buffer vertex_buffer,
+                                                     size_t vertex_offset) {
+  static_assert(Layout::attribute_count < MAX_ATTRIBUTE_BINDINGS, "Attribute count out of range");
+  const auto attribs = layout.attributes();
+  return _create(gl, attribs, vertex_buffer, vertex_offset, nullopt, INDEX_FORMAT_I8, 0).value();
 }
 
-template<size_t AttribCount>
-gl_expect<gl_vertex_layout>
-gl_vertex_layout::create(gl_context& gl, size_t stride,
-                         span<const ::shogle::vertex_attribute, AttribCount> attribs)
-requires(AttribCount != dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS)
-{
-  return ::shogle::gl_vertex_layout::create(gl, stride, attribs.data(), AttribCount);
+template<meta::context_layout_type Layout>
+gl_expect<gl_vertex_layout> gl_vertex_layout::create(gl_context& gl, const Layout& layout,
+                                                     gl_buffer vertex_buffer, size_t vertex_offset,
+                                                     gl_buffer index_buffer, index_format format,
+                                                     size_t index_offset) {
+  static_assert(Layout::attribute_count < MAX_ATTRIBUTE_BINDINGS, "Attribute count out of range");
+  const auto attribs = layout.attributes();
+  return _create(gl, attribs, vertex_buffer, vertex_offset, index_buffer, format, index_offset);
 }
 
-template<::shogle::meta::vertex_type T>
-gl_expect<gl_vertex_layout> gl_vertex_layout::from_soa_vertex(gl_context& gl)
-requires(T::attribute_count <= MAX_ATTRIBUTE_BINDINGS)
-{
-  static constexpr auto attribs = T::attributes();
-  return ::shogle::gl_vertex_layout::create(gl, soa_vertex_arg<T>::vertex_stride, attribs.data(),
-                                            T::attribute_count);
+template<meta::static_layout_type Layout>
+gl_expect<gl_vertex_layout> gl_vertex_layout::create(gl_context& gl, gl_buffer vertex_buffer,
+                                                     size_t vertex_offset) {
+  static_assert(Layout::attribute_count < MAX_ATTRIBUTE_BINDINGS, "Attribute count out of range");
+  const auto attribs = Layout::attributes();
+  return _create(gl, attribs, vertex_buffer, vertex_offset, nullopt, INDEX_FORMAT_I8, 0);
 }
 
-template<::shogle::meta::vertex_type T>
-gl_expect<gl_vertex_layout> gl_vertex_layout::from_aos_vertex(gl_context& gl)
-requires(T::attribute_count <= MAX_ATTRIBUTE_BINDINGS)
-{
-  static constexpr auto attribs = T::attributes();
-  return ::shogle::gl_vertex_layout::create(gl, aos_vertex_arg<T>::vertex_stride, attribs.data(),
-                                            T::attribute_count);
+template<meta::static_layout_type Layout>
+gl_expect<gl_vertex_layout> gl_vertex_layout::create(gl_context& gl, gl_buffer vertex_buffer,
+                                                     size_t vertex_offset, gl_buffer index_buffer,
+                                                     index_format format, size_t index_offset) {
+  static_assert(Layout::attribute_count < MAX_ATTRIBUTE_BINDINGS, "Attribute count out of range");
+  const auto attribs = Layout::attributes();
+  return _create(gl, attribs, vertex_buffer, vertex_offset, index_buffer, format, index_offset);
 }
 
 } // namespace shogle

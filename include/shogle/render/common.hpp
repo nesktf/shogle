@@ -209,29 +209,34 @@ struct vertex_attribute {
   u32 location;
   attribute_type type;
   size_t offset;
+  size_t stride;
 };
+
+template<size_t Count>
+using vertex_attrib_array = std::array<vertex_attribute, Count>;
 
 namespace meta {
 
-template<typename T>
-concept vertex_type = requires() {
-  requires std::convertible_to<std::decay_t<decltype(T::attribute_count)>, u32>;
-  requires(T::attribute_count > 0u);
-  { T::attributes() } -> std::same_as<std::array<vertex_attribute, T::attribute_count>>;
+template<typename VertLayout>
+concept static_layout_type = requires() {
+  { VertLayout::attributes() } -> std::same_as<vertex_attrib_array<VertLayout::attribute_count>>;
+  requires noexcept(VertLayout::attributes());
 };
+
+template<typename VertLayout>
+concept context_layout_type = requires(const VertLayout layout) {
+  { layout.attributes() } -> std::same_as<vertex_attrib_array<VertLayout::attribute_count>>;
+  requires noexcept(layout.attributes());
+};
+
+template<typename VertLayout>
+concept vertex_layout_source = static_layout_type<VertLayout> || context_layout_type<VertLayout>;
 
 } // namespace meta
 
-template<meta::vertex_type T>
-struct soa_vertex_arg {
-  static constexpr size_t vertex_stride = 0u;
-  using vertex_type = T;
-};
-
-template<meta::vertex_type T>
-struct aos_vertex_arg {
-  static constexpr size_t vertex_stride = sizeof(T);
-  using vertex_type = T;
+template<meta::static_layout_type T>
+struct vertex_arg {
+  using type = T;
 };
 
 } // namespace shogle

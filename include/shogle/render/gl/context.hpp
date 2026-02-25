@@ -57,32 +57,31 @@ private:
   std::vector<gl_clear_opts::fbo_initializer> _fbos;
 };
 
-struct gl_draw_command {
+struct gl_push_uniform {
+  template<::shogle::meta::attribute_type T>
+  gl_push_uniform(u32 location_, const T& data_) :
+      type(meta::attribute_traits<T>::tag), location(location_) {
+    std::memcpy(&data[0], &data_, sizeof(T));
+  }
+
+  template<typename T>
+  requires(std::is_trivially_copyable_v<T>)
+  gl_push_uniform(u32 location_, const T& data_, attribute_type type_) :
+      type(type_), location(location_) {
+    std::memcpy(&data[0], &data_, sizeof(T));
+  }
+
+  alignas(::shogle::mat4) u8 data[sizeof(::shogle::mat4)];
+  attribute_type type;
+  u32 location;
+};
+
+struct gl_draw_cmd {
 public:
-  enum index_format : gldefs::GLenum {
-    INDEX_FORMAT_I8 = 0, // GL_BYTE
-    INDEX_FORMAT_U8,     // GL_UNSIGNED_BYTE
-    INDEX_FORMAT_I16,    // GL_SHORT
-    INDEX_FORMAT_U16,    // GL_UNSIGNED_SHORT
-    INDEX_FORMAT_I32,    // GL_INT
-    INDEX_FORMAT_U32,    // GL_UNSIGNED_INT
-  };
-
-  struct index_binding {
-    gldefs::GLhandle buffer;
-    index_format format;
-    size_t index_offset;
-  };
-
   struct texture_binding {
     gldefs::GLhandle texture;
     gldefs::GLenum type;
     u32 index;
-  };
-
-  struct vertex_binding {
-    gldefs::GLhandle buffer;
-    u32 location;
   };
 
   struct shader_binding {
@@ -93,103 +92,89 @@ public:
     u32 location;
   };
 
-  struct push_uniform {
-    template<::shogle::meta::attribute_type T>
-    push_uniform(u32 location_, const T& data_) :
-        type(meta::attribute_traits<T>::tag), location(location_) {
-      std::memcpy(&data[0], &data_, sizeof(T));
-    }
-
-    template<typename T>
-    requires(std::is_trivially_copyable_v<T>)
-    push_uniform(u32 location_, const T& data_, attribute_type type_) :
-        type(type_), location(location_) {
-      std::memcpy(&data[0], &data_, sizeof(T));
-    }
-
-    alignas(::shogle::mat4) u8 data[sizeof(::shogle::mat4)];
-    attribute_type type;
-    u32 location;
-  };
-
 public:
+  optional<inplace_trivial_fn<void(), 2 * sizeof(void*)>> on_render;
   ref_view<const gl_vertex_layout> vertex_layout;
   ref_view<const gl_graphics_pipeline> pipeline;
-  span<const vertex_binding> vertex_bindings;
   span<const shader_binding> shader_bindings;
   span<const texture_binding> texture_bindings;
-  span<const push_uniform> uniforms;
-  optional<index_binding> index_bind;
+  span<const gl_push_uniform> uniforms;
   optional<rectangle_pos<u32>> viewport;
   optional<rectangle_pos<u32>> scissor;
-  size_t vertex_offset;
   u32 draw_count;
   u32 instances;
 };
 
-class gl_command_builder {
+class gl_cmd_builder {
 public:
-  gl_command_builder() noexcept;
+  gl_cmd_builder() noexcept;
 
 public:
-  gl_command_builder& set_vertex_layout(const gl_vertex_layout& layout);
-  gl_command_builder& set_pipeline(const gl_graphics_pipeline& pipeline);
+  gl_cmd_builder& set_vertex_layout(const gl_vertex_layout& layout);
+  gl_cmd_builder& set_pipeline(const gl_graphics_pipeline& pipeline);
 
-  gl_command_builder& set_viewport(const rectangle_pos<u32>& viewport);
-  gl_command_builder& set_viewport(u32 x, u32 y, u32 width, u32 height);
-  gl_command_builder& set_scissor(const rectangle_pos<u32>& scissor);
-  gl_command_builder& set_scissor(u32 x, u32 y, u32 width, u32 height);
+  gl_cmd_builder& set_viewport(const rectangle_pos<u32>& viewport);
+  gl_cmd_builder& set_viewport(u32 x, u32 y, u32 width, u32 height);
+  gl_cmd_builder& set_scissor(const rectangle_pos<u32>& scissor);
+  gl_cmd_builder& set_scissor(u32 x, u32 y, u32 width, u32 height);
 
-  gl_command_builder& set_instances(u32 instances);
-  gl_command_builder& set_vertex_offset(size_t offset);
-  gl_command_builder& set_draw_count(u32 count);
-  gl_command_builder& set_index_buffer(const gl_buffer& buffer,
-                                       gl_draw_command::index_format format,
-                                       size_t index_offset = 0);
+  gl_cmd_builder& set_instances(u32 instances);
+  gl_cmd_builder& set_draw_count(u32 count);
 
-  gl_command_builder& add_vertex_buffer(const gl_buffer& buffer, u32 location = 0);
-  gl_command_builder& add_shader_buffer(u32 location, const gl_buffer& buffer, size_t size = 0,
-                                        size_t offset = 0);
-  gl_command_builder& add_texture(const gl_texture& texture, u32 location);
+  gl_cmd_builder& add_shader_buffer(u32 location, const gl_buffer& buffer, size_t size = 0,
+                                    size_t offset = 0);
+  gl_cmd_builder& add_texture(const gl_texture& texture, u32 location);
 
   template<::shogle::meta::attribute_type T>
-  gl_command_builder& add_uniform(const T& value, u32 location) {
+  gl_cmd_builder& add_uniform(const T& value, u32 location) {
     _uniforms.emplace_back(location, value);
     return *this;
   }
 
   template<typename T>
   requires(std::is_trivially_copyable_v<T>)
-  gl_command_builder& add_uniform(const T& value, u32 location, attribute_type tag) {
+  gl_cmd_builder& add_uniform(const T& value, u32 location, attribute_type tag) {
     _uniforms.emplace_back(location, value, tag);
+    return *this;
+  }
+
+  template<typename F>
+  gl_cmd_builder& set_callback(F&& func) {
+    if (_on_render.has_value()) {
+      _on_render.reset();
+    }
+    _on_render.emplace(std::forward<F>(func));
+    return *this;
+  }
+
+  template<typename F, typename... Args>
+  gl_cmd_builder& set_callback(std::in_place_type_t<F> tag, Args&&... args) {
+    if (_on_render.has_value()) {
+      _on_render.reset();
+    }
+    _on_render.emplace(tag, std::forward<Args>(args)...);
     return *this;
   }
 
 public:
   void reset();
-  gl_draw_command build() const;
+  gl_draw_cmd build() const;
 
 private:
+  optional<inplace_trivial_fn<void(), 2 * sizeof(void*)>> _on_render;
   ptr_view<const gl_vertex_layout> _vertex_layout;
   ptr_view<const gl_graphics_pipeline> _pipeline;
-  std::vector<gl_draw_command::vertex_binding> _vertex_binds;
-  std::vector<gl_draw_command::shader_binding> _shader_binds;
-  std::vector<gl_draw_command::texture_binding> _texture_binds;
-  std::vector<gl_draw_command::push_uniform> _uniforms;
-  optional<gl_draw_command::index_binding> _index;
+  std::vector<gl_draw_cmd::shader_binding> _shader_binds;
+  std::vector<gl_draw_cmd::texture_binding> _texture_binds;
+  std::vector<gl_push_uniform> _uniforms;
   optional<rectangle_pos<u32>> _viewport;
   optional<rectangle_pos<u32>> _scissor;
-  size_t _vertex_offset;
   u32 _draw_count;
   u32 _instances;
 };
 
-struct gl_external_command {
-public:
-  using callback_type = fn_ref<void(gl_context& gl, gldefs::GLhandle fbo)>;
-
-public:
-	fn_ref<void(gl_context& gl, gldefs::GLhandle fbo)> callback;
+struct gl_ext_cmd {
+  inplace_trivial_fn<void(gl_context& gl, gldefs::GLhandle fbo), 2 * sizeof(void*)> callback;
   gl_depth_test_props depth_test;
   gl_stencil_test_props stencil_test;
   gl_blending_props blending;
@@ -201,31 +186,48 @@ public:
   rectangle_pos<u32> scissor;
 };
 
-class gl_external_command_builder {
+class gl_extcmd_builder {
 public:
-  gl_external_command_builder() noexcept;
+  gl_extcmd_builder() noexcept;
 
 public:
-  gl_external_command_builder& set_callback(gl_external_command::callback_type callback);
+  gl_extcmd_builder& set_depth_test(const gl_depth_test_props& depth);
+  gl_extcmd_builder& set_stencil_test(const gl_stencil_test_props& stencil);
+  gl_extcmd_builder& set_blending(const gl_blending_props& blending);
+  gl_extcmd_builder& set_culling(const gl_culling_props& culling);
+  gl_extcmd_builder& set_primitive(gl_graphics_pipeline::primitive_mode primitive);
+  gl_extcmd_builder& set_poly_mode(gl_graphics_pipeline::polygon_mode poly_mode);
 
-  gl_external_command_builder& set_depth_test(const gl_depth_test_props& depth);
-  gl_external_command_builder& set_stencil_test(const gl_stencil_test_props& stencil);
-  gl_external_command_builder& set_blending(const gl_blending_props& blending);
-  gl_external_command_builder& set_culling(const gl_culling_props& culling);
-  gl_external_command_builder& set_primitive(gl_graphics_pipeline::primitive_mode primitive);
-  gl_external_command_builder& set_poly_mode(gl_graphics_pipeline::polygon_mode poly_mode);
+  gl_extcmd_builder& set_viewport(const rectangle_pos<u32>& viewport);
+  gl_extcmd_builder& set_viewport(u32 x, u32 y, u32 width, u32 height);
+  gl_extcmd_builder& set_scissor(const rectangle_pos<u32>& scissor);
+  gl_extcmd_builder& set_scissor(u32 x, u32 y, u32 width, u32 height);
 
-  gl_external_command_builder& set_viewport(const rectangle_pos<u32>& viewport);
-  gl_external_command_builder& set_viewport(u32 x, u32 y, u32 width, u32 height);
-  gl_external_command_builder& set_scissor(const rectangle_pos<u32>& scissor);
-  gl_external_command_builder& set_scissor(u32 x, u32 y, u32 width, u32 height);
+  template<typename F>
+  gl_extcmd_builder& set_callback(F&& func) {
+    if (_callback.has_value()) {
+      _callback.reset();
+    }
+    _callback.emplace(std::forward<F>(func));
+    return *this;
+  }
+
+  template<typename F, typename... Args>
+  gl_extcmd_builder& set_callback(std::in_place_type_t<F> tag, Args&&... args) {
+    if (_callback.has_value()) {
+      _callback.reset();
+    }
+    _callback.emplace(tag, std::forward<Args>(args)...);
+    return *this;
+  }
 
 public:
   void reset();
-  gl_external_command build() const;
+  gl_ext_cmd build() const;
 
 private:
-	optional<gl_external_command::callback_type> _callback;
+  optional<inplace_trivial_fn<void(gl_context& gl, gldefs::GLhandle fbo), 2 * sizeof(void*)>>
+    _callback;
   gl_stencil_test_props _stencil;
   gl_depth_test_props _depth;
   gl_blending_props _blending;
@@ -275,9 +277,14 @@ public:
 
 public:
   void start_frame(const gl_clear_opts& clear);
-  void submit_command(const gl_draw_command& cmd, ptr_view<const gl_framebuffer> target = {});
-  void submit_command(const gl_external_command& cmd, ptr_view<const gl_framebuffer> target = {});
   void end_frame();
+
+  void submit_immediate_command(const gl_draw_cmd& cmd,
+                                ptr_view<const gl_framebuffer> target = {});
+  void submit_immediate_command(const gl_ext_cmd& cmd, ptr_view<const gl_framebuffer> target = {});
+
+  void submit_command(const gl_draw_cmd& cmd, ptr_view<const gl_framebuffer> target = {});
+  void submit_command(const gl_ext_cmd& cmd, ptr_view<const gl_framebuffer> target = {});
 
   template<typename F>
   void scope_frame(const gl_clear_opts& clear, F&& scope)

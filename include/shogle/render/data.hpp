@@ -4,175 +4,132 @@
 
 namespace shogle {
 
+enum class vertex_layout_mode {
+  soa,
+  aos,
+};
+
 // clang-format off
-struct pnt_vertex {
-public:
-  static constexpr u32 attribute_count = 3u;
-	static constexpr inline auto attributes() noexcept;
+template<vertex_layout_mode Mode>
+constexpr auto make_pn_unindexed_cube() {
+  static_assert(Mode == vertex_layout_mode::soa);
+return std::to_array<f32>({
+  // position             // normal
+  -0.5f, -0.5f, -0.5f,    0.0f,  0.0f, -1.0f,
+   0.5f, -0.5f, -0.5f,    0.0f,  0.0f, -1.0f, 
+   0.5f,  0.5f, -0.5f,    0.0f,  0.0f, -1.0f, 
+   0.5f,  0.5f, -0.5f,    0.0f,  0.0f, -1.0f, 
+  -0.5f,  0.5f, -0.5f,    0.0f,  0.0f, -1.0f, 
+  -0.5f, -0.5f, -0.5f,    0.0f,  0.0f, -1.0f, 
 
-public:
-	vec3 pos;
-	vec3 normal;
-	vec2 uv;
-};
+  -0.5f, -0.5f,  0.5f,    0.0f,  0.0f,  1.0f,
+   0.5f, -0.5f,  0.5f,    0.0f,  0.0f,  1.0f,
+   0.5f,  0.5f,  0.5f,    0.0f,  0.0f,  1.0f,
+   0.5f,  0.5f,  0.5f,    0.0f,  0.0f,  1.0f,
+  -0.5f,  0.5f,  0.5f,    0.0f,  0.0f,  1.0f,
+  -0.5f, -0.5f,  0.5f,    0.0f,  0.0f,  1.0f,
 
-constexpr inline auto pnt_vertex::attributes() noexcept {
-  return std::to_array<vertex_attribute>({
-		{.location = 0, .type = attribute_type::vec3, .offset = offsetof(pnt_vertex, pos)},
-		{.location = 1, .type = attribute_type::vec3, .offset = offsetof(pnt_vertex, normal)},
-		{.location = 2, .type = attribute_type::vec2, .offset = offsetof(pnt_vertex, uv)},
-	});
+  -0.5f,  0.5f,  0.5f,   -1.0f,  0.0f,  0.0f,
+  -0.5f,  0.5f, -0.5f,   -1.0f,  0.0f,  0.0f,
+  -0.5f, -0.5f, -0.5f,   -1.0f,  0.0f,  0.0f,
+  -0.5f, -0.5f, -0.5f,   -1.0f,  0.0f,  0.0f,
+  -0.5f, -0.5f,  0.5f,   -1.0f,  0.0f,  0.0f,
+  -0.5f,  0.5f,  0.5f,   -1.0f,  0.0f,  0.0f,
+
+   0.5f,  0.5f,  0.5f,    1.0f,  0.0f,  0.0f,
+   0.5f,  0.5f, -0.5f,    1.0f,  0.0f,  0.0f,
+   0.5f, -0.5f, -0.5f,    1.0f,  0.0f,  0.0f,
+   0.5f, -0.5f, -0.5f,    1.0f,  0.0f,  0.0f,
+   0.5f, -0.5f,  0.5f,    1.0f,  0.0f,  0.0f,
+   0.5f,  0.5f,  0.5f,    1.0f,  0.0f,  0.0f,
+
+  -0.5f, -0.5f, -0.5f,    0.0f, -1.0f,  0.0f,
+   0.5f, -0.5f, -0.5f,    0.0f, -1.0f,  0.0f,
+   0.5f, -0.5f,  0.5f,    0.0f, -1.0f,  0.0f,
+   0.5f, -0.5f,  0.5f,    0.0f, -1.0f,  0.0f,
+  -0.5f, -0.5f,  0.5f,    0.0f, -1.0f,  0.0f,
+  -0.5f, -0.5f, -0.5f,    0.0f, -1.0f,  0.0f,
+
+  -0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f,
+   0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f,
+   0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,
+   0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,
+  -0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,
+  -0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f
+});
 }
 
-static_assert(meta::vertex_type<pnt_vertex>);
+template<vertex_layout_mode Mode>
+constexpr auto make_pnt_unindexed_cube() {
+  static_assert(Mode == vertex_layout_mode::soa);
+return std::to_array<f32>({
+  // position             // normal             // uv
+  -0.5f, -0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
+   0.5f, -0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   1.0f, 0.0f,
+   0.5f,  0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   1.0f, 1.0f,
+   0.5f,  0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   1.0f, 1.0f,
+  -0.5f,  0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   0.0f, 1.0f,
+  -0.5f, -0.5f, -0.5f,    0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
 
-struct pn_vertex {
-public:
-  static constexpr u32 attribute_count = 2u;
-	static constexpr inline auto attributes() noexcept;
+  -0.5f, -0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   0.0f, 0.0f,
+   0.5f, -0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   1.0f, 0.0f,
+   0.5f,  0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   1.0f, 1.0f,
+   0.5f,  0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   1.0f, 1.0f,
+	-0.5f,  0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   0.0f, 1.0f,
+  -0.5f, -0.5f,  0.5f,    0.0f,  0.0f,  1.0f,   0.0f, 0.0f,
 
-public:
-	vec3 pos;
-	vec3 normal;
-};
+  -0.5f,  0.5f,  0.5f,   -1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
+  -0.5f,  0.5f, -0.5f,   -1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
+  -0.5f, -0.5f, -0.5f,   -1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+  -0.5f, -0.5f, -0.5f,   -1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+  -0.5f, -0.5f,  0.5f,   -1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
+  -0.5f,  0.5f,  0.5f,   -1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
 
-constexpr inline auto pn_vertex::attributes() noexcept{
-	return std::to_array<vertex_attribute>({
-    {.location = 0, .type = attribute_type::vec3, .offset = offsetof(pn_vertex, pos)},
-		{.location = 1, .type = attribute_type::vec3, .offset = offsetof(pn_vertex, normal)},
-  });
+   0.5f,  0.5f,  0.5f,    1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
+   0.5f,  0.5f, -0.5f,    1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
+   0.5f, -0.5f, -0.5f,    1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+   0.5f, -0.5f, -0.5f,    1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+   0.5f, -0.5f,  0.5f,    1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
+   0.5f,  0.5f,  0.5f,    1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
+
+  -0.5f, -0.5f, -0.5f,    0.0f, -1.0f,  0.0f,   0.0f, 1.0f,
+   0.5f, -0.5f, -0.5f,    0.0f, -1.0f,  0.0f,   1.0f, 1.0f,
+   0.5f, -0.5f,  0.5f,    0.0f, -1.0f,  0.0f,   1.0f, 0.0f,
+   0.5f, -0.5f,  0.5f,    0.0f, -1.0f,  0.0f,   1.0f, 0.0f,
+  -0.5f, -0.5f,  0.5f,    0.0f, -1.0f,  0.0f,   0.0f, 0.0f,
+  -0.5f, -0.5f, -0.5f,    0.0f, -1.0f,  0.0f,   0.0f, 1.0f,
+
+  -0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f,   0.0f, 1.0f,
+   0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f,   1.0f, 1.0f,
+   0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,   1.0f, 0.0f,
+   0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,   1.0f, 0.0f,
+  -0.5f,  0.5f,  0.5f,    0.0f,  1.0f,  0.0f,   0.0f, 0.0f,
+  -0.5f,  0.5f, -0.5f,    0.0f,  1.0f,  0.0f,   0.0f, 1.0f,
+});
 }
 
-static_assert(meta::vertex_type<pn_vertex>);
-
-struct pc_vertex {
-public:
-	static constexpr u32 attribute_count = 2u;
-	static constexpr inline auto attributes() noexcept;
-
-public:
-	vec3 pos;
-	vec4 color;
-};
-
-constexpr inline auto pc_vertex::attributes() noexcept{
-	return std::to_array<vertex_attribute>({
-    {.location = 0, .type = attribute_type::vec3, .offset = offsetof(pc_vertex, pos)},
-		{.location = 1, .type = attribute_type::vec4, .offset = offsetof(pc_vertex, color)},
-  });
+template<vertex_layout_mode Mode, bool InvUv = false>
+constexpr auto make_pnt_indexed_quad() {
+  static_assert(Mode == vertex_layout_mode::soa);
+	if constexpr (InvUv) {
+return std::to_array<f32>({
+  // position             // normal             // uv
+  -0.5f, -0.5f,  0.0f,    0.0f,  0.0f,  1.0f,   0.0f, 0.0f,
+   0.5f, -0.5f,  0.0f,    0.0f,  0.0f,  1.0f,   1.0f, 0.0f,
+   0.5f,  0.5f,  0.0f,    0.0f,  0.0f,  1.0f,   1.0f, 1.0f,
+  -0.5f,  0.5f,  0.0f,    0.0f,  0.0f,  1.0f,   0.0f, 1.0f,
+});
+	} else {
+return std::to_array<f32>({
+  // position             // normal             // uv
+  -0.5f, -0.5f,  0.0f,    0.0f,  0.0f,  1.0f,   0.0f, 1.0f,
+   0.5f, -0.5f,  0.0f,    0.0f,  0.0f,  1.0f,   1.0f, 1.0f,
+   0.5f,  0.5f,  0.0f,    0.0f,  0.0f,  1.0f,   1.0f, 0.0f,
+  -0.5f,  0.5f,  0.0f,    0.0f,  0.0f,  1.0f,   0.0f, 0.0f,
+});
 }
 
-constexpr inline auto pn_unindexed_cube_vert = std::to_array<pn_vertex>({
-  // position               // normal
-  {{-0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f}},
-  {{ 0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f}}, 
-  {{ 0.5f,  0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f}}, 
-  {{ 0.5f,  0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f}}, 
-  {{-0.5f,  0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f}}, 
-  {{-0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f}}, 
-
-  {{-0.5f, -0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f}},
-  {{ 0.5f, -0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f}},
-  {{ 0.5f,  0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f}},
-  {{ 0.5f,  0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f}},
-  {{-0.5f,  0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f}},
-  {{-0.5f, -0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f}},
-
-  {{-0.5f,  0.5f,  0.5f},   {-1.0f,  0.0f,  0.0f}},
-  {{-0.5f,  0.5f, -0.5f},   {-1.0f,  0.0f,  0.0f}},
-  {{-0.5f, -0.5f, -0.5f},   {-1.0f,  0.0f,  0.0f}},
-  {{-0.5f, -0.5f, -0.5f},   {-1.0f,  0.0f,  0.0f}},
-  {{-0.5f, -0.5f,  0.5f},   {-1.0f,  0.0f,  0.0f}},
-  {{-0.5f,  0.5f,  0.5f},   {-1.0f,  0.0f,  0.0f}},
-
-  {{ 0.5f,  0.5f,  0.5f},   { 1.0f,  0.0f,  0.0f}},
-  {{ 0.5f,  0.5f, -0.5f},   { 1.0f,  0.0f,  0.0f}},
-  {{ 0.5f, -0.5f, -0.5f},   { 1.0f,  0.0f,  0.0f}},
-  {{ 0.5f, -0.5f, -0.5f},   { 1.0f,  0.0f,  0.0f}},
-  {{ 0.5f, -0.5f,  0.5f},   { 1.0f,  0.0f,  0.0f}},
-  {{ 0.5f,  0.5f,  0.5f},   { 1.0f,  0.0f,  0.0f}},
-
-  {{-0.5f, -0.5f, -0.5f},   { 0.0f, -1.0f,  0.0f}},
-  {{ 0.5f, -0.5f, -0.5f},   { 0.0f, -1.0f,  0.0f}},
-  {{ 0.5f, -0.5f,  0.5f},   { 0.0f, -1.0f,  0.0f}},
-  {{ 0.5f, -0.5f,  0.5f},   { 0.0f, -1.0f,  0.0f}},
-  {{-0.5f, -0.5f,  0.5f},   { 0.0f, -1.0f,  0.0f}},
-  {{-0.5f, -0.5f, -0.5f},   { 0.0f, -1.0f,  0.0f}},
-
-  {{-0.5f,  0.5f, -0.5f},   { 0.0f,  1.0f,  0.0f}},
-  {{ 0.5f,  0.5f, -0.5f},   { 0.0f,  1.0f,  0.0f}},
-  {{ 0.5f,  0.5f,  0.5f},   { 0.0f,  1.0f,  0.0f}},
-  {{ 0.5f,  0.5f,  0.5f},   { 0.0f,  1.0f,  0.0f}},
-  {{-0.5f,  0.5f,  0.5f},   { 0.0f,  1.0f,  0.0f}},
-  {{-0.5f,  0.5f, -0.5f},   { 0.0f,  1.0f,  0.0f}}
-});
-
-constexpr inline auto pnt_unindexed_cube_vert = std::to_array<pnt_vertex>({
-  // position               // normal                // uv
-  {{-0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f},   {0.0f, 0.0f}},
-  {{ 0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f},   {1.0f, 0.0f}},
-  {{ 0.5f,  0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f},   {1.0f, 1.0f}},
-  {{ 0.5f,  0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f},   {1.0f, 1.0f}},
-  {{-0.5f,  0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f},   {0.0f, 1.0f}},
-  {{-0.5f, -0.5f, -0.5f},   { 0.0f,  0.0f, -1.0f},   {0.0f, 0.0f}},
-
-  {{-0.5f, -0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 0.0f}},
-  {{ 0.5f, -0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f},   {1.0f, 0.0f}},
-  {{ 0.5f,  0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f},   {1.0f, 1.0f}},
-  {{ 0.5f,  0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f},   {1.0f, 1.0f}},
-  {{-0.5f,  0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 1.0f}},
-  {{-0.5f, -0.5f,  0.5f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 0.0f}},
-
-  {{-0.5f,  0.5f,  0.5f},   {-1.0f,  0.0f,  0.0f},   {1.0f, 0.0f}},
-  {{-0.5f,  0.5f, -0.5f},   {-1.0f,  0.0f,  0.0f},   {1.0f, 1.0f}},
-  {{-0.5f, -0.5f, -0.5f},   {-1.0f,  0.0f,  0.0f},   {0.0f, 1.0f}},
-  {{-0.5f, -0.5f, -0.5f},   {-1.0f,  0.0f,  0.0f},   {0.0f, 1.0f}},
-  {{-0.5f, -0.5f,  0.5f},   {-1.0f,  0.0f,  0.0f},   {0.0f, 0.0f}},
-  {{-0.5f,  0.5f,  0.5f},   {-1.0f,  0.0f,  0.0f},   {1.0f, 0.0f}},
-
-  {{ 0.5f,  0.5f,  0.5f},   { 1.0f,  0.0f,  0.0f},   {1.0f, 0.0f}},
-  {{ 0.5f,  0.5f, -0.5f},   { 1.0f,  0.0f,  0.0f},   {1.0f, 1.0f}},
-  {{ 0.5f, -0.5f, -0.5f},   { 1.0f,  0.0f,  0.0f},   {0.0f, 1.0f}},
-  {{ 0.5f, -0.5f, -0.5f},   { 1.0f,  0.0f,  0.0f},   {0.0f, 1.0f}},
-  {{ 0.5f, -0.5f,  0.5f},   { 1.0f,  0.0f,  0.0f},   {0.0f, 0.0f}},
-  {{ 0.5f,  0.5f,  0.5f},   { 1.0f,  0.0f,  0.0f},   {1.0f, 0.0f}},
-
-  {{-0.5f, -0.5f, -0.5f},   { 0.0f, -1.0f,  0.0f},   {0.0f, 1.0f}},
-  {{ 0.5f, -0.5f, -0.5f},   { 0.0f, -1.0f,  0.0f},   {1.0f, 1.0f}},
-  {{ 0.5f, -0.5f,  0.5f},   { 0.0f, -1.0f,  0.0f},   {1.0f, 0.0f}},
-  {{ 0.5f, -0.5f,  0.5f},   { 0.0f, -1.0f,  0.0f},   {1.0f, 0.0f}},
-  {{-0.5f, -0.5f,  0.5f},   { 0.0f, -1.0f,  0.0f},   {0.0f, 0.0f}},
-  {{-0.5f, -0.5f, -0.5f},   { 0.0f, -1.0f,  0.0f},   {0.0f, 1.0f}},
-
-  {{-0.5f,  0.5f, -0.5f},   { 0.0f,  1.0f,  0.0f},   {0.0f, 1.0f}},
-  {{ 0.5f,  0.5f, -0.5f},   { 0.0f,  1.0f,  0.0f},   {1.0f, 1.0f}},
-  {{ 0.5f,  0.5f,  0.5f},   { 0.0f,  1.0f,  0.0f},   {1.0f, 0.0f}},
-  {{ 0.5f,  0.5f,  0.5f},   { 0.0f,  1.0f,  0.0f},   {1.0f, 0.0f}},
-  {{-0.5f,  0.5f,  0.5f},   { 0.0f,  1.0f,  0.0f},   {0.0f, 0.0f}},
-  {{-0.5f,  0.5f, -0.5f},   { 0.0f,  1.0f,  0.0f},   {0.0f, 1.0f}}
-});
-
-constexpr inline auto pnt_indexed_quad_vert = std::to_array<pnt_vertex>({
-  // position               // normal                // uv
-  {{-0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 0.0f}},
-  {{ 0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {1.0f, 0.0f}},
-  {{ 0.5f,  0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {1.0f, 1.0f}},
-  {{-0.5f,  0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 1.0f}},
-});
-
-constexpr inline auto pc_indexed_quad_vert = std::to_array<pc_vertex>({
-  // position               // color
-  {{-0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  0.0f,  1.0f}},
-});
-
-constexpr inline auto pnt_indexed_quad_vert_inv = std::to_array<pnt_vertex>({
-  // position               // normal                // uv
-  {{-0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 1.0f}},
-  {{ 0.5f, -0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {1.0f, 1.0f}},
-  {{ 0.5f,  0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {1.0f, 0.0f}},
-  {{-0.5f,  0.5f,  0.0f},   { 0.0f,  0.0f,  1.0f},   {0.0f, 0.0f}},
-});
-
+}
 constexpr inline auto pnt_indexed_quad_ind_u32 = std::to_array<u32>({
   0, 1, 2, // bottom right triangle
   0, 2, 3  // top left triangle
@@ -180,7 +137,7 @@ constexpr inline auto pnt_indexed_quad_ind_u32 = std::to_array<u32>({
 // clang-format on
 
 template<u32 TexExtent>
-constexpr auto missing_albedo_bitmap = [] {
+constexpr auto make_missing_albedo() -> std::array<u8, 4u * TexExtent * TexExtent> {
   std::array<u8, 4u * TexExtent * TexExtent> out;
   const u8 pixels[]{
     0x00, 0x00, 0x00, 0xFF, // black
@@ -200,6 +157,6 @@ constexpr auto missing_albedo_bitmap = [] {
   }
 
   return out;
-}();
+};
 
 } // namespace shogle

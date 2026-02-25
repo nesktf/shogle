@@ -29,19 +29,7 @@ public:
     USAGE_DYNAMIC_STORAGE_BIT = 0x0100, // GL_DYNAMIC_STORAGE_BIT
   };
 
-  static constexpr gldefs::GLbitfield DEFAULT_INMUTABLE_USAGE = USAGE_DYNAMIC_STORAGE_BIT;
-
-  enum buffer_mut_usage : gldefs::GLenum {
-    MUT_USAGE_STREAM_DRAW = 0x88E0,  // GL_STREAM_DRAW
-    MUT_USAGE_STREAM_READ = 0x88E1,  // GL_STREAM_READ
-    MUT_USAGE_STREAM_COPY = 0x88E2,  // GL_STREAM_COPY
-    MUT_USAGE_STATIC_DRAW = 0x88E4,  // GL_STATIC_DRAW
-    MUT_USAGE_STATIC_READ = 0x88E5,  // GL_STATIC_READ
-    MUT_USAGE_STATIC_COPY = 0x88E6,  // GL_STATIC_COPY
-    MUT_USAGE_DYNAMIC_DRAW = 0x88E8, // GL_DYNAMIC_DRAW
-    MUT_USAGE_DYNAMIC_READ = 0x88E9, // GL_DYNAMIC_READ
-    MUT_USAGE_DYNAMIC_COPY = 0x88EA, // GL_DYNAMIC_READ
-  };
+  static constexpr gldefs::GLbitfield DEFAULT_USAGE_FLAGS = USAGE_DYNAMIC_STORAGE_BIT;
 
   enum mapping_access : gldefs::GLbitfield {
     MAP_ACCESS_READONLY = 0x88B8,  // GL_READ_ONLY
@@ -60,8 +48,6 @@ public:
 
   using n_err_return = std::pair<size_t, gldefs::GLenum>;
 
-  struct mutable_tag {};
-
 private:
   struct create_t {};
 
@@ -77,39 +63,26 @@ private:
 
 public:
   // Internal constructor
-  gl_buffer(create_t, gldefs::GLhandle id, buffer_type type, size_t size, gldefs::GLenum usage);
+  gl_buffer(create_t, gldefs::GLhandle id, gldefs::GLenum usage, size_t size);
 
   // Inmutable sized constructor with optional data
-  gl_buffer(gl_context& gl, buffer_type type, size_t size,
-            gldefs::GLbitfield usage_flags = DEFAULT_INMUTABLE_USAGE, const void* data = nullptr);
-
-  // Mutable sized constructor with optional data
-  gl_buffer(mutable_tag, gl_context& gl, buffer_type type, size_t size, buffer_mut_usage usage,
+  gl_buffer(gl_context& gl, size_t size, gldefs::GLbitfield usage_flags = DEFAULT_USAGE_FLAGS,
             const void* data = nullptr);
 
 private:
   static n_err_return _allocate_span(gl_context& gl, gldefs::GLhandle* buffs, size_t count,
-                                     buffer_type type, size_t size, gldefs::GLenum usage,
-                                     const void* data, bool is_mutable);
+                                     size_t size, gldefs::GLbitfield usage_flags,
+                                     const void* data);
 
 public:
   static gl_expect<gl_buffer> allocate(gl_context& gl, buffer_type type, size_t size,
-                                       gldefs::GLbitfield usage_flags = DEFAULT_INMUTABLE_USAGE,
+                                       gldefs::GLbitfield usage_flags = DEFAULT_USAGE_FLAGS,
                                        const void* data = nullptr);
 
-  static gl_expect<gl_buffer> allocate_mut(gl_context& gl, buffer_type type, size_t size,
-                                           buffer_mut_usage usage, const void* data = nullptr);
-
   template<typename Cont>
-  static n_err_return
-  allocate_n(gl_context& gl, Cont&& cont, size_t count, buffer_type type, size_t size,
-             gldefs::GLbitfield usage_flags = DEFAULT_INMUTABLE_USAGE, const void* data = nullptr)
-  requires(growable_buff_container<Cont>);
-
-  template<typename Cont>
-  static n_err_return allocate_mut_n(gl_context& gl, Cont&& cont, size_t count, buffer_type type,
-                                     size_t size, buffer_mut_usage usage,
-                                     const void* data = nullptr)
+  static n_err_return allocate_n(gl_context& gl, Cont&& cont, size_t count, buffer_type type,
+                                 size_t size, gldefs::GLbitfield usage_flags = DEFAULT_USAGE_FLAGS,
+                                 const void* data = nullptr)
   requires(growable_buff_container<Cont>);
 
   static void deallocate(gl_context& gl, gl_buffer& buff) noexcept;
@@ -117,36 +90,28 @@ public:
   static void deallocate_n(gl_context& gl, span<gl_buffer> buffs) noexcept;
 
 public:
-  gl_expect<void> upload_data(gl_context& gl, const void* data, size_t size, size_t offset);
-  gl_expect<void> read_data(gl_context& gl, void* data, size_t size, size_t offset);
+  gl_expect<void> upload_data(gl_context& gl, const void* data, size_t size, size_t offset) const;
+  gl_expect<void> read_data(gl_context& gl, void* data, size_t size, size_t offset) const;
 
-  gl_expect<void*> map(gl_context& gl, mapping_access access);
+  gl_expect<void*> map(gl_context& gl, mapping_access access) const;
   gl_expect<void*> map_range(gl_context& gl, size_t size, size_t offset,
-                             gldefs::GLbitfield access_flags);
-  void unmap(gl_context& gl);
-
-public:
-  void mut_realloc(gl_context& gl, size_t size, buffer_mut_usage usage,
-                   const void* data = nullptr);
+                             gldefs::GLbitfield access_flags) const;
+  void unmap(gl_context& gl) const;
 
 public:
   gldefs::GLhandle id() const;
-  buffer_type type() const;
-  size_t size() const;
   gldefs::GLbitfield usage_flags() const;
-  buffer_mut_usage mut_usage() const;
+  size_t size() const;
 
-  bool is_mutable() const noexcept;
   bool invalidated() const noexcept;
 
 public:
   explicit operator bool() const noexcept { return !invalidated(); }
 
 private:
-  size_t _size;
   gldefs::GLhandle _id;
-  buffer_type _type;
-  gldefs::GLenum _usage;
+  gldefs::GLbitfield _usage_flags;
+  size_t _size;
 };
 
 static_assert(::shogle::meta::renderer_object_type<gl_buffer>);
@@ -170,5 +135,5 @@ private:
 } // namespace shogle
 
 #ifndef SHOGLE_RENDER_GL_BUFFER_INL
-#include <shogle/render/gl/buffer.inl>
+#include "./buffer.inl"
 #endif

@@ -54,10 +54,11 @@ private:
 
 public:
   gl_shader(create_t, gldefs::GLhandle id, shader_stage stage);
-  gl_shader(gl_context& gl, std::string_view src, shader_stage stage);
+  gl_shader(gl_context& gl, const char* src, size_t src_size, shader_stage stage);
 
 public:
-  static gl_s_expect<gl_shader> create(gl_context& gl, std::string_view src, shader_stage stage);
+  static gl_s_expect<gl_shader> create(gl_context& gl, const char* src, size_t src_size,
+                                       shader_stage stage);
 
   static void destroy(gl_context& gl, gl_shader& shader) noexcept;
   static void destroy_n(gl_context& gl, gl_shader* shaders, size_t count) noexcept;

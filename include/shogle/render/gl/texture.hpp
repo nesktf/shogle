@@ -151,7 +151,7 @@ public:
     SAMPLER_LINEAR_MP_NEAREST = 0x2701,  // GL_LINEAR_MIPMAP_NEAREST
     SAMPLER_NEAREST_MP_LINEAR = 0x2702,  // GL_NEAREST_MIPMAP_LINEAR
     SAMPLER_LINEAR_MP_LINEAR = 0x2703,   // GL_LINEAR_MIPMAP_LINEAR
-	};
+  };
 
   enum cubemap_face : gldefs::GLenum {
     CUBEMAP_POS_X = 0x8515, // GL_TEXTURE_CUBEMAP_POSITIVE_X
@@ -364,6 +364,6 @@ private:
 
 } // namespace shogle
 
-#ifndef SHOGLE_GL_TEXTURE_INL
-#include <shogle/render/gl/texture.inl>
+#ifndef SHOGLE_RENDER_GL_TEXTURE_INL
+#include "./texture.inl"
 #endif

@@ -1,6 +1,6 @@
-#define SHOGLE_GL_TEXTURE_INL
-#include <shogle/render/gl/texture.hpp>
-#undef SHOGLE_GL_TEXTURE_INL
+#define SHOGLE_RENDER_GL_TEXTURE_INL
+#include "./texture.hpp"
+#undef SHOGLE_RENDER_GL_TEXTURE_INL
 
 namespace shogle {
 

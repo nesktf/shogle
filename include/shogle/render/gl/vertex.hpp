@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shogle/render/gl/common.hpp>
+#include <shogle/render/gl/buffer.hpp>
 
 namespace shogle {
 
@@ -9,63 +9,71 @@ public:
   using context_type = gl_context;
   using deleter_type = gl_deleter<gl_vertex_layout>;
 
+  enum index_format : gldefs::GLenum {
+    INDEX_FORMAT_I8 = 0, // GL_BYTE
+    INDEX_FORMAT_U8,     // GL_UNSIGNED_BYTE
+    INDEX_FORMAT_I16,    // GL_SHORT
+    INDEX_FORMAT_U16,    // GL_UNSIGNED_SHORT
+    INDEX_FORMAT_I32,    // GL_INT
+    INDEX_FORMAT_U32,    // GL_UNSIGNED_INT
+  };
+
 public:
   // I'm too lazy to manage a growing array here
   static constexpr u32 MAX_ATTRIBUTE_BINDINGS = 16;
 
   using attribute_array = std::array<vertex_attribute, MAX_ATTRIBUTE_BINDINGS>;
 
-  enum layout_type {
-    TYPE_AOS_LAYOUT = 0,
-    TYPE_SOA_LAYOUT,
-  };
-
 private:
   struct create_t {};
 
 public:
-  gl_vertex_layout(create_t, gldefs::GLhandle vao, attribute_array attributes, u32 attribute_count,
-                   size_t stride);
+  gl_vertex_layout(create_t, attribute_array attributes, u32 attribute_count, gldefs::GLhandle vao,
+                   gl_buffer vertex, optional<gl_buffer> index, size_t vertex_offset,
+                   size_t index_offset);
 
-  gl_vertex_layout(gl_context& gl, size_t stride, const ::shogle::vertex_attribute* attribs,
-                   u32 attrib_count);
+  template<meta::context_layout_type Layout>
+  gl_vertex_layout(gl_context& gl, const Layout& layout, gl_buffer vertex_buffer,
+                   size_t vertex_offset);
 
-  gl_vertex_layout(gl_context& gl, size_t stride, span<const ::shogle::vertex_attribute> attribs);
+  template<meta::context_layout_type Layout>
+  gl_vertex_layout(gl_context& gl, const Layout& layout, gl_buffer vertex_buffer,
+                   size_t vertex_offset, gl_buffer index_buffer, index_format format,
+                   size_t index_offset);
 
-  template<size_t AttribCount>
-  gl_vertex_layout(gl_context& gl, size_t stride,
-                   span<const ::shogle::vertex_attribute, AttribCount> attribs)
-  requires(AttribCount != dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS);
+  template<typename Layout>
+  gl_vertex_layout(gl_context& gl, vertex_arg<Layout>, gl_buffer vertex_buffer,
+                   size_t vertex_offset);
 
-  template<typename T>
-  gl_vertex_layout(gl_context& gl, soa_vertex_arg<T>)
-  requires(T::attribute_count <= MAX_ATTRIBUTE_BINDINGS);
+  template<typename Layout>
+  gl_vertex_layout(gl_context& gl, vertex_arg<Layout>, gl_buffer vertex_buffer,
+                   size_t vertex_offset, gl_buffer index_buffer, index_format format,
+                   size_t index_offset);
 
-  template<typename T>
-  gl_vertex_layout(gl_context& gl, aos_vertex_arg<T>)
-  requires(T::attribute_count <= MAX_ATTRIBUTE_BINDINGS);
+private:
+  static gl_expect<gl_vertex_layout> _create(gl_context& gl, span<const vertex_attribute> attribs,
+                                             gl_buffer vertex_buffer, size_t vertex_offset,
+                                             optional<gl_buffer> index, index_format format,
+                                             size_t index_offset);
 
 public:
-  static gl_expect<gl_vertex_layout> create(gl_context& gl, size_t stride,
-                                            const ::shogle::vertex_attribute* attribs,
-                                            u32 attrib_count);
+  template<meta::context_layout_type Layout>
+  static gl_expect<gl_vertex_layout> create(gl_context& gl, const Layout& layout,
+                                            gl_buffer vertex_buffer, size_t vertex_offset);
 
-  static gl_expect<gl_vertex_layout> create(gl_context& gl, size_t stride,
-                                            span<const ::shogle::vertex_attribute> attribs);
-
-  template<size_t AttribCount>
+  template<meta::context_layout_type Layout>
   static gl_expect<gl_vertex_layout>
-  create(gl_context& gl, size_t stride,
-         span<const ::shogle::vertex_attribute, AttribCount> attribs)
-  requires(AttribCount != dynamic_extent && AttribCount <= MAX_ATTRIBUTE_BINDINGS);
+  create(gl_context& gl, const Layout& layout, gl_buffer vertex_buffer, size_t vertex_offset,
+         gl_buffer index_buffer, index_format format, size_t index_offset);
 
-  template<::shogle::meta::vertex_type T>
-  static gl_expect<gl_vertex_layout> from_soa_vertex(gl_context& gl)
-  requires(T::attribute_count <= MAX_ATTRIBUTE_BINDINGS);
+  template<meta::static_layout_type Layout>
+  static gl_expect<gl_vertex_layout> create(gl_context& gl, gl_buffer vertex_buffer,
+                                            size_t vertex_offset);
 
-  template<::shogle::meta::vertex_type T>
-  static gl_expect<gl_vertex_layout> from_aos_vertex(gl_context& gl)
-  requires(T::attribute_count <= MAX_ATTRIBUTE_BINDINGS);
+  template<meta::static_layout_type Layout>
+  static gl_expect<gl_vertex_layout> create(gl_context& gl, gl_buffer vertex_buffer,
+                                            size_t vertex_offset, gl_buffer index_buffer,
+                                            index_format format, size_t index_offset);
 
   static void destroy(gl_context& gl, gl_vertex_layout& layout) noexcept;
   static void destroy_n(gl_context& gl, gl_vertex_layout* layouts, size_t count) noexcept;
@@ -74,8 +82,12 @@ public:
 public:
   gldefs::GLhandle vao() const;
   span<const vertex_attribute> attributes() const;
-  size_t stride() const;
-  layout_type type() const;
+
+  const gl_buffer& vertex_buffer() const;
+  size_t vertex_offset() const;
+
+  const gl_buffer* index_buffer() const;
+  size_t index_offset() const;
 
   bool invalidated() const noexcept;
 
@@ -84,9 +96,12 @@ public:
 
 private:
   attribute_array _attributes;
-  size_t _stride;
-  gldefs::GLhandle _vao;
   u32 _attribute_count;
+  gldefs::GLhandle _vao;
+  gl_buffer _vertex;
+  optional<gl_buffer> _index;
+  size_t _vertex_offset;
+  size_t _index_offset;
 };
 
 static_assert(::shogle::meta::renderer_object_type<gl_vertex_layout>);
@@ -111,6 +126,6 @@ private:
 
 } // namespace shogle
 
-#ifndef SHOGLE_RENDER_GL_VERTEX
-#include <shogle/render/gl/vertex.inl>
+#ifndef SHOGLE_RENDER_GL_VERTEX_INL
+#include "./vertex.inl"
 #endif
