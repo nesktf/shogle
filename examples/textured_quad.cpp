@@ -113,7 +113,7 @@ int main() {
   const auto glfw = shogle::glfw_win::initialize_lib();
   const auto hints = shogle::glfw_gl_hints::make_default(4, 4);
   shogle::glfw_win win((u32)win_w, (u32)win_h, "test", hints);
-  shogle::gl_context gl(win);
+  shogle::gl_context gl(win.surface_provider());
 
   bool pause = false;
   win.set_key_input_callback([&](auto, const shogle::glfw_key_data& key) {

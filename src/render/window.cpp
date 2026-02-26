@@ -15,7 +15,7 @@
 
 #if defined(SHOGLE_ENABLE_GLFW) && defined(SHOGLE_ENABLE_OPENGL)
 #include <shogle/render/gl/common.hpp>
-static_assert(shogle::gl_provider_type<shogle::glfw_win>);
+static_assert(shogle::gl_provider_type<shogle::glfw_win::glfw_provider>);
 #endif
 
 namespace shogle {
@@ -26,14 +26,15 @@ namespace shogle {
 
 struct glfw_win::window_data {
   window_data(GLFWwindow* win_, shogle::render_context_tag ctx_tag_) noexcept :
-      win(win_), ctx_tag(ctx_tag_), on_viewport(), on_key_input(), on_cursor_pos(),
-      on_cursor_enter(), on_scroll(), on_button_input(), on_char_input() {}
+      provider(*this), win(win_), ctx_tag(ctx_tag_), on_viewport(), on_key_input(),
+      on_cursor_pos(), on_cursor_enter(), on_scroll(), on_button_input(), on_char_input() {}
 
   ~window_data() noexcept {
     WIN_LOG(DEBUG, "Window destroyed (ptr: {})", fmt::ptr(win));
     glfwDestroyWindow(win);
   }
 
+  glfw_provider provider;
   GLFWwindow* win;
   shogle::render_context_tag ctx_tag;
   viewport_fun on_viewport;
@@ -44,6 +45,16 @@ struct glfw_win::window_data {
   button_input_fun on_button_input;
   char_input_fun on_char_input;
 };
+
+extent2d glfw_win::glfw_provider::surface_extent() const noexcept {
+  int w, h;
+  glfwGetFramebufferSize(win->win, &w, &h);
+  return {.width = (u32)w, .height = (u32)h};
+}
+
+void* glfw_win::glfw_provider::gl_get_proc(const char* name) const noexcept {
+  return (reinterpret_cast<void* (*)(const char*)>(glfwGetProcAddress))(name);
+}
 
 void glfw_win::fb_callback(GLFWwindow* win, int w, int h) {
   auto& data = *static_cast<glfw_win::window_data*>(glfwGetWindowUserPointer(win));
@@ -228,6 +239,11 @@ GLFWwindow* glfw_win::get() const {
   return _ctx->win;
 }
 
+glfw_win::glfw_provider& glfw_win::surface_provider() const {
+  SHOGLE_ASSERT(_ctx);
+  return _ctx->provider;
+}
+
 bool glfw_win::should_close() const {
   SHOGLE_ASSERT(_ctx);
   return glfwWindowShouldClose(_ctx->win);
@@ -260,9 +276,7 @@ extent2d glfw_win::surface_extent() const noexcept {
   if (SHOGLE_UNLIKELY(!_ctx)) {
     return {.width = 0, .height = 0};
   }
-  int w, h;
-  glfwGetFramebufferSize(_ctx->win, &w, &h);
-  return {.width = (u32)w, .height = (u32)h};
+  return _ctx->provider.surface_extent();
 }
 
 void glfw_win::set_swap_interval(u32 interval) const noexcept {
@@ -293,10 +307,6 @@ void glfw_win::swap_buffers() noexcept {
     return;
   }
   glfwSwapBuffers(_ctx->win);
-}
-
-void* glfw_win::gl_get_proc(const char* name) const noexcept {
-  return (reinterpret_cast<void* (*)(const char*)>(glfwGetProcAddress))(name);
 }
 
 /*

@@ -3,6 +3,7 @@
 #include <shogle/render/common.hpp>
 
 #include <shogle/util/expected.hpp>
+#include <shogle/util/ptr.hpp>
 
 #ifdef SHOGLE_ENABLE_GLFW
 #include <GLFW/glfw3.h>
@@ -145,6 +146,16 @@ public:
     void operator()(window_data* data) noexcept;
   };
 
+  struct glfw_provider {
+    void* gl_get_proc(const char* name) const noexcept;
+    extent2d surface_extent() const noexcept;
+    // u32 vk_surface_extensions(scratch_vec<const char*>& extensions) override;
+    // bool vk_create_surface(vkdefs::VkInstance vk, vkdefs::VkSurfaceKHR& surface,
+    //                        vkdefs::VkAllocationCallbacksPtr vkalloc) noexcept override;
+
+    ref_view<window_data> win;
+  };
+
   using window_data_ptr = std::unique_ptr<window_data, window_deleter>;
 
 public:
@@ -168,6 +179,7 @@ public:
   void poll_events() const;
   void set_title(const char* title) const;
   extent2d window_extent() const noexcept;
+  extent2d surface_extent() const noexcept;
   void set_swap_interval(u32 interval) const noexcept;
   void set_attrib(glfw_enum attrib, glfw_enum value) const;
   glfw_enum poll_key(glfw_enum key) const;
@@ -175,11 +187,7 @@ public:
   void swap_buffers() noexcept;
 
 public:
-  void* gl_get_proc(const char* name) const noexcept;
-  extent2d surface_extent() const noexcept;
-  // u32 vk_surface_extensions(scratch_vec<const char*>& extensions) override;
-  // bool vk_create_surface(vkdefs::VkInstance vk, vkdefs::VkSurfaceKHR& surface,
-  //                        vkdefs::VkAllocationCallbacksPtr vkalloc) noexcept override;
+  glfw_provider& surface_provider() const;
 
 public:
   glfw_win& set_viewport_callback(viewport_fun func);
